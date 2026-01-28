@@ -25,23 +25,41 @@ class ModelTier(str, Enum):
 
 # Queries matching these patterns get routed to Claude Code
 CLAUDE_CODE_TRIGGERS = [
-    "analyze", "explain", "write code", "debug", "plan",
-    "compare", "evaluate", "strategy", "research", "summarize",
+    "explain", "write code", "debug", "plan",
+    "compare", "evaluate", "strategy", "research",
     "financial", "legal", "complex", "detailed",
+]
+
+# Queries matching these patterns MUST stay local (they need tools)
+LOCAL_TOOL_TRIGGERS = [
+    "crm", "contact", "email", "calendar", "schedule", "meeting",
+    "server", "upload", "create", "add", "send", "check",
+    "reminder", "task", "opportunity", "company", "person",
+    "import", "export", "csv", "document",
 ]
 
 
 def classify_query(query: str) -> ModelTier:
     """Determine if a query needs local Ollama or Claude Code."""
     query_lower = query.lower().strip()
+
     # "claude" prefix always goes to Claude Code
     if query_lower.startswith("claude ") or query_lower.startswith("claude,"):
         return ModelTier.CLAUDE_CODE
+
+    # Tool-related queries MUST stay local (Claude Code doesn't have tools)
+    for trigger in LOCAL_TOOL_TRIGGERS:
+        if trigger in query_lower:
+            return ModelTier.LOCAL
+
+    # Long queries without tool triggers go to Claude Code
     if len(query) > 500:
         return ModelTier.CLAUDE_CODE
+
     for trigger in CLAUDE_CODE_TRIGGERS:
         if trigger in query_lower:
             return ModelTier.CLAUDE_CODE
+
     return ModelTier.LOCAL
 
 
