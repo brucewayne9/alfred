@@ -338,12 +338,29 @@ async def upload_document(file: UploadFile = File(...), user: dict = Depends(req
     path = save_upload(content, file.filename)
     # Parse the document
     result = parse_document(path)
+
+    # Index to LightRAG for long-term memory
+    lightrag_status = "not_indexed"
+    if result["text"] and not result["error"]:
+        try:
+            from integrations.lightrag.client import upload_text
+            lr_result = await upload_text(
+                result["text"],
+                description=f"Document: {file.filename}"
+            )
+            lightrag_status = "indexed" if lr_result["success"] else f"failed: {lr_result.get('error', 'unknown')}"
+            logger.info(f"LightRAG indexing: {lightrag_status}")
+        except Exception as e:
+            lightrag_status = f"failed: {e}"
+            logger.warning(f"LightRAG indexing failed: {e}")
+
     return {
         "path": path,
         "filename": file.filename,
         "text_preview": result["text"][:2000] + ("..." if len(result["text"]) > 2000 else ""),
         "metadata": result["metadata"],
         "error": result["error"],
+        "lightrag_status": lightrag_status,
     }
 
 

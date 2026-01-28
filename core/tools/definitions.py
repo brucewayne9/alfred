@@ -601,6 +601,69 @@ async def generate_image_tool(prompt: str, width: int = 1024, height: int = 1024
     }
 
 
+# ==================== KNOWLEDGE BASE (LightRAG) ====================
+
+@tool(
+    name="search_knowledge",
+    description="Search the knowledge base for information from uploaded documents, contracts, emails, and notes. Use this when the user asks about something that might be in their documents.",
+    parameters={
+        "query": "string - the question or search query",
+        "top_k": "int - number of results to return (default 5)",
+    },
+)
+async def search_knowledge(query: str, top_k: int = 5) -> dict:
+    from integrations.lightrag.client import query_context
+    result = await query_context(query, top_k=top_k)
+    if not result["success"]:
+        return {"success": False, "error": result["error"]}
+    return {"success": True, "context": result["result"]}
+
+
+@tool(
+    name="ask_knowledge",
+    description="Ask a question and get an answer from the knowledge base with full LLM reasoning. Use for complex questions requiring synthesis across multiple documents.",
+    parameters={
+        "question": "string - the question to answer",
+        "mode": "string - search mode: 'hybrid' (default), 'local', 'global', or 'naive'",
+    },
+)
+async def ask_knowledge(question: str, mode: str = "hybrid") -> dict:
+    from integrations.lightrag.client import query
+    result = await query(question, mode=mode, only_need_context=False)
+    if not result["success"]:
+        return {"success": False, "error": result["error"]}
+    return {"success": True, "answer": result["result"]}
+
+
+@tool(
+    name="store_to_knowledge",
+    description="Store text content in the knowledge base for future retrieval. Use for important information, notes, or summaries that should be remembered.",
+    parameters={
+        "text": "string - the content to store",
+        "description": "string - brief description of what this content is about",
+    },
+)
+async def store_to_knowledge(text: str, description: str = "") -> dict:
+    from integrations.lightrag.client import upload_text
+    result = await upload_text(text, description)
+    if not result["success"]:
+        return {"success": False, "error": result["error"]}
+    return {"success": True, "message": "Content stored in knowledge base"}
+
+
+@tool(
+    name="list_knowledge_documents",
+    description="List documents stored in the knowledge base.",
+    parameters={"limit": "int - max documents to return (default 20)"},
+)
+async def list_knowledge_documents(limit: int = 20) -> dict:
+    from integrations.lightrag.client import list_documents
+    result = await list_documents(limit=limit)
+    if not result["success"]:
+        return {"success": False, "error": result["error"]}
+    return {"success": True, "documents": result["documents"]}
+
+
 def register_all():
     """Import this module to register all tools."""
     pass

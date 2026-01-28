@@ -36,6 +36,8 @@ LOCAL_TOOL_TRIGGERS = [
     "server", "upload", "create", "add", "send", "check",
     "reminder", "task", "opportunity", "company", "person",
     "import", "export", "csv", "document",
+    "knowledge", "remember", "recall", "what did", "what was",
+    "find in", "search for", "look up",
 ]
 
 
