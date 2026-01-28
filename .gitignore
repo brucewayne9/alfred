@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Environment and secrets
+config/.env
+config/users.json
+config/google_token.json
+config/servers.json
+*.pem
+*.key
+
+# Data directories
+data/uploads/
+data/generated/
+data/chroma/
+data/chromadb/
+data/conversations.db
+data/conversations.db-shm
+data/conversations.db-wal
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temp files
+*.tmp
+*.temp
+.cache/
+
+# Model files (too large)
+*.safetensors
+*.ckpt
+*.bin
+*.pt
+*.pth
