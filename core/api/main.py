@@ -2035,22 +2035,39 @@ CHAT_HTML = """<!DOCTYPE html>
                 const dismissalPhrases = [
                     "that's all for now", "thats all for now", "that is all for now",
                     "that's all", "thats all", "that is all",
-                    "goodbye alfred", "goodbye", "good bye",
-                    "thanks alfred", "thank you alfred",
-                    "that will be all", "that'll be all",
-                    "i'm done", "im done", "i am done",
-                    "go to sleep", "you can go", "dismiss",
-                    "see you later", "talk to you later",
-                    "all for now", "nothing else"
+                    "goodbye alfred", "goodbye", "good bye", "bye",
+                    "thanks alfred", "thank you alfred", "thanks that's all",
+                    "that will be all", "that'll be all", "thatll be all",
+                    "i'm done", "im done", "i am done", "done for now",
+                    "go to sleep", "you can go", "dismiss", "dismissed",
+                    "see you later", "talk to you later", "later alfred",
+                    "all for now", "nothing else", "no that's it", "no thats it"
                 ];
                 const textLower = text.toLowerCase().trim();
                 const isDismissal = dismissalPhrases.some(phrase => textLower.includes(phrase));
+                console.log('Transcribed:', textLower, '| Dismissal detected:', isDismissal);
 
-                if (isDismissal && wakeWordActive) {
+                if (isDismissal) {
+                    console.log('Dismissal phrase detected, ending hands-free mode');
                     addMsg(text, 'user');
                     const farewellMsg = "Very good, sir. I'm here if you need me.";
                     addMsg(farewellMsg, 'alfred', 'local');
                     vadProcessing = false;
+
+                    // Function to disable hands-free
+                    function disableHandsFree() {
+                        console.log('Disabling hands-free mode');
+                        handsFreeActive = false;
+                        document.getElementById('handsfree-btn').classList.remove('active');
+                        if (vadInstance) vadInstance.pause();
+                        setVadState('idle');
+                        // Update wake word status if active
+                        const wwStatus = document.getElementById('wakeword-status');
+                        if (wwStatus && wakeWordActive) {
+                            wwStatus.textContent = 'Listening for "Hey Alfred"...';
+                            wwStatus.classList.add('visible');
+                        }
+                    }
 
                     // Play farewell TTS then disable hands-free
                     setVadState('speak');
@@ -2065,36 +2082,17 @@ CHAT_HTML = """<!DOCTYPE html>
                             currentAudio.onended = () => {
                                 currentAudio = null;
                                 URL.revokeObjectURL(url);
-                                // Turn off hands-free, keep wake word active
-                                if (handsFreeActive) {
-                                    handsFreeActive = false;
-                                    document.getElementById('handsfree-btn').classList.remove('active');
-                                    if (vadInstance) vadInstance.pause();
-                                    setVadState('idle');
-                                    // Update wake word status
-                                    const wwStatus = document.getElementById('wakeword-status');
-                                    if (wwStatus && wakeWordActive) {
-                                        wwStatus.textContent = 'Listening for "Hey Alfred"...';
-                                    }
-                                }
+                                disableHandsFree();
                             };
-                            currentAudio.play();
+                            currentAudio.onerror = () => {
+                                disableHandsFree();
+                            };
+                            currentAudio.play().catch(() => disableHandsFree());
                         } else {
-                            // No audio, just disable hands-free
-                            if (handsFreeActive) {
-                                handsFreeActive = false;
-                                document.getElementById('handsfree-btn').classList.remove('active');
-                                if (vadInstance) vadInstance.pause();
-                                setVadState('idle');
-                            }
+                            disableHandsFree();
                         }
                     }).catch(() => {
-                        if (handsFreeActive) {
-                            handsFreeActive = false;
-                            document.getElementById('handsfree-btn').classList.remove('active');
-                            if (vadInstance) vadInstance.pause();
-                            setVadState('idle');
-                        }
+                        disableHandsFree();
                     });
                     return;
                 }
@@ -2191,7 +2189,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
 
 SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v10';
+const CACHE_NAME = 'alfred-v11';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
 self.addEventListener('install', event => {
