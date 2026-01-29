@@ -319,6 +319,25 @@ async def integration_status(user: dict = Depends(require_auth)):
     except Exception:
         pass
 
+    # Check n8n connection
+    n8n_connected = False
+    n8n_workflow_count = 0
+    try:
+        from integrations.n8n.client import is_connected as n8n_is_connected, list_workflows as n8n_list
+        n8n_connected = n8n_is_connected()
+        if n8n_connected:
+            n8n_workflow_count = len(n8n_list(limit=100))
+    except Exception:
+        pass
+
+    # Check Nextcloud connection
+    nextcloud_connected = False
+    try:
+        from integrations.nextcloud.client import is_connected as nc_is_connected
+        nextcloud_connected = nc_is_connected()
+    except Exception:
+        pass
+
     return {
         "google": {
             "connected": google,
@@ -332,6 +351,17 @@ async def integration_status(user: dict = Depends(require_auth)):
             "configured": bool(settings.base_crm_api_key),
             "connected": crm_connected,
             "label": "Twenty CRM",
+        },
+        "n8n": {
+            "configured": bool(settings.n8n_api_key),
+            "connected": n8n_connected,
+            "workflow_count": n8n_workflow_count,
+            "label": "n8n Automations",
+        },
+        "nextcloud": {
+            "configured": bool(settings.nextcloud_url),
+            "connected": nextcloud_connected,
+            "label": "Nextcloud",
         },
         "ollama": {
             "model": settings.ollama_model,
@@ -2413,6 +2443,19 @@ CHAT_HTML = """<!DOCTYPE html>
                 html += `<div class="status-item">
                     <span><span class="status-dot ${crmConnected?'green':'red'}"></span>${crmLabel}</span>
                     <span style="color:#888;font-size:12px">${crmConnected?'Connected':'Not connected'}</span>
+                </div>`;
+                // n8n
+                const n8nConnected = data.n8n?.connected;
+                const n8nCount = data.n8n?.workflow_count || 0;
+                html += `<div class="status-item">
+                    <span><span class="status-dot ${n8nConnected?'green':'red'}"></span>n8n Automations</span>
+                    <span style="color:#888;font-size:12px">${n8nConnected ? n8nCount + ' workflows' : 'Not connected'}</span>
+                </div>`;
+                // Nextcloud
+                const ncConnected = data.nextcloud?.connected;
+                html += `<div class="status-item">
+                    <span><span class="status-dot ${ncConnected?'green':'red'}"></span>Nextcloud</span>
+                    <span style="color:#888;font-size:12px">${ncConnected?'Connected':'Not connected'}</span>
                 </div>`;
 
                 document.getElementById('integration-list').innerHTML = html;

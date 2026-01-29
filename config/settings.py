@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     base_crm_api_key: str = ""
     base_crm_url: str = "https://crm.groundrushlabs.com"
 
+    # n8n Workflow Automation
+    n8n_url: str = ""
+    n8n_api_key: str = ""
+
+    # Nextcloud
+    nextcloud_url: str = ""
+    nextcloud_username: str = ""
+    nextcloud_password: str = ""
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"

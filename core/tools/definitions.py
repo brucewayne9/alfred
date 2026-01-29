@@ -664,6 +664,446 @@ async def list_knowledge_documents(limit: int = 20) -> dict:
     return {"success": True, "documents": result["documents"]}
 
 
+# ==================== N8N WORKFLOW AUTOMATION ====================
+
+@tool(
+    name="n8n_list_workflows",
+    description="List all automation workflows in n8n.",
+    parameters={"limit": "int (default 50)", "active_only": "bool - only show active workflows (default false)"},
+)
+def n8n_list_workflows(limit: int = 50, active_only: bool = False) -> list[dict]:
+    from integrations.n8n.client import list_workflows
+    return list_workflows(limit, active_only)
+
+
+@tool(
+    name="n8n_get_workflow",
+    description="Get details of a specific workflow including its nodes and structure.",
+    parameters={"workflow_id": "string - the workflow ID"},
+)
+def n8n_get_workflow(workflow_id: str) -> dict:
+    from integrations.n8n.client import get_workflow_summary
+    return get_workflow_summary(workflow_id)
+
+
+@tool(
+    name="n8n_create_workflow",
+    description="Create a new automation workflow from a description. Describe what you want the workflow to do and it will generate the appropriate structure.",
+    parameters={
+        "name": "string - workflow name",
+        "description": "string - describe what the workflow should do (e.g., 'send a Slack message every day at 9am')",
+    },
+)
+def n8n_create_workflow_from_desc(name: str, description: str) -> dict:
+    from integrations.n8n.client import create_workflow_from_description, create_workflow
+    spec = create_workflow_from_description(name, description)
+    result = create_workflow(spec["name"], spec["nodes"], spec["connections"])
+    return {
+        "success": True,
+        "workflow": result,
+        "message": f"Workflow '{name}' created. Use n8n_activate_workflow to enable it.",
+        "nodes_created": len(spec["nodes"]),
+    }
+
+
+@tool(
+    name="n8n_create_webhook_slack_workflow",
+    description="Create a workflow that listens for webhooks and sends notifications to Slack.",
+    parameters={
+        "name": "string - workflow name",
+        "webhook_path": "string - URL path for the webhook (e.g., 'my-webhook')",
+        "slack_channel": "string - Slack channel (e.g., '#general')",
+        "message_template": "string - message to send (can include {{$json.field}} placeholders)",
+    },
+)
+def n8n_create_webhook_slack(name: str, webhook_path: str, slack_channel: str, message_template: str) -> dict:
+    from integrations.n8n.client import create_webhook_to_slack_workflow
+    result = create_webhook_to_slack_workflow(name, webhook_path, slack_channel, message_template)
+    return {"success": True, "workflow": result}
+
+
+@tool(
+    name="n8n_create_scheduled_workflow",
+    description="Create a workflow that runs on a schedule and makes an HTTP request.",
+    parameters={
+        "name": "string - workflow name",
+        "cron": "string - cron expression (e.g., '0 9 * * *' for 9 AM daily)",
+        "url": "string - URL to call",
+        "method": "string - HTTP method (GET, POST, etc.)",
+    },
+)
+def n8n_create_scheduled(name: str, cron: str, url: str, method: str = "GET") -> dict:
+    from integrations.n8n.client import create_scheduled_http_workflow
+    result = create_scheduled_http_workflow(name, cron, url, method)
+    return {"success": True, "workflow": result}
+
+
+@tool(
+    name="n8n_activate_workflow",
+    description="Activate a workflow so it starts running.",
+    parameters={"workflow_id": "string - the workflow ID to activate"},
+)
+def n8n_activate_workflow(workflow_id: str) -> dict:
+    from integrations.n8n.client import activate_workflow
+    result = activate_workflow(workflow_id)
+    return {"success": True, "workflow": result, "message": "Workflow activated"}
+
+
+@tool(
+    name="n8n_deactivate_workflow",
+    description="Deactivate a workflow to stop it from running.",
+    parameters={"workflow_id": "string - the workflow ID to deactivate"},
+)
+def n8n_deactivate_workflow(workflow_id: str) -> dict:
+    from integrations.n8n.client import deactivate_workflow
+    result = deactivate_workflow(workflow_id)
+    return {"success": True, "workflow": result, "message": "Workflow deactivated"}
+
+
+@tool(
+    name="n8n_delete_workflow",
+    description="Delete a workflow permanently.",
+    parameters={"workflow_id": "string - the workflow ID to delete"},
+)
+def n8n_delete_workflow(workflow_id: str) -> dict:
+    from integrations.n8n.client import delete_workflow
+    return delete_workflow(workflow_id)
+
+
+@tool(
+    name="n8n_execute_workflow",
+    description="Execute/run a workflow manually, optionally with input data.",
+    parameters={
+        "workflow_id": "string - the workflow ID to execute",
+        "data": "dict - optional input data to pass to the workflow",
+    },
+)
+def n8n_execute_workflow(workflow_id: str, data: dict = None) -> dict:
+    from integrations.n8n.client import execute_workflow
+    return execute_workflow(workflow_id, data)
+
+
+@tool(
+    name="n8n_get_executions",
+    description="Get execution history for workflows.",
+    parameters={
+        "workflow_id": "string - optional workflow ID to filter by",
+        "limit": "int - max executions to return (default 20)",
+    },
+)
+def n8n_get_executions(workflow_id: str = "", limit: int = 20) -> list[dict]:
+    from integrations.n8n.client import get_executions
+    return get_executions(workflow_id if workflow_id else None, limit)
+
+
+# ==================== NEXTCLOUD ====================
+
+@tool(
+    name="nextcloud_list_files",
+    description="List files and folders in Nextcloud at a given path.",
+    parameters={"path": "string - folder path (default '/')"},
+)
+def nextcloud_list_files(path: str = "/") -> list[dict]:
+    from integrations.nextcloud.client import list_files
+    return list_files(path)
+
+
+@tool(
+    name="nextcloud_search_files",
+    description="Search for files by name in Nextcloud.",
+    parameters={"query": "string - search query", "path": "string - folder to search in (default '/')"},
+)
+def nextcloud_search_files(query: str, path: str = "/") -> list[dict]:
+    from integrations.nextcloud.client import search_files
+    return search_files(query, path)
+
+
+@tool(
+    name="nextcloud_read_file",
+    description="Read the contents of a text file from Nextcloud.",
+    parameters={"path": "string - file path"},
+)
+def nextcloud_read_file(path: str) -> dict:
+    from integrations.nextcloud.client import download_file_text
+    try:
+        content = download_file_text(path)
+        return {"success": True, "content": content}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@tool(
+    name="nextcloud_upload_file",
+    description="Upload or create a file in Nextcloud.",
+    parameters={"path": "string - destination path", "content": "string - file content"},
+)
+def nextcloud_upload_file(path: str, content: str) -> dict:
+    from integrations.nextcloud.client import upload_file
+    return upload_file(path, content)
+
+
+@tool(
+    name="nextcloud_create_folder",
+    description="Create a folder in Nextcloud.",
+    parameters={"path": "string - folder path to create"},
+)
+def nextcloud_create_folder(path: str) -> dict:
+    from integrations.nextcloud.client import create_folder
+    return create_folder(path)
+
+
+@tool(
+    name="nextcloud_delete_file",
+    description="Delete a file or folder from Nextcloud.",
+    parameters={"path": "string - path to delete"},
+)
+def nextcloud_delete_file(path: str) -> dict:
+    from integrations.nextcloud.client import delete_file
+    return delete_file(path)
+
+
+@tool(
+    name="nextcloud_move_file",
+    description="Move or rename a file/folder in Nextcloud.",
+    parameters={"source": "string - current path", "destination": "string - new path"},
+)
+def nextcloud_move_file(source: str, destination: str) -> dict:
+    from integrations.nextcloud.client import move_file
+    return move_file(source, destination)
+
+
+@tool(
+    name="nextcloud_storage_info",
+    description="Get Nextcloud storage quota usage.",
+    parameters={},
+)
+def nextcloud_storage_info() -> dict:
+    from integrations.nextcloud.client import get_storage_info
+    return get_storage_info()
+
+
+# Nextcloud Notes
+@tool(
+    name="nextcloud_list_notes",
+    description="List all notes in Nextcloud Notes app.",
+    parameters={},
+)
+def nextcloud_list_notes() -> list[dict]:
+    from integrations.nextcloud.client import list_notes
+    return list_notes()
+
+
+@tool(
+    name="nextcloud_get_note",
+    description="Get a specific note from Nextcloud.",
+    parameters={"note_id": "int - note ID"},
+)
+def nextcloud_get_note(note_id: int) -> dict:
+    from integrations.nextcloud.client import get_note
+    return get_note(note_id)
+
+
+@tool(
+    name="nextcloud_create_note",
+    description="Create a new note in Nextcloud.",
+    parameters={"title": "string", "content": "string (optional)", "category": "string (optional)"},
+)
+def nextcloud_create_note(title: str, content: str = "", category: str = "") -> dict:
+    from integrations.nextcloud.client import create_note
+    return create_note(title, content, category)
+
+
+@tool(
+    name="nextcloud_update_note",
+    description="Update a note in Nextcloud.",
+    parameters={"note_id": "int", "title": "string (optional)", "content": "string (optional)"},
+)
+def nextcloud_update_note(note_id: int, title: str = None, content: str = None) -> dict:
+    from integrations.nextcloud.client import update_note
+    return update_note(note_id, title, content)
+
+
+@tool(
+    name="nextcloud_delete_note",
+    description="Delete a note from Nextcloud.",
+    parameters={"note_id": "int"},
+)
+def nextcloud_delete_note(note_id: int) -> dict:
+    from integrations.nextcloud.client import delete_note
+    return delete_note(note_id)
+
+
+# Nextcloud Talk
+@tool(
+    name="nextcloud_list_conversations",
+    description="List all Nextcloud Talk conversations/chats.",
+    parameters={},
+)
+def nextcloud_list_conversations() -> list[dict]:
+    from integrations.nextcloud.client import list_conversations
+    return list_conversations()
+
+
+@tool(
+    name="nextcloud_get_messages",
+    description="Get messages from a Nextcloud Talk conversation.",
+    parameters={"token": "string - conversation token", "limit": "int (default 50)"},
+)
+def nextcloud_get_messages(token: str, limit: int = 50) -> list[dict]:
+    from integrations.nextcloud.client import get_messages
+    return get_messages(token, limit)
+
+
+@tool(
+    name="nextcloud_send_message",
+    description="Send a message to a Nextcloud Talk conversation.",
+    parameters={"token": "string - conversation token", "message": "string - message to send"},
+)
+def nextcloud_send_message(token: str, message: str) -> dict:
+    from integrations.nextcloud.client import send_message
+    return send_message(token, message)
+
+
+@tool(
+    name="nextcloud_create_conversation",
+    description="Create a new Nextcloud Talk group conversation.",
+    parameters={"name": "string - conversation name", "invite_users": "list of user IDs to invite (optional)"},
+)
+def nextcloud_create_conversation(name: str, invite_users: list[str] = None) -> dict:
+    from integrations.nextcloud.client import create_conversation
+    return create_conversation(name, 2, invite_users)
+
+
+@tool(
+    name="nextcloud_add_participant",
+    description="Add a user to a Nextcloud Talk conversation.",
+    parameters={"token": "string - conversation token", "user_id": "string - user to add"},
+)
+def nextcloud_add_participant(token: str, user_id: str) -> dict:
+    from integrations.nextcloud.client import add_participant
+    return add_participant(token, user_id)
+
+
+# Nextcloud User Management
+@tool(
+    name="nextcloud_list_users",
+    description="List users in Nextcloud (requires admin).",
+    parameters={"search": "string - search query (optional)", "limit": "int (default 50)"},
+)
+def nextcloud_list_users(search: str = "", limit: int = 50) -> list[dict]:
+    from integrations.nextcloud.client import list_users
+    return list_users(search, limit)
+
+
+@tool(
+    name="nextcloud_get_user",
+    description="Get details about a Nextcloud user.",
+    parameters={"user_id": "string - username"},
+)
+def nextcloud_get_user(user_id: str) -> dict:
+    from integrations.nextcloud.client import get_user
+    return get_user(user_id)
+
+
+@tool(
+    name="nextcloud_create_user",
+    description="Create a new Nextcloud user (requires admin).",
+    parameters={
+        "user_id": "string - username",
+        "password": "string - initial password",
+        "email": "string (optional)",
+        "display_name": "string (optional)",
+        "groups": "list of group names (optional)",
+    },
+)
+def nextcloud_create_user(user_id: str, password: str, email: str = "",
+                          display_name: str = "", groups: list[str] = None) -> dict:
+    from integrations.nextcloud.client import create_user
+    return create_user(user_id, password, email, display_name, groups)
+
+
+@tool(
+    name="nextcloud_delete_user",
+    description="Delete a Nextcloud user (requires admin).",
+    parameters={"user_id": "string - username to delete"},
+)
+def nextcloud_delete_user(user_id: str) -> dict:
+    from integrations.nextcloud.client import delete_user
+    return delete_user(user_id)
+
+
+@tool(
+    name="nextcloud_enable_user",
+    description="Enable a disabled Nextcloud user.",
+    parameters={"user_id": "string - username"},
+)
+def nextcloud_enable_user(user_id: str) -> dict:
+    from integrations.nextcloud.client import enable_user
+    return enable_user(user_id)
+
+
+@tool(
+    name="nextcloud_disable_user",
+    description="Disable a Nextcloud user.",
+    parameters={"user_id": "string - username"},
+)
+def nextcloud_disable_user(user_id: str) -> dict:
+    from integrations.nextcloud.client import disable_user
+    return disable_user(user_id)
+
+
+@tool(
+    name="nextcloud_list_groups",
+    description="List all Nextcloud groups.",
+    parameters={},
+)
+def nextcloud_list_groups() -> list[dict]:
+    from integrations.nextcloud.client import list_groups
+    return list_groups()
+
+
+@tool(
+    name="nextcloud_add_user_to_group",
+    description="Add a user to a Nextcloud group.",
+    parameters={"user_id": "string - username", "group_id": "string - group name"},
+)
+def nextcloud_add_user_to_group(user_id: str, group_id: str) -> dict:
+    from integrations.nextcloud.client import add_user_to_group
+    return add_user_to_group(user_id, group_id)
+
+
+# Nextcloud Calendar
+@tool(
+    name="nextcloud_list_calendars",
+    description="List Nextcloud calendars.",
+    parameters={},
+)
+def nextcloud_list_calendars() -> list[dict]:
+    from integrations.nextcloud.client import list_calendars
+    return list_calendars()
+
+
+@tool(
+    name="nextcloud_get_calendar_events",
+    description="Get events from a Nextcloud calendar.",
+    parameters={"calendar_id": "string - calendar ID", "days_ahead": "int - days to look ahead (default 30)"},
+)
+def nextcloud_get_calendar_events(calendar_id: str, days_ahead: int = 30) -> list[dict]:
+    from integrations.nextcloud.client import get_calendar_events
+    return get_calendar_events(calendar_id, days_ahead)
+
+
+# Nextcloud Tasks
+@tool(
+    name="nextcloud_get_tasks",
+    description="Get tasks from a Nextcloud task list.",
+    parameters={"list_id": "string - task list/calendar ID"},
+)
+def nextcloud_get_tasks(list_id: str) -> list[dict]:
+    from integrations.nextcloud.client import get_tasks
+    return get_tasks(list_id)
+
+
 def register_all():
     """Import this module to register all tools."""
     pass
