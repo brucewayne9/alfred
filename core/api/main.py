@@ -3131,8 +3131,9 @@ CHAT_HTML = """<!DOCTYPE html>
 
                 // TTS settings
                 const tts = data.tts || {};
+                currentTtsBackend = tts.backend || 'kokoro';
                 document.querySelectorAll('.tts-option').forEach(b => b.classList.remove('active'));
-                const activeBtn = document.getElementById('tts-' + (tts.backend || 'kokoro'));
+                const activeBtn = document.getElementById('tts-' + currentTtsBackend);
                 if (activeBtn) activeBtn.classList.add('active');
                 const ttsStatus = document.getElementById('tts-status');
                 if (ttsStatus) {
@@ -3158,6 +3159,7 @@ CHAT_HTML = """<!DOCTYPE html>
                     headers: authHeaders()
                 });
                 if (resp.ok) {
+                    currentTtsBackend = backend;
                     document.querySelectorAll('.tts-option').forEach(b => b.classList.remove('active'));
                     document.getElementById('tts-' + backend)?.classList.add('active');
                     const ttsStatus = document.getElementById('tts-status');
@@ -3209,6 +3211,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
         let autoSpeak = localStorage.getItem('alfred_auto_speak') === 'true';
         let currentAudio = null;
+        let currentTtsBackend = 'kokoro';  // Track TTS backend for acknowledgment logic
         let msgTexts = {};
         let msgCounter = 0;
         if (autoSpeak) document.getElementById('auto-speak-btn')?.classList.add('active');
@@ -3900,19 +3903,23 @@ CHAT_HTML = """<!DOCTYPE html>
                 }
 
                 // HYBRID APPROACH: Play acknowledgment immediately while processing
+                // Skip acknowledgment for Qwen3 (different voice, adds latency)
                 setVadState('speak');
-                const ackPromise = fetch('/voice/chat/ack', {
-                    method:'POST',
-                    headers: authHeaders({'Content-Type':'application/json'}),
-                    body: JSON.stringify({message:''})
-                }).then(r => r.ok ? r.blob() : null).then(blob => {
-                    if (blob && handsFreeActive) {
-                        const url = URL.createObjectURL(blob);
-                        const ackAudio = new Audio(url);
-                        ackAudio.onended = () => URL.revokeObjectURL(url);
-                        ackAudio.play().catch(() => {});
-                    }
-                }).catch(() => {});
+                let ackPromise = Promise.resolve();
+                if (currentTtsBackend === 'kokoro') {
+                    ackPromise = fetch('/voice/chat/ack', {
+                        method:'POST',
+                        headers: authHeaders({'Content-Type':'application/json'}),
+                        body: JSON.stringify({message:''})
+                    }).then(r => r.ok ? r.blob() : null).then(blob => {
+                        if (blob && handsFreeActive) {
+                            const url = URL.createObjectURL(blob);
+                            const ackAudio = new Audio(url);
+                            ackAudio.onended = () => URL.revokeObjectURL(url);
+                            ackAudio.play().catch(() => {});
+                        }
+                    }).catch(() => {});
+                }
 
                 // Process with smart model in parallel
                 const chatResp = await fetch('/chat', {
