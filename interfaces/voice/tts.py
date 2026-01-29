@@ -158,14 +158,16 @@ def warmup():
 def speak(text: str, voice_id: str = None) -> bytes:
     """Quick function to synthesize speech.
 
-    Uses the TTS backend configured in settings (kokoro, qwen3, or piper).
+    Uses the TTS backend and voice configured in settings.
     """
     from config.settings import settings
     backend = settings.tts_model
 
-    # Set default voice based on backend
+    # Use configured voice, or default based on backend
     if voice_id is None:
-        voice_id = "demo_speaker0" if backend == "qwen3" else "bm_daniel"
+        voice_id = getattr(settings, 'tts_voice', None)
+        if not voice_id:
+            voice_id = "demo_speaker0" if backend == "qwen3" else "bm_daniel"
 
     engine = get_engine(backend)
     clean = _clean_for_speech(text)

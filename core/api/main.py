@@ -1,6 +1,7 @@
 """Alfred API Server - Main FastAPI application with auth, integrations, and tool calling."""
 
 import logging
+import re
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -384,6 +385,10 @@ async def integration_status(user: dict = Depends(require_auth)):
             "configured": bool(settings.anthropic_api_key and settings.anthropic_api_key != "sk-ant-CHANGEME"),
             "model": settings.anthropic_model,
         },
+        "claude_code": {
+            "configured": _check_claude_code_cli(),
+            "label": "Claude Code (Max)",
+        },
         "tts": {
             "backend": settings.tts_model,
             "qwen3_available": _check_qwen3_available(),
@@ -401,6 +406,26 @@ def _check_qwen3_available() -> bool:
         return False
 
 
+def _check_claude_code_cli() -> bool:
+    """Check if Claude Code CLI is available (for Max subscription users)."""
+    import shutil
+    import os
+    from pathlib import Path
+    # Check standard which first
+    if shutil.which("claude"):
+        return True
+    # Also check common nvm/npm paths since uvicorn may not inherit full PATH
+    common_paths = [
+        Path.home() / ".nvm/versions/node/v20.12.2/bin/claude",
+        Path.home() / ".local/bin/claude",
+        Path("/usr/local/bin/claude"),
+    ]
+    for path in common_paths:
+        if path.exists() and os.access(path, os.X_OK):
+            return True
+    return False
+
+
 @app.get("/settings/tts")
 async def get_tts_settings(user: dict = Depends(require_auth)):
     """Get current TTS settings."""
@@ -410,28 +435,105 @@ async def get_tts_settings(user: dict = Depends(require_auth)):
     }
 
 
+def _safe_env_update(key: str, value: str) -> None:
+    """Safely update a key in .env file with atomic write and backup."""
+    env_path = Path("/home/aialfred/alfred/config/.env")
+    backup_path = Path("/home/aialfred/alfred/config/.env.backup")
+
+    if env_path.exists():
+        original = env_path.read_text()
+        original_lines = len(original.strip().split('\n'))
+
+        # Update or append the key
+        pattern = rf"^{re.escape(key)}=.*$"
+        if re.search(pattern, original, re.MULTILINE):
+            new_content = re.sub(pattern, f"{key}={value}", original, flags=re.MULTILINE)
+        else:
+            new_content = original.rstrip() + f"\n{key}={value}\n"
+
+        # Safety check: new content shouldn't be drastically shorter
+        new_lines = len(new_content.strip().split('\n'))
+        if new_lines < original_lines - 1:
+            logger.error(f"ENV update aborted: would reduce from {original_lines} to {new_lines} lines")
+            raise HTTPException(status_code=500, detail="ENV update failed safety check")
+
+        # Atomic write: write to temp, then rename
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', dir=env_path.parent, delete=False) as tmp:
+            tmp.write(new_content)
+            tmp_path = Path(tmp.name)
+
+        # Update backup
+        backup_path.write_text(original)
+
+        # Atomic rename
+        tmp_path.rename(env_path)
+    else:
+        env_path.write_text(f"{key}={value}\n")
+
+
 @app.put("/settings/tts")
 async def set_tts_settings(backend: str, user: dict = Depends(require_auth)):
     """Set TTS backend (kokoro, qwen3, piper)."""
     if backend not in ["kokoro", "qwen3", "piper"]:
         raise HTTPException(status_code=400, detail="Invalid TTS backend")
 
-    # Update settings file
-    env_path = Path("/home/aialfred/alfred/config/.env")
-    if env_path.exists():
-        content = env_path.read_text()
-        if "TTS_MODEL=" in content:
-            content = re.sub(r"TTS_MODEL=.*", f"TTS_MODEL={backend}", content)
-        else:
-            content += f"\nTTS_MODEL={backend}"
-        env_path.write_text(content)
-    else:
-        env_path.write_text(f"TTS_MODEL={backend}\n")
+    _safe_env_update("TTS_MODEL", backend)
 
     # Update runtime settings
     settings.tts_model = backend
 
     return {"backend": backend, "message": f"TTS backend set to {backend}"}
+
+
+# Kokoro voice options
+KOKORO_VOICES = [
+    {"id": "bm_daniel", "name": "Daniel", "desc": "British Male"},
+    {"id": "bm_george", "name": "George", "desc": "British Male"},
+    {"id": "bm_lewis", "name": "Lewis", "desc": "British Male"},
+    {"id": "bf_emma", "name": "Emma", "desc": "British Female"},
+    {"id": "bf_isabella", "name": "Isabella", "desc": "British Female"},
+    {"id": "am_adam", "name": "Adam", "desc": "American Male"},
+    {"id": "am_michael", "name": "Michael", "desc": "American Male"},
+    {"id": "af_heart", "name": "Heart", "desc": "American Female"},
+    {"id": "af_bella", "name": "Bella", "desc": "American Female"},
+    {"id": "af_nicole", "name": "Nicole", "desc": "American Female"},
+    {"id": "af_sarah", "name": "Sarah", "desc": "American Female"},
+    {"id": "af_sky", "name": "Sky", "desc": "American Female"},
+]
+
+
+@app.get("/settings/voices")
+async def get_voices(user: dict = Depends(require_auth)):
+    """Get available voices for the current TTS backend."""
+    backend = settings.tts_model
+
+    if backend == "qwen3":
+        # List voices from Qwen3 resources directory
+        voices = []
+        resources_dir = Path("/home/aialfred/qwen3-tts/resources")
+        if resources_dir.exists():
+            for f in resources_dir.iterdir():
+                if f.suffix in [".mp3", ".wav"]:
+                    voice_id = f.stem
+                    voices.append({"id": voice_id, "name": voice_id, "desc": "Custom voice"})
+        if not voices:
+            voices = [{"id": "demo_speaker0", "name": "Demo Speaker", "desc": "Default voice"}]
+        return {"backend": backend, "voices": voices, "current": settings.tts_voice}
+    else:
+        # Kokoro voices
+        return {"backend": backend, "voices": KOKORO_VOICES, "current": settings.tts_voice}
+
+
+@app.put("/settings/voice")
+async def set_voice(voice: str, user: dict = Depends(require_auth)):
+    """Set the TTS voice."""
+    _safe_env_update("TTS_VOICE", voice)
+
+    # Update runtime settings
+    settings.tts_voice = voice
+
+    return {"voice": voice, "message": f"Voice set to {voice}"}
 
 
 # ==================== Server Management ====================
@@ -964,6 +1066,188 @@ async def text_to_speech(request: Request, req: ChatRequest, user: dict = Depend
     loop = asyncio.get_event_loop()
     audio_data = await loop.run_in_executor(None, lambda: speak(req.message))
     return Response(content=audio_data, media_type="audio/wav")
+
+
+@app.post("/voice/chat/fast")
+@limiter.limit("20/minute")
+async def fast_voice_chat(request: Request, req: ChatRequest, user: dict = Depends(require_auth)):
+    """Ultra-fast voice chat - streams first sentence immediately.
+
+    Returns audio for the first sentence ASAP while generating the rest.
+    Subsequent sentences are returned in the 'more_audio' field.
+    """
+    import asyncio
+    from interfaces.voice.tts import speak
+
+    query = req.message
+    conv_id = req.conversation_id
+
+    # Get conversation context
+    messages = None
+    if conv_id:
+        conv = get_conversation(conv_id)
+        if conv:
+            messages = [{"role": "system", "content": get_system_prompt(query)}]
+            for msg in conv["messages"][-10:]:  # Last 10 messages for context
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            messages.append({"role": "user", "content": query})
+
+    # Stream from LLM and capture first sentence
+    tier = classify_query(query)
+
+    if tier == ModelTier.CLAUDE_CODE:
+        # Claude Code doesn't stream well, use regular path
+        result = await ask(query, messages=messages, tier=tier, stream=False)
+        response_text = result["response"] if isinstance(result, dict) else result
+        loop = asyncio.get_event_loop()
+        audio_data = await loop.run_in_executor(None, lambda: speak(response_text))
+        return Response(content=audio_data, media_type="audio/wav")
+
+    # Stream from local LLM
+    stream = await ask(query, messages=messages, tier=tier, stream=True)
+
+    # Collect text until first sentence boundary
+    buffer = ""
+    first_sentence = ""
+    remaining = []
+    sentence_end = re.compile(r'[.!?]\s*$')
+
+    async for chunk in stream:
+        buffer += chunk
+        # Check for sentence boundary
+        if not first_sentence and sentence_end.search(buffer):
+            # Found first sentence!
+            first_sentence = buffer.strip()
+            buffer = ""
+        elif first_sentence:
+            # Collecting remaining text
+            remaining.append(chunk)
+
+    # If no sentence boundary found, use whole buffer
+    if not first_sentence:
+        first_sentence = buffer.strip()
+
+    full_response = first_sentence + "".join(remaining)
+
+    # Save to conversation
+    if conv_id:
+        add_message(conv_id, "user", query, "local")
+        add_message(conv_id, "assistant", full_response, "local")
+
+    # Generate TTS for first sentence (fast response)
+    loop = asyncio.get_event_loop()
+    first_audio = await loop.run_in_executor(None, lambda: speak(first_sentence))
+
+    # Return first sentence audio immediately
+    # Client can request remaining audio separately if needed
+    return Response(
+        content=first_audio,
+        media_type="audio/wav",
+        headers={
+            "X-Full-Response": full_response[:500],  # Truncated for header
+            "X-Has-More": "true" if remaining else "false",
+        }
+    )
+
+
+# Pre-loaded acknowledgment audio cache
+_ACK_CACHE = {}
+
+def _load_acknowledgments():
+    """Load pre-generated acknowledgment audio into memory."""
+    global _ACK_CACHE
+    cache_dir = Path("/home/aialfred/alfred/data/audio_cache")
+    for wav_file in cache_dir.glob("*.wav"):
+        _ACK_CACHE[wav_file.stem] = wav_file.read_bytes()
+    logger.info(f"Loaded {len(_ACK_CACHE)} acknowledgment audio clips")
+
+# Load on module import
+_load_acknowledgments()
+
+
+@app.post("/voice/chat/hybrid")
+@limiter.limit("20/minute")
+async def hybrid_voice_chat(request: Request, req: ChatRequest, user: dict = Depends(require_auth)):
+    """Hybrid voice chat - instant acknowledgment + smart response.
+
+    Returns a multipart response:
+    1. Acknowledgment audio (instant, <100ms)
+    2. Full response audio (smart model, streamed)
+    """
+    import asyncio
+    import random
+    from interfaces.voice.tts import speak
+
+    query = req.message
+    conv_id = req.conversation_id
+
+    # Pick a random acknowledgment
+    ack_keys = list(_ACK_CACHE.keys()) or ["one_moment"]
+    ack_audio = _ACK_CACHE.get(random.choice(ack_keys), b"")
+
+    async def generate_audio_stream():
+        # First, yield acknowledgment immediately
+        if ack_audio:
+            # Send acknowledgment with a marker
+            yield b"--ACKNOWLEDGE--"
+            yield ack_audio
+            yield b"--END_ACK--"
+
+        # Now process with smart model (mistral-large)
+        messages = None
+        if conv_id:
+            conv = get_conversation(conv_id)
+            if conv:
+                messages = [{"role": "system", "content": get_system_prompt(query)}]
+                for msg in conv["messages"][-10:]:
+                    messages.append({"role": msg["role"], "content": msg["content"]})
+                messages.append({"role": "user", "content": query})
+
+        # Use configured model from settings
+        import ollama as ollama_client
+        smart_model = settings.ollama_model
+
+        if messages is None:
+            messages = [
+                {"role": "system", "content": get_system_prompt(query)},
+                {"role": "user", "content": query},
+            ]
+
+        # Get response from smart model
+        response = ollama_client.chat(model=smart_model, messages=messages)
+        response_text = response["message"]["content"]
+
+        # Save to conversation
+        if conv_id:
+            add_message(conv_id, "user", query, "local")
+            add_message(conv_id, "assistant", response_text, "local")
+
+        # Generate TTS for response
+        loop = asyncio.get_event_loop()
+        response_audio = await loop.run_in_executor(None, lambda: speak(response_text))
+
+        # Send response audio
+        yield b"--RESPONSE--"
+        yield response_audio
+        yield b"--END_RESPONSE--"
+
+    return StreamingResponse(
+        generate_audio_stream(),
+        media_type="application/octet-stream",
+        headers={"X-Audio-Format": "wav"}
+    )
+
+
+@app.post("/voice/chat/ack")
+async def get_acknowledgment(request: Request, user: dict = Depends(require_auth)):
+    """Get just an acknowledgment audio clip (instant response)."""
+    import random
+    if not _ACK_CACHE:
+        _load_acknowledgments()
+    ack_keys = list(_ACK_CACHE.keys())
+    if not ack_keys:
+        return Response(content=b"", media_type="audio/wav")
+    return Response(content=_ACK_CACHE[random.choice(ack_keys)], media_type="audio/wav")
 
 
 @app.post("/memory/store")
@@ -1936,7 +2220,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
         <div class="setting-section">
             <h3>Text-to-Speech</h3>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
                 <button id="tts-kokoro" class="tts-option" onclick="setTTS('kokoro')">
                     <span class="tts-name">Kokoro</span>
                     <span class="tts-desc">Fast, local</span>
@@ -1945,6 +2229,12 @@ CHAT_HTML = """<!DOCTYPE html>
                     <span class="tts-name">Qwen3</span>
                     <span class="tts-desc">High quality, cloning</span>
                 </button>
+            </div>
+            <div style="margin-bottom:8px">
+                <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Voice</label>
+                <select id="tts-voice" onchange="setVoice(this.value)" style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:13px">
+                    <option value="">Loading voices...</option>
+                </select>
             </div>
             <div id="tts-status" style="font-size:12px;color:#888;margin-top:8px"></div>
         </div>
@@ -2286,15 +2576,13 @@ CHAT_HTML = """<!DOCTYPE html>
             await loadProjects();
             await loadConversations();
             await loadArchivedConversations();
-            const resp = await fetch('/conversations?limit=1', {headers: authHeaders()});
-            const convs = await resp.json();
-            if (convs.length) {
-                await switchConversation(convs[0].id);
-            } else {
-                const cr = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
-                currentConversationId = (await cr.json()).id;
-                await loadConversations();
-            }
+            // Always start with a fresh new chat
+            const cr = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
+            currentConversationId = (await cr.json()).id;
+            document.getElementById('messages').innerHTML = '';
+            // Ensure menu stays closed on load
+            document.getElementById('history-panel').classList.remove('open');
+            document.getElementById('history-overlay').classList.remove('open');
         }
 
         // ==================== Search ====================
@@ -2798,11 +3086,25 @@ CHAT_HTML = """<!DOCTYPE html>
                 let llmHtml = `<div class="status-item">
                     <span><span class="status-dot green"></span>Local: ${data.ollama?.model || 'N/A'}</span>
                 </div>`;
-                const aConfigured = data.anthropic?.configured;
-                llmHtml += `<div class="status-item">
-                    <span><span class="status-dot ${aConfigured?'green':'red'}"></span>Cloud: ${data.anthropic?.model || 'N/A'}</span>
-                    <span style="color:#888;font-size:12px">${aConfigured?'Active':'No key'}</span>
-                </div>`;
+                // Check Claude Code CLI first (Max subscription), then API key
+                const claudeCodeConfigured = data.claude_code?.configured;
+                const apiConfigured = data.anthropic?.configured;
+                if (claudeCodeConfigured) {
+                    llmHtml += `<div class="status-item">
+                        <span><span class="status-dot green"></span>Cloud: Claude Code</span>
+                        <span style="color:#888;font-size:12px">Max subscription</span>
+                    </div>`;
+                } else if (apiConfigured) {
+                    llmHtml += `<div class="status-item">
+                        <span><span class="status-dot green"></span>Cloud: ${data.anthropic?.model || 'N/A'}</span>
+                        <span style="color:#888;font-size:12px">API key</span>
+                    </div>`;
+                } else {
+                    llmHtml += `<div class="status-item">
+                        <span><span class="status-dot red"></span>Cloud: Not configured</span>
+                        <span style="color:#888;font-size:12px">No CLI or API key</span>
+                    </div>`;
+                }
                 document.getElementById('llm-info').innerHTML = llmHtml;
 
                 // Account
@@ -2825,6 +3127,8 @@ CHAT_HTML = """<!DOCTYPE html>
                         ttsStatus.textContent = '';
                     }
                 }
+                // Load available voices
+                await loadVoices();
             } catch(e) {
                 document.getElementById('integration-list').innerHTML = '<span style="color:#f87171">Failed to load</span>';
             }
@@ -2842,7 +3146,6 @@ CHAT_HTML = """<!DOCTYPE html>
                     const ttsStatus = document.getElementById('tts-status');
                     if (backend === 'qwen3') {
                         ttsStatus.innerHTML = '<span style="color:#888">Checking Qwen3 server...</span>';
-                        // Check availability
                         const check = await fetch('/settings/tts', {headers: authHeaders()});
                         const data = await check.json();
                         if (data.qwen3_available) {
@@ -2853,9 +3156,37 @@ CHAT_HTML = """<!DOCTYPE html>
                     } else {
                         ttsStatus.textContent = '';
                     }
+                    // Reload voices for new backend
+                    await loadVoices();
                 }
             } catch(e) {
                 console.error('Failed to set TTS:', e);
+            }
+        }
+
+        async function loadVoices() {
+            try {
+                const resp = await fetch('/settings/voices', {headers: authHeaders()});
+                const data = await resp.json();
+                const select = document.getElementById('tts-voice');
+                if (select && data.voices) {
+                    select.innerHTML = data.voices.map(v =>
+                        `<option value="${v.id}" ${v.id === data.current ? 'selected' : ''}>${v.name} (${v.desc})</option>`
+                    ).join('');
+                }
+            } catch(e) {
+                console.error('Failed to load voices:', e);
+            }
+        }
+
+        async function setVoice(voice) {
+            try {
+                await fetch('/settings/voice?voice=' + encodeURIComponent(voice), {
+                    method: 'PUT',
+                    headers: authHeaders()
+                });
+            } catch(e) {
+                console.error('Failed to set voice:', e);
             }
         }
 
@@ -3550,6 +3881,23 @@ CHAT_HTML = """<!DOCTYPE html>
                         currentConversationId = (await cr.json()).id;
                     } catch(e){}
                 }
+
+                // HYBRID APPROACH: Play acknowledgment immediately while processing
+                setVadState('speak');
+                const ackPromise = fetch('/voice/chat/ack', {
+                    method:'POST',
+                    headers: authHeaders({'Content-Type':'application/json'}),
+                    body: JSON.stringify({message:''})
+                }).then(r => r.ok ? r.blob() : null).then(blob => {
+                    if (blob && handsFreeActive) {
+                        const url = URL.createObjectURL(blob);
+                        const ackAudio = new Audio(url);
+                        ackAudio.onended = () => URL.revokeObjectURL(url);
+                        ackAudio.play().catch(() => {});
+                    }
+                }).catch(() => {});
+
+                // Process with smart model in parallel
                 const chatResp = await fetch('/chat', {
                     method:'POST',
                     headers: authHeaders({'Content-Type':'application/json'}),
@@ -3561,8 +3909,10 @@ CHAT_HTML = """<!DOCTYPE html>
                 loadingHistory = false;
                 loadConversations();
                 vadProcessing = false;
-                // Play TTS non-blocking — VAD stays active so user can interrupt
-                playVadTTS(chatData.response);
+
+                // Wait a moment for ack to finish, then play full response
+                await ackPromise;
+                setTimeout(() => playVadTTS(chatData.response), 300);
             } catch(e) {
                 console.error('Hands-free error:', e);
                 vadProcessing = false;
@@ -3635,7 +3985,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
 
 SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v22';
+const CACHE_NAME = 'alfred-v24';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
 self.addEventListener('install', event => {

@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # Voice
     whisper_model: str = "small"
     tts_model: str = "kokoro"
+    tts_voice: str = "bm_daniel"  # Default voice (Kokoro: bm_daniel, Qwen3: demo_speaker0)
     voice_sample_path: str = ""
 
     # Server
