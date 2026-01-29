@@ -506,19 +506,36 @@ KOKORO_VOICES = [
 @app.get("/settings/voices")
 async def get_voices(user: dict = Depends(require_auth)):
     """Get available voices for the current TTS backend."""
+    import requests as req
     backend = settings.tts_model
 
     if backend == "qwen3":
-        # List voices from Qwen3 resources directory
         voices = []
+
+        # List cloned voices from Qwen3 resources directory
         resources_dir = Path("/home/aialfred/qwen3-tts/resources")
         if resources_dir.exists():
             for f in resources_dir.iterdir():
                 if f.suffix in [".mp3", ".wav"]:
                     voice_id = f.stem
-                    voices.append({"id": voice_id, "name": voice_id, "desc": "Custom voice"})
+                    voices.append({"id": voice_id, "name": voice_id, "desc": "Cloned voice", "type": "clone"})
+
+        # List designed voices from Qwen3 API
+        try:
+            resp = req.get("http://localhost:7860/voice_design/voices", timeout=5)
+            if resp.status_code == 200:
+                for v in resp.json().get("voices", []):
+                    voices.append({
+                        "id": f"design:{v['name']}",
+                        "name": f"{v['name']} (designed)",
+                        "desc": v.get("description", "Designed voice")[:50],
+                        "type": "design"
+                    })
+        except Exception as e:
+            logger.warning(f"Could not fetch designed voices: {e}")
+
         if not voices:
-            voices = [{"id": "demo_speaker0", "name": "Demo Speaker", "desc": "Default voice"}]
+            voices = [{"id": "demo_speaker0", "name": "Demo Speaker", "desc": "Default voice", "type": "clone"}]
         return {"backend": backend, "voices": voices, "current": settings.tts_voice}
     else:
         # Kokoro voices

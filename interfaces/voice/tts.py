@@ -74,11 +74,22 @@ class TTSEngine:
             raise ValueError(f"Unknown TTS backend: {self.backend}")
 
     def _synthesize_qwen3(self, text: str, voice_id: str = "demo_speaker0") -> bytes:
-        """Synthesize using Qwen3-TTS server."""
+        """Synthesize using Qwen3-TTS server.
+
+        Supports both cloned voices (from audio samples) and designed voices (from descriptions).
+        Designed voice IDs are prefixed with 'design:' e.g., 'design:professional_narrator'
+        """
         try:
-            url = f"{QWEN3_TTS_URL}/synthesize_speech/"
-            params = {"text": text, "voice": voice_id}
-            response = requests.get(url, params=params, timeout=60)
+            # Check if this is a designed voice
+            if voice_id.startswith("design:"):
+                design_name = voice_id[7:]  # Remove 'design:' prefix
+                url = f"{QWEN3_TTS_URL}/voice_design/synthesize"
+                params = {"text": text, "voice": design_name}
+            else:
+                url = f"{QWEN3_TTS_URL}/synthesize_speech/"
+                params = {"text": text, "voice": voice_id}
+
+            response = requests.get(url, params=params, timeout=120)
             if response.status_code == 200:
                 return response.content
             else:
