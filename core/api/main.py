@@ -2975,6 +2975,8 @@ CHAT_HTML = """<!DOCTYPE html>
                     document.getElementById('login-overlay').classList.add('hidden');
                     loadIntegrations();
                     initConversations();
+                    // Auto-enable Hey Alfred mode on startup
+                    setTimeout(() => toggleHandsFree(), 500);
                 }
             } catch(e) {}
         })();
@@ -3002,6 +3004,8 @@ CHAT_HTML = """<!DOCTYPE html>
                 document.getElementById('login-overlay').classList.add('hidden');
                 loadIntegrations();
                 initConversations();
+                // Auto-enable Hey Alfred mode on startup
+                setTimeout(() => toggleHandsFree(), 500);
             } catch(e) {
                 errEl.textContent = 'Connection error';
                 errEl.style.display = 'block';
