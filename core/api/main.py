@@ -662,6 +662,101 @@ async def websocket_chat(ws: WebSocket):
         logger.info(f"WebSocket disconnected: {session_id}")
 
 
+# ==================== Wake Word WebSocket ====================
+
+# Wake word detection state
+_wakeword_model = None
+_wakeword_initialized = False
+
+def get_wakeword_model():
+    """Get or initialize the wake word model."""
+    global _wakeword_model, _wakeword_initialized
+    if _wakeword_initialized:
+        return _wakeword_model
+    try:
+        from interfaces.voice.wakeword import get_model
+        _wakeword_model = get_model()
+        _wakeword_initialized = True
+        if _wakeword_model:
+            logger.info("Wake word model loaded successfully")
+        return _wakeword_model
+    except Exception as e:
+        logger.error(f"Failed to load wake word model: {e}")
+        _wakeword_initialized = True
+        return None
+
+
+@app.websocket("/ws/wakeword")
+async def websocket_wakeword(ws: WebSocket):
+    """WebSocket endpoint for wake word detection streaming."""
+    import numpy as np
+
+    # Authenticate
+    token = ws.query_params.get("token") or ws.cookies.get("alfred_token")
+    if not token:
+        await ws.close(code=4001, reason="Authentication required")
+        return
+    from core.security.auth import decode_token
+    payload = decode_token(token)
+    if not payload:
+        await ws.close(code=4001, reason="Invalid token")
+        return
+
+    await ws.accept()
+    logger.info(f"Wake word WebSocket connected: {payload.get('sub', 'unknown')}")
+
+    # Get wake word model
+    model = get_wakeword_model()
+    if not model:
+        await ws.send_json({"type": "error", "message": "Wake word model not available"})
+        await ws.close()
+        return
+
+    await ws.send_json({"type": "ready", "message": "Wake word detection active"})
+
+    # Audio buffer for processing
+    audio_buffer = np.array([], dtype=np.int16)
+    chunk_size = 1280  # 80ms at 16kHz
+    threshold = 0.5
+
+    try:
+        while True:
+            # Receive binary audio data
+            data = await ws.receive_bytes()
+
+            # Convert to numpy array (expecting 16-bit PCM)
+            audio_chunk = np.frombuffer(data, dtype=np.int16)
+            audio_buffer = np.concatenate([audio_buffer, audio_chunk])
+
+            # Process in chunks
+            while len(audio_buffer) >= chunk_size:
+                process_chunk = audio_buffer[:chunk_size]
+                audio_buffer = audio_buffer[chunk_size:]
+
+                # Run prediction
+                try:
+                    prediction = model.predict(process_chunk)
+                    for model_name, score in prediction.items():
+                        if score >= threshold:
+                            logger.info(f"Wake word detected! Score: {score:.3f}")
+                            await ws.send_json({
+                                "type": "detected",
+                                "score": float(score),
+                                "model": model_name
+                            })
+                            # Reset model state
+                            model.reset()
+                            audio_buffer = np.array([], dtype=np.int16)
+                            break
+                except Exception as e:
+                    logger.error(f"Wake word prediction error: {e}")
+
+    except WebSocketDisconnect:
+        logger.info("Wake word WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Wake word WebSocket error: {e}")
+
+
 # ==================== HTML UI ====================
 
 CHAT_HTML = """<!DOCTYPE html>
@@ -693,7 +788,7 @@ CHAT_HTML = """<!DOCTYPE html>
         }
         header h1 { font-size: 20px; font-weight: 600; color: #fff; }
         header .status { font-size: 12px; color: #4ade80; }
-        .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+        .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .header-btn {
             background: #222; border: 1px solid #333; color: #ccc; padding: 6px 12px;
             border-radius: 6px; cursor: pointer; font-size: 13px;
@@ -858,6 +953,16 @@ CHAT_HTML = """<!DOCTYPE html>
             border-color: rgba(232,110,44,0.3); background: #1a0f08; color: #e86e2c;
         }
         #handsfree-btn.active .dot { background: #e86e2c; box-shadow: 0 0 6px #e86e2c; }
+        #wakeword-btn.active {
+            border-color: rgba(96,165,250,0.3); background: #0a1020; color: #60a5fa;
+        }
+        #wakeword-btn.active .dot { background: #60a5fa; box-shadow: 0 0 6px #60a5fa; animation: pulse 2s infinite; }
+        #wakeword-status {
+            display: none; padding: 4px 16px; text-align: center;
+            font-size: 11px; color: #60a5fa; background: rgba(96,165,250,0.1);
+            border-radius: 4px; margin: 0 8px;
+        }
+        #wakeword-status.visible { display: inline-block; }
         #vad-status {
             display: none; padding: 6px 24px; text-align: center;
             font-size: 12px; color: #888; border-top: 1px solid #1a1a1a;
@@ -1074,6 +1179,8 @@ CHAT_HTML = """<!DOCTYPE html>
         <h1>Alfred</h1>
         <span class="status" id="header-status">Online</span>
         <div class="header-right">
+            <button id="wakeword-btn" class="mode-toggle" onclick="toggleWakeWord()" title="'Hey Alfred' wake word detection"><span class="dot"></span>Hey Alfred</button>
+            <span id="wakeword-status">Listening for "Hey Alfred"...</span>
             <button id="handsfree-btn" class="mode-toggle" onclick="toggleHandsFree()" title="Hands-free voice conversation"><span class="dot"></span>Hands-free</button>
             <button id="auto-speak-btn" class="mode-toggle" onclick="toggleAutoSpeak()" title="Auto-speak responses"><span class="dot"></span>Auto-speak</button>
             <button class="header-btn" onclick="toggleSettings()">Settings</button>
@@ -1694,6 +1801,147 @@ CHAT_HTML = """<!DOCTYPE html>
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
 
+        // ==================== Wake Word Detection ====================
+
+        let wakeWordActive = false;
+        let wakeWordWs = null;
+        let wakeWordStream = null;
+        let wakeWordContext = null;
+        let wakeWordProcessor = null;
+
+        async function toggleWakeWord() {
+            const btn = document.getElementById('wakeword-btn');
+            const status = document.getElementById('wakeword-status');
+
+            if (wakeWordActive) {
+                // Stop wake word detection
+                wakeWordActive = false;
+                btn.classList.remove('active');
+                status.classList.remove('visible');
+                if (wakeWordWs) {
+                    wakeWordWs.close();
+                    wakeWordWs = null;
+                }
+                if (wakeWordStream) {
+                    wakeWordStream.getTracks().forEach(t => t.stop());
+                    wakeWordStream = null;
+                }
+                if (wakeWordContext) {
+                    wakeWordContext.close();
+                    wakeWordContext = null;
+                }
+                return;
+            }
+
+            // Start wake word detection
+            try {
+                btn.classList.add('active');
+                status.classList.add('visible');
+                status.textContent = 'Starting...';
+
+                // Get microphone access
+                wakeWordStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+
+                // Create audio context for resampling
+                wakeWordContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 16000
+                });
+
+                const source = wakeWordContext.createMediaStreamSource(wakeWordStream);
+                wakeWordProcessor = wakeWordContext.createScriptProcessor(1024, 1, 1);
+
+                // Connect to WebSocket
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const token = localStorage.getItem('alfred_token');
+                wakeWordWs = new WebSocket(`${wsProtocol}//${window.location.host}/ws/wakeword?token=${token}`);
+
+                wakeWordWs.onopen = () => {
+                    console.log('Wake word WebSocket connected');
+                    status.textContent = 'Listening for "Hey Alfred"...';
+                    wakeWordActive = true;
+                };
+
+                wakeWordWs.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'detected') {
+                        console.log('Wake word detected!', data.score);
+                        status.textContent = 'Wake word detected!';
+
+                        // Visual feedback
+                        btn.style.animation = 'pulse 0.3s ease-in-out 3';
+                        setTimeout(() => btn.style.animation = '', 1000);
+
+                        // Trigger hands-free mode if not already active
+                        if (!handsFreeActive) {
+                            toggleHandsFree();
+                        }
+
+                        // Reset status after a moment
+                        setTimeout(() => {
+                            if (wakeWordActive) {
+                                status.textContent = 'Listening for "Hey Alfred"...';
+                            }
+                        }, 2000);
+                    } else if (data.type === 'error') {
+                        console.error('Wake word error:', data.message);
+                        status.textContent = 'Error: ' + data.message;
+                    }
+                };
+
+                wakeWordWs.onclose = () => {
+                    console.log('Wake word WebSocket closed');
+                    if (wakeWordActive) {
+                        // Reconnect after a short delay
+                        setTimeout(() => {
+                            if (wakeWordActive && !wakeWordWs) {
+                                toggleWakeWord();
+                                toggleWakeWord();
+                            }
+                        }, 1000);
+                    }
+                };
+
+                wakeWordWs.onerror = (err) => {
+                    console.error('Wake word WebSocket error:', err);
+                    status.textContent = 'Connection error';
+                };
+
+                // Process audio and send to WebSocket
+                wakeWordProcessor.onaudioprocess = (e) => {
+                    if (!wakeWordActive || !wakeWordWs || wakeWordWs.readyState !== WebSocket.OPEN) return;
+
+                    const inputData = e.inputBuffer.getChannelData(0);
+
+                    // Convert float32 to int16
+                    const int16Data = new Int16Array(inputData.length);
+                    for (let i = 0; i < inputData.length; i++) {
+                        const s = Math.max(-1, Math.min(1, inputData[i]));
+                        int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+
+                    // Send to WebSocket
+                    wakeWordWs.send(int16Data.buffer);
+                };
+
+                source.connect(wakeWordProcessor);
+                wakeWordProcessor.connect(wakeWordContext.destination);
+
+            } catch (err) {
+                console.error('Wake word init failed:', err);
+                btn.classList.remove('active');
+                status.classList.remove('visible');
+                wakeWordActive = false;
+                alert('Wake word detection failed to start. Check microphone permissions.');
+            }
+        }
+
         // ==================== Hands-free VAD Mode ====================
 
         let handsFreeActive = false;
@@ -1782,6 +2030,75 @@ CHAT_HTML = """<!DOCTYPE html>
                     setVadState('listen');
                     return;
                 }
+
+                // Check for dismissal phrases
+                const dismissalPhrases = [
+                    "that's all for now", "thats all for now", "that is all for now",
+                    "that's all", "thats all", "that is all",
+                    "goodbye alfred", "goodbye", "good bye",
+                    "thanks alfred", "thank you alfred",
+                    "that will be all", "that'll be all",
+                    "i'm done", "im done", "i am done",
+                    "go to sleep", "you can go", "dismiss",
+                    "see you later", "talk to you later",
+                    "all for now", "nothing else"
+                ];
+                const textLower = text.toLowerCase().trim();
+                const isDismissal = dismissalPhrases.some(phrase => textLower.includes(phrase));
+
+                if (isDismissal && wakeWordActive) {
+                    addMsg(text, 'user');
+                    const farewellMsg = "Very good, sir. I'm here if you need me.";
+                    addMsg(farewellMsg, 'alfred', 'local');
+                    vadProcessing = false;
+
+                    // Play farewell TTS then disable hands-free
+                    setVadState('speak');
+                    fetch('/voice/speak', {
+                        method:'POST',
+                        headers: authHeaders({'Content-Type':'application/json'}),
+                        body: JSON.stringify({message: farewellMsg})
+                    }).then(r => r.ok ? r.blob() : null).then(blob => {
+                        if (blob) {
+                            const url = URL.createObjectURL(blob);
+                            currentAudio = new Audio(url);
+                            currentAudio.onended = () => {
+                                currentAudio = null;
+                                URL.revokeObjectURL(url);
+                                // Turn off hands-free, keep wake word active
+                                if (handsFreeActive) {
+                                    handsFreeActive = false;
+                                    document.getElementById('handsfree-btn').classList.remove('active');
+                                    if (vadInstance) vadInstance.pause();
+                                    setVadState('idle');
+                                    // Update wake word status
+                                    const wwStatus = document.getElementById('wakeword-status');
+                                    if (wwStatus && wakeWordActive) {
+                                        wwStatus.textContent = 'Listening for "Hey Alfred"...';
+                                    }
+                                }
+                            };
+                            currentAudio.play();
+                        } else {
+                            // No audio, just disable hands-free
+                            if (handsFreeActive) {
+                                handsFreeActive = false;
+                                document.getElementById('handsfree-btn').classList.remove('active');
+                                if (vadInstance) vadInstance.pause();
+                                setVadState('idle');
+                            }
+                        }
+                    }).catch(() => {
+                        if (handsFreeActive) {
+                            handsFreeActive = false;
+                            document.getElementById('handsfree-btn').classList.remove('active');
+                            if (vadInstance) vadInstance.pause();
+                            setVadState('idle');
+                        }
+                    });
+                    return;
+                }
+
                 addMsg(text, 'user');
                 if (!currentConversationId) {
                     try {
@@ -1874,7 +2191,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
 
 SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v8';
+const CACHE_NAME = 'alfred-v10';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
 self.addEventListener('install', event => {
