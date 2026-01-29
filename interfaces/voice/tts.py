@@ -161,8 +161,11 @@ def get_engine(backend: str = "kokoro") -> TTSEngine:
 
 def warmup():
     """Pre-load the TTS model so first request is fast."""
-    engine = get_engine()
-    engine.synthesize("warmup", "bm_daniel")
+    from config.settings import settings
+    backend = settings.tts_model
+    voice = getattr(settings, 'tts_voice', None) or ("demo_speaker0" if backend == "qwen3" else "bm_daniel")
+    engine = get_engine(backend)
+    engine.synthesize("warmup", voice)
     logger.info("TTS engine warmed up")
 
 
