@@ -25,6 +25,12 @@ from core.memory.conversations import (
     init_db as init_conversations_db,
     create_conversation, list_conversations as list_convos,
     get_conversation, add_message, archive_conversation, update_title,
+    list_archived_conversations, restore_conversation, delete_conversation_permanently,
+    search_conversations, create_project, list_projects, get_project,
+    update_project, delete_project, add_reference, list_references,
+    get_reference, update_reference, delete_reference, search_references,
+    move_conversation_to_project, list_conversations_by_project, get_project_context,
+    UPLOADS_DIR,
 )
 from core.security.auth import (
     create_user, verify_user, create_access_token, get_current_user,
@@ -162,6 +168,32 @@ class AddServerRequest(BaseModel):
 
 class ConversationTitleRequest(BaseModel):
     title: str
+
+
+class ProjectRequest(BaseModel):
+    name: str
+    description: str = ""
+    color: str = "#3b82f6"
+
+
+class ProjectUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    color: str | None = None
+
+
+class ReferenceNoteRequest(BaseModel):
+    title: str
+    content: str
+
+
+class ReferenceUpdateRequest(BaseModel):
+    title: str | None = None
+    content: str | None = None
+
+
+class ConversationProjectRequest(BaseModel):
+    project_id: str | None = None
 
 
 # Conversation history per session
@@ -424,9 +456,9 @@ async def download_file(filename: str, user: dict = Depends(require_auth)):
 # ==================== Conversation History Endpoints ====================
 
 @app.get("/conversations")
-async def conversations_list(limit: int = 50, offset: int = 0, user: dict = Depends(require_auth)):
-    """List conversations ordered by most recent."""
-    return list_convos(limit=limit, offset=offset)
+async def conversations_list(limit: int = 50, offset: int = 0, project_id: str | None = None, user: dict = Depends(require_auth)):
+    """List conversations ordered by most recent, optionally filtered by project."""
+    return list_convos(limit=limit, offset=offset, project_id=project_id)
 
 
 @app.post("/conversations")
@@ -458,6 +490,228 @@ async def conversations_rename(conv_id: str, req: ConversationTitleRequest, user
     if not update_title(conv_id, req.title):
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"updated": True}
+
+
+@app.put("/conversations/{conv_id}/project")
+async def conversations_move_to_project(conv_id: str, req: ConversationProjectRequest, user: dict = Depends(require_auth)):
+    """Move a conversation to a project or remove from project."""
+    if not move_conversation_to_project(conv_id, req.project_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"updated": True, "project_id": req.project_id}
+
+
+@app.get("/conversations/search")
+async def conversations_search(q: str, limit: int = 20, user: dict = Depends(require_auth)):
+    """Search conversations using full-text search."""
+    if not q or len(q) < 2:
+        raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
+    return search_conversations(q, limit)
+
+
+@app.get("/conversations/archived")
+async def conversations_archived_list(limit: int = 50, offset: int = 0, user: dict = Depends(require_auth)):
+    """List archived conversations."""
+    return list_archived_conversations(limit=limit, offset=offset)
+
+
+@app.post("/conversations/{conv_id}/restore")
+async def conversations_restore(conv_id: str, user: dict = Depends(require_auth)):
+    """Restore an archived conversation."""
+    if not restore_conversation(conv_id):
+        raise HTTPException(status_code=404, detail="Archived conversation not found")
+    return {"restored": True}
+
+
+@app.delete("/conversations/{conv_id}/permanent")
+async def conversations_delete_permanent(conv_id: str, user: dict = Depends(require_auth)):
+    """Permanently delete a conversation."""
+    if not delete_conversation_permanently(conv_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"deleted": True}
+
+
+# ==================== Projects ====================
+
+@app.get("/projects")
+async def projects_list(user: dict = Depends(require_auth)):
+    """List all projects."""
+    return list_projects()
+
+
+@app.post("/projects")
+async def projects_create(req: ProjectRequest, user: dict = Depends(require_auth)):
+    """Create a new project."""
+    return create_project(req.name, req.description, req.color)
+
+
+@app.get("/projects/{project_id}")
+async def projects_get(project_id: str, user: dict = Depends(require_auth)):
+    """Get project details."""
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@app.put("/projects/{project_id}")
+async def projects_update(project_id: str, req: ProjectUpdateRequest, user: dict = Depends(require_auth)):
+    """Update a project."""
+    if not update_project(project_id, req.name, req.description, req.color):
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"updated": True}
+
+
+@app.delete("/projects/{project_id}")
+async def projects_delete(project_id: str, user: dict = Depends(require_auth)):
+    """Delete a project and all its references."""
+    if not delete_project(project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"deleted": True}
+
+
+@app.get("/projects/{project_id}/references")
+async def projects_references_list(project_id: str, user: dict = Depends(require_auth)):
+    """List all references for a project."""
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return list_references(project_id)
+
+
+@app.post("/projects/{project_id}/references")
+async def projects_references_add_note(project_id: str, req: ReferenceNoteRequest, user: dict = Depends(require_auth)):
+    """Add a note reference to a project."""
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return add_reference(project_id, "note", req.title, req.content)
+
+
+@app.post("/projects/{project_id}/references/upload")
+async def projects_references_upload(project_id: str, file: UploadFile = File(...), user: dict = Depends(require_auth)):
+    """Upload a file reference to a project."""
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Validate file type
+    allowed_ext = {".pdf", ".txt", ".md", ".docx", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
+    ext = Path(file.filename).suffix.lower() if file.filename else ""
+    if ext not in allowed_ext:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
+
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:  # 10MB limit
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    # Save file
+    import uuid as uuid_mod
+    file_id = uuid_mod.uuid4().hex[:12]
+    safe_name = "".join(c for c in file.filename if c.isalnum() or c in "._-")[:50]
+    relative_path = f"{project_id}/{file_id}_{safe_name}"
+    file_path = UPLOADS_DIR / relative_path
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(content)
+
+    # Extract text for searchability
+    extracted_text = ""
+    mime_type = file.content_type or "application/octet-stream"
+
+    if ext == ".pdf":
+        try:
+            import PyPDF2
+            import io
+            reader = PyPDF2.PdfReader(io.BytesIO(content))
+            extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except Exception as e:
+            logger.warning(f"PDF text extraction failed: {e}")
+    elif ext == ".docx":
+        try:
+            import docx
+            import io
+            doc = docx.Document(io.BytesIO(content))
+            extracted_text = "\n".join(para.text for para in doc.paragraphs)
+        except Exception as e:
+            logger.warning(f"DOCX text extraction failed: {e}")
+    elif ext in {".txt", ".md"}:
+        try:
+            extracted_text = content.decode("utf-8", errors="replace")
+        except Exception:
+            pass
+
+    ref = add_reference(
+        project_id,
+        "file",
+        file.filename,
+        extracted_text or None,
+        relative_path,
+        mime_type,
+        len(content),
+    )
+    return ref
+
+
+@app.get("/projects/{project_id}/references/search")
+async def projects_references_search(project_id: str, q: str, limit: int = 20, user: dict = Depends(require_auth)):
+    """Search references within a project."""
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not q or len(q) < 2:
+        raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
+    return search_references(project_id, q, limit)
+
+
+@app.get("/projects/{project_id}/conversations")
+async def projects_conversations_list(project_id: str, limit: int = 50, offset: int = 0, user: dict = Depends(require_auth)):
+    """List conversations in a project."""
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return list_conversations_by_project(project_id, limit, offset)
+
+
+# ==================== References ====================
+
+@app.get("/references/{ref_id}")
+async def references_get(ref_id: int, user: dict = Depends(require_auth)):
+    """Get reference details."""
+    ref = get_reference(ref_id)
+    if not ref:
+        raise HTTPException(status_code=404, detail="Reference not found")
+    return ref
+
+
+@app.put("/references/{ref_id}")
+async def references_update(ref_id: int, req: ReferenceUpdateRequest, user: dict = Depends(require_auth)):
+    """Update a reference."""
+    if not update_reference(ref_id, req.title, req.content):
+        raise HTTPException(status_code=404, detail="Reference not found")
+    return {"updated": True}
+
+
+@app.delete("/references/{ref_id}")
+async def references_delete(ref_id: int, user: dict = Depends(require_auth)):
+    """Delete a reference."""
+    if not delete_reference(ref_id):
+        raise HTTPException(status_code=404, detail="Reference not found")
+    return {"deleted": True}
+
+
+@app.get("/references/{ref_id}/download")
+async def references_download(ref_id: int, user: dict = Depends(require_auth)):
+    """Download a file reference."""
+    ref = get_reference(ref_id)
+    if not ref or not ref.get("file_path"):
+        raise HTTPException(status_code=404, detail="File reference not found")
+    file_path = UPLOADS_DIR / ref["file_path"]
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    return Response(
+        content=file_path.read_bytes(),
+        media_type=ref.get("file_type", "application/octet-stream"),
+        headers={"Content-Disposition": f'attachment; filename="{ref["title"]}"'}
+    )
 
 
 # ==================== Core Endpoints ====================
@@ -524,6 +778,17 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
         messages[-1]["content"] = (
             f"[Relevant context from memory:\n{context}]\n\n" + messages[-1]["content"]
         )
+
+    # Inject project context if conversation belongs to a project
+    conv = get_conversation(req.session_id)
+    if conv and conv.get("project_id"):
+        project_context = get_project_context(conv["project_id"])
+        if project_context:
+            # Prepend project context to the system message
+            if messages and messages[0]["role"] == "system":
+                messages[0]["content"] = f"{messages[0]['content']}\n\n[Project Context]\n{project_context}"
+            else:
+                messages.insert(0, {"role": "system", "content": f"[Project Context]\n{project_context}"})
 
     tier = ModelTier(req.tier) if req.tier else classify_query(req.message)
     result = await ask(req.message, messages=messages, tier=tier)
@@ -1055,7 +1320,7 @@ CHAT_HTML = """<!DOCTYPE html>
         }
         #history-panel.open { left: 0; }
         .history-header {
-            padding: 16px; border-bottom: 1px solid #222;
+            padding: 12px 16px; border-bottom: 1px solid #222;
             display: flex; align-items: center; justify-content: space-between;
         }
         .history-header h2 { font-size: 16px; color: #fff; }
@@ -1064,12 +1329,60 @@ CHAT_HTML = """<!DOCTYPE html>
             background: #2563eb; border: none; color: white; cursor: pointer;
         }
         #new-chat-btn:hover { background: #1d4ed8; }
-        #conversation-list {
-            flex: 1; overflow-y: auto; padding: 8px;
+
+        /* Search bar */
+        #search-container { padding: 8px 12px; border-bottom: 1px solid #222; }
+        #search-input {
+            width: 100%; padding: 8px 12px; border-radius: 6px;
+            border: 1px solid #333; background: #1a1a1a; color: #e0e0e0;
+            font-size: 13px; outline: none;
         }
+        #search-input:focus { border-color: #4a9eff; }
+        #search-input::placeholder { color: #666; }
+        #search-results { display: none; padding: 8px; border-bottom: 1px solid #222; max-height: 200px; overflow-y: auto; }
+        #search-results.visible { display: block; }
+        .search-result { padding: 8px 10px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; }
+        .search-result:hover { background: #1a1a1a; }
+        .search-result-title { font-size: 13px; color: #e0e0e0; }
+        .search-result-snippet { font-size: 11px; color: #888; margin-top: 2px; }
+        .search-result-snippet mark { background: #3b5998; color: #fff; padding: 0 2px; border-radius: 2px; }
+
+        /* Sidebar sections */
+        .sidebar-content { flex: 1; overflow-y: auto; }
+        .sidebar-section { border-bottom: 1px solid #1a1a1a; }
+        .section-header {
+            padding: 10px 12px; display: flex; align-items: center; gap: 8px;
+            cursor: pointer; user-select: none; color: #888; font-size: 12px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .section-header:hover { color: #ccc; }
+        .section-header .arrow { transition: transform 0.2s; font-size: 10px; }
+        .section-header.collapsed .arrow { transform: rotate(-90deg); }
+        .section-content { display: block; }
+        .section-header.collapsed + .section-content { display: none; }
+
+        /* Projects */
+        .project-item {
+            padding: 8px 12px; border-radius: 6px; cursor: pointer;
+            margin: 2px 8px; display: flex; align-items: center; gap: 8px;
+        }
+        .project-item:hover { background: #1a1a1a; }
+        .project-item.active { background: #1e3a5f; }
+        .project-color { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+        .project-name { font-size: 13px; color: #e0e0e0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .project-count { font-size: 11px; color: #666; }
+        #add-project-btn {
+            margin: 8px 12px; padding: 6px 12px; font-size: 12px;
+            background: transparent; border: 1px dashed #333; color: #666;
+            border-radius: 6px; cursor: pointer; width: calc(100% - 24px);
+        }
+        #add-project-btn:hover { border-color: #4a9eff; color: #4a9eff; }
+
+        /* Conversation list */
+        #conversation-list { padding: 4px 0; }
         .conv-item {
             padding: 10px 12px; border-radius: 8px; cursor: pointer;
-            margin-bottom: 4px; transition: background 0.15s;
+            margin: 2px 8px; transition: background 0.15s;
         }
         .conv-item:hover { background: #1a1a1a; }
         .conv-item.active { background: #1e3a5f; }
@@ -1085,13 +1398,110 @@ CHAT_HTML = """<!DOCTYPE html>
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             flex: 1; margin-right: 8px;
         }
-        .conv-delete-btn {
+        .conv-actions { display: flex; gap: 2px; visibility: hidden; }
+        .conv-item:hover .conv-actions { visibility: visible; }
+        .conv-action-btn {
             background: none; border: none; color: #555; cursor: pointer;
-            font-size: 14px; padding: 4px 6px; border-radius: 3px; visibility: hidden;
+            font-size: 12px; padding: 2px 4px; border-radius: 3px;
         }
-        .conv-item:hover .conv-delete-btn { visibility: visible; }
-        .conv-delete-btn:hover { color: #f87171; background: #1a1a1a; }
-        @media (pointer: coarse) { .conv-delete-btn { visibility: visible !important; } }
+        .conv-action-btn:hover { color: #fff; background: #333; }
+        .conv-action-btn.delete:hover { color: #f87171; }
+        @media (pointer: coarse) { .conv-actions { visibility: visible !important; } }
+
+        /* Project view header */
+        #project-view-header {
+            display: none; padding: 12px; border-bottom: 1px solid #222;
+            background: #0f0f0f;
+        }
+        #project-view-header.visible { display: block; }
+        .project-view-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .project-view-name { font-size: 15px; font-weight: 500; color: #fff; }
+        .project-view-desc { font-size: 12px; color: #888; margin-bottom: 8px; }
+        .project-tabs { display: flex; gap: 4px; }
+        .project-tab {
+            padding: 6px 12px; font-size: 12px; border-radius: 4px;
+            background: transparent; border: none; color: #888; cursor: pointer;
+        }
+        .project-tab:hover { color: #ccc; }
+        .project-tab.active { background: #222; color: #fff; }
+
+        /* References list */
+        #references-list { display: none; padding: 8px; }
+        #references-list.visible { display: block; }
+        .ref-item {
+            padding: 10px 12px; border-radius: 6px; margin-bottom: 4px;
+            background: #1a1a1a; border: 1px solid #222;
+        }
+        .ref-item:hover { border-color: #333; }
+        .ref-item-header { display: flex; align-items: center; gap: 8px; }
+        .ref-type-icon { font-size: 14px; }
+        .ref-title { font-size: 13px; color: #e0e0e0; flex: 1; }
+        .ref-actions { display: flex; gap: 4px; }
+        .ref-action-btn {
+            background: none; border: none; color: #666; cursor: pointer;
+            font-size: 12px; padding: 2px 4px;
+        }
+        .ref-action-btn:hover { color: #fff; }
+        .ref-preview { font-size: 11px; color: #888; margin-top: 4px; max-height: 40px; overflow: hidden; }
+        .ref-meta { font-size: 10px; color: #555; margin-top: 4px; }
+        #add-ref-btn {
+            margin-top: 8px; padding: 8px; font-size: 12px; width: 100%;
+            background: transparent; border: 1px dashed #333; color: #666;
+            border-radius: 6px; cursor: pointer;
+        }
+        #add-ref-btn:hover { border-color: #4a9eff; color: #4a9eff; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 100; display: none;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.visible { display: flex; }
+        .modal {
+            background: #111; border: 1px solid #333; border-radius: 12px;
+            padding: 24px; width: 90%; max-width: 500px; max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal h3 { font-size: 16px; color: #fff; margin-bottom: 16px; }
+        .modal-input {
+            width: 100%; padding: 10px 12px; margin-bottom: 12px;
+            border-radius: 6px; border: 1px solid #333; background: #1a1a1a;
+            color: #e0e0e0; font-size: 14px; outline: none;
+        }
+        .modal-input:focus { border-color: #4a9eff; }
+        .modal-textarea {
+            width: 100%; padding: 10px 12px; margin-bottom: 12px;
+            border-radius: 6px; border: 1px solid #333; background: #1a1a1a;
+            color: #e0e0e0; font-size: 14px; outline: none; resize: vertical;
+            min-height: 100px; font-family: inherit;
+        }
+        .modal-textarea:focus { border-color: #4a9eff; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+        .modal-btn {
+            padding: 8px 16px; border-radius: 6px; font-size: 13px;
+            cursor: pointer; border: none;
+        }
+        .modal-btn-primary { background: #2563eb; color: white; }
+        .modal-btn-primary:hover { background: #1d4ed8; }
+        .modal-btn-secondary { background: #333; color: #ccc; }
+        .modal-btn-secondary:hover { background: #444; }
+        .color-picker { display: flex; gap: 8px; margin-bottom: 12px; }
+        .color-option {
+            width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .color-option:hover { opacity: 0.8; }
+        .color-option.selected { border-color: #fff; }
+
+        /* File drop zone */
+        .file-drop-zone {
+            border: 2px dashed #333; border-radius: 8px; padding: 24px;
+            text-align: center; color: #666; margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+        .file-drop-zone.dragover { border-color: #4a9eff; background: rgba(74,158,255,0.1); }
+        .file-drop-zone input { display: none; }
 
         /* Responsive: tablet / landscape phone */
         @media (max-width: 768px) {
@@ -1140,10 +1550,119 @@ CHAT_HTML = """<!DOCTYPE html>
     <div id="history-overlay" onclick="toggleHistory()"></div>
     <div id="history-panel">
         <div class="history-header">
-            <h2>Conversations</h2>
+            <h2 id="sidebar-title">Conversations</h2>
             <button id="new-chat-btn" onclick="newConversation()">New Chat</button>
         </div>
-        <div id="conversation-list"></div>
+
+        <!-- Search -->
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Search conversations..." oninput="debounceSearch()">
+        </div>
+        <div id="search-results"></div>
+
+        <!-- Project View Header (shown when viewing a project) -->
+        <div id="project-view-header">
+            <div class="project-view-title">
+                <span class="project-color" id="project-view-color"></span>
+                <span class="project-view-name" id="project-view-name"></span>
+                <button class="conv-action-btn" onclick="exitProjectView()" title="Back">&#8592;</button>
+                <button class="conv-action-btn" onclick="editCurrentProject()" title="Edit">&#9998;</button>
+            </div>
+            <div class="project-view-desc" id="project-view-desc"></div>
+            <div class="project-tabs">
+                <button class="project-tab active" id="tab-chats" onclick="showProjectTab('chats')">Chats</button>
+                <button class="project-tab" id="tab-refs" onclick="showProjectTab('refs')">References</button>
+            </div>
+        </div>
+
+        <!-- References List (in project view) -->
+        <div id="references-list"></div>
+
+        <div class="sidebar-content">
+            <!-- Projects Section -->
+            <div class="sidebar-section" id="projects-section">
+                <div class="section-header" onclick="toggleSection('projects')">
+                    <span class="arrow">&#9660;</span>
+                    <span>Projects</span>
+                </div>
+                <div class="section-content" id="projects-content">
+                    <div id="project-list"></div>
+                    <button id="add-project-btn" onclick="showProjectModal()">+ New Project</button>
+                </div>
+            </div>
+
+            <!-- Recent Chats Section -->
+            <div class="sidebar-section" id="chats-section">
+                <div class="section-header" onclick="toggleSection('chats')">
+                    <span class="arrow">&#9660;</span>
+                    <span>Recent Chats</span>
+                </div>
+                <div class="section-content" id="chats-content">
+                    <div id="conversation-list"></div>
+                </div>
+            </div>
+
+            <!-- Archived Section -->
+            <div class="sidebar-section" id="archived-section">
+                <div class="section-header collapsed" onclick="toggleSection('archived')">
+                    <span class="arrow">&#9660;</span>
+                    <span>Archived</span>
+                </div>
+                <div class="section-content" id="archived-content">
+                    <div id="archived-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Modal -->
+    <div class="modal-overlay" id="project-modal">
+        <div class="modal">
+            <h3 id="project-modal-title">New Project</h3>
+            <input type="text" class="modal-input" id="project-name-input" placeholder="Project name">
+            <textarea class="modal-textarea" id="project-desc-input" placeholder="Description (optional)"></textarea>
+            <div class="color-picker" id="color-picker">
+                <div class="color-option selected" style="background:#3b82f6" data-color="#3b82f6"></div>
+                <div class="color-option" style="background:#10b981" data-color="#10b981"></div>
+                <div class="color-option" style="background:#f59e0b" data-color="#f59e0b"></div>
+                <div class="color-option" style="background:#ef4444" data-color="#ef4444"></div>
+                <div class="color-option" style="background:#8b5cf6" data-color="#8b5cf6"></div>
+                <div class="color-option" style="background:#ec4899" data-color="#ec4899"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="hideProjectModal()">Cancel</button>
+                <button class="modal-btn modal-btn-primary" onclick="saveProject()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reference Modal -->
+    <div class="modal-overlay" id="reference-modal">
+        <div class="modal">
+            <h3 id="reference-modal-title">Add Note</h3>
+            <input type="text" class="modal-input" id="ref-title-input" placeholder="Title">
+            <textarea class="modal-textarea" id="ref-content-input" placeholder="Note content (Markdown supported)" style="min-height:150px"></textarea>
+            <div class="file-drop-zone" id="file-drop-zone" style="display:none">
+                <div>Drop file here or click to upload</div>
+                <div style="font-size:11px;margin-top:8px">PDF, TXT, MD, DOCX, PNG, JPG (max 10MB)</div>
+                <input type="file" id="ref-file-input" accept=".pdf,.txt,.md,.docx,.png,.jpg,.jpeg,.gif,.webp">
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="hideReferenceModal()">Cancel</button>
+                <button class="modal-btn modal-btn-primary" onclick="saveReference()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move to Project Modal -->
+    <div class="modal-overlay" id="move-modal">
+        <div class="modal">
+            <h3>Move to Project</h3>
+            <div id="move-project-list"></div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="hideMoveModal()">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <!-- Settings Panel -->
@@ -1222,11 +1741,23 @@ CHAT_HTML = """<!DOCTYPE html>
         let currentConversationId = null;
         let loadingHistory = false;
 
+        // ==================== State ====================
+        let currentProjectId = null;
+        let editingProjectId = null;
+        let editingRefId = null;
+        let projects = [];
+        let searchTimeout = null;
+
         // ==================== Conversation History ====================
 
         function toggleHistory() {
             document.getElementById('history-panel').classList.toggle('open');
             document.getElementById('history-overlay').classList.toggle('open');
+        }
+
+        function toggleSection(section) {
+            const header = document.querySelector(`#${section}-section .section-header`);
+            header.classList.toggle('collapsed');
         }
 
         function formatRelativeDate(isoStr) {
@@ -1250,7 +1781,8 @@ CHAT_HTML = """<!DOCTYPE html>
 
         async function loadConversations() {
             try {
-                const resp = await fetch('/conversations', {headers: authHeaders()});
+                const url = currentProjectId ? `/conversations?project_id=${currentProjectId}` : '/conversations';
+                const resp = await fetch(url, {headers: authHeaders()});
                 const convs = await resp.json();
                 const listEl = document.getElementById('conversation-list');
                 if (!convs.length) {
@@ -1266,7 +1798,10 @@ CHAT_HTML = """<!DOCTYPE html>
                         <div class="conv-item-meta">
                             <span class="conv-item-preview">${escapeHtml(preview)}</span>
                             <span>${formatRelativeDate(c.updated_at)}</span>
-                            <button class="conv-delete-btn" onclick="event.stopPropagation();deleteConversation('${c.id}')" title="Delete">&#10005;</button>
+                            <div class="conv-actions">
+                                <button class="conv-action-btn" onclick="event.stopPropagation();showMoveModal('${c.id}')" title="Move to project">&#128193;</button>
+                                <button class="conv-action-btn delete" onclick="event.stopPropagation();archiveConversation('${c.id}')" title="Archive">&#128451;</button>
+                            </div>
                         </div>
                     </div>`;
                 }).join('');
@@ -1275,11 +1810,46 @@ CHAT_HTML = """<!DOCTYPE html>
             }
         }
 
+        async function loadArchivedConversations() {
+            try {
+                const resp = await fetch('/conversations/archived', {headers: authHeaders()});
+                const convs = await resp.json();
+                const listEl = document.getElementById('archived-list');
+                if (!convs.length) {
+                    listEl.innerHTML = '<div style="padding:16px;color:#666;font-size:13px;text-align:center">No archived chats</div>';
+                    return;
+                }
+                listEl.innerHTML = convs.map(c => {
+                    const title = c.title || 'Archived conversation';
+                    return `<div class="conv-item" data-id="${c.id}">
+                        <div class="conv-item-title" style="color:#888">${escapeHtml(title)}</div>
+                        <div class="conv-item-meta">
+                            <span>${formatRelativeDate(c.updated_at)}</span>
+                            <div class="conv-actions" style="visibility:visible">
+                                <button class="conv-action-btn" onclick="restoreConversation('${c.id}')" title="Restore">&#8634;</button>
+                                <button class="conv-action-btn delete" onclick="deleteConversationPermanently('${c.id}')" title="Delete permanently">&#10005;</button>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch(e) {
+                console.error('Failed to load archived:', e);
+            }
+        }
+
         async function newConversation() {
             try {
                 const resp = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
                 const data = await resp.json();
                 currentConversationId = data.id;
+                // If in project view, assign to project
+                if (currentProjectId) {
+                    await fetch(`/conversations/${data.id}/project`, {
+                        method: 'PUT',
+                        headers: authHeaders({'Content-Type': 'application/json'}),
+                        body: JSON.stringify({project_id: currentProjectId})
+                    });
+                }
                 clearChat();
                 await loadConversations();
                 toggleHistory();
@@ -1299,7 +1869,6 @@ CHAT_HTML = """<!DOCTYPE html>
                 const data = await resp.json();
                 currentConversationId = convId;
                 clearChat();
-                // Reload messages (suppress auto-speak for historical messages)
                 loadingHistory = true;
                 data.messages.forEach(m => {
                     if (m.role === 'user') addMsg(m.content, 'user', null, true);
@@ -1313,23 +1882,39 @@ CHAT_HTML = """<!DOCTYPE html>
             }
         }
 
-        async function deleteConversation(convId) {
-            if (!confirm('Delete this conversation?')) return;
+        async function archiveConversation(convId) {
             try {
                 await fetch('/conversations/' + convId, {method: 'DELETE', headers: authHeaders()});
                 if (convId === currentConversationId) {
                     currentConversationId = null;
                     clearChat();
-                    // Start a fresh conversation
-                    try {
-                        const cr = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
-                        const cd = await cr.json();
-                        currentConversationId = cd.id;
-                    } catch(e2) {}
+                    const cr = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
+                    currentConversationId = (await cr.json()).id;
                 }
                 await loadConversations();
+                await loadArchivedConversations();
             } catch(e) {
-                console.error('Failed to delete conversation:', e);
+                console.error('Failed to archive:', e);
+            }
+        }
+
+        async function restoreConversation(convId) {
+            try {
+                await fetch(`/conversations/${convId}/restore`, {method: 'POST', headers: authHeaders()});
+                await loadConversations();
+                await loadArchivedConversations();
+            } catch(e) {
+                console.error('Failed to restore:', e);
+            }
+        }
+
+        async function deleteConversationPermanently(convId) {
+            if (!confirm('Permanently delete this conversation? This cannot be undone.')) return;
+            try {
+                await fetch(`/conversations/${convId}/permanent`, {method: 'DELETE', headers: authHeaders()});
+                await loadArchivedConversations();
+            } catch(e) {
+                console.error('Failed to delete permanently:', e);
             }
         }
 
@@ -1340,17 +1925,380 @@ CHAT_HTML = """<!DOCTYPE html>
         }
 
         async function initConversations() {
+            await loadProjects();
             await loadConversations();
-            // Auto-load most recent or create new
+            await loadArchivedConversations();
             const resp = await fetch('/conversations?limit=1', {headers: authHeaders()});
             const convs = await resp.json();
             if (convs.length) {
                 await switchConversation(convs[0].id);
             } else {
                 const cr = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
-                const data = await cr.json();
-                currentConversationId = data.id;
+                currentConversationId = (await cr.json()).id;
                 await loadConversations();
+            }
+        }
+
+        // ==================== Search ====================
+
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(doSearch, 300);
+        }
+
+        async function doSearch() {
+            const query = document.getElementById('search-input').value.trim();
+            const resultsEl = document.getElementById('search-results');
+            if (query.length < 2) {
+                resultsEl.classList.remove('visible');
+                return;
+            }
+            try {
+                const resp = await fetch(`/conversations/search?q=${encodeURIComponent(query)}`, {headers: authHeaders()});
+                const results = await resp.json();
+                if (!results.length) {
+                    resultsEl.innerHTML = '<div style="padding:12px;color:#666;font-size:12px;text-align:center">No results found</div>';
+                } else {
+                    resultsEl.innerHTML = results.map(r => `
+                        <div class="search-result" onclick="switchConversation('${r.id}')">
+                            <div class="search-result-title">${escapeHtml(r.title || 'Untitled')}</div>
+                            <div class="search-result-snippet">${r.snippet || ''}</div>
+                        </div>
+                    `).join('');
+                }
+                resultsEl.classList.add('visible');
+            } catch(e) {
+                console.error('Search failed:', e);
+            }
+        }
+
+        // ==================== Projects ====================
+
+        async function loadProjects() {
+            try {
+                const resp = await fetch('/projects', {headers: authHeaders()});
+                projects = await resp.json();
+                const listEl = document.getElementById('project-list');
+                if (!projects.length) {
+                    listEl.innerHTML = '';
+                    return;
+                }
+                listEl.innerHTML = projects.map(p => `
+                    <div class="project-item${currentProjectId === p.id ? ' active' : ''}" onclick="viewProject('${p.id}')">
+                        <span class="project-color" style="background:${p.color}"></span>
+                        <span class="project-name">${escapeHtml(p.name)}</span>
+                        <span class="project-count">${p.conversation_count || 0}</span>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error('Failed to load projects:', e);
+            }
+        }
+
+        async function viewProject(projectId) {
+            currentProjectId = projectId;
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            // Show project view header
+            document.getElementById('project-view-header').classList.add('visible');
+            document.getElementById('project-view-color').style.background = project.color;
+            document.getElementById('project-view-name').textContent = project.name;
+            document.getElementById('project-view-desc').textContent = project.description || '';
+
+            // Hide sidebar sections, show project chats
+            document.getElementById('projects-section').style.display = 'none';
+            document.getElementById('archived-section').style.display = 'none';
+            document.querySelector('#chats-section .section-header').style.display = 'none';
+
+            showProjectTab('chats');
+            await loadConversations();
+            await loadProjects();
+        }
+
+        function exitProjectView() {
+            currentProjectId = null;
+            document.getElementById('project-view-header').classList.remove('visible');
+            document.getElementById('references-list').classList.remove('visible');
+            document.getElementById('projects-section').style.display = '';
+            document.getElementById('archived-section').style.display = '';
+            document.querySelector('#chats-section .section-header').style.display = '';
+            loadConversations();
+            loadProjects();
+        }
+
+        function showProjectTab(tab) {
+            document.getElementById('tab-chats').classList.toggle('active', tab === 'chats');
+            document.getElementById('tab-refs').classList.toggle('active', tab === 'refs');
+            document.getElementById('conversation-list').parentElement.style.display = tab === 'chats' ? '' : 'none';
+            document.getElementById('references-list').classList.toggle('visible', tab === 'refs');
+            if (tab === 'refs') loadReferences();
+        }
+
+        function showProjectModal(projectId = null) {
+            editingProjectId = projectId;
+            document.getElementById('project-modal-title').textContent = projectId ? 'Edit Project' : 'New Project';
+            if (projectId) {
+                const p = projects.find(pr => pr.id === projectId);
+                if (p) {
+                    document.getElementById('project-name-input').value = p.name;
+                    document.getElementById('project-desc-input').value = p.description || '';
+                    selectColor(p.color);
+                }
+            } else {
+                document.getElementById('project-name-input').value = '';
+                document.getElementById('project-desc-input').value = '';
+                selectColor('#3b82f6');
+            }
+            document.getElementById('project-modal').classList.add('visible');
+        }
+
+        function hideProjectModal() {
+            document.getElementById('project-modal').classList.remove('visible');
+            editingProjectId = null;
+        }
+
+        function selectColor(color) {
+            document.querySelectorAll('.color-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.color === color);
+            });
+        }
+
+        document.getElementById('color-picker').addEventListener('click', e => {
+            if (e.target.classList.contains('color-option')) {
+                selectColor(e.target.dataset.color);
+            }
+        });
+
+        async function saveProject() {
+            const name = document.getElementById('project-name-input').value.trim();
+            if (!name) return alert('Please enter a project name');
+            const description = document.getElementById('project-desc-input').value.trim();
+            const color = document.querySelector('.color-option.selected')?.dataset.color || '#3b82f6';
+
+            try {
+                if (editingProjectId) {
+                    await fetch(`/projects/${editingProjectId}`, {
+                        method: 'PUT',
+                        headers: authHeaders({'Content-Type': 'application/json'}),
+                        body: JSON.stringify({name, description, color})
+                    });
+                } else {
+                    await fetch('/projects', {
+                        method: 'POST',
+                        headers: authHeaders({'Content-Type': 'application/json'}),
+                        body: JSON.stringify({name, description, color})
+                    });
+                }
+                hideProjectModal();
+                await loadProjects();
+                if (currentProjectId === editingProjectId) {
+                    viewProject(currentProjectId);
+                }
+            } catch(e) {
+                console.error('Failed to save project:', e);
+            }
+        }
+
+        function editCurrentProject() {
+            if (currentProjectId) showProjectModal(currentProjectId);
+        }
+
+        async function deleteProject(projectId) {
+            if (!confirm('Delete this project and all its references? Conversations will be kept.')) return;
+            try {
+                await fetch(`/projects/${projectId}`, {method: 'DELETE', headers: authHeaders()});
+                if (currentProjectId === projectId) exitProjectView();
+                await loadProjects();
+            } catch(e) {
+                console.error('Failed to delete project:', e);
+            }
+        }
+
+        // ==================== References ====================
+
+        async function loadReferences() {
+            if (!currentProjectId) return;
+            try {
+                const resp = await fetch(`/projects/${currentProjectId}/references`, {headers: authHeaders()});
+                const refs = await resp.json();
+                const listEl = document.getElementById('references-list');
+                let html = '';
+                if (!refs.length) {
+                    html = '<div style="padding:16px;color:#666;font-size:13px;text-align:center">No references yet</div>';
+                } else {
+                    html = refs.map(r => {
+                        const icon = r.type === 'note' ? '&#128221;' : '&#128196;';
+                        const preview = r.content ? r.content.substring(0, 100) + (r.content.length > 100 ? '...' : '') : '';
+                        const meta = r.type === 'file' ? `${r.file_type || 'file'} - ${formatFileSize(r.file_size)}` : '';
+                        return `<div class="ref-item">
+                            <div class="ref-item-header">
+                                <span class="ref-type-icon">${icon}</span>
+                                <span class="ref-title">${escapeHtml(r.title)}</span>
+                                <div class="ref-actions">
+                                    ${r.type === 'note' ? `<button class="ref-action-btn" onclick="editReference(${r.id})" title="Edit">&#9998;</button>` : ''}
+                                    ${r.type === 'file' ? `<button class="ref-action-btn" onclick="downloadReference(${r.id})" title="Download">&#8681;</button>` : ''}
+                                    <button class="ref-action-btn" onclick="deleteReference(${r.id})" title="Delete">&#10005;</button>
+                                </div>
+                            </div>
+                            ${preview ? `<div class="ref-preview">${escapeHtml(preview)}</div>` : ''}
+                            ${meta ? `<div class="ref-meta">${meta}</div>` : ''}
+                        </div>`;
+                    }).join('');
+                }
+                html += `<button id="add-ref-btn" onclick="showReferenceModal()">+ Add Reference</button>`;
+                listEl.innerHTML = html;
+            } catch(e) {
+                console.error('Failed to load references:', e);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return '';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+            return (bytes/1024/1024).toFixed(1) + ' MB';
+        }
+
+        function showReferenceModal(refId = null, isFile = false) {
+            editingRefId = refId;
+            document.getElementById('reference-modal-title').textContent = refId ? 'Edit Note' : (isFile ? 'Upload File' : 'Add Note');
+            document.getElementById('ref-title-input').value = '';
+            document.getElementById('ref-content-input').value = '';
+            document.getElementById('ref-content-input').style.display = isFile ? 'none' : '';
+            document.getElementById('file-drop-zone').style.display = isFile ? 'block' : 'none';
+            if (refId) {
+                fetch(`/references/${refId}`, {headers: authHeaders()})
+                    .then(r => r.json())
+                    .then(ref => {
+                        document.getElementById('ref-title-input').value = ref.title;
+                        document.getElementById('ref-content-input').value = ref.content || '';
+                    });
+            }
+            document.getElementById('reference-modal').classList.add('visible');
+        }
+
+        function hideReferenceModal() {
+            document.getElementById('reference-modal').classList.remove('visible');
+            editingRefId = null;
+        }
+
+        async function saveReference() {
+            const title = document.getElementById('ref-title-input').value.trim();
+            const content = document.getElementById('ref-content-input').value;
+            const fileInput = document.getElementById('ref-file-input');
+
+            if (fileInput.files.length > 0) {
+                // File upload
+                const form = new FormData();
+                form.append('file', fileInput.files[0]);
+                try {
+                    await fetch(`/projects/${currentProjectId}/references/upload`, {
+                        method: 'POST',
+                        headers: authHeaders(),
+                        body: form
+                    });
+                    hideReferenceModal();
+                    fileInput.value = '';
+                    await loadReferences();
+                } catch(e) {
+                    console.error('Upload failed:', e);
+                    alert('Upload failed');
+                }
+            } else if (title) {
+                // Note
+                try {
+                    if (editingRefId) {
+                        await fetch(`/references/${editingRefId}`, {
+                            method: 'PUT',
+                            headers: authHeaders({'Content-Type': 'application/json'}),
+                            body: JSON.stringify({title, content})
+                        });
+                    } else {
+                        await fetch(`/projects/${currentProjectId}/references`, {
+                            method: 'POST',
+                            headers: authHeaders({'Content-Type': 'application/json'}),
+                            body: JSON.stringify({title, content})
+                        });
+                    }
+                    hideReferenceModal();
+                    await loadReferences();
+                } catch(e) {
+                    console.error('Save failed:', e);
+                }
+            }
+        }
+
+        async function editReference(refId) {
+            showReferenceModal(refId, false);
+        }
+
+        async function deleteReference(refId) {
+            if (!confirm('Delete this reference?')) return;
+            try {
+                await fetch(`/references/${refId}`, {method: 'DELETE', headers: authHeaders()});
+                await loadReferences();
+            } catch(e) {
+                console.error('Delete failed:', e);
+            }
+        }
+
+        function downloadReference(refId) {
+            window.open(`/references/${refId}/download`, '_blank');
+        }
+
+        // File drop zone
+        const dropZone = document.getElementById('file-drop-zone');
+        dropZone.addEventListener('click', () => document.getElementById('ref-file-input').click());
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                document.getElementById('ref-file-input').files = e.dataTransfer.files;
+                dropZone.querySelector('div').textContent = e.dataTransfer.files[0].name;
+            }
+        });
+
+        // ==================== Move to Project ====================
+
+        let movingConvId = null;
+
+        function showMoveModal(convId) {
+            movingConvId = convId;
+            const listEl = document.getElementById('move-project-list');
+            let html = `<div class="project-item" onclick="moveToProject(null)">
+                <span class="project-name">No Project</span>
+            </div>`;
+            html += projects.map(p => `
+                <div class="project-item" onclick="moveToProject('${p.id}')">
+                    <span class="project-color" style="background:${p.color}"></span>
+                    <span class="project-name">${escapeHtml(p.name)}</span>
+                </div>
+            `).join('');
+            listEl.innerHTML = html;
+            document.getElementById('move-modal').classList.add('visible');
+        }
+
+        function hideMoveModal() {
+            document.getElementById('move-modal').classList.remove('visible');
+            movingConvId = null;
+        }
+
+        async function moveToProject(projectId) {
+            if (!movingConvId) return;
+            try {
+                await fetch(`/conversations/${movingConvId}/project`, {
+                    method: 'PUT',
+                    headers: authHeaders({'Content-Type': 'application/json'}),
+                    body: JSON.stringify({project_id: projectId})
+                });
+                hideMoveModal();
+                await loadConversations();
+                await loadProjects();
+            } catch(e) {
+                console.error('Move failed:', e);
             }
         }
 
@@ -2189,7 +3137,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
 
 SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v11';
+const CACHE_NAME = 'alfred-v12';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -2211,7 +3159,8 @@ self.addEventListener('fetch', event => {
     // Network-first for API calls, cache-first for static assets
     if (url.pathname.startsWith('/chat') || url.pathname.startsWith('/auth') ||
         url.pathname.startsWith('/conversations') || url.pathname.startsWith('/voice') ||
-        url.pathname.startsWith('/integrations') || url.pathname.startsWith('/memory')) {
+        url.pathname.startsWith('/integrations') || url.pathname.startsWith('/memory') ||
+        url.pathname.startsWith('/projects') || url.pathname.startsWith('/references')) {
         event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
     } else {
         event.respondWith(
