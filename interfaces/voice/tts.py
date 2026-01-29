@@ -5,8 +5,14 @@ import logging
 import re
 import subprocess
 from pathlib import Path
+from urllib.parse import quote
+
+import requests
 
 logger = logging.getLogger(__name__)
+
+# Qwen3-TTS server URL (local or remote)
+QWEN3_TTS_URL = "http://localhost:7860"
 
 
 def _format_phone_for_speech(match) -> str:
@@ -60,10 +66,28 @@ class TTSEngine:
         """Convert text to speech audio bytes (WAV format)."""
         if self.backend == "kokoro":
             return self._synthesize_kokoro(text, voice_id)
+        elif self.backend == "qwen3":
+            return self._synthesize_qwen3(text, voice_id)
         elif self.backend == "piper":
             return self._synthesize_piper(text)
         else:
             raise ValueError(f"Unknown TTS backend: {self.backend}")
+
+    def _synthesize_qwen3(self, text: str, voice_id: str = "demo_speaker0") -> bytes:
+        """Synthesize using Qwen3-TTS server."""
+        try:
+            url = f"{QWEN3_TTS_URL}/synthesize_speech/"
+            params = {"text": text, "voice": voice_id}
+            response = requests.get(url, params=params, timeout=60)
+            if response.status_code == 200:
+                return response.content
+            else:
+                logger.error(f"Qwen3-TTS error: {response.status_code} - {response.text}")
+                # Fallback to Kokoro
+                return self._synthesize_kokoro(text, "bm_daniel")
+        except Exception as e:
+            logger.error(f"Qwen3-TTS connection failed: {e}, falling back to Kokoro")
+            return self._synthesize_kokoro(text, "bm_daniel")
 
     def _synthesize_kokoro(self, text: str, voice_id: str) -> bytes:
         """Synthesize using Kokoro TTS."""
@@ -131,8 +155,18 @@ def warmup():
     logger.info("TTS engine warmed up")
 
 
-def speak(text: str, voice_id: str = "bm_daniel") -> bytes:
-    """Quick function to synthesize speech."""
-    engine = get_engine()
+def speak(text: str, voice_id: str = None) -> bytes:
+    """Quick function to synthesize speech.
+
+    Uses the TTS backend configured in settings (kokoro, qwen3, or piper).
+    """
+    from config.settings import settings
+    backend = settings.tts_model
+
+    # Set default voice based on backend
+    if voice_id is None:
+        voice_id = "demo_speaker0" if backend == "qwen3" else "bm_daniel"
+
+    engine = get_engine(backend)
     clean = _clean_for_speech(text)
     return engine.synthesize(clean, voice_id)

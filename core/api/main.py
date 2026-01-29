@@ -384,7 +384,54 @@ async def integration_status(user: dict = Depends(require_auth)):
             "configured": bool(settings.anthropic_api_key and settings.anthropic_api_key != "sk-ant-CHANGEME"),
             "model": settings.anthropic_model,
         },
+        "tts": {
+            "backend": settings.tts_model,
+            "qwen3_available": _check_qwen3_available(),
+        },
     }
+
+
+def _check_qwen3_available() -> bool:
+    """Check if Qwen3-TTS server is available."""
+    try:
+        import requests
+        resp = requests.get("http://localhost:7860/docs", timeout=2)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
+
+@app.get("/settings/tts")
+async def get_tts_settings(user: dict = Depends(require_auth)):
+    """Get current TTS settings."""
+    return {
+        "backend": settings.tts_model,
+        "qwen3_available": _check_qwen3_available(),
+    }
+
+
+@app.put("/settings/tts")
+async def set_tts_settings(backend: str, user: dict = Depends(require_auth)):
+    """Set TTS backend (kokoro, qwen3, piper)."""
+    if backend not in ["kokoro", "qwen3", "piper"]:
+        raise HTTPException(status_code=400, detail="Invalid TTS backend")
+
+    # Update settings file
+    env_path = Path("/home/aialfred/alfred/config/.env")
+    if env_path.exists():
+        content = env_path.read_text()
+        if "TTS_MODEL=" in content:
+            content = re.sub(r"TTS_MODEL=.*", f"TTS_MODEL={backend}", content)
+        else:
+            content += f"\nTTS_MODEL={backend}"
+        env_path.write_text(content)
+    else:
+        env_path.write_text(f"TTS_MODEL={backend}\n")
+
+    # Update runtime settings
+    settings.tts_model = backend
+
+    return {"backend": backend, "message": f"TTS backend set to {backend}"}
 
 
 # ==================== Server Management ====================
@@ -1461,6 +1508,15 @@ CHAT_HTML = """<!DOCTYPE html>
             background: #2563eb; border: none; color: white; cursor: pointer;
         }
         .connect-btn:hover { background: #1d4ed8; }
+        .tts-option {
+            flex: 1; min-width: 120px; padding: 12px; border-radius: 8px;
+            background: #1a1a1a; border: 2px solid #333; cursor: pointer;
+            text-align: left; transition: all 0.2s;
+        }
+        .tts-option:hover { border-color: #555; }
+        .tts-option.active { border-color: #3b82f6; background: #1e3a5f; }
+        .tts-option .tts-name { display: block; font-weight: 600; color: #e0e0e0; font-size: 14px; }
+        .tts-option .tts-desc { display: block; font-size: 11px; color: #888; margin-top: 4px; }
         .close-btn {
             position: absolute; top: 16px; right: 16px; background: none;
             border: none; color: #888; font-size: 24px; cursor: pointer;
@@ -1876,6 +1932,21 @@ CHAT_HTML = """<!DOCTYPE html>
         <div class="setting-section">
             <h3>LLM</h3>
             <div id="llm-info">Loading...</div>
+        </div>
+
+        <div class="setting-section">
+            <h3>Text-to-Speech</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button id="tts-kokoro" class="tts-option" onclick="setTTS('kokoro')">
+                    <span class="tts-name">Kokoro</span>
+                    <span class="tts-desc">Fast, local</span>
+                </button>
+                <button id="tts-qwen3" class="tts-option" onclick="setTTS('qwen3')">
+                    <span class="tts-name">Qwen3</span>
+                    <span class="tts-desc">High quality, cloning</span>
+                </button>
+            </div>
+            <div id="tts-status" style="font-size:12px;color:#888;margin-top:8px"></div>
         </div>
 
         <div class="setting-section">
@@ -2738,8 +2809,53 @@ CHAT_HTML = """<!DOCTYPE html>
                 const me = await (await fetch('/auth/me', {headers: authHeaders()})).json();
                 document.getElementById('account-info').innerHTML =
                     `<div class="status-item"><span>User: ${me.username || 'N/A'}</span><span style="color:#888;font-size:12px">${me.role || ''}</span></div>`;
+
+                // TTS settings
+                const tts = data.tts || {};
+                document.querySelectorAll('.tts-option').forEach(b => b.classList.remove('active'));
+                const activeBtn = document.getElementById('tts-' + (tts.backend || 'kokoro'));
+                if (activeBtn) activeBtn.classList.add('active');
+                const ttsStatus = document.getElementById('tts-status');
+                if (ttsStatus) {
+                    if (tts.backend === 'qwen3' && !tts.qwen3_available) {
+                        ttsStatus.innerHTML = '<span style="color:#f87171">⚠ Qwen3 server not available</span>';
+                    } else if (tts.backend === 'qwen3') {
+                        ttsStatus.innerHTML = '<span style="color:#4ade80">✓ Qwen3 server running</span>';
+                    } else {
+                        ttsStatus.textContent = '';
+                    }
+                }
             } catch(e) {
                 document.getElementById('integration-list').innerHTML = '<span style="color:#f87171">Failed to load</span>';
+            }
+        }
+
+        async function setTTS(backend) {
+            try {
+                const resp = await fetch('/settings/tts?backend=' + backend, {
+                    method: 'PUT',
+                    headers: authHeaders()
+                });
+                if (resp.ok) {
+                    document.querySelectorAll('.tts-option').forEach(b => b.classList.remove('active'));
+                    document.getElementById('tts-' + backend)?.classList.add('active');
+                    const ttsStatus = document.getElementById('tts-status');
+                    if (backend === 'qwen3') {
+                        ttsStatus.innerHTML = '<span style="color:#888">Checking Qwen3 server...</span>';
+                        // Check availability
+                        const check = await fetch('/settings/tts', {headers: authHeaders()});
+                        const data = await check.json();
+                        if (data.qwen3_available) {
+                            ttsStatus.innerHTML = '<span style="color:#4ade80">✓ Qwen3 server running</span>';
+                        } else {
+                            ttsStatus.innerHTML = '<span style="color:#f87171">⚠ Qwen3 server not available</span>';
+                        }
+                    } else {
+                        ttsStatus.textContent = '';
+                    }
+                }
+            } catch(e) {
+                console.error('Failed to set TTS:', e);
             }
         }
 
@@ -3519,7 +3635,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
 
 SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v21';
+const CACHE_NAME = 'alfred-v22';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
 self.addEventListener('install', event => {
