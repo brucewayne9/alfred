@@ -2976,7 +2976,17 @@ CHAT_HTML = """<!DOCTYPE html>
                     loadIntegrations();
                     initConversations();
                     // Auto-enable Hey Alfred mode on startup
-                    setTimeout(() => toggleHandsFree(), 500);
+                    setTimeout(() => {
+                        toggleHandsFree();
+                        // Force menu closed after everything initializes
+                        document.getElementById('history-panel').classList.remove('open');
+                        document.getElementById('history-overlay').classList.remove('open');
+                    }, 500);
+                    // Extra delayed close in case async operations open it
+                    setTimeout(() => {
+                        document.getElementById('history-panel').classList.remove('open');
+                        document.getElementById('history-overlay').classList.remove('open');
+                    }, 1200);
                 }
             } catch(e) {}
         })();
@@ -3005,7 +3015,17 @@ CHAT_HTML = """<!DOCTYPE html>
                 loadIntegrations();
                 initConversations();
                 // Auto-enable Hey Alfred mode on startup
-                setTimeout(() => toggleHandsFree(), 500);
+                setTimeout(() => {
+                    toggleHandsFree();
+                    // Force menu closed after everything initializes
+                    document.getElementById('history-panel').classList.remove('open');
+                    document.getElementById('history-overlay').classList.remove('open');
+                }, 500);
+                // Extra delayed close in case async operations open it
+                setTimeout(() => {
+                    document.getElementById('history-panel').classList.remove('open');
+                    document.getElementById('history-overlay').classList.remove('open');
+                }, 1200);
             } catch(e) {
                 errEl.textContent = 'Connection error';
                 errEl.style.display = 'block';
@@ -3795,24 +3815,42 @@ CHAT_HTML = """<!DOCTYPE html>
 
         function playVadTTS(text) {
             setVadState('speak');
+            // Pause VAD while Alfred speaks to prevent feedback loop
+            if (vadInstance) vadInstance.pause();
             fetch('/voice/speak', {
                 method:'POST',
                 headers: authHeaders({'Content-Type':'application/json'}),
                 body: JSON.stringify({message: text})
             }).then(r => r.ok ? r.blob() : null).then(blob => {
-                if (!blob || !handsFreeActive) { setVadState(handsFreeActive?'listen':'idle'); return; }
+                if (!blob || !handsFreeActive) {
+                    if (handsFreeActive && vadInstance) vadInstance.start();
+                    setVadState(handsFreeActive?'listen':'idle');
+                    return;
+                }
                 const url = URL.createObjectURL(blob);
                 currentAudio = new Audio(url);
                 currentAudio.onended = () => {
                     currentAudio = null; URL.revokeObjectURL(url);
-                    if (handsFreeActive) setVadState('listen');
+                    if (handsFreeActive) {
+                        // Resume VAD after speech ends
+                        if (vadInstance) vadInstance.start();
+                        setVadState('listen');
+                    }
                 };
                 currentAudio.onerror = () => {
                     currentAudio = null;
-                    if (handsFreeActive) setVadState('listen');
+                    if (handsFreeActive) {
+                        if (vadInstance) vadInstance.start();
+                        setVadState('listen');
+                    }
                 };
                 currentAudio.play();
-            }).catch(() => { if (handsFreeActive) setVadState('listen'); });
+            }).catch(() => {
+                if (handsFreeActive) {
+                    if (vadInstance) vadInstance.start();
+                    setVadState('listen');
+                }
+            });
         }
 
         async function processVadAudio(audioFloat32) {
@@ -3909,6 +3947,8 @@ CHAT_HTML = """<!DOCTYPE html>
                 // HYBRID APPROACH: Play acknowledgment immediately while processing
                 // Skip acknowledgment for Qwen3 (different voice, adds latency)
                 setVadState('speak');
+                // Pause VAD while speaking to prevent feedback loop
+                if (vadInstance) vadInstance.pause();
                 let ackPromise = Promise.resolve();
                 if (currentTtsBackend === 'kokoro') {
                     ackPromise = fetch('/voice/chat/ack', {
@@ -3944,7 +3984,11 @@ CHAT_HTML = """<!DOCTYPE html>
             } catch(e) {
                 console.error('Hands-free error:', e);
                 vadProcessing = false;
-                if (handsFreeActive) setVadState('listen');
+                if (handsFreeActive) {
+                    // Resume VAD on error
+                    if (vadInstance) vadInstance.start();
+                    setVadState('listen');
+                }
             }
         }
 
@@ -4013,7 +4057,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
 
 SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v24';
+const CACHE_NAME = 'alfred-v26';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
 self.addEventListener('install', event => {
