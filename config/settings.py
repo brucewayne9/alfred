@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     nextcloud_username: str = ""
     nextcloud_password: str = ""
 
+    # Stripe
+    stripe_api_key: str = ""
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"

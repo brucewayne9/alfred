@@ -338,6 +338,14 @@ async def integration_status(user: dict = Depends(require_auth)):
     except Exception:
         pass
 
+    # Check Stripe connection
+    stripe_connected = False
+    try:
+        from integrations.stripe.client import is_connected as stripe_is_connected
+        stripe_connected = stripe_is_connected()
+    except Exception:
+        pass
+
     return {
         "google": {
             "connected": google,
@@ -362,6 +370,11 @@ async def integration_status(user: dict = Depends(require_auth)):
             "configured": bool(settings.nextcloud_url),
             "connected": nextcloud_connected,
             "label": "Nextcloud",
+        },
+        "stripe": {
+            "configured": bool(settings.stripe_api_key),
+            "connected": stripe_connected,
+            "label": "Stripe Payments",
         },
         "ollama": {
             "model": settings.ollama_model,
@@ -497,6 +510,22 @@ async def conversations_create(user: dict = Depends(require_auth)):
     return create_conversation()
 
 
+# Static routes MUST come before dynamic {conv_id} routes
+@app.get("/conversations/search")
+async def conversations_search(q: str, limit: int = 20, user: dict = Depends(require_auth)):
+    """Search conversations using full-text search."""
+    if not q or len(q) < 2:
+        raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
+    return search_conversations(q, limit)
+
+
+@app.get("/conversations/archived")
+async def conversations_archived_list(limit: int = 50, offset: int = 0, user: dict = Depends(require_auth)):
+    """List archived conversations."""
+    return list_archived_conversations(limit=limit, offset=offset)
+
+
+# Dynamic routes with {conv_id} parameter
 @app.get("/conversations/{conv_id}")
 async def conversations_get(conv_id: str, user: dict = Depends(require_auth)):
     """Get full conversation with messages."""
@@ -528,20 +557,6 @@ async def conversations_move_to_project(conv_id: str, req: ConversationProjectRe
     if not move_conversation_to_project(conv_id, req.project_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"updated": True, "project_id": req.project_id}
-
-
-@app.get("/conversations/search")
-async def conversations_search(q: str, limit: int = 20, user: dict = Depends(require_auth)):
-    """Search conversations using full-text search."""
-    if not q or len(q) < 2:
-        raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
-    return search_conversations(q, limit)
-
-
-@app.get("/conversations/archived")
-async def conversations_archived_list(limit: int = 50, offset: int = 0, user: dict = Depends(require_auth)):
-    """List archived conversations."""
-    return list_archived_conversations(limit=limit, offset=offset)
 
 
 @app.post("/conversations/{conv_id}/restore")
@@ -1078,48 +1093,136 @@ CHAT_HTML = """<!DOCTYPE html>
             padding-bottom: env(safe-area-inset-bottom);
         }
         header {
-            padding: 16px 24px; border-bottom: 1px solid #222;
+            padding: 12px 16px; border-bottom: 1px solid #2f2f2f;
             display: flex; align-items: center; gap: 12px;
+            background: #0a0a0a;
         }
-        header h1 { font-size: 20px; font-weight: 600; color: #fff; }
-        header .status { font-size: 12px; color: #4ade80; }
+        header h1 { font-size: 16px; font-weight: 500; color: #e0e0e0; }
+        header .status { display: none; }
         .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .header-btn {
-            background: #222; border: 1px solid #333; color: #ccc; padding: 6px 12px;
-            border-radius: 6px; cursor: pointer; font-size: 13px;
+            background: transparent; border: none; color: #8e8e8e; padding: 8px 12px;
+            border-radius: 8px; cursor: pointer; font-size: 13px;
         }
-        .header-btn:hover { background: #333; color: #fff; }
+        .header-btn:hover { background: #2f2f2f; color: #e0e0e0; }
         #hamburger-btn {
-            background: none; border: none; color: #ccc; font-size: 22px;
-            cursor: pointer; padding: 4px 8px; border-radius: 4px; line-height: 1;
+            background: none; border: none; color: #8e8e8e; font-size: 20px;
+            cursor: pointer; padding: 8px; border-radius: 8px; line-height: 1;
         }
-        #hamburger-btn:hover { background: #222; color: #fff; }
+        #hamburger-btn:hover { background: #2f2f2f; color: #e0e0e0; }
         #chat {
-            flex: 1; overflow-y: auto; padding: 24px;
-            display: flex; flex-direction: column; gap: 16px;
+            flex: 1; overflow-y: auto; padding: 24px 48px 120px;
+            display: flex; flex-direction: column; gap: 24px;
+            width: 100%;
         }
-        .msg { max-width: 75%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; }
+        #chat.welcome-state { display: none; }
+
+        /* Welcome Screen */
+        #welcome-screen {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 24px 48px; display: none;
+            width: 100%; height: 100%;
+        }
+        #welcome-screen.visible { display: flex; }
+        #welcome-screen h2 {
+            font-size: 32px; font-weight: 500; color: #e0e0e0;
+            margin-bottom: 32px;
+        }
+        #welcome-input-container {
+            width: 100%; max-width: 100%; padding: 0 10%;
+        }
+        #welcome-input-box {
+            background: #2f2f2f; border-radius: 24px;
+            padding: 12px 16px; display: flex; flex-direction: column;
+            border: 1px solid #424242;
+        }
+        #welcome-input {
+            background: transparent; border: none; color: #e0e0e0;
+            font-size: 16px; outline: none; resize: none;
+            min-height: 24px; max-height: 200px; padding: 4px 0;
+        }
+        #welcome-input::placeholder { color: #8e8e8e; }
+        #welcome-input-actions {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 8px; padding-top: 8px;
+        }
+        #welcome-input-left { display: flex; align-items: center; gap: 8px; }
+        #welcome-input-right { display: flex; align-items: center; gap: 8px; }
+        .welcome-btn {
+            background: transparent; border: none; color: #8e8e8e;
+            cursor: pointer; padding: 8px; border-radius: 8px;
+            font-size: 18px; display: flex; align-items: center; justify-content: center;
+        }
+        .welcome-btn:hover { background: #424242; color: #e0e0e0; }
+        .mic-logo-btn {
+            padding: 0; width: 36px; height: 36px; border-radius: 50%;
+            overflow: hidden; background: transparent;
+        }
+        .mic-logo-btn img {
+            width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+        }
+        .mic-logo-btn:hover { background: transparent; transform: scale(1.1); }
+        .mic-logo-btn.recording {
+            box-shadow: 0 0 12px rgba(232, 110, 44, 0.8);
+            animation: pulse-glow 1s infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 8px rgba(232, 110, 44, 0.6); }
+            50% { box-shadow: 0 0 16px rgba(232, 110, 44, 1); }
+        }
+        #welcome-send-btn {
+            background: #fff; color: #000; border: none;
+            width: 36px; height: 36px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+        }
+        #welcome-send-btn:hover { background: #d1d1d1; }
+        #welcome-send-btn:disabled { background: #424242; color: #8e8e8e; cursor: not-allowed; }
+
+        /* Message Styles - ChatGPT style */
+        .msg { max-width: 100%; line-height: 1.6; }
         .msg.user {
-            align-self: flex-end; background: #1e3a5f; color: #e0e0e0;
-            border-bottom-right-radius: 4px;
+            align-self: flex-end; max-width: 60%;
+            background: #2f2f2f; color: #e0e0e0;
+            padding: 12px 18px; border-radius: 20px;
         }
         .msg.alfred {
-            align-self: flex-start; background: #1a1a1a; border: 1px solid #333;
-            border-bottom-left-radius: 4px;
+            align-self: flex-start; background: transparent; border: none;
+            padding: 0; width: 100%;
         }
-        .msg .label { font-size: 11px; color: #888; margin-bottom: 4px; }
-        .msg .content { white-space: pre-wrap; font-family: inherit; }
-        .msg .content code { background: #222; padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 13px; }
+        .msg .label { display: none; }
+        .msg.user .label { display: none; }
+        .msg.alfred .label { display: none; }
+        .msg .content { white-space: pre-wrap; font-family: inherit; font-size: 15px; }
+        .msg .content code { background: #2f2f2f; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; font-size: 14px; }
         .msg .content strong { color: #fff; }
+        .msg .content pre { background: #1e1e1e; border-radius: 8px; padding: 12px 16px; overflow-x: auto; margin: 12px 0; }
+        .msg .content pre code { background: transparent; padding: 0; }
+
+        /* Alfred message action buttons */
+        .msg-actions {
+            display: flex; align-items: center; gap: 4px;
+            margin-top: 8px; opacity: 0; transition: opacity 0.2s;
+        }
+        .msg.alfred:hover .msg-actions { opacity: 1; }
+        .msg-action-btn {
+            background: transparent; border: none; color: #8e8e8e;
+            cursor: pointer; padding: 6px 8px; border-radius: 6px;
+            font-size: 14px; display: flex; align-items: center; justify-content: center;
+        }
+        .msg-action-btn:hover { background: #2f2f2f; color: #e0e0e0; }
+        .msg-action-btn.active { color: #10b981; }
+        .msg-action-btn svg { width: 18px; height: 18px; }
 
         /* Thinking indicator */
         #thinking {
-            display: none; align-self: flex-start; padding: 16px 20px;
-            background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
-            margin: 8px 0;
+            display: none; align-self: flex-start; padding: 8px 0;
+            background: transparent; border: none; border-radius: 0;
+            margin: 0;
         }
         #thinking.visible { display: flex; align-items: center; gap: 12px; }
-        #thinking .label { font-size: 11px; color: #888; }
+        #thinking .label { font-size: 14px; color: #8e8e8e; }
         .morph-shape {
             width: 24px; height: 24px;
             background: linear-gradient(135deg, #4a9eff, #e86e2c);
@@ -1140,16 +1243,33 @@ CHAT_HTML = """<!DOCTYPE html>
             50% { background: linear-gradient(135deg, #e86e2c, #4ade80); }
         }
         #input-area {
-            padding: 16px 24px; border-top: 1px solid #222;
-            display: flex; gap: 12px; align-items: center;
+            position: fixed; bottom: 0; left: 0; right: 0;
+            padding: 16px 24px 24px;
+            display: flex; justify-content: center;
+            background: linear-gradient(transparent, #0a0a0a 20%);
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+        }
+        #input-area.hidden { display: none; }
+        #input-box {
+            background: #2f2f2f; border-radius: 24px;
+            padding: 12px 20px; display: flex; flex-direction: column;
+            border: 1px solid #424242; width: 100%;
+            margin: 0 10%;
         }
         #input {
-            flex: 1; padding: 12px 16px; border-radius: 8px;
-            border: 1px solid #333; background: #111; color: #e0e0e0;
+            background: transparent; border: none; color: #e0e0e0;
             font-size: 15px; outline: none; resize: none;
-            min-height: 44px; max-height: 120px;
+            min-height: 24px; max-height: 200px; padding: 4px 0;
+            flex: 1;
         }
-        #input:focus { border-color: #4a9eff; }
+        #input::placeholder { color: #8e8e8e; }
+        #input:focus { border-color: transparent; }
+        #input-actions {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 8px;
+        }
+        #input-left { display: flex; align-items: center; gap: 4px; }
+        #input-right { display: flex; align-items: center; gap: 8px; }
         button {
             padding: 10px 20px; border-radius: 8px; border: none;
             background: #2563eb; color: white; font-size: 15px;
@@ -1157,14 +1277,23 @@ CHAT_HTML = """<!DOCTYPE html>
         }
         button:hover { background: #1d4ed8; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
-        #mic-btn {
-            background: transparent; width: 44px; height: 44px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            padding: 0; overflow: hidden; border: 2px solid #444; transition: all 0.2s;
+        #send-btn {
+            background: #fff; color: #000; border: none;
+            width: 36px; height: 36px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 16px; padding: 0;
         }
-        #mic-btn img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-        #mic-btn:hover { border-color: #e86e2c; }
-        #mic-btn.recording { border-color: #dc2626; box-shadow: 0 0 12px rgba(220,38,38,0.6); animation: pulse 1s infinite; }
+        #send-btn:hover { background: #d1d1d1; }
+        #send-btn:disabled { background: #424242; color: #8e8e8e; cursor: not-allowed; }
+        #mic-btn {
+            background: transparent; width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0; overflow: hidden; border: none; transition: all 0.2s;
+            color: #8e8e8e; font-size: 18px;
+        }
+        #mic-btn img { width: 28px; height: 28px; object-fit: cover; border-radius: 50%; }
+        #mic-btn:hover { background: #424242; color: #e0e0e0; }
+        #mic-btn.recording { background: #dc2626; color: #fff; animation: pulse 1s infinite; }
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
         @keyframes glow-listen { 0%,100% { box-shadow: 0 0 8px rgba(74,222,128,0.4); } 50% { box-shadow: 0 0 16px rgba(74,222,128,0.7); } }
         @keyframes glow-hear { 0%,100% { box-shadow: 0 0 10px rgba(232,110,44,0.5); } 50% { box-shadow: 0 0 20px rgba(232,110,44,0.9); } }
@@ -1196,18 +1325,20 @@ CHAT_HTML = """<!DOCTYPE html>
         .stop-btn.visible { display: inline-block; }
         .stop-btn:hover { color: #f87171; background: #1a1a1a; }
         #upload-btn {
-            background: #222; width: 44px; height: 44px; border-radius: 50%;
+            background: transparent; width: 36px; height: 36px; border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 18px; border: 1px solid #333; color: #888; cursor: pointer;
+            font-size: 18px; border: none; color: #8e8e8e; cursor: pointer;
             transition: all 0.2s;
         }
-        #upload-btn:hover { border-color: #4a9eff; color: #4a9eff; }
-        #upload-btn.has-file { border-color: #4ade80; color: #4ade80; }
+        #upload-btn:hover { background: #424242; color: #e0e0e0; }
+        #upload-btn.has-file { color: #10b981; }
         #file-input { display: none; }
         #pending-file {
-            display: none; padding: 8px 16px; background: #1a1a1a;
-            border-radius: 8px; margin: 8px 24px; font-size: 13px;
+            display: none; padding: 8px 16px; background: #2f2f2f;
+            border-radius: 12px; font-size: 13px;
             align-items: center; gap: 10px;
+            position: fixed; bottom: 100px; left: 10%; right: 10%;
+            z-index: 10; border: 1px solid #424242;
         }
         #pending-file.visible { display: flex; }
         #pending-file img { max-width: 80px; max-height: 60px; border-radius: 4px; }
@@ -1259,9 +1390,13 @@ CHAT_HTML = """<!DOCTYPE html>
         }
         #wakeword-status.visible { display: inline-block; }
         #vad-status {
-            display: none; padding: 6px 24px; text-align: center;
-            font-size: 12px; color: #888; border-top: 1px solid #1a1a1a;
-            letter-spacing: 0.5px; text-transform: uppercase;
+            display: none; padding: 8px 16px; text-align: center;
+            font-size: 12px; color: #8e8e8e;
+            letter-spacing: 0.3px;
+            position: fixed; bottom: 90px; left: 50%;
+            transform: translateX(-50%);
+            background: #2f2f2f; border-radius: 20px;
+            border: 1px solid #424242;
         }
         #vad-status.visible { display: block; }
         #vad-status .vad-dot {
@@ -1379,6 +1514,18 @@ CHAT_HTML = """<!DOCTYPE html>
 
         /* Sidebar sections */
         .sidebar-content { flex: 1; overflow-y: auto; }
+        #sidebar-footer {
+            padding: 12px 16px; border-top: 1px solid #2f2f2f;
+            background: #0a0a0a;
+        }
+        #sidebar-settings-btn {
+            display: flex; align-items: center; gap: 10px;
+            width: 100%; padding: 10px 12px; border-radius: 8px;
+            background: transparent; border: none; color: #8e8e8e;
+            font-size: 14px; cursor: pointer; text-align: left;
+        }
+        #sidebar-settings-btn:hover { background: #2f2f2f; color: #e0e0e0; }
+        #sidebar-settings-btn .settings-icon { font-size: 18px; }
         .sidebar-section { border-bottom: 1px solid #1a1a1a; }
         .section-header {
             padding: 10px 12px; display: flex; align-items: center; gap: 8px;
@@ -1390,6 +1537,11 @@ CHAT_HTML = """<!DOCTYPE html>
         .section-header.collapsed .arrow { transform: rotate(-90deg); }
         .section-content { display: block; }
         .section-header.collapsed + .section-content { display: none; }
+        .section-badge {
+            background: #3b82f6; color: #fff; font-size: 11px;
+            padding: 2px 6px; border-radius: 10px; margin-left: auto;
+            min-width: 18px; text-align: center;
+        }
 
         /* Projects */
         .project-item {
@@ -1545,21 +1697,27 @@ CHAT_HTML = """<!DOCTYPE html>
 
         /* Responsive: portrait phone */
         @media (max-width: 480px) {
-            .msg { max-width: 95%; padding: 10px 12px; font-size: 14px; }
+            .msg { max-width: 85%; font-size: 14px; }
+            .msg.user { padding: 10px 14px; max-width: 85%; }
             header { padding: 10px 12px; gap: 6px; }
-            header h1 { font-size: 17px; }
+            header h1 { font-size: 16px; }
             .header-right { gap: 4px; }
-            .header-btn { padding: 5px 8px; font-size: 12px; }
+            .header-btn { padding: 6px 10px; font-size: 12px; }
             .mode-toggle { padding: 5px 10px; font-size: 11px; gap: 5px; }
             .mode-toggle .dot { width: 5px; height: 5px; }
-            #vad-status { padding: 4px 12px; font-size: 11px; }
-            #input-area { padding: 10px 12px; gap: 8px; }
-            #input { font-size: 14px; padding: 10px 12px; }
-            #mic-btn { width: 38px; height: 38px; font-size: 17px; }
-            #send-btn { padding: 8px 14px; font-size: 14px; }
-            #chat { padding: 16px 12px; gap: 12px; }
+            #vad-status { padding: 6px 12px; font-size: 11px; bottom: 80px; left: 5%; right: 5%; transform: none; }
+            #input-area { padding: 12px 12px 16px; }
+            #input-box { padding: 10px 14px; margin: 0 2%; }
+            #input { font-size: 14px; }
+            #welcome-screen { padding: 16px; }
+            #welcome-screen h2 { font-size: 22px; }
+            #welcome-input-container { padding: 0 2%; }
+            #welcome-input-box { padding: 10px 14px; }
+            #chat { padding: 16px 12px 100px; gap: 16px; }
             #history-panel { width: 100%; left: -100%; }
             .login-box { padding: 24px 20px; }
+            #pending-file { bottom: 85px; left: 5%; right: 5%; }
+            .msg-actions { opacity: 1; }
         }
     </style>
 </head>
@@ -1637,11 +1795,20 @@ CHAT_HTML = """<!DOCTYPE html>
                 <div class="section-header collapsed" onclick="toggleSection('archived')">
                     <span class="arrow">&#9660;</span>
                     <span>Archived</span>
+                    <span id="archived-count" class="section-badge"></span>
                 </div>
                 <div class="section-content" id="archived-content">
                     <div id="archived-list"></div>
                 </div>
             </div>
+        </div>
+
+        <!-- Settings Button at Bottom -->
+        <div id="sidebar-footer">
+            <button id="sidebar-settings-btn" onclick="toggleSettings(); toggleHistory();">
+                <span class="settings-icon">&#9881;</span>
+                <span>Settings</span>
+            </button>
         </div>
     </div>
 
@@ -1732,19 +1899,39 @@ CHAT_HTML = """<!DOCTYPE html>
             <span id="wakeword-status">Listening for "Hey Alfred"...</span>
             <button id="handsfree-btn" class="mode-toggle" onclick="toggleHandsFree()" title="Hands-free voice conversation"><span class="dot"></span>Hands-free</button>
             <button id="auto-speak-btn" class="mode-toggle" onclick="toggleAutoSpeak()" title="Auto-speak responses"><span class="dot"></span>Auto-speak</button>
-            <button class="header-btn" onclick="toggleSettings()">Settings</button>
+            <button class="header-btn" onclick="toggleSettings()">&#9881;</button>
         </div>
     </header>
-    <div id="chat">
-        <div class="msg alfred">
-            <div class="label">Alfred</div>
-            <div class="content">Good day, sir. How can I assist you?</div>
+
+    <!-- Welcome Screen (shown when no messages) -->
+    <div id="welcome-screen" class="visible">
+        <h2>What can I help with?</h2>
+        <div id="welcome-input-container">
+            <div id="welcome-input-box">
+                <textarea id="welcome-input" placeholder="Ask anything" rows="1"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendFromWelcome()}"
+                    oninput="autoResizeWelcome(this)"></textarea>
+                <div id="welcome-input-actions">
+                    <div id="welcome-input-left">
+                        <button class="welcome-btn" onclick="document.getElementById('file-input').click()" title="Attach">&#43;</button>
+                    </div>
+                    <div id="welcome-input-right">
+                        <button class="welcome-btn mic-logo-btn" id="welcome-mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/gr-logo.jpeg" alt="Mic"></button>
+                        <button id="welcome-send-btn" onclick="sendFromWelcome()" title="Send" disabled>&#9650;</button>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <!-- Chat Area (shown after first message) -->
+    <div id="chat" class="welcome-state">
         <div id="thinking">
             <div class="morph-shape"></div>
             <div class="label">Alfred is thinking...</div>
         </div>
     </div>
+
     <div id="vad-status"><span class="vad-dot"></span><span id="vad-status-text">Listening...</span></div>
     <div id="pending-file">
         <img id="pending-preview" src="" alt="">
@@ -1754,13 +1941,24 @@ CHAT_HTML = """<!DOCTYPE html>
         </div>
         <button class="remove-file" onclick="clearPendingFile()" title="Remove">&times;</button>
     </div>
-    <div id="input-area">
-        <button id="mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/gr-mic.jpeg" alt="Mic"></button>
-        <button id="upload-btn" onclick="document.getElementById('file-input').click()" title="Upload file">&#128206;</button>
+
+    <!-- Bottom Input (shown after first message) -->
+    <div id="input-area" class="hidden">
+        <div id="input-box">
+            <textarea id="input" placeholder="Ask anything" rows="1"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"
+                oninput="autoResizeInput(this)"></textarea>
+            <div id="input-actions">
+                <div id="input-left">
+                    <button class="welcome-btn" onclick="document.getElementById('file-input').click()" title="Attach">&#43;</button>
+                </div>
+                <div id="input-right">
+                    <button class="welcome-btn mic-logo-btn" id="mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/gr-logo.jpeg" alt="Mic"></button>
+                    <button id="send-btn" onclick="send()" title="Send">&#9650;</button>
+                </div>
+            </div>
+        </div>
         <input type="file" id="file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.jpg,.jpeg,.png,.gif,.webp" onchange="handleFileSelect(event)">
-        <textarea id="input" placeholder="Ask Alfred anything..." rows="1"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
-        <button id="send-btn" onclick="send()">Send</button>
     </div>
     <script>
         const chat = document.getElementById('chat');
@@ -1777,6 +1975,52 @@ CHAT_HTML = """<!DOCTYPE html>
         let editingRefId = null;
         let projects = [];
         let searchTimeout = null;
+        let isWelcomeState = true;
+
+        // ==================== Welcome Screen ====================
+
+        function showWelcomeState() {
+            isWelcomeState = true;
+            document.getElementById('welcome-screen').classList.add('visible');
+            document.getElementById('chat').classList.add('welcome-state');
+            document.getElementById('input-area').classList.add('hidden');
+        }
+
+        function showChatState() {
+            isWelcomeState = false;
+            document.getElementById('welcome-screen').classList.remove('visible');
+            document.getElementById('chat').classList.remove('welcome-state');
+            document.getElementById('input-area').classList.remove('hidden');
+        }
+
+        function autoResizeWelcome(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+            // Enable/disable send button
+            const btn = document.getElementById('welcome-send-btn');
+            btn.disabled = !el.value.trim();
+        }
+
+        function autoResizeInput(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+        }
+
+        function sendFromWelcome() {
+            const welcomeInput = document.getElementById('welcome-input');
+            const text = welcomeInput.value.trim();
+            if (!text) return;
+            // Transfer to main input and send
+            document.getElementById('input').value = text;
+            welcomeInput.value = '';
+            showChatState();
+            send();
+        }
+
+        // Enable welcome send button on input
+        document.getElementById('welcome-input')?.addEventListener('input', function() {
+            document.getElementById('welcome-send-btn').disabled = !this.value.trim();
+        });
 
         // ==================== Conversation History ====================
 
@@ -1830,7 +2074,8 @@ CHAT_HTML = """<!DOCTYPE html>
                             <span>${formatRelativeDate(c.updated_at)}</span>
                             <div class="conv-actions">
                                 <button class="conv-action-btn" onclick="event.stopPropagation();showMoveModal('${c.id}')" title="Move to project">&#128193;</button>
-                                <button class="conv-action-btn delete" onclick="event.stopPropagation();archiveConversation('${c.id}')" title="Archive">&#128451;</button>
+                                <button class="conv-action-btn" onclick="event.stopPropagation();archiveConversation('${c.id}')" title="Archive">&#128451;</button>
+                                <button class="conv-action-btn delete" onclick="event.stopPropagation();deleteConversationPermanently('${c.id}')" title="Delete">&#10005;</button>
                             </div>
                         </div>
                     </div>`;
@@ -1845,19 +2090,27 @@ CHAT_HTML = """<!DOCTYPE html>
                 const resp = await fetch('/conversations/archived', {headers: authHeaders()});
                 const convs = await resp.json();
                 const listEl = document.getElementById('archived-list');
+
+                // Update archived count badge
+                const badge = document.getElementById('archived-count');
+                if (badge) {
+                    badge.textContent = convs.length || '';
+                    badge.style.display = convs.length ? 'inline-block' : 'none';
+                }
+
                 if (!convs.length) {
                     listEl.innerHTML = '<div style="padding:16px;color:#666;font-size:13px;text-align:center">No archived chats</div>';
                     return;
                 }
                 listEl.innerHTML = convs.map(c => {
-                    const title = c.title || 'Archived conversation';
+                    const title = c.title || 'Untitled conversation';
                     return `<div class="conv-item" data-id="${c.id}">
                         <div class="conv-item-title" style="color:#888">${escapeHtml(title)}</div>
                         <div class="conv-item-meta">
                             <span>${formatRelativeDate(c.updated_at)}</span>
                             <div class="conv-actions" style="visibility:visible">
-                                <button class="conv-action-btn" onclick="restoreConversation('${c.id}')" title="Restore">&#8634;</button>
-                                <button class="conv-action-btn delete" onclick="deleteConversationPermanently('${c.id}')" title="Delete permanently">&#10005;</button>
+                                <button class="conv-action-btn" onclick="event.stopPropagation();restoreConversation('${c.id}')" title="Restore">&#8634;</button>
+                                <button class="conv-action-btn delete" onclick="event.stopPropagation();deleteConversationPermanently('${c.id}')" title="Delete permanently">&#10005;</button>
                             </div>
                         </div>
                     </div>`;
@@ -1900,10 +2153,13 @@ CHAT_HTML = """<!DOCTYPE html>
                 currentConversationId = convId;
                 clearChat();
                 loadingHistory = true;
-                data.messages.forEach(m => {
-                    if (m.role === 'user') addMsg(m.content, 'user', null, true);
-                    else if (m.role === 'assistant') addMsg(m.content, 'alfred', m.tier, true);
-                });
+                if (data.messages && data.messages.length > 0) {
+                    showChatState();
+                    data.messages.forEach(m => {
+                        if (m.role === 'user') addMsg(m.content, 'user', null, true);
+                        else if (m.role === 'assistant') addMsg(m.content, 'alfred', m.tier, true);
+                    });
+                }
                 loadingHistory = false;
                 await loadConversations();
                 toggleHistory();
@@ -1949,9 +2205,10 @@ CHAT_HTML = """<!DOCTYPE html>
         }
 
         function clearChat() {
-            chat.innerHTML = '<div class="msg alfred"><div class="label">Alfred</div><div class="content">Good day, sir. How can I assist you?</div></div><div id="thinking"><div class="morph-shape"></div><div class="label">Alfred is thinking...</div></div>';
+            chat.innerHTML = '<div id="thinking"><div class="morph-shape"></div><div class="label">Alfred is thinking...</div></div>';
             msgTexts = {};
             msgCounter = 0;
+            showWelcomeState();
         }
 
         async function initConversations() {
@@ -2457,6 +2714,12 @@ CHAT_HTML = """<!DOCTYPE html>
                     <span><span class="status-dot ${ncConnected?'green':'red'}"></span>Nextcloud</span>
                     <span style="color:#888;font-size:12px">${ncConnected?'Connected':'Not connected'}</span>
                 </div>`;
+                // Stripe
+                const stripeConnected = data.stripe?.connected;
+                html += `<div class="status-item">
+                    <span><span class="status-dot ${stripeConnected?'green':'red'}"></span>Stripe Payments</span>
+                    <span style="color:#888;font-size:12px">${stripeConnected?'Connected':'Not connected'}</span>
+                </div>`;
 
                 document.getElementById('integration-list').innerHTML = html;
 
@@ -2487,17 +2750,41 @@ CHAT_HTML = """<!DOCTYPE html>
         if (autoSpeak) document.getElementById('auto-speak-btn')?.classList.add('active');
 
         function addMsg(text, role, tier, noAutoSpeak = false) {
+            // Show chat state when adding messages
+            if (isWelcomeState) showChatState();
+
             const div = document.createElement('div');
             div.className = `msg ${role}`;
-            let label = role === 'user' ? 'You' : 'Alfred';
-            let badge = tier ? `<span class="tier-badge tier-${tier}">${tier}</span>` : '';
-            let voiceBtns = '';
+            const mid = ++msgCounter;
+            msgTexts[mid] = text;
+
             if (role === 'alfred') {
-                const mid = ++msgCounter;
-                msgTexts[mid] = text;
-                voiceBtns = `<button class="speak-btn" data-mid="${mid}" title="Read aloud">&#128264;</button><button class="stop-btn" data-mid="${mid}" title="Stop">&#9632;</button>`;
+                // Alfred message: no bubble, just text + action buttons
+                div.innerHTML = `
+                    <div class="content">${renderText(text)}</div>
+                    <div class="msg-actions">
+                        <button class="msg-action-btn copy-btn" data-mid="${mid}" title="Copy">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                        <button class="msg-action-btn thumbs-up-btn" data-mid="${mid}" title="Good response">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+                        </button>
+                        <button class="msg-action-btn thumbs-down-btn" data-mid="${mid}" title="Bad response">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3zm7-13h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/></svg>
+                        </button>
+                        <button class="msg-action-btn speak-btn" data-mid="${mid}" title="Read aloud">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+                        </button>
+                        <button class="msg-action-btn regenerate-btn" data-mid="${mid}" title="Regenerate">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                        </button>
+                    </div>
+                `;
+            } else {
+                // User message: bubble style
+                div.innerHTML = `<div class="content">${renderText(text)}</div>`;
             }
-            div.innerHTML = `<div class="label">${label} ${badge}${voiceBtns}</div><div class="content">${renderText(text)}</div>`;
+
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
             if (role === 'alfred' && autoSpeak && !loadingHistory && !noAutoSpeak) {
@@ -2508,17 +2795,39 @@ CHAT_HTML = """<!DOCTYPE html>
         }
 
         function addMsgHtml(text, role, tier, noAutoSpeak = false, extraHtml = '') {
+            // Show chat state when adding messages
+            if (isWelcomeState) showChatState();
+
             const div = document.createElement('div');
             div.className = `msg ${role}`;
-            let label = role === 'user' ? 'You' : 'Alfred';
-            let badge = tier ? `<span class="tier-badge tier-${tier}">${tier}</span>` : '';
-            let voiceBtns = '';
+            const mid = ++msgCounter;
+            msgTexts[mid] = text;
+
             if (role === 'alfred') {
-                const mid = ++msgCounter;
-                msgTexts[mid] = text;
-                voiceBtns = `<button class="speak-btn" data-mid="${mid}" title="Read aloud">&#128264;</button><button class="stop-btn" data-mid="${mid}" title="Stop">&#9632;</button>`;
+                div.innerHTML = `
+                    <div class="content">${renderText(text)}${extraHtml}</div>
+                    <div class="msg-actions">
+                        <button class="msg-action-btn copy-btn" data-mid="${mid}" title="Copy">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                        <button class="msg-action-btn thumbs-up-btn" data-mid="${mid}" title="Good response">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+                        </button>
+                        <button class="msg-action-btn thumbs-down-btn" data-mid="${mid}" title="Bad response">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3zm7-13h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/></svg>
+                        </button>
+                        <button class="msg-action-btn speak-btn" data-mid="${mid}" title="Read aloud">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+                        </button>
+                        <button class="msg-action-btn regenerate-btn" data-mid="${mid}" title="Regenerate">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                        </button>
+                    </div>
+                `;
+            } else {
+                div.innerHTML = `<div class="content">${renderText(text)}${extraHtml}</div>`;
             }
-            div.innerHTML = `<div class="label">${label} ${badge}${voiceBtns}</div><div class="content">${renderText(text)}${extraHtml}</div>`;
+
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
             if (role === 'alfred' && autoSpeak && !loadingHistory && !noAutoSpeak) {
@@ -2533,7 +2842,23 @@ CHAT_HTML = """<!DOCTYPE html>
             if (speakBtn) { speakText(speakBtn); return; }
             const stopBtn = e.target.closest('.stop-btn');
             if (stopBtn) { stopAudio(); return; }
+            const copyBtn = e.target.closest('.copy-btn');
+            if (copyBtn) { copyMessage(copyBtn); return; }
+            const thumbsUpBtn = e.target.closest('.thumbs-up-btn');
+            if (thumbsUpBtn) { thumbsUpBtn.classList.toggle('active'); return; }
+            const thumbsDownBtn = e.target.closest('.thumbs-down-btn');
+            if (thumbsDownBtn) { thumbsDownBtn.classList.toggle('active'); return; }
         });
+
+        function copyMessage(btn) {
+            const mid = btn.getAttribute('data-mid');
+            const text = msgTexts[mid];
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 2000);
+            });
+        }
 
         function stopAudio() {
             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
@@ -2551,13 +2876,15 @@ CHAT_HTML = """<!DOCTYPE html>
             const mid = btn.getAttribute('data-mid');
             const text = msgTexts[mid];
             if (!text) return;
-            // Stop any current audio
-            stopAudio();
-            // Toggle off if clicking same button
-            if (btn.classList.contains('speaking')) { btn.classList.remove('speaking'); return; }
-            btn.classList.add('speaking');
-            // Show stop button for this message
             const stopBtn = btn.parentElement.querySelector('.stop-btn');
+            // Toggle off if this button is already speaking
+            if (btn.classList.contains('speaking')) {
+                stopAudio();
+                return;
+            }
+            // Stop any other audio first
+            stopAudio();
+            btn.classList.add('speaking');
             if (stopBtn) stopBtn.classList.add('visible');
             try {
                 const resp = await fetch('/voice/speak', {
@@ -2760,10 +3087,12 @@ CHAT_HTML = """<!DOCTYPE html>
                 const speaking = document.querySelector('.speak-btn.speaking');
                 if (speaking) speaking.classList.remove('speaking');
             }
-            const btn = document.getElementById('mic-btn');
+            const mainBtn = document.getElementById('mic-btn');
+            const welcomeBtn = document.getElementById('welcome-mic-btn');
             if (isRecording) {
                 mediaRecorder.stop();
-                btn.classList.remove('recording');
+                mainBtn?.classList.remove('recording');
+                welcomeBtn?.classList.remove('recording');
                 isRecording = false;
             } else {
                 const stream = await navigator.mediaDevices.getUserMedia({audio: true});
@@ -2778,11 +3107,21 @@ CHAT_HTML = """<!DOCTYPE html>
                     try {
                         const resp = await fetch('/voice/transcribe', {method:'POST', headers: authHeaders(), body: form});
                         const data = await resp.json();
-                        if (data.text) { input.value = data.text; send(); }
+                        if (data.text) {
+                            // Put transcription in the appropriate input
+                            if (isWelcomeState) {
+                                document.getElementById('welcome-input').value = data.text;
+                                sendFromWelcome();
+                            } else {
+                                input.value = data.text;
+                                send();
+                            }
+                        }
                     } catch(e) { console.error('Transcription failed:', e); }
                 };
                 mediaRecorder.start();
-                btn.classList.add('recording');
+                mainBtn?.classList.add('recording');
+                welcomeBtn?.classList.add('recording');
                 isRecording = true;
             }
         }
@@ -3180,7 +3519,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
 
 SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v12';
+const CACHE_NAME = 'alfred-v21';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
 self.addEventListener('install', event => {

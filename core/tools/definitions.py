@@ -664,6 +664,244 @@ async def list_knowledge_documents(limit: int = 20) -> dict:
     return {"success": True, "documents": result["documents"]}
 
 
+# ==================== GOOGLE DRIVE ====================
+
+@tool(
+    name="drive_list_files",
+    description="List files in Google Drive or a specific folder.",
+    parameters={"folder_id": "str (optional)", "query": "str - search term (optional)", "file_type": "str - folder/document/spreadsheet/presentation/pdf/image (optional)"},
+)
+def drive_list_files(folder_id: str = None, query: str = None, file_type: str = None) -> list[dict]:
+    from integrations.google_drive.client import list_files
+    return list_files(folder_id=folder_id, query=query, file_type=file_type)
+
+
+@tool(
+    name="drive_search",
+    description="Search for files in Google Drive by name or content.",
+    parameters={"query": "str - search query"},
+)
+def drive_search(query: str) -> list[dict]:
+    from integrations.google_drive.client import search_files
+    return search_files(query)
+
+
+@tool(
+    name="drive_create_folder",
+    description="Create a folder in Google Drive.",
+    parameters={"name": "str - folder name", "parent_id": "str - parent folder ID (optional)"},
+)
+def drive_create_folder(name: str, parent_id: str = None) -> dict:
+    from integrations.google_drive.client import create_folder
+    return create_folder(name, parent_id)
+
+
+@tool(
+    name="drive_upload",
+    description="Upload a file to Google Drive.",
+    parameters={"local_path": "str - path to local file", "name": "str - name in Drive (optional)", "folder_id": "str - destination folder (optional)"},
+)
+def drive_upload(local_path: str, name: str = None, folder_id: str = None) -> dict:
+    from integrations.google_drive.client import upload_file
+    return upload_file(local_path, name, folder_id)
+
+
+@tool(
+    name="drive_download",
+    description="Download a file from Google Drive.",
+    parameters={"file_id": "str - Drive file ID", "local_path": "str - where to save locally"},
+)
+def drive_download(file_id: str, local_path: str) -> dict:
+    from integrations.google_drive.client import download_file
+    return download_file(file_id, local_path)
+
+
+@tool(
+    name="drive_share",
+    description="Share a file with someone.",
+    parameters={"file_id": "str - file ID", "email": "str - email to share with", "role": "str - reader/writer/commenter (default reader)"},
+)
+def drive_share(file_id: str, email: str, role: str = "reader") -> dict:
+    from integrations.google_drive.client import share_file
+    return share_file(file_id, email, role)
+
+
+@tool(
+    name="drive_delete",
+    description="Move a file to trash.",
+    parameters={"file_id": "str - file ID to delete"},
+)
+def drive_delete(file_id: str) -> dict:
+    from integrations.google_drive.client import delete_file
+    return delete_file(file_id)
+
+
+# ==================== GOOGLE DOCS ====================
+
+@tool(
+    name="docs_create",
+    description="Create a new Google Doc.",
+    parameters={"title": "str - document title", "content": "str - initial text (optional)", "folder_id": "str - folder to create in (optional)"},
+)
+def docs_create(title: str, content: str = None, folder_id: str = None) -> dict:
+    from integrations.google_docs.client import create_document
+    return create_document(title, content, folder_id)
+
+
+@tool(
+    name="docs_read",
+    description="Read the text content of a Google Doc.",
+    parameters={"document_id": "str - the document ID"},
+)
+def docs_read(document_id: str) -> str:
+    from integrations.google_docs.client import read_document
+    return read_document(document_id)
+
+
+@tool(
+    name="docs_append",
+    description="Append text to the end of a Google Doc.",
+    parameters={"document_id": "str - the document ID", "text": "str - text to append"},
+)
+def docs_append(document_id: str, text: str) -> dict:
+    from integrations.google_docs.client import append_text
+    return append_text(document_id, text)
+
+
+@tool(
+    name="docs_replace",
+    description="Find and replace text in a Google Doc.",
+    parameters={"document_id": "str - the document ID", "find": "str - text to find", "replace": "str - replacement text"},
+)
+def docs_replace(document_id: str, find: str, replace: str) -> dict:
+    from integrations.google_docs.client import replace_text
+    return replace_text(document_id, find, replace)
+
+
+@tool(
+    name="docs_list",
+    description="List Google Docs.",
+    parameters={"max_results": "int (default 20)"},
+)
+def docs_list(max_results: int = 20) -> list[dict]:
+    from integrations.google_docs.client import list_documents
+    return list_documents(max_results)
+
+
+# ==================== GOOGLE SHEETS ====================
+
+@tool(
+    name="sheets_create",
+    description="Create a new Google Spreadsheet.",
+    parameters={"title": "str - spreadsheet title", "sheet_names": "list of str - sheet names (optional)", "folder_id": "str - folder (optional)"},
+)
+def sheets_create(title: str, sheet_names: list = None, folder_id: str = None) -> dict:
+    from integrations.google_sheets.client import create_spreadsheet
+    return create_spreadsheet(title, sheet_names, folder_id)
+
+
+@tool(
+    name="sheets_read",
+    description="Read data from a Google Sheet range.",
+    parameters={"spreadsheet_id": "str", "range_notation": "str - A1 notation like 'Sheet1!A1:D10'"},
+)
+def sheets_read(spreadsheet_id: str, range_notation: str) -> list[list]:
+    from integrations.google_sheets.client import read_range
+    return read_range(spreadsheet_id, range_notation)
+
+
+@tool(
+    name="sheets_write",
+    description="Write data to a Google Sheet range.",
+    parameters={"spreadsheet_id": "str", "range_notation": "str - A1 notation", "values": "2D list of values"},
+)
+def sheets_write(spreadsheet_id: str, range_notation: str, values: list[list]) -> dict:
+    from integrations.google_sheets.client import write_range
+    return write_range(spreadsheet_id, range_notation, values)
+
+
+@tool(
+    name="sheets_append_row",
+    description="Append a row to a Google Sheet.",
+    parameters={"spreadsheet_id": "str", "values": "list of values for the row", "sheet_name": "str (default Sheet1)"},
+)
+def sheets_append_row(spreadsheet_id: str, values: list, sheet_name: str = "Sheet1") -> dict:
+    from integrations.google_sheets.client import append_row
+    return append_row(spreadsheet_id, values, sheet_name)
+
+
+@tool(
+    name="sheets_list",
+    description="List Google Spreadsheets.",
+    parameters={"max_results": "int (default 20)"},
+)
+def sheets_list(max_results: int = 20) -> list[dict]:
+    from integrations.google_sheets.client import list_spreadsheets
+    return list_spreadsheets(max_results)
+
+
+@tool(
+    name="sheets_get",
+    description="Get spreadsheet metadata including sheet names.",
+    parameters={"spreadsheet_id": "str"},
+)
+def sheets_get(spreadsheet_id: str) -> dict:
+    from integrations.google_sheets.client import get_spreadsheet
+    return get_spreadsheet(spreadsheet_id)
+
+
+# ==================== GOOGLE SLIDES ====================
+
+@tool(
+    name="slides_create",
+    description="Create a new Google Slides presentation.",
+    parameters={"title": "str - presentation title", "folder_id": "str - folder (optional)"},
+)
+def slides_create(title: str, folder_id: str = None) -> dict:
+    from integrations.google_slides.client import create_presentation
+    return create_presentation(title, folder_id)
+
+
+@tool(
+    name="slides_get",
+    description="Get presentation metadata and slide info.",
+    parameters={"presentation_id": "str"},
+)
+def slides_get(presentation_id: str) -> dict:
+    from integrations.google_slides.client import get_presentation
+    return get_presentation(presentation_id)
+
+
+@tool(
+    name="slides_add_slide",
+    description="Add a slide to a presentation.",
+    parameters={"presentation_id": "str", "layout": "str - BLANK/TITLE/TITLE_AND_BODY (default BLANK)"},
+)
+def slides_add_slide(presentation_id: str, layout: str = "BLANK") -> dict:
+    from integrations.google_slides.client import add_slide
+    return add_slide(presentation_id, layout)
+
+
+@tool(
+    name="slides_add_text",
+    description="Add text to a slide.",
+    parameters={"presentation_id": "str", "slide_id": "str", "text": "str", "x": "float (default 100)", "y": "float (default 100)"},
+)
+def slides_add_text(presentation_id: str, slide_id: str, text: str, x: float = 100, y: float = 100) -> dict:
+    from integrations.google_slides.client import add_text_to_slide
+    return add_text_to_slide(presentation_id, slide_id, text, x, y)
+
+
+@tool(
+    name="slides_list",
+    description="List Google Slides presentations.",
+    parameters={"max_results": "int (default 20)"},
+)
+def slides_list(max_results: int = 20) -> list[dict]:
+    from integrations.google_slides.client import list_presentations
+    return list_presentations(max_results)
+
+
 # ==================== N8N WORKFLOW AUTOMATION ====================
 
 @tool(
@@ -1102,6 +1340,406 @@ def nextcloud_get_calendar_events(calendar_id: str, days_ahead: int = 30) -> lis
 def nextcloud_get_tasks(list_id: str) -> list[dict]:
     from integrations.nextcloud.client import get_tasks
     return get_tasks(list_id)
+
+
+# ==================== STRIPE ====================
+
+@tool(
+    name="stripe_get_balance",
+    description="Get Stripe account balance (available and pending funds).",
+    parameters={},
+)
+def stripe_get_balance() -> dict:
+    from integrations.stripe.client import get_balance
+    return get_balance()
+
+
+@tool(
+    name="stripe_list_payouts",
+    description="List recent Stripe payouts to your bank account.",
+    parameters={"limit": "int (default 20)"},
+)
+def stripe_list_payouts(limit: int = 20) -> list[dict]:
+    from integrations.stripe.client import list_payouts
+    return list_payouts(limit)
+
+
+@tool(
+    name="stripe_revenue_summary",
+    description="Get a summary of recent revenue, active subscriptions, and estimated MRR.",
+    parameters={},
+)
+def stripe_revenue_summary() -> dict:
+    from integrations.stripe.client import get_revenue_summary
+    return get_revenue_summary()
+
+
+# Payments
+@tool(
+    name="stripe_list_payments",
+    description="List recent Stripe payments/charges.",
+    parameters={"limit": "int (default 20)", "customer": "string - customer ID (optional)"},
+)
+def stripe_list_payments(limit: int = 20, customer: str = None) -> list[dict]:
+    from integrations.stripe.client import list_payments
+    return list_payments(limit, customer)
+
+
+@tool(
+    name="stripe_get_payment",
+    description="Get details of a specific Stripe payment/charge.",
+    parameters={"charge_id": "string - charge ID (ch_...)"},
+)
+def stripe_get_payment(charge_id: str) -> dict:
+    from integrations.stripe.client import get_payment
+    return get_payment(charge_id)
+
+
+@tool(
+    name="stripe_search_payments",
+    description="Search Stripe payments. Query examples: 'amount>1000', 'status:succeeded', 'customer:cus_xxx'.",
+    parameters={"query": "string - Stripe search query", "limit": "int (default 20)"},
+)
+def stripe_search_payments(query: str, limit: int = 20) -> list[dict]:
+    from integrations.stripe.client import search_payments
+    return search_payments(query, limit)
+
+
+@tool(
+    name="stripe_refund_payment",
+    description="Issue a refund for a Stripe payment. Omit amount for full refund.",
+    parameters={
+        "charge_id": "string - charge ID to refund",
+        "amount": "float - amount in dollars (optional, omit for full refund)",
+        "reason": "string - 'duplicate', 'fraudulent', or 'requested_by_customer' (optional)",
+    },
+)
+def stripe_refund_payment(charge_id: str, amount: float = None, reason: str = None) -> dict:
+    from integrations.stripe.client import refund_payment
+    return refund_payment(charge_id, amount, reason)
+
+
+@tool(
+    name="stripe_list_refunds",
+    description="List Stripe refunds.",
+    parameters={"limit": "int (default 20)", "charge": "string - charge ID to filter by (optional)"},
+)
+def stripe_list_refunds(limit: int = 20, charge: str = None) -> list[dict]:
+    from integrations.stripe.client import list_refunds
+    return list_refunds(limit, charge)
+
+
+# Customers
+@tool(
+    name="stripe_list_customers",
+    description="List Stripe customers.",
+    parameters={"limit": "int (default 20)", "email": "string - filter by email (optional)"},
+)
+def stripe_list_customers(limit: int = 20, email: str = None) -> list[dict]:
+    from integrations.stripe.client import list_customers
+    return list_customers(limit, email)
+
+
+@tool(
+    name="stripe_search_customers",
+    description="Search Stripe customers. Query examples: 'email:john@example.com', 'name:John'.",
+    parameters={"query": "string - Stripe search query", "limit": "int (default 20)"},
+)
+def stripe_search_customers(query: str, limit: int = 20) -> list[dict]:
+    from integrations.stripe.client import search_customers
+    return search_customers(query, limit)
+
+
+@tool(
+    name="stripe_get_customer",
+    description="Get details of a specific Stripe customer.",
+    parameters={"customer_id": "string - customer ID (cus_...)"},
+)
+def stripe_get_customer(customer_id: str) -> dict:
+    from integrations.stripe.client import get_customer
+    return get_customer(customer_id)
+
+
+@tool(
+    name="stripe_create_customer",
+    description="Create a new Stripe customer.",
+    parameters={
+        "email": "string - customer email",
+        "name": "string (optional)",
+        "phone": "string (optional)",
+        "description": "string (optional)",
+    },
+)
+def stripe_create_customer(email: str, name: str = None, phone: str = None, description: str = None) -> dict:
+    from integrations.stripe.client import create_customer
+    return create_customer(email, name, phone, description)
+
+
+@tool(
+    name="stripe_update_customer",
+    description="Update a Stripe customer.",
+    parameters={
+        "customer_id": "string - customer ID",
+        "email": "string (optional)",
+        "name": "string (optional)",
+        "phone": "string (optional)",
+    },
+)
+def stripe_update_customer(customer_id: str, email: str = None, name: str = None, phone: str = None) -> dict:
+    from integrations.stripe.client import update_customer
+    return update_customer(customer_id, email, name, phone)
+
+
+@tool(
+    name="stripe_delete_customer",
+    description="Delete a Stripe customer.",
+    parameters={"customer_id": "string - customer ID to delete"},
+)
+def stripe_delete_customer(customer_id: str) -> dict:
+    from integrations.stripe.client import delete_customer
+    return delete_customer(customer_id)
+
+
+# Subscriptions
+@tool(
+    name="stripe_list_subscriptions",
+    description="List Stripe subscriptions.",
+    parameters={
+        "limit": "int (default 20)",
+        "customer": "string - customer ID (optional)",
+        "status": "string - 'active', 'past_due', 'canceled', 'all' (optional)",
+    },
+)
+def stripe_list_subscriptions(limit: int = 20, customer: str = None, status: str = None) -> list[dict]:
+    from integrations.stripe.client import list_subscriptions
+    return list_subscriptions(limit, customer, status)
+
+
+@tool(
+    name="stripe_get_subscription",
+    description="Get details of a Stripe subscription.",
+    parameters={"subscription_id": "string - subscription ID (sub_...)"},
+)
+def stripe_get_subscription(subscription_id: str) -> dict:
+    from integrations.stripe.client import get_subscription
+    return get_subscription(subscription_id)
+
+
+@tool(
+    name="stripe_create_subscription",
+    description="Create a subscription for a customer.",
+    parameters={
+        "customer_id": "string - customer ID",
+        "price_id": "string - price ID (price_...)",
+        "quantity": "int (default 1)",
+    },
+)
+def stripe_create_subscription(customer_id: str, price_id: str, quantity: int = 1) -> dict:
+    from integrations.stripe.client import create_subscription
+    return create_subscription(customer_id, price_id, quantity)
+
+
+@tool(
+    name="stripe_cancel_subscription",
+    description="Cancel a Stripe subscription.",
+    parameters={
+        "subscription_id": "string - subscription ID",
+        "at_period_end": "bool - if true, cancel at end of billing period (default true)",
+    },
+)
+def stripe_cancel_subscription(subscription_id: str, at_period_end: bool = True) -> dict:
+    from integrations.stripe.client import cancel_subscription
+    return cancel_subscription(subscription_id, at_period_end)
+
+
+@tool(
+    name="stripe_resume_subscription",
+    description="Resume a subscription that was scheduled for cancellation.",
+    parameters={"subscription_id": "string - subscription ID"},
+)
+def stripe_resume_subscription(subscription_id: str) -> dict:
+    from integrations.stripe.client import resume_subscription
+    return resume_subscription(subscription_id)
+
+
+# Products & Prices
+@tool(
+    name="stripe_list_products",
+    description="List Stripe products.",
+    parameters={"limit": "int (default 20)", "active": "bool - filter by active status (optional)"},
+)
+def stripe_list_products(limit: int = 20, active: bool = None) -> list[dict]:
+    from integrations.stripe.client import list_products
+    return list_products(limit, active)
+
+
+@tool(
+    name="stripe_get_product",
+    description="Get details of a Stripe product.",
+    parameters={"product_id": "string - product ID (prod_...)"},
+)
+def stripe_get_product(product_id: str) -> dict:
+    from integrations.stripe.client import get_product
+    return get_product(product_id)
+
+
+@tool(
+    name="stripe_create_product",
+    description="Create a new Stripe product.",
+    parameters={
+        "name": "string - product name",
+        "description": "string (optional)",
+        "active": "bool (default true)",
+    },
+)
+def stripe_create_product(name: str, description: str = None, active: bool = True) -> dict:
+    from integrations.stripe.client import create_product
+    return create_product(name, description, active)
+
+
+@tool(
+    name="stripe_list_prices",
+    description="List Stripe prices.",
+    parameters={
+        "limit": "int (default 20)",
+        "product": "string - product ID (optional)",
+        "active": "bool (optional)",
+    },
+)
+def stripe_list_prices(limit: int = 20, product: str = None, active: bool = None) -> list[dict]:
+    from integrations.stripe.client import list_prices
+    return list_prices(limit, product, active)
+
+
+@tool(
+    name="stripe_create_price",
+    description="Create a price for a product.",
+    parameters={
+        "product_id": "string - product ID",
+        "unit_amount": "float - price in dollars",
+        "currency": "string (default 'usd')",
+        "recurring_interval": "string - 'month' or 'year' for subscriptions (optional)",
+    },
+)
+def stripe_create_price(product_id: str, unit_amount: float, currency: str = "usd",
+                        recurring_interval: str = None) -> dict:
+    from integrations.stripe.client import create_price
+    return create_price(product_id, unit_amount, currency, recurring_interval)
+
+
+# Invoices
+@tool(
+    name="stripe_list_invoices",
+    description="List Stripe invoices.",
+    parameters={
+        "limit": "int (default 20)",
+        "customer": "string - customer ID (optional)",
+        "status": "string - 'draft', 'open', 'paid', 'void' (optional)",
+    },
+)
+def stripe_list_invoices(limit: int = 20, customer: str = None, status: str = None) -> list[dict]:
+    from integrations.stripe.client import list_invoices
+    return list_invoices(limit, customer, status)
+
+
+@tool(
+    name="stripe_get_invoice",
+    description="Get details of a Stripe invoice.",
+    parameters={"invoice_id": "string - invoice ID (in_...)"},
+)
+def stripe_get_invoice(invoice_id: str) -> dict:
+    from integrations.stripe.client import get_invoice
+    return get_invoice(invoice_id)
+
+
+@tool(
+    name="stripe_create_invoice",
+    description="Create a draft invoice for a customer.",
+    parameters={
+        "customer_id": "string - customer ID",
+        "description": "string (optional)",
+        "days_until_due": "int (default 30)",
+    },
+)
+def stripe_create_invoice(customer_id: str, description: str = None, days_until_due: int = 30) -> dict:
+    from integrations.stripe.client import create_invoice
+    return create_invoice(customer_id, description, days_until_due)
+
+
+@tool(
+    name="stripe_add_invoice_item",
+    description="Add a line item to a draft invoice.",
+    parameters={
+        "invoice_id": "string - invoice ID",
+        "description": "string - item description",
+        "amount": "float - amount in dollars",
+        "quantity": "int (default 1)",
+    },
+)
+def stripe_add_invoice_item(invoice_id: str, description: str, amount: float, quantity: int = 1) -> dict:
+    from integrations.stripe.client import add_invoice_item
+    return add_invoice_item(invoice_id, description, amount, quantity)
+
+
+@tool(
+    name="stripe_finalize_invoice",
+    description="Finalize a draft invoice (locks it for payment).",
+    parameters={"invoice_id": "string - invoice ID"},
+)
+def stripe_finalize_invoice(invoice_id: str) -> dict:
+    from integrations.stripe.client import finalize_invoice
+    return finalize_invoice(invoice_id)
+
+
+@tool(
+    name="stripe_send_invoice",
+    description="Send an invoice to the customer via email.",
+    parameters={"invoice_id": "string - invoice ID"},
+)
+def stripe_send_invoice(invoice_id: str) -> dict:
+    from integrations.stripe.client import send_invoice
+    return send_invoice(invoice_id)
+
+
+@tool(
+    name="stripe_void_invoice",
+    description="Void an invoice.",
+    parameters={"invoice_id": "string - invoice ID"},
+)
+def stripe_void_invoice(invoice_id: str) -> dict:
+    from integrations.stripe.client import void_invoice
+    return void_invoice(invoice_id)
+
+
+# Payment Links
+@tool(
+    name="stripe_list_payment_links",
+    description="List Stripe payment links.",
+    parameters={"limit": "int (default 20)", "active": "bool (optional)"},
+)
+def stripe_list_payment_links(limit: int = 20, active: bool = None) -> list[dict]:
+    from integrations.stripe.client import list_payment_links
+    return list_payment_links(limit, active)
+
+
+@tool(
+    name="stripe_create_payment_link",
+    description="Create a Stripe payment link for a price.",
+    parameters={"price_id": "string - price ID", "quantity": "int (default 1)"},
+)
+def stripe_create_payment_link(price_id: str, quantity: int = 1) -> dict:
+    from integrations.stripe.client import create_payment_link
+    return create_payment_link(price_id, quantity)
+
+
+@tool(
+    name="stripe_deactivate_payment_link",
+    description="Deactivate a Stripe payment link.",
+    parameters={"payment_link_id": "string - payment link ID"},
+)
+def stripe_deactivate_payment_link(payment_link_id: str) -> dict:
+    from integrations.stripe.client import deactivate_payment_link
+    return deactivate_payment_link(payment_link_id)
 
 
 def register_all():

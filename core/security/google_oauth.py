@@ -13,11 +13,22 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 SCOPES = [
+    # Gmail
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.modify",
+    # Calendar
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/calendar.events",
+    # Drive
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/drive.file",
+    # Docs
+    "https://www.googleapis.com/auth/documents",
+    # Sheets
+    "https://www.googleapis.com/auth/spreadsheets",
+    # Slides
+    "https://www.googleapis.com/auth/presentations",
 ]
 
 TOKEN_FILE = Path(settings.base_dir) / "config" / "google_token.json"

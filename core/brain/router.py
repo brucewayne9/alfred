@@ -18,6 +18,41 @@ from core.tools.registry import get_tools_prompt, parse_tool_call, execute_tool
 logger = logging.getLogger(__name__)
 
 
+def get_memory_context(query: str) -> str:
+    """Automatically recall relevant memories based on the query.
+
+    This runs before every response so Alfred always has personal context.
+    """
+    try:
+        from core.memory.store import get_collection
+
+        memories = []
+        # Search across all memory categories
+        for category in ["personal", "business", "general", "financial"]:
+            try:
+                coll = get_collection(f"memory_{category}")
+                if coll.count() > 0:
+                    results = coll.query(
+                        query_texts=[query],
+                        n_results=min(3, coll.count()),
+                    )
+                    for i, doc in enumerate(results["documents"][0]):
+                        distance = results["distances"][0][i] if results["distances"] else 1.0
+                        # Only include relevant memories (lower distance = more relevant)
+                        if distance < 1.5:
+                            memories.append(f"[{category}] {doc}")
+            except Exception as e:
+                logger.debug(f"Memory search in {category} failed: {e}")
+                continue
+
+        if memories:
+            return "Your memory about the user:\n" + "\n".join(memories)
+        return ""
+    except Exception as e:
+        logger.debug(f"Memory context retrieval failed: {e}")
+        return ""
+
+
 class ModelTier(str, Enum):
     LOCAL = "local"
     CLAUDE_CODE = "claude-code"
@@ -65,10 +100,21 @@ def classify_query(query: str) -> ModelTier:
     return ModelTier.LOCAL
 
 
-def get_system_prompt() -> str:
-    """Build the full system prompt including available tools."""
-    tools_section = get_tools_prompt()
-    return SYSTEM_PROMPT_BASE + ("\n\n" + tools_section if tools_section else "")
+def get_system_prompt(query: str = None) -> str:
+    """Build the full system prompt including available tools and memory context.
+
+    If query is provided, only includes relevant tools to reduce context size.
+    Also automatically retrieves relevant memories about the user.
+    """
+    tools_section = get_tools_prompt(query)
+    memory_section = get_memory_context(query) if query else ""
+
+    prompt = SYSTEM_PROMPT_BASE
+    if memory_section:
+        prompt += "\n\n" + memory_section
+    if tools_section:
+        prompt += "\n\n" + tools_section
+    return prompt
 
 
 async def query_local(messages: list[dict], model: str | None = None) -> str:
@@ -133,8 +179,13 @@ async def query_claude_vision(query: str, image_data: str, media_type: str = "im
         return f"Vision analysis failed: {e}"
 
 
-async def query_claude_code(query: str) -> str:
-    """Hand off a query to Claude Code CLI (uses Max subscription)."""
+async def query_claude_code(query: str, allow_tools: bool = False) -> str:
+    """Hand off a query to Claude Code CLI (uses Max subscription).
+
+    Args:
+        query: The user's query
+        allow_tools: If True, enables file editing and tool use (for "fix alfred" type tasks)
+    """
     claude_path = shutil.which("claude")
     if not claude_path:
         logger.warning("Claude Code CLI not found, falling back to local")
@@ -150,11 +201,23 @@ async def query_claude_code(query: str) -> str:
             clean_query = clean_query[len(prefix):].strip()
             break
 
-    logger.info(f"Handing off to Claude Code: {clean_query[:100]}...")
+    # Check if this is a "fix alfred" type request that needs tools
+    fix_keywords = ["fix", "edit", "update", "modify", "change", "add", "implement", "refactor", "debug"]
+    alfred_keywords = ["alfred", "this code", "the code", "this file", "codebase"]
+    query_lower = clean_query.lower()
+    needs_tools = any(f in query_lower for f in fix_keywords) and any(a in query_lower for a in alfred_keywords)
+
+    if needs_tools or allow_tools:
+        logger.info(f"Handing off to Claude Code WITH TOOLS: {clean_query[:100]}...")
+        # Use --dangerously-skip-permissions for full tool access
+        cmd = [claude_path, "--dangerously-skip-permissions", "-p", clean_query]
+    else:
+        logger.info(f"Handing off to Claude Code (read-only): {clean_query[:100]}...")
+        cmd = [claude_path, "-p", clean_query]
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            claude_path, "-p", clean_query,
+            *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd="/home/aialfred/alfred",
@@ -163,13 +226,13 @@ async def query_claude_code(query: str) -> str:
                 "PATH": "/home/aialfred/.nvm/versions/node/v20.12.2/bin:" + __import__("os").environ.get("PATH", ""),
             },
         )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)  # 5 min for complex tasks
         response = stdout.decode("utf-8", errors="replace").strip()
         if not response and stderr:
             response = f"Claude Code error: {stderr.decode('utf-8', errors='replace').strip()}"
         return response or "Claude Code returned no output."
     except asyncio.TimeoutError:
-        logger.error("Claude Code timed out after 120s")
+        logger.error("Claude Code timed out after 300s")
         return "Claude Code timed out. The task may be too complex for non-interactive mode."
     except Exception as e:
         logger.error(f"Claude Code failed: {e}")
@@ -197,13 +260,13 @@ async def ask(
 
     if messages is None:
         messages = [
-            {"role": "system", "content": get_system_prompt()},
+            {"role": "system", "content": get_system_prompt(query)},
             {"role": "user", "content": query},
         ]
 
-    # Ensure system prompt has tools
+    # Ensure system prompt has tools (filtered by query)
     if messages and messages[0]["role"] == "system":
-        messages[0]["content"] = get_system_prompt()
+        messages[0]["content"] = get_system_prompt(query)
 
     if stream:
         return stream_local(messages)
@@ -272,6 +335,11 @@ Response style:
 - For schedules, say things like "You have a 9:30 AM meeting with Mike Johnson for the AdMaster demo, then..." rather than tables.
 - Keep responses concise and voice-friendly.
 - Your responses are read aloud by a voice engine so write the way a British butler would speak, not the way a computer would print.
+
+IMPORTANT - Memory instructions:
+- When the user says "remember" followed by personal information (names, preferences, dates), you MUST use the "remember" tool to store it.
+- Categories: "personal" for family/preferences, "business" for work, "financial" for money matters, "general" for everything else.
+- Example: "Remember my wife's name is Sarah" → use remember tool with text="Wife's name is Sarah" and category="personal"
 
 Be concise, helpful, and proactive. Address Bruce as "sir" or by name.
 When you don't know something, say so. When you need more information, ask.

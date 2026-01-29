@@ -9,8 +9,29 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def _format_phone_for_speech(match) -> str:
+    """Convert phone number to digit-by-digit format for TTS."""
+    phone = match.group(0)
+    # Extract just the digits
+    digits = re.sub(r'\D', '', phone)
+    if len(digits) == 10:
+        # Format as "X X X, X X X, X X X X" with pauses between groups
+        return f"{' '.join(digits[0:3])}, {' '.join(digits[3:6])}, {' '.join(digits[6:10])}"
+    elif len(digits) == 11 and digits[0] == '1':
+        # Handle 1-XXX-XXX-XXXX format
+        return f"1, {' '.join(digits[1:4])}, {' '.join(digits[4:7])}, {' '.join(digits[7:11])}"
+    else:
+        # Just space out all digits
+        return ' '.join(digits)
+
+
 def _clean_for_speech(text: str) -> str:
     """Strip markdown and formatting artifacts so TTS reads naturally."""
+    # Format phone numbers to be read digit by digit
+    # Matches formats like: (404) 555-1234, 404-555-1234, 404.555.1234, 4045551234
+    phone_pattern = r'(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+    text = re.sub(phone_pattern, _format_phone_for_speech, text)
+
     text = re.sub(r'```[\s\S]*?```', '', text)
     text = re.sub(r'`([^`]+)`', r'\1', text)
     text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
