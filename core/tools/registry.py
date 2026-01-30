@@ -78,7 +78,8 @@ TOOL_CATEGORIES = {
     "sheets": ["sheets_create", "sheets_read", "sheets_write", "sheets_append_row",
                "sheets_list", "sheets_get"],
     "slides": ["slides_create", "slides_get", "slides_add_slide", "slides_add_text", "slides_list"],
-    "core": ["generate_image"],
+    "core": ["generate_image", "toggle_auto_speak", "toggle_hands_free"],
+    "ui_control": ["toggle_auto_speak", "toggle_hands_free"],
 }
 
 # Keywords that trigger each category
@@ -90,12 +91,15 @@ CATEGORY_KEYWORDS = {
                 "wife", "husband", "birthday", "favorite", "prefer", "my name", "who is", "who am"],
     "server": ["server", "status", "reboot", "restart", "ssh"],
     "stripe": ["stripe", "payment", "invoice", "subscription", "charge", "refund", "billing", "revenue"],
-    "nextcloud": ["nextcloud", "cloud storage", "nextcloud file"],
+    "nextcloud": ["nextcloud", "next cloud", "cloud storage", "nextcloud file",
+                  "talk conversation", "talk chat", "my notes", "eswar", "donjuan"],
     "n8n": ["n8n", "workflow", "automation", "automate"],
     "drive": ["drive", "google drive", "upload file", "download file", "my files", "share file"],
     "docs": ["doc", "document", "google doc", "write document", "create document"],
     "sheets": ["sheet", "spreadsheet", "google sheet", "excel", "csv", "row", "cell", "column"],
     "slides": ["slide", "presentation", "google slide", "powerpoint", "deck"],
+    "ui_control": ["auto speak", "auto-speak", "autospeak", "hands free", "hands-free", "handsfree",
+                   "mute", "unmute", "stop speaking", "start speaking", "stop listening", "start listening"],
     "core": [],  # Always included
 }
 

@@ -274,6 +274,7 @@ async def ask(
     # Non-streaming: support tool calling loop
     response = await query_local(messages)
     generated_images = []
+    ui_action = None
 
     # Check if LLM wants to call a tool
     tool_call = parse_tool_call(response)
@@ -282,8 +283,17 @@ async def ask(
         logger.info(f"LLM requested tool: {tool_name}")
         tool_result = await execute_tool(tool_name, tool_args)
 
+        # Capture UI actions (for frontend to execute)
+        if isinstance(tool_result, dict) and tool_result.get("ui_action"):
+            ui_action = {
+                "action": tool_result["ui_action"],
+                "value": tool_result.get("value"),
+            }
+            # Use the message from the tool as the response
+            response = tool_result.get("message", "Done.")
+            # Don't need to query LLM again for UI actions
         # Capture generated images
-        if tool_name == "generate_image" and tool_result.get("success") and tool_result.get("base64"):
+        elif tool_name == "generate_image" and tool_result.get("success") and tool_result.get("base64"):
             generated_images.append({
                 "base64": tool_result["base64"],
                 "filename": tool_result.get("filename", "generated.png"),
@@ -291,21 +301,27 @@ async def ask(
             })
             # Don't include base64 in LLM context (too large)
             tool_result_for_llm = {k: v for k, v in tool_result.items() if k != "base64"}
+            # Feed tool result back to LLM for final response
+            messages.append({"role": "assistant", "content": response})
+            messages.append({
+                "role": "user",
+                "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result_for_llm, indent=2, default=str)}\n```\nNow provide a natural language response to the user based on this data.",
+            })
+            response = await query_local(messages)
         else:
             tool_result_for_llm = tool_result
-
-        # Feed tool result back to LLM for final response
-        messages.append({"role": "assistant", "content": response})
-        messages.append({
-            "role": "user",
-            "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result_for_llm, indent=2, default=str)}\n```\nNow provide a natural language response to the user based on this data.",
-        })
-        response = await query_local(messages)
+            # Feed tool result back to LLM for final response
+            messages.append({"role": "assistant", "content": response})
+            messages.append({
+                "role": "user",
+                "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result_for_llm, indent=2, default=str)}\n```\nNow provide a natural language response to the user based on this data.",
+            })
+            response = await query_local(messages)
 
     # Safety net: strip any leaked JSON tool blocks from the final response
     response = _strip_tool_json(response)
 
-    return {"response": response, "images": generated_images if generated_images else None}
+    return {"response": response, "images": generated_images if generated_images else None, "ui_action": ui_action}
 
 
 def _strip_tool_json(text: str) -> str:

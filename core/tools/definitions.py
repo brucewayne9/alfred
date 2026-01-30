@@ -1742,6 +1742,35 @@ def stripe_deactivate_payment_link(payment_link_id: str) -> dict:
     return deactivate_payment_link(payment_link_id)
 
 
+# ==================== UI CONTROL ====================
+
+@tool(
+    name="toggle_auto_speak",
+    description="Turn auto-speak on or off. Use this when user asks to enable/disable auto-speak, mute, unmute, or stop/start speaking.",
+    parameters={"enabled": "bool - true to enable, false to disable"},
+)
+def toggle_auto_speak(enabled: bool) -> dict:
+    action = "enable" if enabled else "disable"
+    return {
+        "ui_action": "set_auto_speak",
+        "value": enabled,
+        "message": f"Auto-speak {'enabled' if enabled else 'disabled'}, sir."
+    }
+
+
+@tool(
+    name="toggle_hands_free",
+    description="Turn hands-free mode on or off. Use this when user asks to enable/disable hands-free or start/stop listening.",
+    parameters={"enabled": "bool - true to enable, false to disable"},
+)
+def toggle_hands_free(enabled: bool) -> dict:
+    return {
+        "ui_action": "set_hands_free",
+        "value": enabled,
+        "message": f"Hands-free mode {'enabled' if enabled else 'disabled'}, sir."
+    }
+
+
 def register_all():
     """Import this module to register all tools."""
     pass

@@ -141,6 +141,7 @@ class ChatResponse(BaseModel):
     tier: str
     timestamp: str
     images: list[dict] | None = None  # [{base64, filename, download_url}]
+    ui_action: dict | None = None  # {action, value} for frontend to execute
 
 class MemoryRequest(BaseModel):
     text: str
@@ -1008,9 +1009,11 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
     if isinstance(result, dict):
         response = result["response"]
         images = result.get("images")
+        ui_action = result.get("ui_action")
     else:
         response = result
         images = None
+        ui_action = None
 
     messages.append({"role": "assistant", "content": response})
     store_conversation(req.message, response, req.session_id)
@@ -1031,6 +1034,7 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
         tier=tier.value,
         timestamp=datetime.now().isoformat(),
         images=images,
+        ui_action=ui_action,
     )
 
 
@@ -3363,6 +3367,32 @@ CHAT_HTML = """<!DOCTYPE html>
             document.getElementById('auto-speak-btn').classList.toggle('active', autoSpeak);
         }
 
+        function executeUiAction(uiAction) {
+            // Execute a UI action from the API response
+            if (!uiAction || !uiAction.action) return;
+            console.log('Executing UI action:', uiAction);
+
+            if (uiAction.action === 'set_auto_speak') {
+                autoSpeak = uiAction.value;
+                localStorage.setItem('alfred_auto_speak', String(autoSpeak));
+                document.getElementById('auto-speak-btn').classList.toggle('active', autoSpeak);
+                console.log('UI Action: auto-speak set to', autoSpeak);
+            }
+            if (uiAction.action === 'set_hands_free') {
+                if (uiAction.value) {
+                    if (!handsFreeActive) toggleHandsFree();
+                } else {
+                    if (handsFreeActive) {
+                        handsFreeActive = false;
+                        document.getElementById('handsfree-btn').classList.remove('active');
+                        if (vadInstance) vadInstance.pause();
+                        setVadState('idle');
+                    }
+                }
+                console.log('UI Action: hands-free set to', uiAction.value);
+            }
+        }
+
         async function speakText(btn) {
             const mid = btn.getAttribute('data-mid');
             const text = msgTexts[mid];
@@ -3546,6 +3576,11 @@ CHAT_HTML = """<!DOCTYPE html>
                     body: JSON.stringify(payload)
                 });
                 const data = await resp.json();
+                // Check for UI actions in response
+                if (data.ui_action) {
+                    executeUiAction(data.ui_action);
+                }
+                const displayResponse = data.response;
                 // Check for generated images
                 if (data.images && data.images.length > 0) {
                     let imagesHtml = '';
@@ -3555,9 +3590,9 @@ CHAT_HTML = """<!DOCTYPE html>
                             imagesHtml += `<a class="download-btn" href="${img.download_url}" download>📥 ${img.filename}</a>`;
                         }
                     });
-                    addMsgHtml(data.response, 'alfred', data.tier, false, imagesHtml);
+                    addMsgHtml(displayResponse, 'alfred', data.tier, false, imagesHtml);
                 } else {
-                    addMsg(data.response, 'alfred', data.tier);
+                    addMsg(displayResponse, 'alfred', data.tier);
                 }
                 // Refresh conversation list to update title/preview
                 loadConversations();
@@ -3936,6 +3971,61 @@ CHAT_HTML = """<!DOCTYPE html>
                     return;
                 }
 
+                // Check for voice control commands
+                const autoSpeakOffPhrases = [
+                    "turn off auto speak", "turn off autospeak", "turn off auto-speak",
+                    "disable auto speak", "disable auto-speak", "disable autospeak",
+                    "stop auto speak", "stop auto-speak", "mute", "mute yourself",
+                    "stop speaking", "be quiet", "quiet mode", "silent mode",
+                    "no more speaking", "stop talking"
+                ];
+                const autoSpeakOnPhrases = [
+                    "turn on auto speak", "turn on autospeak", "turn on auto-speak",
+                    "enable auto speak", "enable auto-speak", "enable autospeak",
+                    "start auto speak", "unmute", "unmute yourself", "start speaking",
+                    "speak mode", "voice mode", "talk to me", "start talking"
+                ];
+                const handsFreeOffPhrases = [
+                    "turn off hands free", "turn off handsfree", "turn off hands-free",
+                    "disable hands free", "disable hands-free", "disable handsfree",
+                    "stop hands free", "stop listening", "pause listening"
+                ];
+
+                // Handle auto-speak toggle
+                if (autoSpeakOffPhrases.some(phrase => textLower.includes(phrase))) {
+                    addMsg(text, 'user');
+                    autoSpeak = false;
+                    localStorage.setItem('alfred_auto_speak', 'false');
+                    document.getElementById('auto-speak-btn').classList.remove('active');
+                    addMsg("Auto-speak disabled, sir. I'll stay quiet unless you ask me to speak.", 'alfred', 'local');
+                    vadProcessing = false;
+                    setVadState('listen');
+                    return;
+                }
+                if (autoSpeakOnPhrases.some(phrase => textLower.includes(phrase))) {
+                    addMsg(text, 'user');
+                    autoSpeak = true;
+                    localStorage.setItem('alfred_auto_speak', 'true');
+                    document.getElementById('auto-speak-btn').classList.add('active');
+                    const confirmMsg = "Auto-speak enabled, sir. I'll read my responses aloud.";
+                    addMsg(confirmMsg, 'alfred', 'local');
+                    playVadTTS(confirmMsg);
+                    vadProcessing = false;
+                    return;
+                }
+                // Handle hands-free off (similar to dismissal but explicit)
+                if (handsFreeOffPhrases.some(phrase => textLower.includes(phrase))) {
+                    addMsg(text, 'user');
+                    const confirmMsg = "Hands-free mode disabled, sir.";
+                    addMsg(confirmMsg, 'alfred', 'local');
+                    vadProcessing = false;
+                    handsFreeActive = false;
+                    document.getElementById('handsfree-btn').classList.remove('active');
+                    if (vadInstance) vadInstance.pause();
+                    setVadState('idle');
+                    return;
+                }
+
                 addMsg(text, 'user');
                 if (!currentConversationId) {
                     try {
@@ -4057,7 +4147,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
 
 SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v26';
+const CACHE_NAME = 'alfred-v30';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
 self.addEventListener('install', event => {
