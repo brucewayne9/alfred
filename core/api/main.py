@@ -1355,16 +1355,99 @@ async def hybrid_voice_chat(request: Request, req: ChatRequest, user: dict = Dep
     )
 
 
+def _needs_acknowledgment(query: str) -> tuple[bool, list[str]]:
+    """Determine if a query needs an acknowledgment and which ones are appropriate.
+
+    Returns (needs_ack, appropriate_ack_keys).
+    - Conversational queries (greetings, how are you) → no ack
+    - Task queries (search, check, look up, create) → ack needed
+    - Complex queries → ack needed
+    """
+    q = query.lower().strip()
+
+    # Conversational/greeting patterns - NO acknowledgment needed
+    no_ack_patterns = [
+        # Greetings
+        "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
+        "what's up", "whats up", "how are you", "how's it going", "hows it going",
+        "yo", "sup", "howdy",
+        # Simple questions about Alfred
+        "who are you", "what are you", "what can you do", "help me",
+        # Thank you / pleasantries
+        "thank you", "thanks", "great", "perfect", "awesome", "cool", "ok", "okay",
+        "goodbye", "bye", "good night", "see you", "later",
+        # Very short queries (likely conversational)
+    ]
+
+    # Check for greeting patterns
+    for pattern in no_ack_patterns:
+        if q == pattern or q.startswith(pattern + " ") or q.startswith(pattern + ","):
+            return False, []
+
+    # Very short queries are likely conversational
+    if len(q.split()) <= 3 and not any(kw in q for kw in ["search", "find", "check", "look", "get", "send", "create"]):
+        return False, []
+
+    # Task-oriented patterns - acknowledgment needed
+    task_keywords = [
+        "search", "find", "look up", "lookup", "check", "fetch", "get me",
+        "send", "email", "message", "create", "add", "schedule", "remind",
+        "calendar", "crm", "contact", "upload", "download", "server",
+        "analyze", "summarize", "remember", "recall", "what did",
+    ]
+
+    # Pick appropriate ack types based on query
+    for kw in task_keywords:
+        if kw in q:
+            # Searching/checking queries → "checking", "let_me_check"
+            if any(x in q for x in ["search", "find", "check", "look", "recall", "what did"]):
+                return True, ["checking", "let_me_check", "one_moment"]
+            # Action queries → "right_away", "certainly"
+            if any(x in q for x in ["send", "create", "add", "schedule", "upload"]):
+                return True, ["right_away", "certainly"]
+            # Default task
+            return True, ["one_moment", "certainly"]
+
+    # Long queries likely need processing time
+    if len(q.split()) > 10:
+        return True, ["one_moment", "certainly"]
+
+    # Default: skip ack for shorter, unclear queries
+    return False, []
+
+
 @app.post("/voice/chat/ack")
-async def get_acknowledgment(request: Request, user: dict = Depends(require_auth)):
-    """Get just an acknowledgment audio clip (instant response)."""
+async def get_acknowledgment(request: Request, req: ChatRequest = None, user: dict = Depends(require_auth)):
+    """Get a contextually appropriate acknowledgment audio clip.
+
+    Pass the query in ChatRequest.message to get smart acknowledgment selection.
+    Returns empty audio for conversational queries that don't need an ack.
+    """
     import random
     if not _ACK_CACHE:
         _load_acknowledgments()
-    ack_keys = list(_ACK_CACHE.keys())
-    if not ack_keys:
+
+    # Get query from request body if provided
+    query = ""
+    if req and req.message:
+        query = req.message
+
+    # Determine if we need an acknowledgment
+    needs_ack, appropriate_keys = _needs_acknowledgment(query)
+
+    if not needs_ack:
+        # Return empty audio for conversational queries
         return Response(content=b"", media_type="audio/wav")
-    return Response(content=_ACK_CACHE[random.choice(ack_keys)], media_type="audio/wav")
+
+    # Filter to available keys
+    available_keys = [k for k in appropriate_keys if k in _ACK_CACHE]
+    if not available_keys:
+        available_keys = list(_ACK_CACHE.keys())
+
+    if not available_keys:
+        return Response(content=b"", media_type="audio/wav")
+
+    return Response(content=_ACK_CACHE[random.choice(available_keys)], media_type="audio/wav")
 
 
 @app.post("/memory/store")
@@ -1475,12 +1558,17 @@ async def websocket_wakeword(ws: WebSocket):
     # Audio buffer for processing
     audio_buffer = np.array([], dtype=np.int16)
     chunk_size = 1280  # 80ms at 16kHz
-    threshold = 0.5
+    threshold = 0.35  # Lowered for custom trained model
+    log_counter = 0  # For periodic debug logging
 
     try:
         while True:
             # Receive binary audio data
             data = await ws.receive_bytes()
+
+            # Handle keep-alive pings (empty data)
+            if len(data) == 0:
+                continue
 
             # Convert to numpy array (expecting 16-bit PCM)
             audio_chunk = np.frombuffer(data, dtype=np.int16)
@@ -1495,6 +1583,11 @@ async def websocket_wakeword(ws: WebSocket):
                 try:
                     prediction = model.predict(process_chunk)
                     for model_name, score in prediction.items():
+                        # Log high scores for debugging (every 50th chunk to avoid spam)
+                        log_counter += 1
+                        if score > 0.1 or (log_counter % 50 == 0 and score > 0.01):
+                            logger.debug(f"Wake word score: {score:.3f}")
+
                         if score >= threshold:
                             logger.info(f"Wake word detected! Score: {score:.3f}")
                             await ws.send_json({
@@ -3075,9 +3168,9 @@ CHAT_HTML = """<!DOCTYPE html>
                     document.getElementById('login-overlay').classList.add('hidden');
                     loadIntegrations();
                     initConversations();
-                    // Auto-enable Hey Alfred mode on startup
+                    // Auto-enable Hey Alfred wake word on startup
                     setTimeout(() => {
-                        toggleHandsFree();
+                        toggleWakeWord();
                         // Force menu closed after everything initializes
                         document.getElementById('history-panel').classList.remove('open');
                         document.getElementById('history-overlay').classList.remove('open');
@@ -3114,9 +3207,9 @@ CHAT_HTML = """<!DOCTYPE html>
                 document.getElementById('login-overlay').classList.add('hidden');
                 loadIntegrations();
                 initConversations();
-                // Auto-enable Hey Alfred mode on startup
+                // Auto-enable Hey Alfred wake word on startup
                 setTimeout(() => {
-                    toggleHandsFree();
+                    toggleWakeWord();
                     // Force menu closed after everything initializes
                     document.getElementById('history-panel').classList.remove('open');
                     document.getElementById('history-overlay').classList.remove('open');
@@ -3818,6 +3911,12 @@ CHAT_HTML = """<!DOCTYPE html>
                     console.log('Wake word WebSocket connected');
                     status.textContent = 'Listening for "Hey Alfred"...';
                     wakeWordActive = true;
+                    // Keep-alive ping every 30 seconds to prevent timeout
+                    wakeWordWs._pingInterval = setInterval(() => {
+                        if (wakeWordWs && wakeWordWs.readyState === WebSocket.OPEN) {
+                            try { wakeWordWs.send(new ArrayBuffer(0)); } catch(e) {}
+                        }
+                    }, 30000);
                 };
 
                 wakeWordWs.onmessage = (event) => {
@@ -3849,12 +3948,18 @@ CHAT_HTML = """<!DOCTYPE html>
 
                 wakeWordWs.onclose = () => {
                     console.log('Wake word WebSocket closed');
+                    if (wakeWordWs && wakeWordWs._pingInterval) {
+                        clearInterval(wakeWordWs._pingInterval);
+                    }
+                    wakeWordWs = null;  // Clear reference immediately
                     if (wakeWordActive) {
                         // Reconnect after a short delay
+                        status.textContent = 'Reconnecting...';
                         setTimeout(() => {
-                            if (wakeWordActive && !wakeWordWs) {
-                                toggleWakeWord();
-                                toggleWakeWord();
+                            if (wakeWordActive) {
+                                // Stop and restart wake word
+                                wakeWordActive = false;
+                                toggleWakeWord();  // This will restart it
                             }
                         }, 1000);
                     }
@@ -3903,12 +4008,29 @@ CHAT_HTML = """<!DOCTYPE html>
 
         function cutOffAlfred() {
             if (currentAudio) {
+                console.log('Interrupting Alfred');
                 currentAudio.pause();
                 currentAudio = null;
                 const s = document.querySelector('.speak-btn.speaking');
                 if (s) s.classList.remove('speaking');
+                // Reset to listen state after interruption
+                if (handsFreeActive) setVadState('listen');
             }
         }
+
+        // Allow interrupting Alfred by pressing Escape or clicking the chat area
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && currentAudio) {
+                cutOffAlfred();
+            }
+        });
+        document.getElementById('chat')?.addEventListener('click', (e) => {
+            // Don't interrupt if clicking buttons
+            if (e.target.closest('button')) return;
+            if (currentAudio && vadState === 'speak') {
+                cutOffAlfred();
+            }
+        });
 
         function setVadState(state) {
             vadState = state;
@@ -3946,8 +4068,17 @@ CHAT_HTML = """<!DOCTYPE html>
 
         function playVadTTS(text) {
             setVadState('speak');
-            // Pause VAD while Alfred speaks to prevent feedback loop
-            if (vadInstance) vadInstance.pause();
+            // Explicitly ensure VAD is running so user can interrupt Alfred
+            if (vadInstance) {
+                try {
+                    vadInstance.start();
+                    console.log('VAD started for interrupt detection during speech');
+                } catch(e) {
+                    console.log('VAD start failed:', e);
+                }
+            } else {
+                console.log('No VAD instance available');
+            }
             fetch('/voice/speak', {
                 method:'POST',
                 headers: authHeaders({'Content-Type':'application/json'}),
@@ -3960,7 +4091,11 @@ CHAT_HTML = """<!DOCTYPE html>
                 }
                 const url = URL.createObjectURL(blob);
                 currentAudio = new Audio(url);
+                currentAudio.onplay = () => {
+                    console.log('Alfred speaking - VAD state:', vadState, 'VAD running:', !!vadInstance);
+                };
                 currentAudio.onended = () => {
+                    console.log('Alfred finished speaking');
                     currentAudio = null; URL.revokeObjectURL(url);
                     if (handsFreeActive) {
                         // Resume VAD after speech ends
@@ -4130,19 +4265,25 @@ CHAT_HTML = """<!DOCTYPE html>
                     } catch(e){}
                 }
 
-                // HYBRID APPROACH: Play acknowledgment immediately while processing
-                // Skip acknowledgment for Qwen3 (different voice, adds latency)
+                // HYBRID APPROACH: Smart acknowledgment while processing
+                // - Skips ack for conversational queries ("how are you", greetings)
+                // - Plays ack for task queries ("search email", "check calendar")
+                // - Skip for Qwen3 (different voice, adds latency)
                 setVadState('speak');
-                // Pause VAD while speaking to prevent feedback loop
-                if (vadInstance) vadInstance.pause();
+                // Explicitly ensure VAD keeps running so user can interrupt Alfred
+                if (vadInstance) {
+                    try { vadInstance.start(); } catch(e) {}
+                }
                 let ackPromise = Promise.resolve();
                 if (currentTtsBackend === 'kokoro') {
+                    // Pass the query so backend can decide if ack is appropriate
                     ackPromise = fetch('/voice/chat/ack', {
                         method:'POST',
                         headers: authHeaders({'Content-Type':'application/json'}),
-                        body: JSON.stringify({message:''})
+                        body: JSON.stringify({message: text})
                     }).then(r => r.ok ? r.blob() : null).then(blob => {
-                        if (blob && handsFreeActive) {
+                        // Only play if we got audio (empty blob = no ack needed)
+                        if (blob && blob.size > 100 && handsFreeActive) {
                             const url = URL.createObjectURL(blob);
                             const ackAudio = new Audio(url);
                             ackAudio.onended = () => URL.revokeObjectURL(url);
@@ -4200,15 +4341,26 @@ CHAT_HTML = """<!DOCTYPE html>
                 if (!vadInstance) {
                     setVadState('process');
                     vadInstance = await vad.MicVAD.new({
-                        positiveSpeechThreshold: 0.8,
-                        negativeSpeechThreshold: 0.3,
-                        minSpeechFrames: 4,
-                        preSpeechPadFrames: 8,
-                        redemptionFrames: 6,
+                        positiveSpeechThreshold: 0.5,  // Lower threshold for easier interruption
+                        negativeSpeechThreshold: 0.35,
+                        minSpeechFrames: 2,  // Faster detection
+                        preSpeechPadFrames: 6,
+                        redemptionFrames: 4,
+                        // Disable echo cancellation with headphones - it can filter user voice
+                        additionalAudioConstraints: {
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: true
+                        },
                         onSpeechStart: () => {
+                            console.log('VAD onSpeechStart - state:', vadState, 'hasAudio:', !!currentAudio);
                             if (!handsFreeActive) return;
                             // Interrupt Alfred if he's speaking
-                            if (currentAudio && vadState === 'speak') cutOffAlfred();
+                            if (currentAudio && vadState === 'speak') {
+                                console.log('Interrupting Alfred via voice!');
+                                cutOffAlfred();
+                                return; // Don't process this speech (likely just interruption)
+                            }
                             if (!vadProcessing) setVadState('hear');
                         },
                         onSpeechEnd: (audio) => {
