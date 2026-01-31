@@ -11,10 +11,13 @@ Alfred is a sophisticated, self-hosted AI assistant designed for personal and bu
 - **Conversation History** - SQLite-backed persistent conversation storage
 
 ### Voice Interaction
+- **"Hey Alfred" Wake Word** - Custom OpenWakeWord model for hands-free activation
 - **Speech-to-Text** - Whisper-based transcription (runs on GPU)
-- **Text-to-Speech** - Kokoro TTS with British male voice (Daniel)
+- **Text-to-Speech** - Kokoro TTS (British male voice) or Qwen3-TTS (voice cloning)
 - **Hands-Free Mode** - Silero VAD for continuous voice conversation
 - **Auto-Speak** - Automatically reads Alfred's responses aloud
+- **Smart Acknowledgments** - Contextual responses ("Checking now..." for tasks, silence for greetings)
+- **iOS/Mac Shortcuts** - Voice selection API for mobile integration
 
 ### Image & Document Handling
 - **Image Vision** - Upload images and ask questions (Claude Vision API)
@@ -67,8 +70,9 @@ Alfred is a sophisticated, self-hosted AI assistant designed for personal and bu
 | Local LLM | Ollama |
 | Cloud LLM | Claude API (Anthropic) |
 | Speech-to-Text | Faster-Whisper (CUDA) |
-| Text-to-Speech | Kokoro TTS |
-| Voice Activity | Silero VAD |
+| Text-to-Speech | Kokoro TTS / Qwen3-TTS |
+| Wake Word | OpenWakeWord (custom "Hey Alfred" model) |
+| Voice Activity | Silero VAD (browser-based) |
 | Vector Memory | ChromaDB |
 | Database | SQLite |
 | Image Generation | ComfyUI + SDXL Turbo |
@@ -196,6 +200,14 @@ ANTHROPIC_MODEL=claude-sonnet-4-20250514
 SECRET_KEY=your-secret-key-here
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
+# Voice/TTS Configuration
+TTS_MODEL=kokoro              # Options: kokoro, qwen3
+TTS_VOICE=bm_daniel           # Kokoro: bm_daniel, af_sarah, etc.
+WHISPER_MODEL=tiny            # Options: tiny, base, small, medium, large
+
+# Qwen3-TTS (optional - for voice cloning)
+QWEN3_TTS_URL=http://localhost:7860
+
 # Google APIs (Gmail, Calendar)
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
@@ -224,10 +236,27 @@ TWENTY_API_KEY=...
 ### Web Interface
 Access Alfred at `http://your-server:8400`
 
-### Voice Commands
+### Voice Modes
+
+**"Hey Alfred" Wake Word** (Recommended)
+- Always listening for the wake phrase "Hey Alfred"
+- When detected, automatically activates hands-free mode
+- Low resource usage - runs via WebSocket streaming
+- Custom trained OpenWakeWord model
+
+**Hands-Free Mode**
+- Continuous voice conversation without button presses
+- Uses Silero VAD to detect when you start/stop speaking
+- Say "That will be all, Alfred" or "Goodbye Alfred" to exit
+- Smart acknowledgments play for task queries, not greetings
+
+**Push-to-Talk**
 - Click the microphone button to speak
-- Enable "Hands-free" mode for continuous conversation
-- Enable "Auto-speak" to have Alfred read responses aloud
+- Click again or wait for auto-stop
+
+**Auto-Speak**
+- When enabled, Alfred reads all responses aloud
+- Uses configured TTS backend (Kokoro or Qwen3-TTS)
 
 ### Example Queries
 
@@ -261,6 +290,23 @@ Access Alfred at `http://your-server:8400`
 - "Generate an image of a sunset over mountains"
 - "Create a picture of a golden retriever in snow"
 
+### iOS/Mac Shortcuts Integration
+
+Alfred's API supports voice selection for Shortcuts:
+
+```
+POST /chat
+{
+  "message": "What's on my calendar today?",
+  "voice": "Gwen_Stacy",        // Optional: specific voice
+  "tts_backend": "qwen3"        // Optional: kokoro or qwen3
+}
+```
+
+**Available Voices:**
+- **Kokoro:** bm_daniel (British male), af_sarah, bf_emma, am_adam, etc.
+- **Qwen3:** Cloned voices (Gwen_Stacy, etc.) or designed voices (design:Natalie)
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
@@ -273,6 +319,9 @@ Access Alfred at `http://your-server:8400`
 | DELETE | `/conversations/{id}` | Delete conversation |
 | POST | `/voice/transcribe` | Transcribe audio |
 | POST | `/voice/speak` | Generate speech |
+| GET | `/voice/voices` | List available TTS voices |
+| POST | `/voice/chat/ack` | Get contextual acknowledgment audio |
+| WS | `/ws/wakeword` | Wake word detection stream |
 | POST | `/upload/document` | Upload document for analysis |
 | POST | `/upload/image` | Upload image for vision |
 | GET | `/download/{filename}` | Download generated file |
@@ -322,8 +371,11 @@ alfred/
 │   └── comfyui/             # Image generation
 ├── interfaces/
 │   └── voice/
-│       ├── stt.py           # Speech-to-text
-│       └── tts.py           # Text-to-speech
+│       ├── stt.py           # Speech-to-text (Whisper)
+│       ├── tts.py           # Text-to-speech (Kokoro/Qwen3)
+│       └── wakeword.py      # Wake word detection (OpenWakeWord)
+├── models/
+│   └── hey_alfred.onnx      # Custom wake word model
 ├── data/
 │   ├── uploads/             # Uploaded files
 │   ├── generated/           # Created documents
@@ -373,6 +425,28 @@ rm -rf data/chroma/
 sudo systemctl restart alfred
 ```
 
+### Wake word not detecting
+```bash
+# Check if model exists
+ls models/hey_alfred.onnx
+
+# Check WebSocket connection in browser console (F12)
+# Look for "Wake word WebSocket connected"
+
+# Check server logs
+sudo journalctl -u alfred | grep -i wake
+```
+
+### Training a custom wake word
+```bash
+# Install openWakeWord training tools
+pip install openwakeword
+
+# Collect audio samples (5-10 recordings of "Hey Alfred")
+# Use the openWakeWord training notebook or CLI
+# Place the resulting .onnx file in models/hey_alfred.onnx
+```
+
 ## Contributing
 
 1. Fork the repository
@@ -391,4 +465,7 @@ Private - All rights reserved.
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) - Image generation
 - [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper) - Speech recognition
 - [Kokoro TTS](https://huggingface.co/hexgrad/Kokoro-82M) - Text-to-speech
+- [Qwen3-TTS](https://github.com/QwenLM/Qwen2.5-Coder) - Voice cloning TTS
+- [OpenWakeWord](https://github.com/dscripka/openWakeWord) - Wake word detection
+- [Silero VAD](https://github.com/snakers4/silero-vad) - Voice activity detection
 - [Twenty](https://twenty.com) - Open-source CRM
