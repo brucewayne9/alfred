@@ -45,6 +45,46 @@ def _delete(path: str) -> Any:
     return resp.json() if resp.content else {"success": True}
 
 
+# ==================== Station Resolution ====================
+
+_station_cache: dict = {}
+
+
+def get_station_id(station_name: str = None) -> int:
+    """Resolve a station name to its ID. Returns first station if no name given."""
+    global _station_cache
+
+    # Refresh cache if empty
+    if not _station_cache:
+        try:
+            stations = list_stations()
+            for s in stations:
+                _station_cache[s["id"]] = s
+                _station_cache[s["name"].lower()] = s
+                _station_cache[s["shortcode"].lower()] = s
+        except Exception:
+            pass
+
+    # No name specified - return first station
+    if not station_name:
+        for key, val in _station_cache.items():
+            if isinstance(key, int):
+                return key
+        return 22  # Default fallback
+
+    # Try to find by name or shortcode
+    name_lower = station_name.lower()
+    for key, val in _station_cache.items():
+        if isinstance(key, str) and name_lower in key:
+            return val["id"]
+
+    # Try as direct ID
+    try:
+        return int(station_name)
+    except ValueError:
+        return 22  # Default fallback
+
+
 # ==================== Now Playing ====================
 
 def get_now_playing(station_id: int | str = None) -> dict | list:

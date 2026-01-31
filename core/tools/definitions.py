@@ -1774,86 +1774,110 @@ def toggle_hands_free(enabled: bool) -> dict:
 # ==================== AZURACAST RADIO TOOLS ====================
 
 @tool(
-    name="radio_now_playing",
-    description="Get what's currently playing on the radio station, including listener count, current song artist/title, and playlist info.",
+    name="radio_list_stations",
+    description="List all available radio stations. Use this to see station names and IDs for other radio commands.",
     parameters={},
 )
-def radio_now_playing() -> dict:
-    from integrations.azuracast.client import get_now_playing
-    np = get_now_playing()
-    if isinstance(np, list) and np:
-        return np[0]
-    return np
+def radio_list_stations() -> list[dict]:
+    from integrations.azuracast.client import list_stations
+    return list_stations()
+
+
+@tool(
+    name="radio_now_playing",
+    description="Get what's currently playing on a radio station, including listener count, current song artist/title, and playlist info.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID. Defaults to first station if not specified."},
+)
+def radio_now_playing(station: str = None) -> dict:
+    from integrations.azuracast.client import get_now_playing, get_station_id
+    station_id = get_station_id(station)
+    return get_now_playing(station_id)
 
 
 @tool(
     name="radio_song_history",
-    description="Get recently played songs on the radio station.",
-    parameters={"limit": "int (default 10) - number of recent songs to return"},
+    description="Get recently played songs on a radio station.",
+    parameters={
+        "station": "string (optional) - station name, shortcode, or ID",
+        "limit": "int (default 10) - number of recent songs to return",
+    },
 )
-def radio_song_history(limit: int = 10) -> list[dict]:
-    from integrations.azuracast.client import get_song_history
-    return get_song_history(22, limit=limit)
+def radio_song_history(station: str = None, limit: int = 10) -> list[dict]:
+    from integrations.azuracast.client import get_song_history, get_station_id
+    station_id = get_station_id(station)
+    return get_song_history(station_id, limit=limit)
 
 
 @tool(
     name="radio_playlists",
-    description="List all playlists on the radio station with their song counts and enabled status.",
-    parameters={},
+    description="List all playlists on a radio station with their song counts and enabled status.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
 )
-def radio_playlists() -> list[dict]:
-    from integrations.azuracast.client import list_playlists
-    return list_playlists(22)
+def radio_playlists(station: str = None) -> list[dict]:
+    from integrations.azuracast.client import list_playlists, get_station_id
+    station_id = get_station_id(station)
+    return list_playlists(station_id)
 
 
 @tool(
     name="radio_toggle_playlist",
     description="Enable or disable a radio playlist by its ID.",
-    parameters={"playlist_id": "int - the playlist ID to toggle"},
+    parameters={
+        "playlist_id": "int - the playlist ID to toggle",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
 )
-def radio_toggle_playlist(playlist_id: int) -> dict:
-    from integrations.azuracast.client import toggle_playlist
-    return toggle_playlist(22, playlist_id)
+def radio_toggle_playlist(playlist_id: int, station: str = None) -> dict:
+    from integrations.azuracast.client import toggle_playlist, get_station_id
+    station_id = get_station_id(station)
+    return toggle_playlist(station_id, playlist_id)
 
 
 @tool(
     name="radio_queue",
-    description="Get the upcoming song queue on the radio station.",
-    parameters={},
+    description="Get the upcoming song queue on a radio station.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
 )
-def radio_queue() -> list[dict]:
-    from integrations.azuracast.client import get_queue
-    return get_queue(22)
+def radio_queue(station: str = None) -> list[dict]:
+    from integrations.azuracast.client import get_queue, get_station_id
+    station_id = get_station_id(station)
+    return get_queue(station_id)
 
 
 @tool(
     name="radio_listeners",
-    description="Get current listener details and count for the radio station.",
-    parameters={},
+    description="Get current listener details and count for a radio station.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
 )
-def radio_listeners() -> dict:
-    from integrations.azuracast.client import get_listener_report
-    return get_listener_report(22)
+def radio_listeners(station: str = None) -> dict:
+    from integrations.azuracast.client import get_listener_report, get_station_id
+    station_id = get_station_id(station)
+    return get_listener_report(station_id)
 
 
 @tool(
     name="radio_restart",
-    description="Restart the radio station's broadcasting services.",
-    parameters={},
+    description="Restart a radio station's broadcasting services.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
 )
-def radio_restart() -> dict:
-    from integrations.azuracast.client import restart_station
-    return restart_station(22)
+def radio_restart(station: str = None) -> dict:
+    from integrations.azuracast.client import restart_station, get_station_id
+    station_id = get_station_id(station)
+    return restart_station(station_id)
 
 
 @tool(
     name="radio_search_media",
-    description="Search for songs in the radio station's media library by artist, title, or album.",
-    parameters={"query": "string - search term for artist, title, or album"},
+    description="Search for songs in a radio station's media library by artist, title, or album.",
+    parameters={
+        "query": "string - search term for artist, title, or album",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
 )
-def radio_search_media(query: str) -> list[dict]:
-    from integrations.azuracast.client import search_media
-    return search_media(22, query)
+def radio_search_media(query: str, station: str = None) -> list[dict]:
+    from integrations.azuracast.client import search_media, get_station_id
+    station_id = get_station_id(station)
+    return search_media(station_id, query)
 
 
 def register_all():
