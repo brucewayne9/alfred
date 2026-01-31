@@ -1865,14 +1865,7 @@ CHAT_HTML = """<!DOCTYPE html>
         }
         .stop-btn.visible { display: inline-block; }
         .stop-btn:hover { color: #f87171; background: #1a1a1a; }
-        #upload-btn {
-            background: transparent; width: 36px; height: 36px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; border: none; color: #8e8e8e; cursor: pointer;
-            transition: all 0.2s;
-        }
-        #upload-btn:hover { background: #424242; color: #e0e0e0; }
-        #upload-btn.has-file { color: #10b981; }
+        .upload-btn.has-file { color: #10b981; }
         #file-input { display: none; }
         #pending-file {
             display: none; padding: 8px 16px; background: #2f2f2f;
@@ -2484,7 +2477,7 @@ CHAT_HTML = """<!DOCTYPE html>
                     oninput="autoResizeWelcome(this)"></textarea>
                 <div id="welcome-input-actions">
                     <div id="welcome-input-left">
-                        <button class="welcome-btn" onclick="document.getElementById('file-input').click()" title="Attach">&#43;</button>
+                        <button class="welcome-btn upload-btn" onclick="document.getElementById('file-input').click()" title="Attach">&#43;</button>
                     </div>
                     <div id="welcome-input-right">
                         <button class="welcome-btn mic-logo-btn" id="welcome-mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/gr-logo.jpeg" alt="Mic"></button>
@@ -2521,7 +2514,7 @@ CHAT_HTML = """<!DOCTYPE html>
                 oninput="autoResizeInput(this)"></textarea>
             <div id="input-actions">
                 <div id="input-left">
-                    <button class="welcome-btn" onclick="document.getElementById('file-input').click()" title="Attach">&#43;</button>
+                    <button class="welcome-btn upload-btn" onclick="document.getElementById('file-input').click()" title="Attach">&#43;</button>
                 </div>
                 <div id="input-right">
                     <button class="welcome-btn mic-logo-btn" id="mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/gr-logo.jpeg" alt="Mic"></button>
@@ -3686,13 +3679,14 @@ CHAT_HTML = """<!DOCTYPE html>
                 preview.style.display = 'none';
             }
             container.classList.add('visible');
-            document.getElementById('upload-btn').classList.add('has-file');
+            // Mark both upload buttons as having a file
+            document.querySelectorAll('.upload-btn').forEach(btn => btn.classList.add('has-file'));
         }
 
         function clearPendingFile() {
             pendingFile = null;
             document.getElementById('pending-file').classList.remove('visible');
-            document.getElementById('upload-btn').classList.remove('has-file');
+            document.querySelectorAll('.upload-btn').forEach(btn => btn.classList.remove('has-file'));
         }
 
         function escapeHtml(t) {
