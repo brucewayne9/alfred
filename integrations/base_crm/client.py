@@ -387,6 +387,107 @@ def create_task_for_opportunity(title: str, opportunity_id: str, status: str = "
     return task
 
 
+# ==================== Notes (Read/Update) ====================
+
+def _format_note(n: dict) -> dict:
+    return {
+        "id": n.get("id"),
+        "title": n.get("title", ""),
+        "body": (n.get("bodyV2") or {}).get("markdown", "") if isinstance(n.get("bodyV2"), dict) else "",
+        "created_at": n.get("createdAt"),
+    }
+
+
+def list_notes(limit: int = 20) -> list[dict]:
+    data = _get("/rest/notes", {"limit": limit})
+    return [_format_note(n) for n in data.get("data", {}).get("notes", [])]
+
+
+def get_note(note_id: str) -> dict:
+    data = _get(f"/rest/notes/{note_id}")
+    return _format_note(data.get("data", {}).get("note", data.get("data", {})))
+
+
+def update_note(note_id: str, title: str = "", body: str = "") -> dict:
+    payload: dict[str, Any] = {}
+    if title:
+        payload["title"] = title
+    if body:
+        payload["bodyV2"] = {"markdown": body}
+    data = _patch(f"/rest/notes/{note_id}", payload)
+    return _format_note(data.get("data", {}).get("updateNote", data.get("data", {})))
+
+
+def delete_note(note_id: str) -> dict:
+    _delete(f"/rest/notes/{note_id}")
+    return {"deleted": True, "id": note_id}
+
+
+# ==================== Activities/Timeline ====================
+
+def _format_activity(a: dict) -> dict:
+    return {
+        "id": a.get("id"),
+        "type": a.get("type", ""),
+        "title": a.get("title", ""),
+        "body": a.get("body", ""),
+        "due_at": a.get("dueAt"),
+        "completed_at": a.get("completedAt"),
+        "created_at": a.get("createdAt"),
+        "person_id": a.get("personId"),
+        "company_id": a.get("companyId"),
+    }
+
+
+def list_activities(limit: int = 20) -> list[dict]:
+    """List recent activities/timeline events."""
+    try:
+        data = _get("/rest/activities", {"limit": limit})
+        return [_format_activity(a) for a in data.get("data", {}).get("activities", [])]
+    except Exception as e:
+        logger.warning(f"Activities endpoint may not exist: {e}")
+        return []
+
+
+# ==================== Metadata/Schema ====================
+
+def get_metadata_objects() -> list[dict]:
+    """Get all available objects and their metadata."""
+    try:
+        data = _get("/rest/metadata/objects")
+        objects = data.get("data", {}).get("objects", [])
+        return [{"name": o.get("nameSingular"), "plural": o.get("namePlural"),
+                 "description": o.get("description")} for o in objects]
+    except Exception as e:
+        logger.warning(f"Metadata endpoint error: {e}")
+        return []
+
+
+def get_object_fields(object_name: str) -> list[dict]:
+    """Get fields for a specific object type."""
+    try:
+        data = _get(f"/rest/metadata/objects/{object_name}")
+        obj = data.get("data", {}).get("object", {})
+        fields = obj.get("fields", [])
+        return [{"name": f.get("name"), "type": f.get("type"),
+                 "label": f.get("label")} for f in fields]
+    except Exception as e:
+        logger.warning(f"Object metadata error: {e}")
+        return []
+
+
+# ==================== Search ====================
+
+def search_all(query: str, limit: int = 10) -> dict:
+    """Search across all record types."""
+    results = {
+        "people": search_people(query, limit),
+        "companies": search_companies(query, limit),
+        "opportunities": search_opportunities(query, limit),
+    }
+    return results
+
+
 # ==================== Connection Check ====================
 
 def is_connected() -> bool:
@@ -397,3 +498,22 @@ def is_connected() -> bool:
         return resp.status_code == 200
     except Exception:
         return False
+
+
+def get_crm_summary() -> dict:
+    """Get a summary of CRM data counts."""
+    try:
+        people = _get("/rest/people", {"limit": 1})
+        companies = _get("/rest/companies", {"limit": 1})
+        opportunities = _get("/rest/opportunities", {"limit": 1})
+        tasks = _get("/rest/tasks", {"limit": 1})
+
+        return {
+            "people_count": len(people.get("data", {}).get("people", [])),
+            "companies_count": len(companies.get("data", {}).get("companies", [])),
+            "opportunities_count": len(opportunities.get("data", {}).get("opportunities", [])),
+            "tasks_count": len(tasks.get("data", {}).get("tasks", [])),
+            "connected": True,
+        }
+    except Exception as e:
+        return {"connected": False, "error": str(e)}
