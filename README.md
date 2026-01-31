@@ -28,7 +28,15 @@ Alfred is a sophisticated, self-hosted AI assistant designed for personal and bu
 ### Integrations
 - **Gmail** - Read, send, search emails
 - **Google Calendar** - View, create, modify events
-- **Twenty CRM** - Full CRM access (companies, contacts, opportunities, tasks, notes)
+- **Twenty CRM** - Full CRM access with Alfred role permissions:
+  - People/Contacts (CRUD, search, link to companies)
+  - Companies (CRUD, search)
+  - Opportunities/Deals (CRUD, pipeline summary)
+  - Tasks (CRUD, link to people/companies/opportunities)
+  - Notes (CRUD, link to records)
+  - Activities/Timeline
+  - Metadata/Schema discovery
+  - Cross-object search
 - **Server Management** - SSH-based server monitoring and control
 - **Finance** - Bank account and transaction tracking
 
