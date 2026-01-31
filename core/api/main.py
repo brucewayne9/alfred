@@ -3840,6 +3840,43 @@ CHAT_HTML = """<!DOCTYPE html>
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
 
+        // ==================== Screen Wake Lock ====================
+
+        let wakeLock = null;
+
+        async function acquireWakeLock() {
+            if (wakeLock) return; // Already have it
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Screen wake lock acquired');
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Screen wake lock released');
+                        wakeLock = null;
+                    });
+                }
+            } catch (err) {
+                console.log('Wake lock request failed:', err.message);
+            }
+        }
+
+        function releaseWakeLock() {
+            // Only release if neither wake word nor hands-free is active
+            if (wakeWordActive || handsFreeActive) return;
+            if (wakeLock) {
+                wakeLock.release();
+                wakeLock = null;
+                console.log('Screen wake lock released manually');
+            }
+        }
+
+        // Re-acquire wake lock when page becomes visible again
+        document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState === 'visible' && (wakeWordActive || handsFreeActive)) {
+                await acquireWakeLock();
+            }
+        });
+
         // ==================== Wake Word Detection ====================
 
         let wakeWordActive = false;
@@ -3869,6 +3906,7 @@ CHAT_HTML = """<!DOCTYPE html>
                     wakeWordContext.close();
                     wakeWordContext = null;
                 }
+                releaseWakeLock(); // Release if hands-free also inactive
                 return;
             }
 
@@ -3877,6 +3915,7 @@ CHAT_HTML = """<!DOCTYPE html>
                 btn.classList.add('active');
                 status.classList.add('visible');
                 status.textContent = 'Starting...';
+                await acquireWakeLock(); // Keep screen on
 
                 // Get microphone access
                 wakeWordStream = await navigator.mediaDevices.getUserMedia({
@@ -4160,6 +4199,7 @@ CHAT_HTML = """<!DOCTYPE html>
                         document.getElementById('handsfree-btn').classList.remove('active');
                         if (vadInstance) vadInstance.pause();
                         setVadState('idle');
+                        releaseWakeLock(); // Release if wake word also inactive
                         // Update wake word status if active
                         const wwStatus = document.getElementById('wakeword-status');
                         if (wwStatus && wakeWordActive) {
@@ -4248,6 +4288,7 @@ CHAT_HTML = """<!DOCTYPE html>
                     document.getElementById('handsfree-btn').classList.remove('active');
                     if (vadInstance) vadInstance.pause();
                     setVadState('idle');
+                    releaseWakeLock(); // Release if wake word also inactive
                     return;
                 }
 
@@ -4321,10 +4362,12 @@ CHAT_HTML = """<!DOCTYPE html>
                 if (vadInstance) vadInstance.pause();
                 cutOffAlfred();
                 setVadState('idle');
+                releaseWakeLock(); // Release if wake word also inactive
                 return;
             }
             handsFreeActive = true;
             btn.classList.add('active');
+            await acquireWakeLock(); // Keep screen on
             if (!autoSpeak) {
                 autoSpeak = true;
                 localStorage.setItem('alfred_auto_speak', 'true');
