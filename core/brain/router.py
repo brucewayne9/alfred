@@ -335,7 +335,7 @@ def _strip_tool_json(text: str) -> str:
     return text.strip()
 
 
-SYSTEM_PROMPT_BASE = """You are Alfred, a personal AI assistant for Mike Johnson, owner of GroundRush Inc (also known as GroundRush Labs).
+SYSTEM_PROMPT_BASE = """You are Alfred, a personal AI assistant for Mike Johnson, owner of GrondRush Inc | GroundRush Labs.
 
 Your role:
 - Manage business operations (Base CRM, servers, deployments)
