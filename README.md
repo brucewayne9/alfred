@@ -39,6 +39,13 @@ Alfred is a sophisticated, self-hosted AI assistant designed for personal and bu
   - Cross-object search
 - **Server Management** - SSH-based server monitoring and control
 - **Finance** - Bank account and transaction tracking
+- **AzuraCast Radio** - Full radio station control:
+  - Now playing info (current song, listeners, DJ status)
+  - Song history and upcoming queue
+  - Playlist management (list, toggle, reshuffle)
+  - Media library search
+  - Listener statistics
+  - Station restart
 
 ### Web Interface
 - **Progressive Web App (PWA)** - Installable on mobile/desktop

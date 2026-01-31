@@ -1771,6 +1771,91 @@ def toggle_hands_free(enabled: bool) -> dict:
     }
 
 
+# ==================== AZURACAST RADIO TOOLS ====================
+
+@tool(
+    name="radio_now_playing",
+    description="Get what's currently playing on the radio station, including listener count, current song artist/title, and playlist info.",
+    parameters={},
+)
+def radio_now_playing() -> dict:
+    from integrations.azuracast.client import get_now_playing
+    np = get_now_playing()
+    if isinstance(np, list) and np:
+        return np[0]
+    return np
+
+
+@tool(
+    name="radio_song_history",
+    description="Get recently played songs on the radio station.",
+    parameters={"limit": "int (default 10) - number of recent songs to return"},
+)
+def radio_song_history(limit: int = 10) -> list[dict]:
+    from integrations.azuracast.client import get_song_history
+    return get_song_history(22, limit=limit)
+
+
+@tool(
+    name="radio_playlists",
+    description="List all playlists on the radio station with their song counts and enabled status.",
+    parameters={},
+)
+def radio_playlists() -> list[dict]:
+    from integrations.azuracast.client import list_playlists
+    return list_playlists(22)
+
+
+@tool(
+    name="radio_toggle_playlist",
+    description="Enable or disable a radio playlist by its ID.",
+    parameters={"playlist_id": "int - the playlist ID to toggle"},
+)
+def radio_toggle_playlist(playlist_id: int) -> dict:
+    from integrations.azuracast.client import toggle_playlist
+    return toggle_playlist(22, playlist_id)
+
+
+@tool(
+    name="radio_queue",
+    description="Get the upcoming song queue on the radio station.",
+    parameters={},
+)
+def radio_queue() -> list[dict]:
+    from integrations.azuracast.client import get_queue
+    return get_queue(22)
+
+
+@tool(
+    name="radio_listeners",
+    description="Get current listener details and count for the radio station.",
+    parameters={},
+)
+def radio_listeners() -> dict:
+    from integrations.azuracast.client import get_listener_report
+    return get_listener_report(22)
+
+
+@tool(
+    name="radio_restart",
+    description="Restart the radio station's broadcasting services.",
+    parameters={},
+)
+def radio_restart() -> dict:
+    from integrations.azuracast.client import restart_station
+    return restart_station(22)
+
+
+@tool(
+    name="radio_search_media",
+    description="Search for songs in the radio station's media library by artist, title, or album.",
+    parameters={"query": "string - search term for artist, title, or album"},
+)
+def radio_search_media(query: str) -> list[dict]:
+    from integrations.azuracast.client import search_media
+    return search_media(22, query)
+
+
 def register_all():
     """Import this module to register all tools."""
     pass

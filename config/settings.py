@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # Stripe
     stripe_api_key: str = ""
 
+    # AzuraCast Radio
+    azuracast_url: str = ""
+    azuracast_api_key: str = ""
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
