@@ -71,8 +71,30 @@ TOOL_CATEGORIES = {
     "n8n": ["n8n_activate_workflow", "n8n_create_scheduled_workflow", "n8n_create_webhook_slack_workflow",
             "n8n_create_workflow", "n8n_deactivate_workflow", "n8n_delete_workflow",
             "n8n_execute_workflow", "n8n_get_executions", "n8n_get_workflow", "n8n_list_workflows"],
-    "radio": ["radio_list_stations", "radio_now_playing", "radio_song_history", "radio_playlists",
-              "radio_toggle_playlist", "radio_queue", "radio_listeners", "radio_restart", "radio_search_media"],
+    "radio": [
+        # Basic info
+        "radio_list_stations", "radio_now_playing", "radio_song_history", "radio_queue", "radio_listeners",
+        # Playback control
+        "radio_skip_song", "radio_clear_queue", "radio_request_song", "radio_restart",
+        # Playlists
+        "radio_playlists", "radio_toggle_playlist", "radio_create_playlist", "radio_delete_playlist", "radio_reshuffle_playlist",
+        # Media
+        "radio_search_media", "radio_upload_song", "radio_update_song", "radio_delete_song", "radio_create_folder",
+        # DJs/Streamers
+        "radio_list_djs", "radio_create_dj", "radio_update_dj", "radio_delete_dj",
+        # Mount points
+        "radio_list_mounts", "radio_create_mount", "radio_delete_mount",
+        # Webhooks
+        "radio_list_webhooks", "radio_toggle_webhook",
+        # Station admin
+        "radio_create_station", "radio_update_station", "radio_delete_station", "radio_clone_station",
+        # User admin
+        "radio_list_users", "radio_create_user", "radio_update_user", "radio_delete_user", "radio_list_roles",
+        # Storage
+        "radio_storage_locations", "radio_update_storage_quota", "radio_station_quota",
+        # System
+        "radio_system_status", "radio_services_status",
+    ],
     "drive": ["drive_list_files", "drive_search", "drive_create_folder", "drive_upload",
               "drive_download", "drive_share", "drive_delete"],
     "docs": ["docs_create", "docs_read", "docs_append", "docs_replace", "docs_list",
@@ -96,7 +118,8 @@ CATEGORY_KEYWORDS = {
     "nextcloud": ["nextcloud", "next cloud", "cloud storage", "nextcloud file",
                   "talk conversation", "talk chat", "my notes", "eswar", "donjuan"],
     "n8n": ["n8n", "workflow", "automation", "automate"],
-    "radio": ["radio", "station", "playing", "song", "music", "playlist", "listener", "stream", "dj", "broadcast"],
+    "radio": ["radio", "station", "playing", "song", "music", "playlist", "listener", "stream", "dj", "broadcast",
+              "azuracast", "streamer", "mount", "webhook", "skip", "queue", "request", "upload song", "media library"],
     "drive": ["drive", "google drive", "upload file", "download file", "my files", "share file"],
     "docs": ["doc", "document", "google doc", "write document", "create document"],
     "sheets": ["sheet", "spreadsheet", "google sheet", "excel", "csv", "row", "cell", "column"],

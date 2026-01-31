@@ -1880,6 +1880,514 @@ def radio_search_media(query: str, station: str = None) -> list[dict]:
     return search_media(station_id, query)
 
 
+# ==================== RADIO ADMIN: STATION MANAGEMENT ====================
+
+@tool(
+    name="radio_create_station",
+    description="Create a new radio station.",
+    parameters={
+        "name": "string - the station name",
+        "shortcode": "string (optional) - URL-friendly short name",
+        "description": "string (optional) - station description",
+    },
+)
+def radio_create_station(name: str, shortcode: str = None, description: str = "") -> dict:
+    from integrations.azuracast.client import admin_create_station
+    return admin_create_station(name, shortcode, description)
+
+
+@tool(
+    name="radio_update_station",
+    description="Update station settings like name, description, or enabled status.",
+    parameters={
+        "station": "string - station name, shortcode, or ID",
+        "name": "string (optional) - new name",
+        "description": "string (optional) - new description",
+        "is_enabled": "boolean (optional) - enable/disable station",
+    },
+)
+def radio_update_station(station: str, name: str = None, description: str = None,
+                         is_enabled: bool = None) -> dict:
+    from integrations.azuracast.client import admin_update_station, get_station_id
+    station_id = get_station_id(station)
+    kwargs = {}
+    if name is not None:
+        kwargs["name"] = name
+    if description is not None:
+        kwargs["description"] = description
+    if is_enabled is not None:
+        kwargs["is_enabled"] = is_enabled
+    return admin_update_station(station_id, **kwargs)
+
+
+@tool(
+    name="radio_delete_station",
+    description="Permanently delete a radio station. Use with caution!",
+    parameters={"station": "string - station name, shortcode, or ID to delete"},
+)
+def radio_delete_station(station: str) -> dict:
+    from integrations.azuracast.client import admin_delete_station, get_station_id
+    station_id = get_station_id(station)
+    return admin_delete_station(station_id)
+
+
+@tool(
+    name="radio_clone_station",
+    description="Clone an existing station with all its settings, playlists, and media.",
+    parameters={
+        "station": "string - source station to clone",
+        "name": "string - name for the new station",
+        "shortcode": "string (optional) - shortcode for new station",
+    },
+)
+def radio_clone_station(station: str, name: str, shortcode: str = None) -> dict:
+    from integrations.azuracast.client import admin_clone_station, get_station_id
+    station_id = get_station_id(station)
+    return admin_clone_station(station_id, name, shortcode)
+
+
+# ==================== RADIO ADMIN: USER MANAGEMENT ====================
+
+@tool(
+    name="radio_list_users",
+    description="List all AzuraCast user accounts.",
+    parameters={},
+)
+def radio_list_users() -> list[dict]:
+    from integrations.azuracast.client import admin_list_users
+    return admin_list_users()
+
+
+@tool(
+    name="radio_create_user",
+    description="Create a new AzuraCast user account.",
+    parameters={
+        "email": "string - user's email address (used for login)",
+        "name": "string - display name",
+        "password": "string - account password",
+    },
+)
+def radio_create_user(email: str, name: str, password: str) -> dict:
+    from integrations.azuracast.client import admin_create_user
+    return admin_create_user(email, name, password)
+
+
+@tool(
+    name="radio_update_user",
+    description="Update a user's details.",
+    parameters={
+        "user_id": "int - the user ID",
+        "email": "string (optional) - new email",
+        "name": "string (optional) - new name",
+        "password": "string (optional) - new password",
+        "is_enabled": "boolean (optional) - enable/disable account",
+    },
+)
+def radio_update_user(user_id: int, email: str = None, name: str = None,
+                      password: str = None, is_enabled: bool = None) -> dict:
+    from integrations.azuracast.client import admin_update_user
+    kwargs = {}
+    if email is not None:
+        kwargs["email"] = email
+    if name is not None:
+        kwargs["name"] = name
+    if password is not None:
+        kwargs["password"] = password
+    if is_enabled is not None:
+        kwargs["is_enabled"] = is_enabled
+    return admin_update_user(user_id, **kwargs)
+
+
+@tool(
+    name="radio_delete_user",
+    description="Delete an AzuraCast user account.",
+    parameters={"user_id": "int - the user ID to delete"},
+)
+def radio_delete_user(user_id: int) -> dict:
+    from integrations.azuracast.client import admin_delete_user
+    return admin_delete_user(user_id)
+
+
+@tool(
+    name="radio_list_roles",
+    description="List all roles/permission groups in AzuraCast.",
+    parameters={},
+)
+def radio_list_roles() -> list[dict]:
+    from integrations.azuracast.client import admin_list_roles
+    return admin_list_roles()
+
+
+# ==================== RADIO ADMIN: STORAGE ====================
+
+@tool(
+    name="radio_storage_locations",
+    description="List all storage locations and their usage/quotas.",
+    parameters={},
+)
+def radio_storage_locations() -> list[dict]:
+    from integrations.azuracast.client import admin_list_storage_locations
+    return admin_list_storage_locations()
+
+
+@tool(
+    name="radio_update_storage_quota",
+    description="Update storage quota for a storage location.",
+    parameters={
+        "location_id": "int - storage location ID",
+        "quota_gb": "float - quota in gigabytes (0 for unlimited)",
+    },
+)
+def radio_update_storage_quota(location_id: int, quota_gb: float) -> dict:
+    from integrations.azuracast.client import admin_update_storage_quota
+    quota_bytes = int(quota_gb * 1024 * 1024 * 1024)
+    return admin_update_storage_quota(location_id, quota_bytes)
+
+
+@tool(
+    name="radio_station_quota",
+    description="Get storage quota usage for a specific station.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
+)
+def radio_station_quota(station: str = None) -> dict:
+    from integrations.azuracast.client import get_station_quota, get_station_id
+    station_id = get_station_id(station)
+    return get_station_quota(station_id)
+
+
+# ==================== RADIO: DJ/STREAMER MANAGEMENT ====================
+
+@tool(
+    name="radio_list_djs",
+    description="List all DJ/streamer accounts for a station.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
+)
+def radio_list_djs(station: str = None) -> list[dict]:
+    from integrations.azuracast.client import list_streamers, get_station_id
+    station_id = get_station_id(station)
+    return list_streamers(station_id)
+
+
+@tool(
+    name="radio_create_dj",
+    description="Create a new DJ/streamer account for live broadcasting.",
+    parameters={
+        "username": "string - login username for the DJ",
+        "password": "string - password for streaming",
+        "display_name": "string (optional) - name shown when live",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_create_dj(username: str, password: str, display_name: str = None,
+                    station: str = None) -> dict:
+    from integrations.azuracast.client import create_streamer, get_station_id
+    station_id = get_station_id(station)
+    return create_streamer(station_id, username, password, display_name)
+
+
+@tool(
+    name="radio_update_dj",
+    description="Update a DJ/streamer account.",
+    parameters={
+        "dj_id": "int - the streamer/DJ ID",
+        "username": "string (optional) - new username",
+        "password": "string (optional) - new password",
+        "display_name": "string (optional) - new display name",
+        "is_active": "boolean (optional) - enable/disable account",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_update_dj(dj_id: int, username: str = None, password: str = None,
+                    display_name: str = None, is_active: bool = None,
+                    station: str = None) -> dict:
+    from integrations.azuracast.client import update_streamer, get_station_id
+    station_id = get_station_id(station)
+    kwargs = {}
+    if username is not None:
+        kwargs["username"] = username
+    if password is not None:
+        kwargs["password"] = password
+    if display_name is not None:
+        kwargs["display_name"] = display_name
+    if is_active is not None:
+        kwargs["is_active"] = is_active
+    return update_streamer(station_id, dj_id, **kwargs)
+
+
+@tool(
+    name="radio_delete_dj",
+    description="Delete a DJ/streamer account.",
+    parameters={
+        "dj_id": "int - the streamer/DJ ID to delete",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_delete_dj(dj_id: int, station: str = None) -> dict:
+    from integrations.azuracast.client import delete_streamer, get_station_id
+    station_id = get_station_id(station)
+    return delete_streamer(station_id, dj_id)
+
+
+# ==================== RADIO: MEDIA MANAGEMENT ====================
+
+@tool(
+    name="radio_upload_song",
+    description="Upload a song file to the station's media library.",
+    parameters={
+        "file_path": "string - local path to the audio file",
+        "folder": "string (optional) - destination folder in library",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_upload_song(file_path: str, folder: str = "", station: str = None) -> dict:
+    from integrations.azuracast.client import upload_media, get_station_id
+    station_id = get_station_id(station)
+    return upload_media(station_id, file_path, folder)
+
+
+@tool(
+    name="radio_update_song",
+    description="Update song metadata (artist, title, album, etc.).",
+    parameters={
+        "media_id": "int - the media file ID",
+        "artist": "string (optional) - artist name",
+        "title": "string (optional) - song title",
+        "album": "string (optional) - album name",
+        "genre": "string (optional) - genre",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_update_song(media_id: int, artist: str = None, title: str = None,
+                      album: str = None, genre: str = None, station: str = None) -> dict:
+    from integrations.azuracast.client import update_media, get_station_id
+    station_id = get_station_id(station)
+    kwargs = {}
+    if artist is not None:
+        kwargs["artist"] = artist
+    if title is not None:
+        kwargs["title"] = title
+    if album is not None:
+        kwargs["album"] = album
+    if genre is not None:
+        kwargs["genre"] = genre
+    return update_media(station_id, media_id, **kwargs)
+
+
+@tool(
+    name="radio_delete_song",
+    description="Delete a song from the media library.",
+    parameters={
+        "media_id": "int - the media file ID to delete",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_delete_song(media_id: int, station: str = None) -> dict:
+    from integrations.azuracast.client import delete_media, get_station_id
+    station_id = get_station_id(station)
+    return delete_media(station_id, media_id)
+
+
+@tool(
+    name="radio_create_folder",
+    description="Create a folder in the media library.",
+    parameters={
+        "folder_path": "string - path for the new folder (e.g., 'Rock/Classic')",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_create_folder(folder_path: str, station: str = None) -> dict:
+    from integrations.azuracast.client import create_media_folder, get_station_id
+    station_id = get_station_id(station)
+    return create_media_folder(station_id, folder_path)
+
+
+# ==================== RADIO: QUEUE & REQUESTS ====================
+
+@tool(
+    name="radio_clear_queue",
+    description="Clear all songs from the upcoming queue.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
+)
+def radio_clear_queue(station: str = None) -> dict:
+    from integrations.azuracast.client import clear_queue, get_station_id
+    station_id = get_station_id(station)
+    return clear_queue(station_id)
+
+
+@tool(
+    name="radio_skip_song",
+    description="Skip the currently playing song and move to next.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
+)
+def radio_skip_song(station: str = None) -> dict:
+    from integrations.azuracast.client import skip_song, get_station_id
+    station_id = get_station_id(station)
+    return skip_song(station_id)
+
+
+@tool(
+    name="radio_request_song",
+    description="Submit a song request to be played.",
+    parameters={
+        "query": "string - search for the song to request",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_request_song(query: str, station: str = None) -> dict:
+    from integrations.azuracast.client import search_requestable_songs, submit_request, get_station_id
+    station_id = get_station_id(station)
+    # Search for the song
+    results = search_requestable_songs(station_id, query)
+    if not results:
+        return {"error": f"No requestable song found matching '{query}'"}
+    # Request the first matching song
+    song = results[0]
+    result = submit_request(station_id, song["request_id"])
+    result["requested_song"] = f"{song['artist']} - {song['title']}"
+    return result
+
+
+# ==================== RADIO: MOUNT POINTS ====================
+
+@tool(
+    name="radio_list_mounts",
+    description="List all mount points/stream URLs for a station.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
+)
+def radio_list_mounts(station: str = None) -> list[dict]:
+    from integrations.azuracast.client import list_mounts, get_station_id
+    station_id = get_station_id(station)
+    return list_mounts(station_id)
+
+
+@tool(
+    name="radio_create_mount",
+    description="Create a new mount point/stream for a station.",
+    parameters={
+        "name": "string - mount point name (e.g., '/radio.mp3')",
+        "display_name": "string (optional) - friendly display name",
+        "format": "string (optional) - audio format: mp3, ogg, opus, aac, flac (default: mp3)",
+        "bitrate": "int (optional) - stream bitrate in kbps (default: 128)",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_create_mount(name: str, display_name: str = None, format: str = "mp3",
+                       bitrate: int = 128, station: str = None) -> dict:
+    from integrations.azuracast.client import create_mount, get_station_id
+    station_id = get_station_id(station)
+    return create_mount(station_id, name, display_name, False, format, bitrate)
+
+
+@tool(
+    name="radio_delete_mount",
+    description="Delete a mount point/stream.",
+    parameters={
+        "mount_id": "int - the mount point ID",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_delete_mount(mount_id: int, station: str = None) -> dict:
+    from integrations.azuracast.client import delete_mount, get_station_id
+    station_id = get_station_id(station)
+    return delete_mount(station_id, mount_id)
+
+
+# ==================== RADIO: PLAYLISTS (EXPANDED) ====================
+
+@tool(
+    name="radio_create_playlist",
+    description="Create a new playlist on a station.",
+    parameters={
+        "name": "string - playlist name",
+        "type": "string (optional) - playlist type: default, once_per_x_songs, once_per_x_minutes, once_per_hour, once_per_day, advanced (default: default)",
+        "weight": "int (optional) - playlist weight/priority 1-25 (default: 3)",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_create_playlist(name: str, type: str = "default", weight: int = 3,
+                          station: str = None) -> dict:
+    from integrations.azuracast.client import create_playlist, get_station_id
+    station_id = get_station_id(station)
+    return create_playlist(station_id, name, type, weight)
+
+
+@tool(
+    name="radio_delete_playlist",
+    description="Delete a playlist from a station.",
+    parameters={
+        "playlist_id": "int - the playlist ID",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_delete_playlist(playlist_id: int, station: str = None) -> dict:
+    from integrations.azuracast.client import delete_playlist, get_station_id
+    station_id = get_station_id(station)
+    return delete_playlist(station_id, playlist_id)
+
+
+@tool(
+    name="radio_reshuffle_playlist",
+    description="Reshuffle a playlist's playback order.",
+    parameters={
+        "playlist_id": "int - the playlist ID",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_reshuffle_playlist(playlist_id: int, station: str = None) -> dict:
+    from integrations.azuracast.client import reshuffle_playlist, get_station_id
+    station_id = get_station_id(station)
+    return reshuffle_playlist(station_id, playlist_id)
+
+
+# ==================== RADIO: WEBHOOKS ====================
+
+@tool(
+    name="radio_list_webhooks",
+    description="List all webhooks for a station.",
+    parameters={"station": "string (optional) - station name, shortcode, or ID"},
+)
+def radio_list_webhooks(station: str = None) -> list[dict]:
+    from integrations.azuracast.client import list_webhooks, get_station_id
+    station_id = get_station_id(station)
+    return list_webhooks(station_id)
+
+
+@tool(
+    name="radio_toggle_webhook",
+    description="Toggle a webhook on/off.",
+    parameters={
+        "webhook_id": "int - the webhook ID",
+        "station": "string (optional) - station name, shortcode, or ID",
+    },
+)
+def radio_toggle_webhook(webhook_id: int, station: str = None) -> dict:
+    from integrations.azuracast.client import toggle_webhook, get_station_id
+    station_id = get_station_id(station)
+    return toggle_webhook(station_id, webhook_id)
+
+
+# ==================== RADIO: SYSTEM ====================
+
+@tool(
+    name="radio_system_status",
+    description="Get AzuraCast server system status (CPU, memory, disk).",
+    parameters={},
+)
+def radio_system_status() -> dict:
+    from integrations.azuracast.client import get_system_status
+    return get_system_status()
+
+
+@tool(
+    name="radio_services_status",
+    description="Get status of all AzuraCast services.",
+    parameters={},
+)
+def radio_services_status() -> list[dict]:
+    from integrations.azuracast.client import get_services_status
+    return get_services_status()
+
+
 def register_all():
     """Import this module to register all tools."""
     pass

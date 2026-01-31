@@ -39,15 +39,18 @@ Alfred is a sophisticated, self-hosted AI assistant designed for personal and bu
   - Cross-object search
 - **Server Management** - SSH-based server monitoring and control
 - **Finance** - Bank account and transaction tracking
-- **AzuraCast Radio** - Full radio station control with multi-station support:
-  - List all stations and query by name, shortcode, or ID
-  - Now playing info (current song, listeners, DJ status)
-  - Song history and upcoming queue
-  - Playlist management (list, toggle, reshuffle)
-  - Media library search
-  - Listener statistics
-  - Station restart
-  - Query different stations independently (e.g., "What's playing on Station A?" + "How many listeners on Station B?")
+- **AzuraCast Radio** - Complete radio station administration with multi-station support:
+  - **Station Management**: Create, update, delete, clone stations
+  - **User Management**: Create, update, delete AzuraCast users and roles
+  - **DJ/Streamer Accounts**: Create, manage, delete live DJ accounts
+  - **Media Library**: Upload songs, edit metadata, create folders, delete tracks
+  - **Playlists**: Create, toggle, reshuffle, delete playlists
+  - **Mount Points**: Create and manage stream URLs with custom formats/bitrates
+  - **Playback Control**: Skip songs, clear queue, submit song requests
+  - **Storage Management**: View quotas, update storage limits per location
+  - **Webhooks**: List and toggle webhooks for integrations
+  - **System Monitoring**: Server stats (CPU, memory, disk), service status
+  - **Multi-station**: Query any station by name, shortcode, or ID
 
 ### Web Interface
 - **Progressive Web App (PWA)** - Installable on mobile/desktop
