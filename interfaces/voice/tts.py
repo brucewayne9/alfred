@@ -186,3 +186,30 @@ def speak(text: str, voice_id: str = None) -> bytes:
     engine = get_engine(backend)
     clean = _clean_for_speech(text)
     return engine.synthesize(clean, voice_id)
+
+
+def speak_with_options(text: str, voice_id: str = None, backend: str = None) -> bytes:
+    """Synthesize speech with optional voice and backend override.
+
+    Used by API endpoints that accept voice/backend parameters (e.g., iOS Shortcuts).
+
+    Args:
+        text: Text to synthesize
+        voice_id: Optional voice ID override (e.g., "Gwen_Stacy", "design:Natalie")
+        backend: Optional backend override ("kokoro", "qwen3")
+    """
+    from config.settings import settings
+
+    # Use provided backend or fall back to settings
+    if backend is None:
+        backend = settings.tts_model
+
+    # Use provided voice or fall back to settings/defaults
+    if voice_id is None:
+        voice_id = getattr(settings, 'tts_voice', None)
+        if not voice_id:
+            voice_id = "demo_speaker0" if backend == "qwen3" else "bm_daniel"
+
+    engine = get_engine(backend)
+    clean = _clean_for_speech(text)
+    return engine.synthesize(clean, voice_id)

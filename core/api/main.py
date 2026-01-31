@@ -135,6 +135,9 @@ class ChatRequest(BaseModel):
     image_media_type: str | None = None
     # Optional document path for analysis
     document_path: str | None = None
+    # Optional TTS settings (for Shortcuts/API clients)
+    voice: str | None = None  # Voice ID (e.g., "Gwen_Stacy", "design:Natalie")
+    tts_backend: str | None = None  # TTS backend ("kokoro", "qwen3")
 
 class ChatResponse(BaseModel):
     response: str
@@ -508,7 +511,14 @@ KOKORO_VOICES = [
 async def get_voices(user: dict = Depends(require_auth)):
     """Get available voices for the current TTS backend."""
     import requests as req
+    # Read directly from env file to avoid caching issues
+    env_path = Path("/home/aialfred/alfred/config/.env")
     backend = settings.tts_model
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            if line.startswith("TTS_MODEL="):
+                backend = line.split("=", 1)[1].strip()
+                break
 
     if backend == "qwen3":
         voices = []
@@ -537,10 +547,22 @@ async def get_voices(user: dict = Depends(require_auth)):
 
         if not voices:
             voices = [{"id": "demo_speaker0", "name": "Demo Speaker", "desc": "Default voice", "type": "clone"}]
-        return {"backend": backend, "voices": voices, "current": settings.tts_voice}
+        # Read current voice from env file
+        current_voice = settings.tts_voice
+        for line in env_path.read_text().splitlines():
+            if line.startswith("TTS_VOICE="):
+                current_voice = line.split("=", 1)[1].strip()
+                break
+        return {"backend": backend, "voices": voices, "current": current_voice}
     else:
-        # Kokoro voices
-        return {"backend": backend, "voices": KOKORO_VOICES, "current": settings.tts_voice}
+        # Kokoro voices - read current voice from env file
+        current_voice = settings.tts_voice
+        if env_path.exists():
+            for line in env_path.read_text().splitlines():
+                if line.startswith("TTS_VOICE="):
+                    current_voice = line.split("=", 1)[1].strip()
+                    break
+        return {"backend": backend, "voices": KOKORO_VOICES, "current": current_voice}
 
 
 @app.put("/settings/voice")
@@ -1066,6 +1088,51 @@ async def chat_stream(request: Request, req: ChatRequest, user: dict = Depends(r
     return StreamingResponse(generate(), media_type="text/plain")
 
 
+@app.get("/voice/voices")
+async def get_all_voices(user: dict = Depends(require_auth)):
+    """Get all available voices for both TTS backends.
+
+    Returns voices grouped by backend for easy selection in Shortcuts.
+    """
+    import requests as req
+
+    result = {
+        "kokoro": KOKORO_VOICES,
+        "qwen3": [],
+        "current_backend": settings.tts_model,
+        "current_voice": settings.tts_voice,
+    }
+
+    # Get Qwen3 voices
+    resources_dir = Path("/home/aialfred/qwen3-tts/resources")
+    if resources_dir.exists():
+        for f in resources_dir.iterdir():
+            if f.suffix in [".mp3", ".wav"]:
+                voice_id = f.stem
+                result["qwen3"].append({
+                    "id": voice_id,
+                    "name": voice_id.replace("_", " "),
+                    "desc": "Cloned voice",
+                    "type": "clone"
+                })
+
+    # Get designed voices from Qwen3 API
+    try:
+        resp = req.get("http://localhost:7860/voice_design/voices", timeout=5)
+        if resp.status_code == 200:
+            for v in resp.json().get("voices", []):
+                result["qwen3"].append({
+                    "id": f"design:{v['name']}",
+                    "name": f"{v['name']} (designed)",
+                    "desc": v.get("description", "Designed voice")[:50],
+                    "type": "design"
+                })
+    except Exception:
+        pass
+
+    return result
+
+
 @app.post("/voice/transcribe")
 @limiter.limit("20/minute")
 async def transcribe_audio(request: Request, audio: UploadFile = File(...), user: dict = Depends(require_auth)):
@@ -1081,11 +1148,19 @@ async def transcribe_audio(request: Request, audio: UploadFile = File(...), user
 @app.post("/voice/speak")
 @limiter.limit("30/minute")
 async def text_to_speech(request: Request, req: ChatRequest, user: dict = Depends(require_auth)):
-    """Convert text to speech audio."""
+    """Convert text to speech audio.
+
+    Optional parameters:
+    - voice: Voice ID (e.g., "Gwen_Stacy", "design:Natalie", "bm_daniel")
+    - tts_backend: TTS backend ("kokoro", "qwen3")
+    """
     import asyncio
-    from interfaces.voice.tts import speak
+    from interfaces.voice.tts import speak_with_options
     loop = asyncio.get_event_loop()
-    audio_data = await loop.run_in_executor(None, lambda: speak(req.message))
+    audio_data = await loop.run_in_executor(
+        None,
+        lambda: speak_with_options(req.message, voice_id=req.voice, backend=req.tts_backend)
+    )
     return Response(content=audio_data, media_type="audio/wav")
 
 
@@ -1096,12 +1171,18 @@ async def fast_voice_chat(request: Request, req: ChatRequest, user: dict = Depen
 
     Returns audio for the first sentence ASAP while generating the rest.
     Subsequent sentences are returned in the 'more_audio' field.
+
+    Optional parameters:
+    - voice: Voice ID (e.g., "Gwen_Stacy", "design:Natalie")
+    - tts_backend: TTS backend ("kokoro", "qwen3")
     """
     import asyncio
-    from interfaces.voice.tts import speak
+    from interfaces.voice.tts import speak_with_options
 
     query = req.message
-    conv_id = req.conversation_id
+    conv_id = req.session_id  # Use session_id as conversation_id
+    voice_id = req.voice
+    tts_backend = req.tts_backend
 
     # Get conversation context
     messages = None
@@ -1121,7 +1202,10 @@ async def fast_voice_chat(request: Request, req: ChatRequest, user: dict = Depen
         result = await ask(query, messages=messages, tier=tier, stream=False)
         response_text = result["response"] if isinstance(result, dict) else result
         loop = asyncio.get_event_loop()
-        audio_data = await loop.run_in_executor(None, lambda: speak(response_text))
+        audio_data = await loop.run_in_executor(
+            None,
+            lambda: speak_with_options(response_text, voice_id=voice_id, backend=tts_backend)
+        )
         return Response(content=audio_data, media_type="audio/wav")
 
     # Stream from local LLM
@@ -1157,7 +1241,10 @@ async def fast_voice_chat(request: Request, req: ChatRequest, user: dict = Depen
 
     # Generate TTS for first sentence (fast response)
     loop = asyncio.get_event_loop()
-    first_audio = await loop.run_in_executor(None, lambda: speak(first_sentence))
+    first_audio = await loop.run_in_executor(
+        None,
+        lambda: speak_with_options(first_sentence, voice_id=voice_id, backend=tts_backend)
+    )
 
     # Return first sentence audio immediately
     # Client can request remaining audio separately if needed
@@ -1194,13 +1281,19 @@ async def hybrid_voice_chat(request: Request, req: ChatRequest, user: dict = Dep
     Returns a multipart response:
     1. Acknowledgment audio (instant, <100ms)
     2. Full response audio (smart model, streamed)
+
+    Optional parameters:
+    - voice: Voice ID (e.g., "Gwen_Stacy", "design:Natalie")
+    - tts_backend: TTS backend ("kokoro", "qwen3")
     """
     import asyncio
     import random
-    from interfaces.voice.tts import speak
+    from interfaces.voice.tts import speak_with_options
 
     query = req.message
-    conv_id = req.conversation_id
+    conv_id = req.session_id  # Use session_id as conversation_id
+    voice_id = req.voice
+    tts_backend = req.tts_backend
 
     # Pick a random acknowledgment
     ack_keys = list(_ACK_CACHE.keys()) or ["one_moment"]
@@ -1245,7 +1338,10 @@ async def hybrid_voice_chat(request: Request, req: ChatRequest, user: dict = Dep
 
         # Generate TTS for response
         loop = asyncio.get_event_loop()
-        response_audio = await loop.run_in_executor(None, lambda: speak(response_text))
+        response_audio = await loop.run_in_executor(
+            None,
+            lambda: speak_with_options(response_text, voice_id=voice_id, backend=tts_backend)
+        )
 
         # Send response audio
         yield b"--RESPONSE--"
