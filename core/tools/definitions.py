@@ -2473,13 +2473,13 @@ def meta_ads_ad_set_insights(campaign_id: str = None, period: str = "last_7d") -
 
 
 @tool(
-    name="meta_ads_list",
-    description="List individual ADS within an ad set or campaign. USE THIS to see how many ads are in an ad set and their names/status.",
+    name="meta_ads_ads",
+    description="List individual ADS (creatives) within an ad set. Use this to count ads or see ad names/status in an ad set.",
     parameters={
-        "ad_set_id": "string (optional) - filter by ad set ID to see ads in that specific ad set",
+        "ad_set_id": "string (optional) - ad set ID to filter ads, or omit for all ads in account",
     },
 )
-def meta_ads_list(ad_set_id: str = None) -> list[dict]:
+def meta_ads_ads(ad_set_id: str = None) -> list[dict]:
     from integrations.meta_ads.client import list_ads
     return list_ads(ad_set_id)
 

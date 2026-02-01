@@ -108,7 +108,7 @@ TOOL_CATEGORIES = {
         "meta_ads_account", "meta_ads_summary", "meta_ads_performance",
         "meta_ads_campaigns", "meta_ads_campaign_insights",
         "meta_ads_ad_sets", "meta_ads_ad_set_insights",
-        "meta_ads_list", "meta_ads_ad_insights",
+        "meta_ads_ads", "meta_ads_ad_insights",
         "meta_ads_audience", "meta_ads_placements",
         "meta_ads_issues", "meta_ads_daily_spend",
     ],
