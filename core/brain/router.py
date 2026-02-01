@@ -89,6 +89,15 @@ TOOL_TRIGGERS = [
 ]
 
 
+# Meta Ads queries go to Claude API for reliable native tool calling
+META_ADS_TRIGGERS = [
+    "meta", "facebook", "instagram", "meta ads", "facebook ads", "instagram ads",
+    "campaign", "ad set", "ad performance", "ctr", "cpc", "cpm", "roas",
+    "impressions", "conversions", "ad spend", "pause ad", "enable ad",
+    "budget", "underperform", "ads manager",
+]
+
+
 def classify_query(query: str) -> ModelTier:
     """Determine if a query needs local Ollama (tools), Claude API, or Claude Code."""
     query_lower = query.lower().strip()
@@ -97,7 +106,12 @@ def classify_query(query: str) -> ModelTier:
     if query_lower.startswith("claude ") or query_lower.startswith("claude,"):
         return ModelTier.CLAUDE_CODE
 
-    # Tool-related queries stay LOCAL (large local model handles tools well)
+    # Meta Ads queries go to Claude API (native tool calling is more reliable)
+    for trigger in META_ADS_TRIGGERS:
+        if trigger in query_lower:
+            return ModelTier.CLOUD
+
+    # Other tool-related queries stay LOCAL
     for trigger in TOOL_TRIGGERS:
         if trigger in query_lower:
             return ModelTier.LOCAL
