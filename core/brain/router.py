@@ -493,11 +493,22 @@ async def ask(
 
 
 def _strip_tool_json(text: str) -> str:
-    """Remove any {"tool": ...} JSON blocks that leaked into user-facing text."""
+    """Remove any {"tool": ...} JSON blocks and tool narration from user-facing text."""
     # Remove fenced code blocks containing tool JSON
     text = re.sub(r'```(?:json)?\s*\{[^`]*"tool"\s*:[^`]*\}\s*```', '', text, flags=re.DOTALL)
     # Remove inline {"tool": ...} JSON objects
     text = re.sub(r'\{\s*"tool"\s*:\s*"[^"]*"\s*,\s*"args"\s*:\s*\{[^}]*\}\s*\}', '', text)
+    # Remove tool narration patterns the LLM sometimes outputs
+    narration_patterns = [
+        r'We (?:must|need to|should|will) (?:call|use|fetch|invoke) (?:tool |the )?[\w_]+\.?\s*',
+        r'We need to wait for (?:the )?result\.?\s*',
+        r'User will provide (?:the )?result\.?\s*',
+        r'(?:Let me |I\'ll |I will )(?:call|use|fetch|check) (?:the )?(?:tool )?[\w_]+\.?\s*',
+        r'Calling (?:tool )?[\w_]+\.\.\.?\s*',
+        r'Fetching (?:data|results?)\.\.\.?\s*',
+    ]
+    for pattern in narration_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
     # Clean up leftover whitespace
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
