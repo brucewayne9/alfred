@@ -35,6 +35,38 @@ def _format_number(num: int | float) -> str:
     return f"{num:,.0f}"
 
 
+def _normalize_period(period: str) -> str:
+    """Normalize period format to Meta API expected format (last_7d, last_14d, etc.)."""
+    if not period:
+        return "last_7d"
+    period = period.lower().strip()
+    # Handle various formats LLMs might use
+    replacements = {
+        "last_7_days": "last_7d",
+        "last_14_days": "last_14d",
+        "last_30_days": "last_30d",
+        "last_90_days": "last_90d",
+        "7_days": "last_7d",
+        "14_days": "last_14d",
+        "30_days": "last_30d",
+        "7d": "last_7d",
+        "14d": "last_14d",
+        "30d": "last_30d",
+        "7 days": "last_7d",
+        "14 days": "last_14d",
+        "30 days": "last_30d",
+        "week": "last_7d",
+        "last week": "last_7d",
+        "last_week": "last_7d",
+        "month": "last_30d",
+        "last month": "last_month",
+        "last_month": "last_month",
+        "this month": "this_month",
+        "this_month": "this_month",
+    }
+    return replacements.get(period, period)
+
+
 # ==================== Account Info ====================
 
 def get_ad_account_info() -> dict:
@@ -170,6 +202,7 @@ def get_account_insights(date_preset: str = "last_7d") -> dict:
                         last_28d, last_30d, this_month, last_month, this_quarter
     """
     try:
+        date_preset = _normalize_period(date_preset)
         data = _get(f"{AD_ACCOUNT_ID}/insights", {
             "date_preset": date_preset,
             "fields": "impressions,reach,clicks,ctr,cpc,cpm,spend,actions,cost_per_action_type,frequency"
@@ -214,6 +247,7 @@ def get_account_insights(date_preset: str = "last_7d") -> dict:
 def get_campaign_insights(campaign_id: str = None, date_preset: str = "last_7d") -> list[dict]:
     """Get insights for campaigns."""
     try:
+        date_preset = _normalize_period(date_preset)
         endpoint = f"{campaign_id}/insights" if campaign_id else f"{AD_ACCOUNT_ID}/insights"
         params = {
             "date_preset": date_preset,
@@ -247,6 +281,7 @@ def get_campaign_insights(campaign_id: str = None, date_preset: str = "last_7d")
 def get_ad_set_insights(campaign_id: str = None, date_preset: str = "last_7d") -> list[dict]:
     """Get insights at ad set level."""
     try:
+        date_preset = _normalize_period(date_preset)
         endpoint = f"{campaign_id}/insights" if campaign_id else f"{AD_ACCOUNT_ID}/insights"
         params = {
             "date_preset": date_preset,
