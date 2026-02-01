@@ -2426,12 +2426,16 @@ def meta_ads_performance(period: str = "last_7d") -> dict:
     name="meta_ads_insights",
     description="Get performance insights for Meta Ads. Returns ad-level performance data: impressions, clicks, CTR, CPC, spend for each ad.",
     parameters={
-        "period": "string (optional) - time period (default: last_7d)",
+        "period": "string (optional) - time period: last_7d, last_14d, last_30d (default: last_7d)",
     },
 )
-def meta_ads_insights(period: str = "last_7d") -> list[dict]:
-    from integrations.meta_ads.client import get_ad_insights
-    return get_ad_insights(period=period)
+def meta_ads_insights(period: str = "last_7d", date_preset: str = None, time_range: dict = None) -> list[dict]:
+    from integrations.meta_ads.client import get_ad_insights, _normalize_period
+    # Handle various parameter names the LLM might use
+    actual_period = period or date_preset or "last_7d"
+    if time_range:
+        actual_period = "last_7d"  # Default if LLM sends weird format
+    return get_ad_insights(date_preset=_normalize_period(actual_period))
 
 
 @tool(
