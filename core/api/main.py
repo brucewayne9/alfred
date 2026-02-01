@@ -2685,24 +2685,11 @@ CHAT_HTML = """<!DOCTYPE html>
         }
 
         async function newConversation() {
-            try {
-                const resp = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
-                const data = await resp.json();
-                currentConversationId = data.id;
-                // If in project view, assign to project
-                if (currentProjectId) {
-                    await fetch(`/conversations/${data.id}/project`, {
-                        method: 'PUT',
-                        headers: authHeaders({'Content-Type': 'application/json'}),
-                        body: JSON.stringify({project_id: currentProjectId})
-                    });
-                }
-                clearChat();
-                await loadConversations();
-                toggleHistory();
-            } catch(e) {
-                console.error('Failed to create conversation:', e);
-            }
+            // Don't create conversation until user sends a message
+            // This prevents empty conversations from cluttering the sidebar
+            currentConversationId = null;
+            clearChat();
+            toggleHistory();
         }
 
         async function switchConversation(convId) {
@@ -2779,9 +2766,9 @@ CHAT_HTML = """<!DOCTYPE html>
             await loadProjects();
             await loadConversations();
             await loadArchivedConversations();
-            // Always start with a fresh new chat
-            const cr = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
-            currentConversationId = (await cr.json()).id;
+            // Don't create a conversation until user actually sends a message
+            // This prevents empty conversations from cluttering the sidebar
+            currentConversationId = null;
             document.getElementById('messages').innerHTML = '';
             // Ensure menu stays closed on load
             document.getElementById('history-panel').classList.remove('open');
@@ -3742,12 +3729,20 @@ CHAT_HTML = """<!DOCTYPE html>
             thinking.classList.add('visible');
             chat.scrollTop = chat.scrollHeight;
 
-            // Ensure a conversation exists
+            // Ensure a conversation exists - create on first message only
             if (!currentConversationId) {
                 try {
                     const cr = await fetch('/conversations', {method: 'POST', headers: authHeaders()});
                     const cd = await cr.json();
                     currentConversationId = cd.id;
+                    // If in project view, assign to project
+                    if (currentProjectId) {
+                        await fetch(`/conversations/${cd.id}/project`, {
+                            method: 'PUT',
+                            headers: authHeaders({'Content-Type': 'application/json'}),
+                            body: JSON.stringify({project_id: currentProjectId})
+                        });
+                    }
                 } catch(e) {}
             }
 
@@ -4296,7 +4291,16 @@ CHAT_HTML = """<!DOCTYPE html>
                 if (!currentConversationId) {
                     try {
                         const cr = await fetch('/conversations', {method:'POST', headers:authHeaders()});
-                        currentConversationId = (await cr.json()).id;
+                        const cd = await cr.json();
+                        currentConversationId = cd.id;
+                        // If in project view, assign to project
+                        if (currentProjectId) {
+                            await fetch(`/conversations/${cd.id}/project`, {
+                                method: 'PUT',
+                                headers: authHeaders({'Content-Type': 'application/json'}),
+                                body: JSON.stringify({project_id: currentProjectId})
+                            });
+                        }
                     } catch(e){}
                 }
 

@@ -155,22 +155,25 @@ def create_conversation(title: str = "") -> dict:
 def list_conversations(limit: int = 50, offset: int = 0, project_id: str | None = None) -> list[dict]:
     conn = _get_conn()
     if project_id is not None:
-        # Filter by specific project
+        # Filter by specific project, only show conversations with messages
         rows = conn.execute(
             """SELECT c.id, c.title, c.created_at, c.updated_at, c.project_id,
                       (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1) as last_message
                FROM conversations c
                WHERE c.is_archived = 0 AND c.project_id = ?
+                 AND EXISTS (SELECT 1 FROM messages WHERE conversation_id = c.id)
                ORDER BY c.updated_at DESC
                LIMIT ? OFFSET ?""",
             (project_id, limit, offset),
         ).fetchall()
     else:
+        # Only show conversations that have at least one message
         rows = conn.execute(
             """SELECT c.id, c.title, c.created_at, c.updated_at, c.project_id,
                       (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1) as last_message
                FROM conversations c
                WHERE c.is_archived = 0
+                 AND EXISTS (SELECT 1 FROM messages WHERE conversation_id = c.id)
                ORDER BY c.updated_at DESC
                LIMIT ? OFFSET ?""",
             (limit, offset),
