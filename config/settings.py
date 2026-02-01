@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Ollama (local LLM)
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "qwen3:8b"
+    ollama_model: str = "gpt-oss:120b-cloud"
 
     # Anthropic (cloud LLM)
     anthropic_api_key: str = ""

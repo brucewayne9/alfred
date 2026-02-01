@@ -66,7 +66,8 @@ def list_campaigns(status_filter: str = None) -> list[dict]:
         params = {
             "fields": "id,name,status,objective,daily_budget,lifetime_budget,created_time,start_time,stop_time"
         }
-        if status_filter:
+        # Only filter if a specific status is provided (not "all" or None)
+        if status_filter and status_filter.lower() not in ("all", "any", ""):
             params["filtering"] = f'[{{"field":"effective_status","operator":"IN","value":["{status_filter.upper()}"]}}]'
 
         data = _get(f"{AD_ACCOUNT_ID}/campaigns", params)

@@ -1,5 +1,5 @@
-"""LLM Router - routes requests to local Ollama or Claude Code CLI.
-Supports tool calling: LLM can invoke integrations (email, calendar, servers, memory).
+"""LLM Router - routes requests to Claude API, local Ollama, or Claude Code CLI.
+Supports native tool calling via Claude API for reliable tool execution.
 Complex queries hand off to Claude Code CLI (uses Max subscription, no API costs)."""
 
 import asyncio
@@ -10,10 +10,11 @@ import shutil
 from enum import Enum
 from typing import AsyncGenerator
 
+import anthropic
 import ollama as ollama_client
 
 from config.settings import settings
-from core.tools.registry import get_tools_prompt, parse_tool_call, execute_tool
+from core.tools.registry import get_tools_prompt, parse_tool_call, execute_tool, get_tools, _tools
 
 logger = logging.getLogger(__name__)
 
@@ -55,37 +56,49 @@ def get_memory_context(query: str) -> str:
 
 class ModelTier(str, Enum):
     LOCAL = "local"
+    CLOUD = "cloud"  # Claude API with native tool calling
     CLAUDE_CODE = "claude-code"
 
 
-# Queries matching these patterns get routed to Claude Code
+# Queries matching these patterns get routed to Claude Code CLI
 CLAUDE_CODE_TRIGGERS = [
     "explain", "write code", "debug", "plan",
     "compare", "evaluate", "strategy", "research",
-    "financial", "legal", "complex", "detailed",
+    "legal", "complex", "detailed",
 ]
 
-# Queries matching these patterns MUST stay local (they need tools)
-LOCAL_TOOL_TRIGGERS = [
+# Queries matching these patterns use Claude API with tool calling
+TOOL_TRIGGERS = [
     "crm", "contact", "email", "calendar", "schedule", "meeting",
     "server", "upload", "create", "add", "send", "check",
     "reminder", "task", "opportunity", "company", "person",
     "import", "export", "csv", "document",
     "knowledge", "remember", "recall", "what did", "what was",
     "find in", "search for", "look up",
+    # Meta Ads triggers
+    "meta", "facebook", "instagram", "campaign", "ad ", "ads",
+    "ctr", "cpc", "impressions", "conversions", "spend", "roas",
+    # Stripe triggers
+    "stripe", "payment", "invoice", "subscription", "charge", "refund",
+    # Radio triggers
+    "radio", "station", "playlist", "song", "dj", "stream",
+    # Nextcloud triggers
+    "nextcloud", "cloud storage",
+    # n8n triggers
+    "n8n", "workflow", "automation",
 ]
 
 
 def classify_query(query: str) -> ModelTier:
-    """Determine if a query needs local Ollama or Claude Code."""
+    """Determine if a query needs local Ollama (tools), Claude API, or Claude Code."""
     query_lower = query.lower().strip()
 
-    # "claude" prefix always goes to Claude Code
+    # "claude" prefix always goes to Claude Code CLI
     if query_lower.startswith("claude ") or query_lower.startswith("claude,"):
         return ModelTier.CLAUDE_CODE
 
-    # Tool-related queries MUST stay local (Claude Code doesn't have tools)
-    for trigger in LOCAL_TOOL_TRIGGERS:
+    # Tool-related queries stay LOCAL (large local model handles tools well)
+    for trigger in TOOL_TRIGGERS:
         if trigger in query_lower:
             return ModelTier.LOCAL
 
@@ -97,6 +110,7 @@ def classify_query(query: str) -> ModelTier:
         if trigger in query_lower:
             return ModelTier.CLAUDE_CODE
 
+    # Simple queries stay local (cheap, fast)
     return ModelTier.LOCAL
 
 
@@ -179,6 +193,158 @@ async def query_claude_vision(query: str, image_data: str, media_type: str = "im
         return f"Vision analysis failed: {e}"
 
 
+def _get_anthropic_tools(query: str = None) -> list[dict]:
+    """Convert our tool definitions to Anthropic's tool format."""
+    from core.tools.registry import get_relevant_tools
+
+    # Get relevant tool names for this query
+    if query:
+        relevant_names = get_relevant_tools(query)
+    else:
+        relevant_names = list(_tools.keys())
+
+    tools = []
+    for name, tool in _tools.items():
+        if name not in relevant_names:
+            continue
+        # Convert to Anthropic format
+        properties = {}
+        required = []
+        for param_name, param_info in tool.get("parameters", {}).items():
+            if isinstance(param_info, dict):
+                properties[param_name] = {
+                    "type": param_info.get("type", "string"),
+                    "description": param_info.get("description", ""),
+                }
+                if param_info.get("required", False):
+                    required.append(param_name)
+            else:
+                # Simple parameter definition
+                properties[param_name] = {"type": "string", "description": str(param_info)}
+
+        tools.append({
+            "name": name,
+            "description": tool["description"],
+            "input_schema": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            }
+        })
+    return tools
+
+
+async def query_claude_tools(query: str, messages: list[dict] | None = None) -> dict:
+    """Query Claude API with native tool calling support.
+
+    This is the reliable way to handle tool calls - Claude returns structured
+    tool_use blocks instead of hoping the LLM outputs valid JSON text.
+    """
+    if not settings.anthropic_api_key or settings.anthropic_api_key == "sk-ant-CHANGEME":
+        logger.warning("Claude API key not configured, falling back to local")
+        return await query_local([
+            {"role": "system", "content": get_system_prompt(query)},
+            {"role": "user", "content": query},
+        ])
+
+    logger.info(f"Querying Claude API with tools: {query[:100]}...")
+
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    tools = _get_anthropic_tools(query)
+
+    # Build messages for Claude (without system role in messages)
+    memory_context = get_memory_context(query)
+    system_content = SYSTEM_PROMPT_BASE
+    if memory_context:
+        system_content += "\n\n" + memory_context
+
+    # Convert messages format (remove system messages, they go in system param)
+    claude_messages = []
+    if messages:
+        for msg in messages:
+            if msg["role"] != "system":
+                claude_messages.append({"role": msg["role"], "content": msg["content"]})
+
+    # Ensure we have the current user query
+    if not claude_messages or claude_messages[-1]["content"] != query:
+        claude_messages.append({"role": "user", "content": query})
+
+    generated_images = []
+    ui_action = None
+    max_iterations = 5  # Prevent infinite tool loops
+
+    for iteration in range(max_iterations):
+        try:
+            response = client.messages.create(
+                model=settings.anthropic_model,
+                max_tokens=4096,
+                system=system_content,
+                tools=tools if tools else None,
+                messages=claude_messages,
+            )
+        except Exception as e:
+            logger.error(f"Claude API error: {e}")
+            return {"response": f"I encountered an error: {e}", "images": None, "ui_action": None}
+
+        # Process response content blocks
+        text_response = ""
+        tool_uses = []
+
+        for block in response.content:
+            if block.type == "text":
+                text_response += block.text
+            elif block.type == "tool_use":
+                tool_uses.append(block)
+
+        # If no tool calls, we're done
+        if not tool_uses:
+            return {"response": text_response.strip(), "images": generated_images or None, "ui_action": ui_action}
+
+        # Execute tool calls
+        tool_results = []
+        for tool_use in tool_uses:
+            tool_name = tool_use.name
+            tool_args = tool_use.input
+            logger.info(f"Claude requested tool: {tool_name} with args: {tool_args}")
+
+            tool_result = await execute_tool(tool_name, tool_args)
+
+            # Handle special tool results
+            if isinstance(tool_result, dict):
+                if tool_result.get("ui_action"):
+                    ui_action = {
+                        "action": tool_result["ui_action"],
+                        "value": tool_result.get("value"),
+                    }
+
+                if tool_name == "generate_image" and tool_result.get("success") and tool_result.get("base64"):
+                    generated_images.append({
+                        "base64": tool_result["base64"],
+                        "filename": tool_result.get("filename", "generated.png"),
+                        "download_url": tool_result.get("download_url", ""),
+                    })
+                    # Don't include base64 in tool result (too large)
+                    tool_result = {k: v for k, v in tool_result.items() if k != "base64"}
+
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use.id,
+                "content": json.dumps(tool_result, default=str) if not isinstance(tool_result, str) else tool_result,
+            })
+
+        # Add assistant response with tool uses and tool results
+        claude_messages.append({"role": "assistant", "content": response.content})
+        claude_messages.append({"role": "user", "content": tool_results})
+
+        # If stop reason is end_turn, we're done after processing tools
+        if response.stop_reason == "end_turn":
+            # One more call to get final response
+            continue
+
+    # Max iterations reached
+    return {"response": text_response.strip() or "I completed the requested actions.", "images": generated_images or None, "ui_action": ui_action}
+
+
 async def query_claude_code(query: str, allow_tools: bool = False) -> str:
     """Hand off a query to Claude Code CLI (uses Max subscription).
 
@@ -247,9 +413,7 @@ async def ask(
 ):
     """Main entry point - ask Alfred a question.
 
-    Routes to local Ollama or Claude Code CLI.
-    If the local LLM response contains a tool call, executes it
-    and feeds the result back for a final answer.
+    Routes to Claude API (with tools), local Ollama, or Claude Code CLI.
     """
     tier = tier or classify_query(query)
     logger.info(f"Routing to {tier.value}")
@@ -257,6 +421,10 @@ async def ask(
     # Claude Code handles its own context and tools via MCP
     if tier == ModelTier.CLAUDE_CODE:
         return await query_claude_code(query)
+
+    # Claude API with native tool calling - most reliable for tool queries
+    if tier == ModelTier.CLOUD:
+        return await query_claude_tools(query, messages)
 
     if messages is None:
         messages = [

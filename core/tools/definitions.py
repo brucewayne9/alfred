@@ -2426,12 +2426,12 @@ def meta_ads_performance(period: str = "last_7d") -> dict:
     name="meta_ads_campaigns",
     description="List all Meta Ads campaigns with their status and budgets.",
     parameters={
-        "status": "string (optional) - filter by status: ACTIVE, PAUSED, DELETED, ARCHIVED",
+        "status_filter": "string (optional) - filter by status: ACTIVE, PAUSED, DELETED, ARCHIVED, or omit for all",
     },
 )
-def meta_ads_campaigns(status: str = None) -> list[dict]:
+def meta_ads_campaigns(status_filter: str = None) -> list[dict]:
     from integrations.meta_ads.client import list_campaigns
-    return list_campaigns(status)
+    return list_campaigns(status_filter=status_filter)
 
 
 @tool(
