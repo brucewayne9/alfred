@@ -2461,9 +2461,9 @@ def meta_ads_ad_sets(campaign_id: str = None) -> list[dict]:
 
 @tool(
     name="meta_ads_ad_set_insights",
-    description="Get performance metrics for Meta Ads ad sets.",
+    description="Get AD SET performance: impressions, clicks, CTR, CPC, spend, conversions. USE THIS to compare which ad set is performing best.",
     parameters={
-        "campaign_id": "string (optional) - specific campaign ID",
+        "campaign_id": "string (optional) - filter by campaign ID",
         "period": "string (optional) - time period (default: last_7d)",
     },
 )
