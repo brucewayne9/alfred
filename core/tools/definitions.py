@@ -2423,6 +2423,18 @@ def meta_ads_performance(period: str = "last_7d") -> dict:
 
 
 @tool(
+    name="meta_ads_insights",
+    description="Get performance insights for Meta Ads. Returns ad-level performance data: impressions, clicks, CTR, CPC, spend for each ad.",
+    parameters={
+        "period": "string (optional) - time period (default: last_7d)",
+    },
+)
+def meta_ads_insights(period: str = "last_7d") -> list[dict]:
+    from integrations.meta_ads.client import get_ad_insights
+    return get_ad_insights(period=period)
+
+
+@tool(
     name="meta_ads_campaigns",
     description="List all Meta Ads campaigns with their status and budgets. Does NOT include performance metrics - use meta_ads_campaign_insights for clicks, spend, CPA, etc.",
     parameters={
