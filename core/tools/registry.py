@@ -141,7 +141,8 @@ CATEGORY_KEYWORDS = {
                    "mute", "unmute", "stop speaking", "start speaking", "stop listening", "start listening"],
     "meta_ads": ["meta", "facebook", "instagram", "meta ads", "facebook ads", "instagram ads", "fb ads",
                  "campaign", "ad set", "ad performance", "ctr", "cpc", "cpm", "roas", "impressions",
-                 "reach", "conversions", "ad spend", "advertising", "ads manager", "audience insights"],
+                 "reach", "conversions", "ad spend", "advertising", "ads manager", "audience insights",
+                 "pause ad", "enable ad", "unpause", "budget", "daily budget", "underperform"],
     "core": [],  # Always included
 }
 
