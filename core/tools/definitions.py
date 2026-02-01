@@ -2412,7 +2412,7 @@ def meta_ads_summary() -> dict:
 
 @tool(
     name="meta_ads_performance",
-    description="Get overall Meta Ads account performance metrics.",
+    description="Get ACCOUNT-LEVEL aggregate Meta Ads metrics (total across all campaigns). For campaign-specific metrics, use meta_ads_campaign_insights instead.",
     parameters={
         "period": "string (optional) - time period: today, yesterday, last_7d, last_14d, last_30d, this_month, last_month (default: last_7d)",
     },
@@ -2424,7 +2424,7 @@ def meta_ads_performance(period: str = "last_7d") -> dict:
 
 @tool(
     name="meta_ads_campaigns",
-    description="List all Meta Ads campaigns with their status and budgets.",
+    description="List all Meta Ads campaigns with their status and budgets. Does NOT include performance metrics - use meta_ads_campaign_insights for clicks, spend, CPA, etc.",
     parameters={
         "status_filter": "string (optional) - filter by status: ACTIVE, PAUSED, DELETED, ARCHIVED, or omit for all",
     },
@@ -2436,9 +2436,9 @@ def meta_ads_campaigns(status_filter: str = None) -> list[dict]:
 
 @tool(
     name="meta_ads_campaign_insights",
-    description="Get performance metrics for Meta Ads campaigns.",
+    description="Get CAMPAIGN performance metrics: impressions, reach, clicks, CTR, CPC, spend, conversions, CPA, ROAS. USE THIS for campaign performance reports.",
     parameters={
-        "campaign_id": "string (optional) - specific campaign ID, or all campaigns if not specified",
+        "campaign_id": "string (optional) - specific campaign ID, or omit for all campaigns",
         "period": "string (optional) - time period: last_7d, last_14d, last_30d, etc. (default: last_7d)",
     },
 )
