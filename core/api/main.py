@@ -1024,7 +1024,7 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
             else:
                 messages.insert(0, {"role": "system", "content": f"[Project Context]\n{project_context}"})
 
-    tier = ModelTier(req.tier) if req.tier else classify_query(req.message)
+    tier = ModelTier(req.tier) if req.tier else classify_query(req.message, session_id=req.session_id)
     result = await ask(req.message, messages=messages, tier=tier)
 
     # Handle both old string return and new dict return
@@ -1067,7 +1067,7 @@ async def chat_stream(request: Request, req: ChatRequest, user: dict = Depends(r
     messages = get_session_messages(req.session_id)
     messages.append({"role": "user", "content": req.message})
 
-    tier = ModelTier(req.tier) if req.tier else classify_query(req.message)
+    tier = ModelTier(req.tier) if req.tier else classify_query(req.message, session_id=req.session_id)
 
     async def generate():
         full_response = []
@@ -1195,7 +1195,7 @@ async def fast_voice_chat(request: Request, req: ChatRequest, user: dict = Depen
             messages.append({"role": "user", "content": query})
 
     # Stream from LLM and capture first sentence
-    tier = classify_query(query)
+    tier = classify_query(query, session_id=conv_id)
 
     if tier == ModelTier.CLAUDE_CODE:
         # Claude Code doesn't stream well, use regular path
@@ -1487,7 +1487,7 @@ async def websocket_chat(ws: WebSocket):
             messages = get_session_messages(session_id)
             messages.append({"role": "user", "content": data})
 
-            tier = classify_query(data)
+            tier = classify_query(data, session_id=session_id)
             stream = await ask(data, messages=messages, tier=tier, stream=True)
 
             full_response = []

@@ -97,35 +97,51 @@ META_ADS_TRIGGERS = [
     "budget", "underperform", "ads manager",
 ]
 
+# Short follow-up phrases that should stay on the same tier as previous message
+FOLLOWUP_PHRASES = [
+    "yes", "no", "yeah", "yep", "nope", "ok", "okay", "sure", "do it",
+    "go ahead", "please", "thanks", "thank you", "correct", "right",
+    "exactly", "that's right", "sounds good", "perfect", "great",
+]
 
-def classify_query(query: str) -> ModelTier:
+# Track the last tier used per session for follow-up routing
+_session_tiers: dict[str, ModelTier] = {}
+
+
+def classify_query(query: str, session_id: str = None) -> ModelTier:
     """Determine if a query needs local Ollama (tools), Claude API, or Claude Code."""
     query_lower = query.lower().strip()
 
+    # Short follow-up messages stay on the same tier as the previous message
+    if session_id and len(query_lower) < 50:
+        is_followup = any(query_lower.startswith(phrase) or query_lower == phrase
+                         for phrase in FOLLOWUP_PHRASES)
+        if is_followup and session_id in _session_tiers:
+            return _session_tiers[session_id]
+
     # "claude" prefix always goes to Claude Code CLI
     if query_lower.startswith("claude ") or query_lower.startswith("claude,"):
-        return ModelTier.CLAUDE_CODE
-
+        tier = ModelTier.CLAUDE_CODE
     # Meta Ads queries go to Claude API (native tool calling is more reliable)
-    for trigger in META_ADS_TRIGGERS:
-        if trigger in query_lower:
-            return ModelTier.CLOUD
-
+    elif any(trigger in query_lower for trigger in META_ADS_TRIGGERS):
+        tier = ModelTier.CLOUD
     # Other tool-related queries stay LOCAL
-    for trigger in TOOL_TRIGGERS:
-        if trigger in query_lower:
-            return ModelTier.LOCAL
-
+    elif any(trigger in query_lower for trigger in TOOL_TRIGGERS):
+        tier = ModelTier.LOCAL
     # Long queries without tool triggers go to Claude Code
-    if len(query) > 500:
-        return ModelTier.CLAUDE_CODE
+    elif len(query) > 500:
+        tier = ModelTier.CLAUDE_CODE
+    elif any(trigger in query_lower for trigger in CLAUDE_CODE_TRIGGERS):
+        tier = ModelTier.CLAUDE_CODE
+    else:
+        # Simple queries stay local (cheap, fast)
+        tier = ModelTier.LOCAL
 
-    for trigger in CLAUDE_CODE_TRIGGERS:
-        if trigger in query_lower:
-            return ModelTier.CLAUDE_CODE
+    # Track the tier for this session
+    if session_id:
+        _session_tiers[session_id] = tier
 
-    # Simple queries stay local (cheap, fast)
-    return ModelTier.LOCAL
+    return tier
 
 
 def get_system_prompt(query: str = None) -> str:
