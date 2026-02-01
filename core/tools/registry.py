@@ -111,6 +111,11 @@ TOOL_CATEGORIES = {
         "meta_ads_ads", "meta_ads_ad_insights",
         "meta_ads_audience", "meta_ads_placements",
         "meta_ads_issues", "meta_ads_daily_spend",
+        # Write operations
+        "meta_ads_pause_ad", "meta_ads_enable_ad",
+        "meta_ads_pause_ad_set", "meta_ads_enable_ad_set",
+        "meta_ads_pause_campaign", "meta_ads_enable_campaign",
+        "meta_ads_update_ad_set_budget", "meta_ads_update_campaign_budget",
     ],
 }
 

@@ -25,6 +25,15 @@ def _get(endpoint: str, params: dict = None) -> Any:
     return resp.json()
 
 
+def _post(endpoint: str, data: dict = None) -> Any:
+    """Make POST request to Meta API for updates."""
+    data = data or {}
+    data["access_token"] = ACCESS_TOKEN
+    resp = requests.post(f"{BASE_URL}/{endpoint}", data=data, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def _format_currency(amount_cents: int) -> str:
     """Format amount from cents to dollars."""
     return f"${amount_cents / 100:,.2f}"
@@ -522,3 +531,107 @@ def get_meta_ads_summary() -> dict:
         }
     except Exception as e:
         return {"connected": False, "error": str(e)}
+
+
+# ==================== Write Operations ====================
+
+def pause_ad(ad_id: str) -> dict:
+    """Pause a specific ad."""
+    try:
+        result = _post(ad_id, {"status": "PAUSED"})
+        return {"success": True, "ad_id": ad_id, "status": "PAUSED", "message": f"Ad {ad_id} has been paused."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def enable_ad(ad_id: str) -> dict:
+    """Enable (unpause) a specific ad."""
+    try:
+        result = _post(ad_id, {"status": "ACTIVE"})
+        return {"success": True, "ad_id": ad_id, "status": "ACTIVE", "message": f"Ad {ad_id} has been enabled."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def pause_ad_set(ad_set_id: str) -> dict:
+    """Pause a specific ad set."""
+    try:
+        result = _post(ad_set_id, {"status": "PAUSED"})
+        return {"success": True, "ad_set_id": ad_set_id, "status": "PAUSED", "message": f"Ad set {ad_set_id} has been paused."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def enable_ad_set(ad_set_id: str) -> dict:
+    """Enable (unpause) a specific ad set."""
+    try:
+        result = _post(ad_set_id, {"status": "ACTIVE"})
+        return {"success": True, "ad_set_id": ad_set_id, "status": "ACTIVE", "message": f"Ad set {ad_set_id} has been enabled."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def pause_campaign(campaign_id: str) -> dict:
+    """Pause a specific campaign."""
+    try:
+        result = _post(campaign_id, {"status": "PAUSED"})
+        return {"success": True, "campaign_id": campaign_id, "status": "PAUSED", "message": f"Campaign {campaign_id} has been paused."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def enable_campaign(campaign_id: str) -> dict:
+    """Enable (unpause) a specific campaign."""
+    try:
+        result = _post(campaign_id, {"status": "ACTIVE"})
+        return {"success": True, "campaign_id": campaign_id, "status": "ACTIVE", "message": f"Campaign {campaign_id} has been enabled."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def update_ad_set_budget(ad_set_id: str, daily_budget: float = None, lifetime_budget: float = None) -> dict:
+    """Update an ad set's budget. Amounts in dollars (will be converted to cents)."""
+    try:
+        data = {}
+        if daily_budget is not None:
+            data["daily_budget"] = int(daily_budget * 100)  # Convert to cents
+        if lifetime_budget is not None:
+            data["lifetime_budget"] = int(lifetime_budget * 100)
+
+        if not data:
+            return {"success": False, "error": "Must provide daily_budget or lifetime_budget"}
+
+        result = _post(ad_set_id, data)
+        return {
+            "success": True,
+            "ad_set_id": ad_set_id,
+            "daily_budget": f"${daily_budget:.2f}" if daily_budget else None,
+            "lifetime_budget": f"${lifetime_budget:.2f}" if lifetime_budget else None,
+            "message": f"Budget updated for ad set {ad_set_id}."
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def update_campaign_budget(campaign_id: str, daily_budget: float = None, lifetime_budget: float = None) -> dict:
+    """Update a campaign's budget. Amounts in dollars (will be converted to cents)."""
+    try:
+        data = {}
+        if daily_budget is not None:
+            data["daily_budget"] = int(daily_budget * 100)
+        if lifetime_budget is not None:
+            data["lifetime_budget"] = int(lifetime_budget * 100)
+
+        if not data:
+            return {"success": False, "error": "Must provide daily_budget or lifetime_budget"}
+
+        result = _post(campaign_id, data)
+        return {
+            "success": True,
+            "campaign_id": campaign_id,
+            "daily_budget": f"${daily_budget:.2f}" if daily_budget else None,
+            "lifetime_budget": f"${lifetime_budget:.2f}" if lifetime_budget else None,
+            "message": f"Budget updated for campaign {campaign_id}."
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}

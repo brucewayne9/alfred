@@ -2543,6 +2543,108 @@ def meta_ads_daily_spend(days: int = 7) -> list[dict]:
     return get_spend_by_day(days)
 
 
+# ==================== Meta Ads Write Operations ====================
+
+@tool(
+    name="meta_ads_pause_ad",
+    description="Pause a specific ad. Use this to stop an underperforming ad.",
+    parameters={
+        "ad_id": {"type": "string", "description": "The ad ID to pause", "required": True},
+    },
+)
+def meta_ads_pause_ad(ad_id: str) -> dict:
+    from integrations.meta_ads.client import pause_ad
+    return pause_ad(ad_id)
+
+
+@tool(
+    name="meta_ads_enable_ad",
+    description="Enable (unpause) a specific ad.",
+    parameters={
+        "ad_id": {"type": "string", "description": "The ad ID to enable", "required": True},
+    },
+)
+def meta_ads_enable_ad(ad_id: str) -> dict:
+    from integrations.meta_ads.client import enable_ad
+    return enable_ad(ad_id)
+
+
+@tool(
+    name="meta_ads_pause_ad_set",
+    description="Pause a specific ad set.",
+    parameters={
+        "ad_set_id": {"type": "string", "description": "The ad set ID to pause", "required": True},
+    },
+)
+def meta_ads_pause_ad_set(ad_set_id: str) -> dict:
+    from integrations.meta_ads.client import pause_ad_set
+    return pause_ad_set(ad_set_id)
+
+
+@tool(
+    name="meta_ads_enable_ad_set",
+    description="Enable (unpause) a specific ad set.",
+    parameters={
+        "ad_set_id": {"type": "string", "description": "The ad set ID to enable", "required": True},
+    },
+)
+def meta_ads_enable_ad_set(ad_set_id: str) -> dict:
+    from integrations.meta_ads.client import enable_ad_set
+    return enable_ad_set(ad_set_id)
+
+
+@tool(
+    name="meta_ads_pause_campaign",
+    description="Pause a specific campaign.",
+    parameters={
+        "campaign_id": {"type": "string", "description": "The campaign ID to pause", "required": True},
+    },
+)
+def meta_ads_pause_campaign(campaign_id: str) -> dict:
+    from integrations.meta_ads.client import pause_campaign
+    return pause_campaign(campaign_id)
+
+
+@tool(
+    name="meta_ads_enable_campaign",
+    description="Enable (unpause) a specific campaign.",
+    parameters={
+        "campaign_id": {"type": "string", "description": "The campaign ID to enable", "required": True},
+    },
+)
+def meta_ads_enable_campaign(campaign_id: str) -> dict:
+    from integrations.meta_ads.client import enable_campaign
+    return enable_campaign(campaign_id)
+
+
+@tool(
+    name="meta_ads_update_ad_set_budget",
+    description="Update an ad set's daily or lifetime budget. Amounts in dollars.",
+    parameters={
+        "ad_set_id": {"type": "string", "description": "The ad set ID", "required": True},
+        "daily_budget": {"type": "number", "description": "New daily budget in dollars (e.g., 25.00)"},
+        "lifetime_budget": {"type": "number", "description": "New lifetime budget in dollars"},
+    },
+)
+def meta_ads_update_ad_set_budget(ad_set_id: str, daily_budget: float = None, lifetime_budget: float = None) -> dict:
+    from integrations.meta_ads.client import update_ad_set_budget
+    return update_ad_set_budget(ad_set_id, daily_budget, lifetime_budget)
+
+
+@tool(
+    name="meta_ads_update_campaign_budget",
+    description="Update a campaign's daily or lifetime budget. Amounts in dollars.",
+    parameters={
+        "campaign_id": {"type": "string", "description": "The campaign ID", "required": True},
+        "daily_budget": {"type": "number", "description": "New daily budget in dollars (e.g., 50.00)"},
+        "lifetime_budget": {"type": "number", "description": "New lifetime budget in dollars"},
+    },
+)
+def meta_ads_update_campaign_budget(campaign_id: str, daily_budget: float = None, lifetime_budget: float = None) -> dict:
+    from integrations.meta_ads.client import update_campaign_budget
+    return update_campaign_budget(campaign_id, daily_budget, lifetime_budget)
+
+
 def register_all():
     """Import this module to register all tools."""
     pass
