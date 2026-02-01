@@ -39,6 +39,14 @@ Alfred is a sophisticated, self-hosted AI assistant designed for personal and bu
   - Cross-object search
 - **Server Management** - SSH-based server monitoring and control
 - **Finance** - Bank account and transaction tracking
+- **Meta Ads (Facebook/Instagram)** - Full advertising insights and reporting:
+  - Account overview and status
+  - Campaign performance metrics (impressions, clicks, CTR, conversions, ROAS)
+  - Ad set and individual ad performance
+  - Audience demographics (age, gender, device, platform)
+  - Placement insights (feed, stories, reels performance)
+  - Delivery issues and policy violation detection
+  - Daily spend breakdown and budget monitoring
 - **AzuraCast Radio** - Complete radio station administration with multi-station support:
   - **Station Management**: Create, update, delete, clone stations
   - **User Management**: Create, update, delete AzuraCast users and roles

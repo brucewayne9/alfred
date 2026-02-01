@@ -104,6 +104,14 @@ TOOL_CATEGORIES = {
     "slides": ["slides_create", "slides_get", "slides_add_slide", "slides_add_text", "slides_list"],
     "core": ["generate_image", "toggle_auto_speak", "toggle_hands_free"],
     "ui_control": ["toggle_auto_speak", "toggle_hands_free"],
+    "meta_ads": [
+        "meta_ads_account", "meta_ads_summary", "meta_ads_performance",
+        "meta_ads_campaigns", "meta_ads_campaign_insights",
+        "meta_ads_ad_sets", "meta_ads_ad_set_insights",
+        "meta_ads_list", "meta_ads_ad_insights",
+        "meta_ads_audience", "meta_ads_placements",
+        "meta_ads_issues", "meta_ads_daily_spend",
+    ],
 }
 
 # Keywords that trigger each category
@@ -126,6 +134,9 @@ CATEGORY_KEYWORDS = {
     "slides": ["slide", "presentation", "google slide", "powerpoint", "deck"],
     "ui_control": ["auto speak", "auto-speak", "autospeak", "hands free", "hands-free", "handsfree",
                    "mute", "unmute", "stop speaking", "start speaking", "stop listening", "start listening"],
+    "meta_ads": ["meta", "facebook", "instagram", "meta ads", "facebook ads", "instagram ads", "fb ads",
+                 "campaign", "ad set", "ad performance", "ctr", "cpc", "cpm", "roas", "impressions",
+                 "reach", "conversions", "ad spend", "advertising", "ads manager", "audience insights"],
     "core": [],  # Always included
 }
 

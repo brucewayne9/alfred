@@ -2388,6 +2388,161 @@ def radio_services_status() -> list[dict]:
     return get_services_status()
 
 
+# ==================== META ADS TOOLS ====================
+
+@tool(
+    name="meta_ads_account",
+    description="Get Meta (Facebook/Instagram) Ads account info and status.",
+    parameters={},
+)
+def meta_ads_account() -> dict:
+    from integrations.meta_ads.client import get_ad_account_info
+    return get_ad_account_info()
+
+
+@tool(
+    name="meta_ads_summary",
+    description="Get a quick summary of Meta Ads performance (last 7 days).",
+    parameters={},
+)
+def meta_ads_summary() -> dict:
+    from integrations.meta_ads.client import get_meta_ads_summary
+    return get_meta_ads_summary()
+
+
+@tool(
+    name="meta_ads_performance",
+    description="Get overall Meta Ads account performance metrics.",
+    parameters={
+        "period": "string (optional) - time period: today, yesterday, last_7d, last_14d, last_30d, this_month, last_month (default: last_7d)",
+    },
+)
+def meta_ads_performance(period: str = "last_7d") -> dict:
+    from integrations.meta_ads.client import get_account_insights
+    return get_account_insights(period)
+
+
+@tool(
+    name="meta_ads_campaigns",
+    description="List all Meta Ads campaigns with their status and budgets.",
+    parameters={
+        "status": "string (optional) - filter by status: ACTIVE, PAUSED, DELETED, ARCHIVED",
+    },
+)
+def meta_ads_campaigns(status: str = None) -> list[dict]:
+    from integrations.meta_ads.client import list_campaigns
+    return list_campaigns(status)
+
+
+@tool(
+    name="meta_ads_campaign_insights",
+    description="Get performance metrics for Meta Ads campaigns.",
+    parameters={
+        "campaign_id": "string (optional) - specific campaign ID, or all campaigns if not specified",
+        "period": "string (optional) - time period: last_7d, last_14d, last_30d, etc. (default: last_7d)",
+    },
+)
+def meta_ads_campaign_insights(campaign_id: str = None, period: str = "last_7d") -> list[dict]:
+    from integrations.meta_ads.client import get_campaign_insights
+    return get_campaign_insights(campaign_id, period)
+
+
+@tool(
+    name="meta_ads_ad_sets",
+    description="List ad sets (audiences/targeting groups) in Meta Ads.",
+    parameters={
+        "campaign_id": "string (optional) - filter by campaign ID",
+    },
+)
+def meta_ads_ad_sets(campaign_id: str = None) -> list[dict]:
+    from integrations.meta_ads.client import list_ad_sets
+    return list_ad_sets(campaign_id)
+
+
+@tool(
+    name="meta_ads_ad_set_insights",
+    description="Get performance metrics for Meta Ads ad sets.",
+    parameters={
+        "campaign_id": "string (optional) - specific campaign ID",
+        "period": "string (optional) - time period (default: last_7d)",
+    },
+)
+def meta_ads_ad_set_insights(campaign_id: str = None, period: str = "last_7d") -> list[dict]:
+    from integrations.meta_ads.client import get_ad_set_insights
+    return get_ad_set_insights(campaign_id, period)
+
+
+@tool(
+    name="meta_ads_list",
+    description="List individual ads in Meta Ads.",
+    parameters={
+        "ad_set_id": "string (optional) - filter by ad set ID",
+    },
+)
+def meta_ads_list(ad_set_id: str = None) -> list[dict]:
+    from integrations.meta_ads.client import list_ads
+    return list_ads(ad_set_id)
+
+
+@tool(
+    name="meta_ads_ad_insights",
+    description="Get performance metrics for individual Meta ads.",
+    parameters={
+        "ad_set_id": "string (optional) - specific ad set ID",
+        "period": "string (optional) - time period (default: last_7d)",
+    },
+)
+def meta_ads_ad_insights(ad_set_id: str = None, period: str = "last_7d") -> list[dict]:
+    from integrations.meta_ads.client import get_ad_insights
+    return get_ad_insights(ad_set_id, period)
+
+
+@tool(
+    name="meta_ads_audience",
+    description="Get audience demographic breakdown (age, gender, platform, device).",
+    parameters={
+        "period": "string (optional) - time period (default: last_7d)",
+    },
+)
+def meta_ads_audience(period: str = "last_7d") -> dict:
+    from integrations.meta_ads.client import get_audience_insights
+    return get_audience_insights(period)
+
+
+@tool(
+    name="meta_ads_placements",
+    description="Get performance by ad placement (feed, stories, reels, etc.).",
+    parameters={
+        "period": "string (optional) - time period (default: last_7d)",
+    },
+)
+def meta_ads_placements(period: str = "last_7d") -> list[dict]:
+    from integrations.meta_ads.client import get_placement_insights
+    return get_placement_insights(period)
+
+
+@tool(
+    name="meta_ads_issues",
+    description="Check for Meta Ads delivery issues, disapproved ads, or policy violations.",
+    parameters={},
+)
+def meta_ads_issues() -> list[dict]:
+    from integrations.meta_ads.client import get_delivery_issues
+    return get_delivery_issues()
+
+
+@tool(
+    name="meta_ads_daily_spend",
+    description="Get daily spend breakdown for Meta Ads.",
+    parameters={
+        "days": "int (optional) - number of days to show (default: 7)",
+    },
+)
+def meta_ads_daily_spend(days: int = 7) -> list[dict]:
+    from integrations.meta_ads.client import get_spend_by_day
+    return get_spend_by_day(days)
+
+
 def register_all():
     """Import this module to register all tools."""
     pass

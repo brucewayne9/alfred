@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     azuracast_url: str = ""
     azuracast_api_key: str = ""
 
+    # Meta Ads
+    meta_app_id: str = ""
+    meta_app_secret: str = ""
+    meta_access_token: str = ""
+    meta_ad_account_id: str = ""
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
