@@ -509,11 +509,17 @@ async def query_claude_tools(query: str, messages: list[dict] | None = None) -> 
         system_content += "\n\n" + memory_context
 
     # Convert messages format (remove system messages, they go in system param)
+    # Also filter out any messages with empty content to prevent API errors
     claude_messages = []
     if messages:
         for msg in messages:
-            if msg["role"] != "system":
-                claude_messages.append({"role": msg["role"], "content": msg["content"]})
+            if msg["role"] != "system" and msg.get("content"):
+                # Ensure content is not empty string or whitespace-only
+                content = msg["content"]
+                if isinstance(content, str) and content.strip():
+                    claude_messages.append({"role": msg["role"], "content": content})
+                elif isinstance(content, list) and content:  # List of content blocks
+                    claude_messages.append({"role": msg["role"], "content": content})
 
     # Ensure we have the current user query
     if not claude_messages or claude_messages[-1]["content"] != query:
@@ -590,12 +596,35 @@ async def query_claude_tools(query: str, messages: list[dict] | None = None) -> 
         claude_messages.append({"role": "assistant", "content": response.content})
         claude_messages.append({"role": "user", "content": tool_results})
 
-        # If stop reason is end_turn, we're done after processing tools
+        # If stop reason is end_turn after tools, make one more call to get summary
         if response.stop_reason == "end_turn":
-            # One more call to get final response
+            # Add a prompt to ensure Claude provides a natural language summary
+            claude_messages.append({
+                "role": "user",
+                "content": "Now provide a clear, detailed natural language response summarizing the results for the user. Do not just say 'I completed the actions' - actually present the data."
+            })
             continue
 
-    # Max iterations reached
+    # Max iterations reached - if still no text, try one final call for summary
+    if not text_response.strip():
+        try:
+            # Force a summary response
+            claude_messages.append({
+                "role": "user",
+                "content": "Please provide a complete summary of the tool results in natural language for the user."
+            })
+            final_response = client.messages.create(
+                model=settings.anthropic_model,
+                max_tokens=4096,
+                system=system_content,
+                messages=claude_messages,
+            )
+            for block in final_response.content:
+                if block.type == "text":
+                    text_response += block.text
+        except Exception as e:
+            logger.error(f"Failed to get final summary: {e}")
+
     return {"response": text_response.strip() or "I completed the requested actions.", "images": generated_images or None, "ui_action": ui_action}
 
 
@@ -803,6 +832,20 @@ Your role:
 - Be proactive with reminders and suggestions
 - Speak naturally and professionally
 
+CONNECTED INTEGRATIONS - You have FULL access to ALL of these:
+- Google: Gmail, Calendar, Drive, Docs, Sheets, Slides, Analytics
+- Nextcloud: Files, Notes, Talk, Users, Calendars (groundrushcloud.com)
+- Twenty CRM: Contacts, Companies, Opportunities, Tasks
+- Stripe: Payments, Invoices, Subscriptions, Customers
+- n8n: Workflow automation
+- Meta Ads: Campaigns, Ad Sets, Ads, Insights
+- Twilio: SMS and Voice calls
+- Servers: SSH access to loovacast, groundrush, lonewolf, mailcow
+- LightRAG: Knowledge graph storage
+- Agents: You CAN spawn specialist agents (coder, researcher, analyst, writer, planner) for complex multi-step tasks
+- WordPress: Full admin access to 6 sites (groundrush, loovacast, rucktalk, nightlife, lumabot, myhandscarwash) - posts, pages, SEO (RankMath), plugins, themes, media, Elementor
+NEVER say "I don't have access" or "I can't" for ANY of these. You DO have access. USE THE TOOLS.
+
 IMPORTANT - Actions and permissions:
 - When the user ASKS you to do something (like "pause the ads", "do it", "yes"), that IS permission - execute the action.
 - NEVER take actions on your own initiative without being asked (don't send messages to team members, don't make changes unprompted).
@@ -846,4 +889,21 @@ CRITICAL - Data analysis and synthesis:
 3. PROVIDE INSIGHTS, not just raw numbers. Calculate correlations, identify trends, spot anomalies, and explain what the data means for the business.
 4. When multiple data sources are relevant, combine them into a coherent narrative. Example: "Your Meta campaign drove 271 clicks at $0.32 each. Google Analytics shows 243 sessions from Facebook during the same period - that's an 89% landing rate. The bounce rate was 34% which is healthy for a service page."
 5. Think like a business analyst. Ask yourself: "What does Mike need to know to make a decision?" Then provide THAT, not just data dumps.
-6. If data from different sources tells conflicting stories, point it out and explain possible reasons."""
+6. If data from different sources tells conflicting stories, point it out and explain possible reasons.
+
+GUIDED WORKFLOWS - Web Scraping & Crawling:
+When the user asks to scrape or crawl a website:
+1. DO NOT immediately run the tool. Walk them through it step by step.
+2. First confirm the URL: "What URL should I scrape?" or "I'll scrape [URL] - correct?"
+3. Ask about scope: "Just this page, or crawl the entire site?"
+4. If crawling, ask: "How many pages? (I suggest 10-20)" and "How deep? (1-2 levels)"
+5. Confirm purpose: "What are you hoping to learn from this?"
+6. Summarize and confirm: "I'll crawl [URL], [X] pages, [Y] deep. Ready?"
+7. ALWAYS use scrape_to_knowledge or crawl_to_knowledge to automatically save to LightRAG
+8. After completion, report what was learned and invite questions about the content
+
+Firecrawl Integration:
+- scrape_to_knowledge: Scrape single page → LightRAG
+- crawl_to_knowledge: Crawl site → LightRAG (use this for docs/multi-page)
+- search_and_scrape: Google search + scrape results
+- ALWAYS save scraped content to knowledge base unless user says otherwise"""

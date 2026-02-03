@@ -3045,6 +3045,758 @@ async def quick_briefing_tool() -> str:
     return await generate_quick_briefing()
 
 
+# ==================== TWILIO SMS/VOICE TOOLS ====================
+
+@tool(
+    name="send_sms",
+    description="Send an SMS text message to a phone number. Use this to text someone on Mike's behalf.",
+    parameters={
+        "to": {"type": "string", "description": "Phone number to send to (e.g., +14045551234 or 404-555-1234)", "required": True},
+        "message": {"type": "string", "description": "The text message to send", "required": True},
+    },
+)
+def send_sms_tool(to: str, message: str) -> dict:
+    from integrations.twilio.client import send_sms
+    return send_sms(to, message)
+
+
+@tool(
+    name="make_call",
+    description="Make an outbound phone call and speak a message. Use this to call someone on Mike's behalf.",
+    parameters={
+        "to": {"type": "string", "description": "Phone number to call (e.g., +14045551234)", "required": True},
+        "message": {"type": "string", "description": "The message to speak when they answer", "required": True},
+    },
+)
+def make_call_tool(to: str, message: str) -> dict:
+    from integrations.twilio.client import make_call
+    return make_call(to, message)
+
+
+@tool(
+    name="get_sms_history",
+    description="Get recent SMS messages sent or received on the Twilio number.",
+    parameters={
+        "limit": {"type": "integer", "description": "Maximum number of messages to return (default 10)"},
+    },
+)
+def get_sms_history_tool(limit: int = 10) -> dict:
+    from integrations.twilio.client import get_messages
+    return get_messages(limit=limit)
+
+
+# ============ WordPress Multi-Site Management ============
+
+@tool(
+    name="wp_list_sites",
+    description="List all configured WordPress sites Alfred can manage.",
+    parameters={},
+)
+def wp_list_sites() -> list[dict]:
+    from integrations.wordpress.client import list_sites
+    return list_sites()
+
+
+@tool(
+    name="wp_test_connection",
+    description="Test connection to a WordPress site.",
+    parameters={"site": "string - site name (groundrush, loovacast, rucktalk, nightlife, lumabot, myhandscarwash)"},
+)
+def wp_test_connection(site: str) -> dict:
+    from integrations.wordpress.client import test_connection
+    return test_connection(site)
+
+
+@tool(
+    name="wp_get_posts",
+    description="Get posts from a WordPress site.",
+    parameters={
+        "site": "string - site name",
+        "per_page": "int - posts per page (default 10)",
+        "status": "string - post status: publish, draft, any (default any)",
+        "search": "string - search term (optional)",
+    },
+)
+def wp_get_posts(site: str, per_page: int = 10, status: str = "any", search: str = None) -> list[dict]:
+    from integrations.wordpress.client import get_posts
+    return get_posts(site, per_page=per_page, status=status, search=search)
+
+
+@tool(
+    name="wp_get_post",
+    description="Get a single post by ID from a WordPress site.",
+    parameters={"site": "string - site name", "post_id": "int - post ID"},
+)
+def wp_get_post(site: str, post_id: int) -> dict:
+    from integrations.wordpress.client import get_post
+    return get_post(site, post_id)
+
+
+@tool(
+    name="wp_create_post",
+    description="Create a new post on a WordPress site.",
+    parameters={
+        "site": "string - site name",
+        "title": "string - post title",
+        "content": "string - post content (HTML)",
+        "status": "string - publish or draft (default draft)",
+    },
+)
+def wp_create_post(site: str, title: str, content: str, status: str = "draft") -> dict:
+    from integrations.wordpress.client import create_post
+    return create_post(site, title, content, status)
+
+
+@tool(
+    name="wp_update_post",
+    description="Update an existing post on a WordPress site.",
+    parameters={
+        "site": "string - site name",
+        "post_id": "int - post ID",
+        "title": "string - new title (optional)",
+        "content": "string - new content (optional)",
+        "status": "string - new status (optional)",
+    },
+)
+def wp_update_post(site: str, post_id: int, title: str = None, content: str = None, status: str = None) -> dict:
+    from integrations.wordpress.client import update_post
+    return update_post(site, post_id, title, content, status)
+
+
+@tool(
+    name="wp_get_pages",
+    description="Get pages from a WordPress site.",
+    parameters={
+        "site": "string - site name",
+        "per_page": "int - pages per page (default 10)",
+        "search": "string - search term (optional)",
+    },
+)
+def wp_get_pages(site: str, per_page: int = 10, search: str = None) -> list[dict]:
+    from integrations.wordpress.client import get_pages
+    return get_pages(site, per_page=per_page, search=search)
+
+
+@tool(
+    name="wp_create_page",
+    description="Create a new page on a WordPress site.",
+    parameters={
+        "site": "string - site name",
+        "title": "string - page title",
+        "content": "string - page content (HTML)",
+        "status": "string - publish or draft (default draft)",
+    },
+)
+def wp_create_page(site: str, title: str, content: str, status: str = "draft") -> dict:
+    from integrations.wordpress.client import create_page
+    return create_page(site, title, content, status)
+
+
+@tool(
+    name="wp_get_seo",
+    description="Get RankMath SEO metadata for a post or page.",
+    parameters={
+        "site": "string - site name",
+        "post_id": "int - post or page ID",
+        "post_type": "string - 'post' or 'page' (default post)",
+    },
+)
+def wp_get_seo(site: str, post_id: int, post_type: str = "post") -> dict:
+    from integrations.wordpress.client import get_seo_meta
+    return get_seo_meta(site, post_id, post_type)
+
+
+@tool(
+    name="wp_update_seo",
+    description="Update RankMath SEO metadata for a post or page.",
+    parameters={
+        "site": "string - site name",
+        "post_id": "int - post or page ID",
+        "post_type": "string - 'post' or 'page' (default post)",
+        "seo_title": "string - SEO title (optional)",
+        "seo_description": "string - meta description (optional)",
+        "focus_keyword": "string - focus keyword (optional)",
+    },
+)
+def wp_update_seo(site: str, post_id: int, post_type: str = "post", seo_title: str = None, seo_description: str = None, focus_keyword: str = None) -> dict:
+    from integrations.wordpress.client import update_seo_meta
+    return update_seo_meta(site, post_id, post_type, seo_title, seo_description, focus_keyword)
+
+
+@tool(
+    name="wp_get_plugins",
+    description="Get list of plugins installed on a WordPress site.",
+    parameters={"site": "string - site name"},
+)
+def wp_get_plugins(site: str) -> list[dict]:
+    from integrations.wordpress.client import get_plugins
+    return get_plugins(site)
+
+
+@tool(
+    name="wp_activate_plugin",
+    description="Activate a plugin on a WordPress site.",
+    parameters={"site": "string - site name", "plugin_slug": "string - plugin slug (e.g., 'akismet/akismet.php')"},
+)
+def wp_activate_plugin(site: str, plugin_slug: str) -> dict:
+    from integrations.wordpress.client import activate_plugin
+    return activate_plugin(site, plugin_slug)
+
+
+@tool(
+    name="wp_deactivate_plugin",
+    description="Deactivate a plugin on a WordPress site.",
+    parameters={"site": "string - site name", "plugin_slug": "string - plugin slug"},
+)
+def wp_deactivate_plugin(site: str, plugin_slug: str) -> dict:
+    from integrations.wordpress.client import deactivate_plugin
+    return deactivate_plugin(site, plugin_slug)
+
+
+@tool(
+    name="wp_get_themes",
+    description="Get list of themes installed on a WordPress site.",
+    parameters={"site": "string - site name"},
+)
+def wp_get_themes(site: str) -> list[dict]:
+    from integrations.wordpress.client import get_themes
+    return get_themes(site)
+
+
+@tool(
+    name="wp_upload_media",
+    description="Upload an image or file to a WordPress site's media library.",
+    parameters={
+        "site": "string - site name",
+        "file_path": "string - local path to the file",
+        "title": "string - media title (optional)",
+        "alt_text": "string - alt text for images (optional)",
+    },
+)
+def wp_upload_media(site: str, file_path: str, title: str = None, alt_text: str = None) -> dict:
+    from integrations.wordpress.client import upload_media
+    return upload_media(site, file_path, title, alt_text)
+
+
+@tool(
+    name="wp_site_health",
+    description="Get site health overview for a WordPress site.",
+    parameters={"site": "string - site name"},
+)
+def wp_site_health(site: str) -> dict:
+    from integrations.wordpress.client import get_site_health
+    return get_site_health(site)
+
+
+@tool(
+    name="wp_test_all_sites",
+    description="Test connections to all configured WordPress sites.",
+    parameters={},
+)
+def wp_test_all_sites() -> list[dict]:
+    from integrations.wordpress.client import test_all_connections
+    return test_all_connections()
+
+
+# ============ Tracking & Analytics ============
+
+@tool(
+    name="wp_analyze_pixel",
+    description="Analyze Meta Pixel setup on a WordPress site. Checks if pixel is installed, what events are configured, and identifies issues.",
+    parameters={
+        "site": "string - site identifier (e.g., 'myhandscarwash', 'groundrush')",
+    },
+)
+def wp_analyze_pixel(site: str) -> dict:
+    from integrations.wordpress.client import get_meta_pixel_events
+    return get_meta_pixel_events(site)
+
+
+@tool(
+    name="wp_fix_pixel_tracking",
+    description="Add Meta Pixel conversion event tracking to a WordPress site. Adds JavaScript to track form submissions as Lead events and phone clicks as Contact events.",
+    parameters={
+        "site": "string - site identifier",
+        "track_forms": "bool - track form submissions as Lead (default True)",
+        "track_phone_clicks": "bool - track tel: clicks as Contact (default True)",
+        "track_buttons": "bool - track button clicks (default False)",
+    },
+)
+def wp_fix_pixel_tracking(
+    site: str,
+    track_forms: bool = True,
+    track_phone_clicks: bool = True,
+    track_buttons: bool = False,
+) -> dict:
+    from integrations.wordpress.client import add_meta_pixel_events
+    return add_meta_pixel_events(site, None, track_forms, track_phone_clicks, track_buttons)
+
+
+@tool(
+    name="wp_add_tracking_code",
+    description="Add custom tracking code (JavaScript) to a WordPress site header or footer.",
+    parameters={
+        "site": "string - site identifier",
+        "name": "string - name for this tracking code",
+        "code": "string - JavaScript code to add",
+        "location": "string - 'header' or 'footer' (default 'header')",
+    },
+)
+def wp_add_tracking_code(site: str, name: str, code: str, location: str = "header") -> dict:
+    from integrations.wordpress.client import add_tracking_script
+    return add_tracking_script(site, name, code, location)
+
+
+@tool(
+    name="wp_get_snippets",
+    description="List all code snippets on a WordPress site (requires WPCode plugin).",
+    parameters={
+        "site": "string - site identifier",
+    },
+)
+def wp_get_snippets(site: str) -> list[dict]:
+    from integrations.wordpress.client import get_wpcode_snippets
+    return get_wpcode_snippets(site)
+
+
+# ============ Elementor Page Design ============
+
+@tool(
+    name="wp_design_hero_section",
+    description="Design a hero section for a WordPress page. Returns Elementor JSON that can be used with wp_create_elementor_page.",
+    parameters={
+        "headline": "string - main headline text",
+        "subheadline": "string - supporting text (optional)",
+        "cta_text": "string - button text (default 'Get Started')",
+        "cta_link": "string - button link (default '#')",
+        "background_color": "string - hex color (optional)",
+        "background_image": "string - image URL for background (optional)",
+        "layout": "string - 'centered', 'left', or 'right' (default centered)",
+    },
+)
+def wp_design_hero_section(
+    headline: str,
+    subheadline: str = "",
+    cta_text: str = "Get Started",
+    cta_link: str = "#",
+    background_color: str = None,
+    background_image: str = None,
+    layout: str = "centered",
+) -> dict:
+    from integrations.wordpress.elementor import section_hero, background_color as bg_color, background_image as bg_image
+
+    bg = None
+    if background_image:
+        bg = bg_image(background_image, overlay_color="#000000", overlay_opacity=0.5)
+    elif background_color:
+        bg = bg_color(background_color)
+
+    section = section_hero(
+        headline=headline,
+        subheadline=subheadline,
+        cta_text=cta_text,
+        cta_link=cta_link,
+        background=bg,
+        layout=layout,
+    )
+    return {"success": True, "section": section, "type": "hero"}
+
+
+@tool(
+    name="wp_design_features_section",
+    description="Design a features grid section. Returns Elementor JSON.",
+    parameters={
+        "features": "list - features [{'icon': 'fa fa-check', 'title': 'Feature', 'description': '...'}]",
+        "headline": "string - section headline (optional)",
+        "columns": "int - 2, 3, or 4 columns (default 3)",
+    },
+)
+def wp_design_features_section(
+    features: list,
+    headline: str = None,
+    columns: int = 3,
+) -> dict:
+    from integrations.wordpress.elementor import section_features
+    section = section_features(features=features, headline=headline, columns=columns)
+    return {"success": True, "section": section, "type": "features"}
+
+
+@tool(
+    name="wp_design_cta_section",
+    description="Design a call-to-action section. Returns Elementor JSON.",
+    parameters={
+        "headline": "string - CTA headline",
+        "description": "string - supporting text (optional)",
+        "button_text": "string - button text",
+        "button_link": "string - button link",
+        "background_color": "string - hex color (optional)",
+    },
+)
+def wp_design_cta_section(
+    headline: str,
+    description: str = "",
+    button_text: str = "Contact Us",
+    button_link: str = "#",
+    background_color: str = None,
+) -> dict:
+    from integrations.wordpress.elementor import section_cta, background_color as bg_color
+    bg = bg_color(background_color) if background_color else None
+    section = section_cta(
+        headline=headline,
+        description=description,
+        button_text=button_text,
+        button_link=button_link,
+        background=bg,
+    )
+    return {"success": True, "section": section, "type": "cta"}
+
+
+@tool(
+    name="wp_design_testimonials_section",
+    description="Design a testimonials section. Returns Elementor JSON.",
+    parameters={
+        "testimonials": "list - [{'content': 'Quote...', 'name': 'John Doe', 'title': 'CEO', 'image_url': '...'}]",
+        "headline": "string - section headline (optional)",
+    },
+)
+def wp_design_testimonials_section(
+    testimonials: list,
+    headline: str = None,
+) -> dict:
+    from integrations.wordpress.elementor import section_testimonials
+    section = section_testimonials(testimonials=testimonials, headline=headline)
+    return {"success": True, "section": section, "type": "testimonials"}
+
+
+@tool(
+    name="wp_design_pricing_section",
+    description="Design a pricing table section. Returns Elementor JSON.",
+    parameters={
+        "plans": "list - [{'name': 'Basic', 'price': '$9/mo', 'features': ['Feature 1', ...], 'cta_text': 'Buy', 'cta_link': '#'}]",
+        "headline": "string - section headline (optional)",
+        "highlighted_plan": "int - index of featured plan (default 1, middle)",
+    },
+)
+def wp_design_pricing_section(
+    plans: list,
+    headline: str = None,
+    highlighted_plan: int = 1,
+) -> dict:
+    from integrations.wordpress.elementor import section_pricing
+    section = section_pricing(plans=plans, headline=headline, highlighted_plan=highlighted_plan)
+    return {"success": True, "section": section, "type": "pricing"}
+
+
+@tool(
+    name="wp_design_stats_section",
+    description="Design a statistics/numbers section. Returns Elementor JSON.",
+    parameters={
+        "stats": "list - [{'number': 100, 'label': 'Happy Clients', 'suffix': '+'}]",
+        "background_color": "string - hex color (optional)",
+    },
+)
+def wp_design_stats_section(
+    stats: list,
+    background_color: str = None,
+) -> dict:
+    from integrations.wordpress.elementor import section_stats, background_color as bg_color
+    bg = bg_color(background_color) if background_color else None
+    section = section_stats(stats=stats, background=bg)
+    return {"success": True, "section": section, "type": "stats"}
+
+
+@tool(
+    name="wp_design_faq_section",
+    description="Design an FAQ accordion section. Returns Elementor JSON.",
+    parameters={
+        "questions": "list - [{'question': 'What is...?', 'answer': 'It is...'}]",
+        "headline": "string - section headline (default 'Frequently Asked Questions')",
+    },
+)
+def wp_design_faq_section(
+    questions: list,
+    headline: str = "Frequently Asked Questions",
+) -> dict:
+    from integrations.wordpress.elementor import section_faq
+    section = section_faq(questions=questions, headline=headline)
+    return {"success": True, "section": section, "type": "faq"}
+
+
+@tool(
+    name="wp_design_contact_section",
+    description="Design a contact section with form and info. Returns Elementor JSON.",
+    parameters={
+        "headline": "string - section headline (default 'Contact Us')",
+        "address": "string - business address (optional)",
+        "phone": "string - phone number (optional)",
+        "email": "string - email address (optional)",
+        "show_map": "bool - show Google Map (default True)",
+    },
+)
+def wp_design_contact_section(
+    headline: str = "Contact Us",
+    address: str = None,
+    phone: str = None,
+    email: str = None,
+    show_map: bool = True,
+) -> dict:
+    from integrations.wordpress.elementor import section_contact
+    section = section_contact(
+        headline=headline,
+        address=address,
+        phone=phone,
+        email=email,
+        show_map=show_map,
+    )
+    return {"success": True, "section": section, "type": "contact"}
+
+
+@tool(
+    name="wp_design_team_section",
+    description="Design a team members section. Returns Elementor JSON.",
+    parameters={
+        "members": "list - [{'name': 'John', 'title': 'CEO', 'image': 'url', 'bio': '...'}]",
+        "headline": "string - section headline (optional)",
+        "columns": "int - 2, 3, or 4 columns (default 4)",
+    },
+)
+def wp_design_team_section(
+    members: list,
+    headline: str = None,
+    columns: int = 4,
+) -> dict:
+    from integrations.wordpress.elementor import section_team
+    section = section_team(members=members, headline=headline, columns=columns)
+    return {"success": True, "section": section, "type": "team"}
+
+
+@tool(
+    name="wp_create_elementor_page",
+    description="Create a new WordPress page with Elementor design. Combine sections from wp_design_* tools.",
+    parameters={
+        "site": "string - site name (groundrush, loovacast, etc.)",
+        "title": "string - page title",
+        "sections": "list - list of Elementor section objects from wp_design_* tools",
+        "status": "string - 'draft' or 'publish' (default draft)",
+    },
+)
+def wp_create_elementor_page(site: str, title: str, sections: list, status: str = "draft") -> dict:
+    from integrations.wordpress.client import create_elementor_page
+    return create_elementor_page(site, title, sections, status)
+
+
+@tool(
+    name="wp_update_elementor_page",
+    description="Update an existing page with new Elementor design.",
+    parameters={
+        "site": "string - site name",
+        "page_id": "int - page ID to update",
+        "sections": "list - list of Elementor section objects",
+    },
+)
+def wp_update_elementor_page(site: str, page_id: int, sections: list) -> dict:
+    from integrations.wordpress.client import save_elementor_data
+    return save_elementor_data(site, page_id, sections, post_type="page")
+
+
+@tool(
+    name="wp_get_elementor_data",
+    description="Get Elementor design data from an existing page.",
+    parameters={
+        "site": "string - site name",
+        "page_id": "int - page ID",
+    },
+)
+def wp_get_elementor_data(site: str, page_id: int) -> dict:
+    from integrations.wordpress.client import get_elementor_data
+    return get_elementor_data(site, page_id)
+
+
+@tool(
+    name="wp_design_full_landing_page",
+    description="Design a complete landing page with hero, features, testimonials, CTA, and contact sections.",
+    parameters={
+        "headline": "string - main hero headline",
+        "subheadline": "string - hero subheadline",
+        "features": "list - [{'icon': 'fa fa-check', 'title': '...', 'description': '...'}]",
+        "testimonials": "list - [{'content': '...', 'name': '...', 'title': '...'}] (optional)",
+        "cta_headline": "string - CTA section headline",
+        "cta_button_text": "string - CTA button text",
+        "contact_email": "string - contact email (optional)",
+        "contact_phone": "string - contact phone (optional)",
+        "primary_color": "string - hex color for primary elements (default #3b82f6)",
+    },
+)
+def wp_design_full_landing_page(
+    headline: str,
+    subheadline: str,
+    features: list,
+    testimonials: list = None,
+    cta_headline: str = "Ready to Get Started?",
+    cta_button_text: str = "Contact Us",
+    contact_email: str = None,
+    contact_phone: str = None,
+    primary_color: str = "#3b82f6",
+) -> dict:
+    from integrations.wordpress.elementor import (
+        section_hero, section_features, section_testimonials,
+        section_cta, section_contact, background_color, apply_color_scheme
+    )
+
+    sections = []
+
+    # Hero
+    sections.append(section_hero(
+        headline=headline,
+        subheadline=subheadline,
+        cta_text="Learn More",
+        cta_link="#features",
+        background=background_color(primary_color),
+    ))
+
+    # Features
+    sections.append(section_features(
+        features=features,
+        headline="What We Offer",
+        columns=3 if len(features) >= 3 else len(features),
+    ))
+
+    # Testimonials (if provided)
+    if testimonials:
+        sections.append(section_testimonials(
+            testimonials=testimonials,
+            headline="What Our Clients Say",
+        ))
+
+    # CTA
+    sections.append(section_cta(
+        headline=cta_headline,
+        button_text=cta_button_text,
+        button_link="#contact",
+        background=background_color(primary_color),
+    ))
+
+    # Contact
+    sections.append(section_contact(
+        headline="Get In Touch",
+        email=contact_email,
+        phone=contact_phone,
+    ))
+
+    return {"success": True, "sections": sections, "section_count": len(sections)}
+
+
+# ============ Firecrawl Web Scraping ============
+
+@tool(
+    name="scrape_url",
+    description="Scrape a single webpage and get its content as markdown. Use this to read any webpage.",
+    parameters={
+        "url": "string - the URL to scrape",
+        "only_main_content": "bool - remove headers/footers/navs (default True)",
+        "wait_for": "int - milliseconds to wait for JS to load (default 0, use for dynamic sites)",
+    },
+)
+def firecrawl_scrape_url(url: str, only_main_content: bool = True, wait_for: int = 0) -> dict:
+    from integrations.firecrawl.client import scrape_url
+    return scrape_url(url, only_main_content=only_main_content, wait_for=wait_for)
+
+
+@tool(
+    name="crawl_website",
+    description="Crawl an entire website starting from a URL. Gets content from multiple pages.",
+    parameters={
+        "url": "string - starting URL",
+        "max_depth": "int - how deep to crawl (default 2)",
+        "limit": "int - max pages to crawl (default 10)",
+        "include_paths": "list - only crawl paths matching these patterns (optional)",
+        "exclude_paths": "list - skip paths matching these patterns (optional)",
+    },
+)
+def firecrawl_crawl_website(
+    url: str,
+    max_depth: int = 2,
+    limit: int = 10,
+    include_paths: list = None,
+    exclude_paths: list = None,
+) -> dict:
+    from integrations.firecrawl.client import crawl_website
+    return crawl_website(url, max_depth, limit, include_paths, exclude_paths)
+
+
+@tool(
+    name="search_and_scrape",
+    description="Search Google and scrape the result pages. Great for research on any topic.",
+    parameters={
+        "query": "string - search query",
+        "limit": "int - number of results (default 5)",
+        "scrape_results": "bool - also scrape content of each result (default True)",
+    },
+)
+def firecrawl_search_google(query: str, limit: int = 5, scrape_results: bool = True) -> dict:
+    from integrations.firecrawl.client import search_google
+    return search_google(query, limit, scrape_results)
+
+
+@tool(
+    name="extract_structured_data",
+    description="Extract structured data from a webpage using AI. Define a schema and get JSON back.",
+    parameters={
+        "url": "string - URL to extract from",
+        "schema": "dict - JSON schema defining what to extract",
+        "prompt": "string - optional prompt to guide extraction",
+    },
+)
+def firecrawl_extract_data(url: str, schema: dict, prompt: str = None) -> dict:
+    from integrations.firecrawl.client import extract_data
+    return extract_data(url, schema, prompt)
+
+
+@tool(
+    name="scrape_to_knowledge",
+    description="Scrape a webpage and add it directly to Alfred's LightRAG knowledge base.",
+    parameters={
+        "url": "string - URL to scrape and learn",
+        "description": "string - description of the content (optional)",
+    },
+)
+def firecrawl_scrape_to_lightrag(url: str, description: str = "") -> dict:
+    from integrations.firecrawl.client import scrape_to_lightrag
+    return scrape_to_lightrag(url, description)
+
+
+@tool(
+    name="crawl_to_knowledge",
+    description="Crawl a website and add all pages to Alfred's LightRAG knowledge base. Great for learning entire documentation sites.",
+    parameters={
+        "url": "string - starting URL",
+        "max_depth": "int - crawl depth (default 2)",
+        "limit": "int - max pages (default 10)",
+        "description": "string - description of the content (optional)",
+    },
+)
+def firecrawl_crawl_to_lightrag(
+    url: str,
+    max_depth: int = 2,
+    limit: int = 10,
+    description: str = "",
+) -> dict:
+    from integrations.firecrawl.client import crawl_to_lightrag
+    return crawl_to_lightrag(url, max_depth, limit, description)
+
+
+@tool(
+    name="get_crawl_status",
+    description="Check the status of a running crawl job.",
+    parameters={
+        "crawl_id": "string - the crawl job ID",
+    },
+)
+def firecrawl_get_crawl_status(crawl_id: str) -> dict:
+    from integrations.firecrawl.client import get_crawl_status
+    return get_crawl_status(crawl_id)
+
+
 def register_all():
     """Import this module to register all tools."""
     pass

@@ -217,6 +217,10 @@ def get_conversation(conv_id: str) -> dict | None:
 
 
 def add_message(conv_id: str, role: str, content: str, tier: str | None = None) -> None:
+    # Prevent saving empty messages which cause API errors
+    if not content or (isinstance(content, str) and not content.strip()):
+        return
+
     conn = _get_conn()
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(

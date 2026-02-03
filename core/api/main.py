@@ -1,8 +1,10 @@
 """Alfred API Server - Main FastAPI application with auth, integrations, and tool calling."""
 
 import logging
+import os
 import re
 import sys
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -33,6 +35,10 @@ from core.memory.conversations import (
     move_conversation_to_project, list_conversations_by_project, get_project_context,
     UPLOADS_DIR,
 )
+
+# TTS audio cache directory for Twilio voice calls
+TTS_AUDIO_DIR = Path(__file__).parent.parent.parent / "data" / "audio" / "tts"
+TTS_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 from core.security.auth import (
     create_user, verify_user, create_access_token, get_current_user,
     require_auth, setup_initial_user,
@@ -79,6 +85,11 @@ async def lifespan(app: FastAPI):
             tts_warmup()
         except Exception as e:
             logger.warning(f"TTS warmup failed: {e}")
+        # Pre-generate static Twilio voice phrases
+        try:
+            pregenerate_static_phrases()
+        except Exception as e:
+            logger.warning(f"Static TTS phrase pre-generation failed: {e}")
     loop.run_in_executor(None, _warmup_voice)
     # Initialize agent pool for multi-agent orchestration
     try:
@@ -553,6 +564,17 @@ async def integration_status(user: dict = Depends(require_auth)):
     except Exception:
         pass
 
+    # Check Twilio connection
+    twilio_connected = False
+    twilio_phone = ""
+    try:
+        from integrations.twilio.client import health_check as twilio_health
+        twilio_status = twilio_health()
+        twilio_connected = twilio_status.get("success", False)
+        twilio_phone = twilio_status.get("phone_number", "")
+    except Exception:
+        pass
+
     return {
         "google": {
             "connected": google,
@@ -588,6 +610,12 @@ async def integration_status(user: dict = Depends(require_auth)):
             "connected": lightrag_connected,
             "document_count": lightrag_doc_count,
             "label": "LightRAG Knowledge Graph",
+        },
+        "twilio": {
+            "configured": bool(os.getenv("TWILIO_ACCOUNT_SID")),
+            "connected": twilio_connected,
+            "phone_number": twilio_phone,
+            "label": "Twilio SMS/Voice",
         },
         "agents": {
             "active": True,
@@ -645,6 +673,433 @@ def _check_claude_code_cli() -> bool:
         if path.exists() and os.access(path, os.X_OK):
             return True
     return False
+
+
+# ==================== Twilio Webhooks ====================
+
+@app.post("/webhooks/twilio/sms")
+async def twilio_sms_webhook(request: Request):
+    """Handle incoming SMS from Twilio.
+
+    This endpoint is called by Twilio when someone sends an SMS to your Twilio number.
+    No auth required - we validate the Twilio signature instead.
+    """
+    from integrations.twilio.client import validate_twilio_signature, send_sms, TWILIO_PHONE_NUMBER
+    from twilio.twiml.messaging_response import MessagingResponse
+
+    # Get the request data
+    form_data = await request.form()
+    params = dict(form_data)
+
+    # Validate Twilio signature
+    signature = request.headers.get("X-Twilio-Signature", "")
+    url = str(request.url)
+
+    # For local testing, skip validation if no signature
+    if signature and not validate_twilio_signature(url, params, signature):
+        logger.warning("Invalid Twilio signature on SMS webhook")
+        return Response(content="Invalid signature", status_code=403)
+
+    # Extract message details
+    from_number = params.get("From", "")
+    to_number = params.get("To", "")
+    body = params.get("Body", "").strip()
+
+    logger.info(f"SMS received from {from_number}: {body[:50]}...")
+
+    # Process the message through Alfred
+    try:
+        response = await ask(
+            query=body,
+            messages=None,
+            smart_routing=True,
+        )
+        reply_text = response.get("response", "Sorry, I couldn't process that request.")
+    except Exception as e:
+        logger.error(f"Error processing SMS: {e}")
+        reply_text = "Sorry, I encountered an error. Please try again."
+
+    # Send TwiML response
+    twiml = MessagingResponse()
+    # Truncate if too long (SMS limit is 1600 chars for concatenated)
+    if len(reply_text) > 1500:
+        reply_text = reply_text[:1497] + "..."
+    twiml.message(reply_text)
+
+    return Response(content=str(twiml), media_type="application/xml")
+
+
+@app.post("/webhooks/twilio/voice")
+async def twilio_voice_webhook(request: Request):
+    """Handle incoming voice calls from Twilio.
+
+    This endpoint is called when someone calls your Twilio number.
+    Alfred will answer and have a conversation using Kokoro TTS (bm_daniel voice).
+    """
+    from twilio.twiml.voice_response import VoiceResponse, Gather
+
+    # Get the request data
+    form_data = await request.form()
+    params = dict(form_data)
+
+    from_number = params.get("From", "")
+    speech_result = params.get("SpeechResult", "")
+    call_status = params.get("CallStatus", "")
+
+    logger.info(f"Voice webhook: from={from_number}, status={call_status}, speech={speech_result[:50] if speech_result else 'none'}")
+
+    response = VoiceResponse()
+
+    # Build absolute URL for action and audio
+    base_url = "https://aialfred.groundrushcloud.com"
+
+    if not speech_result:
+        # Initial greeting - use time-based greeting (pre-generated, instant)
+        greeting_audio_id = get_greeting_audio_id()
+        goodbye_audio_id = get_static_audio_id("goodbye")
+
+        gather = Gather(
+            input="speech",
+            action=f"{base_url}/webhooks/twilio/voice",
+            method="POST",
+            speech_timeout="3",
+            timeout=5,
+            language="en-US",
+        )
+        gather.play(f"{base_url}/audio/tts/{greeting_audio_id}.wav")
+        response.append(gather)
+        # If no input, say goodbye
+        response.play(f"{base_url}/audio/tts/{goodbye_audio_id}.wav")
+    else:
+        # Play "One moment" immediately, then redirect to process
+        # This gives instant feedback while Alfred thinks
+        from urllib.parse import quote
+        thinking_audio_id = get_random_thinking_audio_id()
+        response.play(f"{base_url}/audio/tts/{thinking_audio_id}.wav")
+        encoded_speech = quote(speech_result, safe='')
+        response.redirect(f"{base_url}/webhooks/twilio/voice/process?speech={encoded_speech}", method="POST")
+
+    return Response(content=str(response), media_type="application/xml")
+
+
+@app.post("/webhooks/twilio/voice/process")
+async def twilio_voice_process(request: Request):
+    """Process speech and return Alfred's response.
+
+    Called after playing "One moment" to reduce perceived latency.
+    """
+    from twilio.twiml.voice_response import VoiceResponse, Gather
+    from urllib.parse import unquote
+
+    # Get speech from query params
+    speech_result = request.query_params.get("speech", "")
+    if speech_result:
+        speech_result = unquote(speech_result)
+
+    base_url = "https://aialfred.groundrushcloud.com"
+    response = VoiceResponse()
+
+    if not speech_result:
+        # No speech to process
+        response.play(f"{base_url}/audio/tts/{get_static_audio_id('error')}.wav")
+        return Response(content=str(response), media_type="application/xml")
+
+    # Process speech through Alfred
+    # Add phone-specific instructions to keep responses brief (Twilio has 15s timeout)
+    phone_query = f"[PHONE CALL - Keep response under 3 sentences. Be concise and conversational. No lists or detailed breakdowns.] {speech_result}"
+    logger.info(f"Processing speech: {speech_result}")
+    try:
+        import asyncio
+        # Timeout after 12 seconds to stay under Twilio's 15s limit
+        alfred_response = await asyncio.wait_for(
+            ask(
+                query=phone_query,
+                messages=None,
+                smart_routing=True,
+            ),
+            timeout=12.0
+        )
+        reply_text = alfred_response.get("response", "I'm sorry, I couldn't process that.")
+    except asyncio.TimeoutError:
+        logger.warning("Phone call processing timed out after 12s")
+        reply_text = "I'm still working on that. Can you ask me again in a simpler way?"
+    except Exception as e:
+        logger.error(f"Error processing voice: {e}")
+        reply_text = None
+
+    # Generate audio for response (dynamic) or use pre-generated error
+    if reply_text:
+        reply_audio_id = generate_tts_audio(reply_text)
+    else:
+        reply_audio_id = get_static_audio_id("error")
+
+    # Follow-up is always the same - use pre-generated (instant)
+    followup_audio_id = get_static_audio_id("followup")
+
+    # Speak the response and listen for more
+    gather = Gather(
+        input="speech",
+        action=f"{base_url}/webhooks/twilio/voice",
+        method="POST",
+        speech_timeout="3",
+        timeout=5,
+        language="en-US",
+    )
+    gather.play(f"{base_url}/audio/tts/{reply_audio_id}.wav")
+    response.append(gather)
+    response.play(f"{base_url}/audio/tts/{followup_audio_id}.wav")
+
+    return Response(content=str(response), media_type="application/xml")
+
+
+@app.post("/webhooks/twilio/voice/status")
+async def twilio_voice_status_webhook(request: Request):
+    """Handle voice call status updates from Twilio."""
+    form_data = await request.form()
+    params = dict(form_data)
+
+    call_sid = params.get("CallSid", "")
+    call_status = params.get("CallStatus", "")
+
+    logger.info(f"Call {call_sid} status: {call_status}")
+
+    return Response(content="OK", status_code=200)
+
+
+@app.post("/webhooks/twilio/voice/outbound")
+@app.get("/webhooks/twilio/voice/outbound")
+async def twilio_outbound_twiml(request: Request):
+    """Generate TwiML for outbound calls using Kokoro TTS.
+
+    Called by Twilio when making outbound calls via make_call().
+    Accepts 'message' in query params or form data.
+    """
+    from twilio.twiml.voice_response import VoiceResponse
+    from urllib.parse import unquote
+
+    # Try to get message from query params first, then form data
+    message = request.query_params.get("message", "")
+    if not message:
+        try:
+            form_data = await request.form()
+            message = form_data.get("message", "")
+        except Exception:
+            pass
+
+    # Build absolute URL for audio
+    base_url = "https://aialfred.groundrushcloud.com"
+
+    if not message:
+        # Use pre-generated default (instant)
+        audio_id = get_static_audio_id("default_outbound")
+        message = STATIC_PHRASES["default_outbound"]
+    else:
+        # URL decode and generate audio (uses cache for repeated phrases)
+        message = unquote(message)
+        audio_id = generate_tts_audio(message)
+
+    response = VoiceResponse()
+    response.play(f"{base_url}/audio/tts/{audio_id}.wav")
+
+    logger.info(f"Generated outbound TwiML with Kokoro TTS for message: {message[:50]}...")
+
+    return Response(content=str(response), media_type="application/xml")
+
+
+# TTS audio cache: hash -> audio_id (for repeated phrases)
+_tts_cache: dict[str, str] = {}
+
+# Pre-generated static phrases (populated on startup)
+STATIC_PHRASES = {
+    "greeting_morning": "Good morning, sir.  How can I be of service?",
+    "greeting_afternoon": "Good afternoon, sir.  How can I be of service?",
+    "greeting_evening": "Good evening, sir.  How can I be of service?",
+    "goodbye": "I didn't hear anything. Goodbye.",
+    "followup": "Is there anything else I can help with?",
+    "error": "I encountered an error. Please try again.",
+    "default_outbound": "Hello, this is Alfred calling.",
+}
+
+# 50 natural acknowledgment variations for thinking time
+THINKING_PHRASES = [
+    "Let me check on that for you.",
+    "One moment please.",
+    "Let me look into that.",
+    "Give me just a second.",
+    "Let me see what I can find.",
+    "Hold on, let me check.",
+    "Just a moment.",
+    "Let me pull that up.",
+    "One sec.",
+    "Let me take a look.",
+    "Alright, checking now.",
+    "Let me find that for you.",
+    "Sure, one moment.",
+    "Let me get that information.",
+    "Okay, looking into it.",
+    "Let me see here.",
+    "Just a second.",
+    "Let me dig into that.",
+    "Hang on a moment.",
+    "Let me check my sources.",
+    "Working on that now.",
+    "Let me look that up.",
+    "Sure thing, one moment.",
+    "Let me find out.",
+    "Checking on that.",
+    "Let me see what I've got.",
+    "One moment, please.",
+    "Let me get back to you on that.",
+    "Alright, let me check.",
+    "Give me a moment.",
+    "Let me look into this.",
+    "Sure, let me check.",
+    "Just one second.",
+    "Let me pull up that information.",
+    "Okay, one moment.",
+    "Let me search for that.",
+    "Hold on just a second.",
+    "Let me take a quick look.",
+    "Alright, one sec.",
+    "Let me review that.",
+    "Sure, checking now.",
+    "Let me gather that info.",
+    "One second please.",
+    "Let me verify that.",
+    "Okay, let me see.",
+    "Let me check real quick.",
+    "Alright, looking now.",
+    "Let me fetch that.",
+    "Sure, give me a moment.",
+    "Let me process that.",
+]
+
+# Pre-generated thinking phrase audio IDs (populated on startup)
+_thinking_audio_ids: list[str] = []
+_static_audio_ids: dict[str, str] = {}
+
+
+def _hash_text(text: str) -> str:
+    """Create a short hash of text for caching."""
+    import hashlib
+    return hashlib.md5(text.encode()).hexdigest()[:16]
+
+
+def generate_tts_audio(text: str, use_cache: bool = True) -> str:
+    """Generate TTS audio using Kokoro and return the audio_id.
+
+    Uses caching to avoid regenerating the same phrases.
+    Returns the audio_id (without extension) that can be used to build the URL.
+    """
+    from interfaces.voice.tts import speak
+
+    # Check cache first
+    if use_cache:
+        text_hash = _hash_text(text)
+        if text_hash in _tts_cache:
+            cached_id = _tts_cache[text_hash]
+            # Verify file still exists
+            if (TTS_AUDIO_DIR / f"{cached_id}.wav").exists():
+                logger.debug(f"TTS cache hit for: {text[:30]}...")
+                return cached_id
+
+    # Generate unique ID for this audio
+    audio_id = str(uuid.uuid4())
+    audio_path = TTS_AUDIO_DIR / f"{audio_id}.wav"
+
+    # Generate audio using Kokoro TTS
+    audio_data = speak(text)
+
+    # Save to file
+    audio_path.write_bytes(audio_data)
+    logger.info(f"Generated TTS audio: {audio_id} ({len(audio_data)} bytes)")
+
+    # Cache it
+    if use_cache:
+        _tts_cache[text_hash] = audio_id
+
+    return audio_id
+
+
+def get_static_audio_id(phrase_key: str) -> str:
+    """Get pre-generated audio ID for static phrases (fast path)."""
+    if phrase_key in _static_audio_ids:
+        return _static_audio_ids[phrase_key]
+    # Fallback to generating if not pre-cached
+    return generate_tts_audio(STATIC_PHRASES.get(phrase_key, phrase_key))
+
+
+def get_greeting_audio_id() -> str:
+    """Get the appropriate greeting based on time of day."""
+    from datetime import datetime
+    hour = datetime.now().hour
+
+    if 5 <= hour < 12:
+        return get_static_audio_id("greeting_morning")
+    elif 12 <= hour < 17:
+        return get_static_audio_id("greeting_afternoon")
+    else:
+        return get_static_audio_id("greeting_evening")
+
+
+def pregenerate_static_phrases():
+    """Pre-generate audio for static phrases on startup."""
+    import random
+
+    logger.info("Pre-generating static TTS phrases...")
+    for key, text in STATIC_PHRASES.items():
+        audio_id = generate_tts_audio(text, use_cache=True)
+        _static_audio_ids[key] = audio_id
+        logger.info(f"Pre-generated '{key}': {audio_id}")
+
+    # Pre-generate all 50 thinking variations
+    logger.info(f"Pre-generating {len(THINKING_PHRASES)} thinking phrase variations...")
+    for i, text in enumerate(THINKING_PHRASES):
+        audio_id = generate_tts_audio(text, use_cache=True)
+        _thinking_audio_ids.append(audio_id)
+        if (i + 1) % 10 == 0:
+            logger.info(f"Pre-generated {i + 1}/{len(THINKING_PHRASES)} thinking phrases...")
+
+    logger.info(f"Pre-generated {len(STATIC_PHRASES)} static + {len(THINKING_PHRASES)} thinking phrases")
+
+
+def get_random_thinking_audio_id() -> str:
+    """Get a random pre-generated thinking phrase audio ID."""
+    import random
+    if _thinking_audio_ids:
+        return random.choice(_thinking_audio_ids)
+    # Fallback if not pre-generated
+    return generate_tts_audio(random.choice(THINKING_PHRASES))
+
+
+@app.get("/audio/tts/{audio_id}.wav")
+async def serve_tts_audio(audio_id: str):
+    """Serve generated TTS audio for Twilio voice calls.
+
+    This endpoint serves WAV audio files generated by Kokoro TTS.
+    Audio files are temporary and can be cleaned up periodically.
+    """
+    # Validate audio_id format (UUID)
+    try:
+        uuid.UUID(audio_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid audio ID")
+
+    audio_path = TTS_AUDIO_DIR / f"{audio_id}.wav"
+
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail="Audio not found")
+
+    audio_data = audio_path.read_bytes()
+
+    return Response(
+        content=audio_data,
+        media_type="audio/wav",
+        headers={
+            "Content-Disposition": f"inline; filename={audio_id}.wav",
+            "Cache-Control": "no-cache",
+        }
+    )
 
 
 @app.get("/settings/tts")
@@ -2601,22 +3056,96 @@ CHAT_HTML = """<!DOCTYPE html>
         /* Login overlay */
         #login-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%;
-            background: #0a0a0a; z-index: 100;
+            background: #000;
+            z-index: 100;
             display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+        #matrix-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
         }
         #login-overlay.hidden { display: none; }
+        #login-overlay.hidden #matrix-canvas { display: none; }
+        .login-container {
+            position: relative;
+            display: flex; flex-direction: column; align-items: center;
+            z-index: 2;
+        }
         .login-box {
-            background: #111; border: 1px solid #333; border-radius: 12px;
-            padding: 32px; width: 360px;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid rgba(0,255,65,0.3);
+            border-radius: 16px;
+            padding: 40px 36px;
+            width: 380px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 40px rgba(0,255,65,0.15), 0 20px 60px rgba(0,0,0,0.8), inset 0 0 60px rgba(0,255,65,0.03);
+            animation: matrixBoxGlow 3s ease-in-out infinite;
         }
-        .login-box h2 { margin-bottom: 24px; color: #fff; font-size: 22px; text-align: center; }
+        @keyframes matrixBoxGlow {
+            0%, 100% { box-shadow: 0 0 40px rgba(0,255,65,0.15), 0 20px 60px rgba(0,0,0,0.8), inset 0 0 60px rgba(0,255,65,0.03); }
+            50% { box-shadow: 0 0 60px rgba(0,255,65,0.25), 0 20px 60px rgba(0,0,0,0.8), inset 0 0 80px rgba(0,255,65,0.05); }
+        }
+        .login-logo {
+            display: block;
+            width: 120px; height: 120px;
+            margin: 0 auto 24px auto;
+            border-radius: 50%;
+            object-fit: cover;
+            filter: drop-shadow(0 0 20px rgba(232,110,44,0.5)) drop-shadow(0 0 40px rgba(232,110,44,0.3));
+            animation: logoGlow 3s ease-in-out infinite;
+        }
+        @keyframes logoGlow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(232,110,44,0.5)) drop-shadow(0 0 40px rgba(232,110,44,0.3)); }
+            50% { filter: drop-shadow(0 0 30px rgba(232,110,44,0.7)) drop-shadow(0 0 60px rgba(232,110,44,0.4)); }
+        }
+        .login-box h2 {
+            margin-bottom: 8px; color: #00ff41; font-size: 32px; text-align: center;
+            font-weight: 600; letter-spacing: 4px;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(0,255,65,0.5), 0 0 20px rgba(0,255,65,0.3);
+        }
+        .login-subtitle {
+            color: rgba(0,255,65,0.5); font-size: 12px; text-align: center;
+            margin-bottom: 28px; font-weight: 400;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
         .login-box input {
-            width: 100%; padding: 10px 14px; margin-bottom: 12px;
-            border-radius: 6px; border: 1px solid #333; background: #1a1a1a;
-            color: #e0e0e0; font-size: 14px; outline: none;
+            width: 100%; padding: 14px 16px; margin-bottom: 14px;
+            border-radius: 8px; border: 1px solid rgba(0,255,65,0.2);
+            background: rgba(0,255,65,0.03);
+            color: #00ff41; font-size: 15px; outline: none;
+            font-family: 'Courier New', monospace;
+            transition: all 0.2s ease;
         }
-        .login-box input:focus { border-color: #4a9eff; }
-        .login-box button { width: 100%; margin-top: 8px; }
+        .login-box input:focus {
+            border-color: rgba(0,255,65,0.5);
+            background: rgba(0,255,65,0.08);
+            box-shadow: 0 0 20px rgba(0,255,65,0.15);
+        }
+        .login-box input::placeholder { color: rgba(0,255,65,0.4); }
+        .login-box button {
+            width: 100%; margin-top: 8px;
+            padding: 14px;
+            background: linear-gradient(135deg, rgba(0,255,65,0.2) 0%, rgba(0,255,65,0.1) 100%);
+            border: 1px solid rgba(0,255,65,0.4);
+            border-radius: 8px;
+            color: #00ff41;
+            font-weight: 600; font-size: 15px;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0,255,65,0.2);
+        }
+        .login-box button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, rgba(0,255,65,0.3) 0%, rgba(0,255,65,0.15) 100%);
+            box-shadow: 0 6px 25px rgba(0,255,65,0.3);
+        }
+        .login-box button:active { transform: translateY(0); }
         .login-error { color: #f87171; font-size: 13px; margin-bottom: 8px; }
         .login-divider {
             display: flex; align-items: center; margin: 16px 0; color: #666;
@@ -2903,7 +3432,7 @@ CHAT_HTML = """<!DOCTYPE html>
             .msg { max-width: 90%; }
             #settings-panel { width: 100%; right: -100%; }
             #history-panel { width: 85%; left: -85%; }
-            .login-box { width: 90%; max-width: 360px; }
+            .login-box { width: 90%; max-width: 380px; padding: 32px 28px; }
             header { padding: 12px 16px; gap: 8px; }
             #input-area { padding: 12px 16px; }
         }
@@ -2928,7 +3457,8 @@ CHAT_HTML = """<!DOCTYPE html>
             #welcome-input-box { padding: 10px 14px; }
             #chat { padding: 16px 12px 100px; gap: 16px; }
             #history-panel { width: 100%; left: -100%; }
-            .login-box { padding: 24px 20px; }
+            .login-box { padding: 28px 20px; }
+            .login-box h2 { font-size: 24px; letter-spacing: 2px; }
             #pending-file { bottom: 85px; left: 5%; right: 5%; }
             .msg-actions { opacity: 1; }
         }
@@ -2937,22 +3467,24 @@ CHAT_HTML = """<!DOCTYPE html>
 <body>
     <!-- Login Overlay -->
     <div id="login-overlay">
-        <div class="login-box">
-            <h2>Alfred</h2>
-            <div id="login-error" class="login-error" style="display:none"></div>
+        <canvas id="matrix-canvas"></canvas>
+        <div class="login-container">
+            <div class="login-box">
+                <img src="/static/logo.jpeg" alt="GR" class="login-logo">
+                <div id="login-error" class="login-error" style="display:none"></div>
 
-            <!-- Password login section -->
-            <div id="password-section">
-                <input id="login-user" type="text" placeholder="Username" autocomplete="username">
-                <input id="login-pass" type="password" placeholder="Password" autocomplete="current-password"
-                    onkeydown="if(event.key==='Enter')doLogin()">
-                <button onclick="doLogin()">Sign In</button>
-                <div class="login-divider"><span>or</span></div>
-                <button class="passkey-btn" onclick="doPasskeyLogin()">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
-                    Sign in with Passkey
-                </button>
-            </div>
+                <!-- Password login section -->
+                <div id="password-section">
+                    <input id="login-user" type="text" placeholder="Username" autocomplete="username">
+                    <input id="login-pass" type="password" placeholder="Password" autocomplete="current-password"
+                        onkeydown="if(event.key==='Enter')doLogin()">
+                    <button onclick="doLogin()">Sign In</button>
+                    <div class="login-divider"><span>or</span></div>
+                    <button class="passkey-btn" onclick="doPasskeyLogin()">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                        Sign in with Passkey
+                    </button>
+                </div>
 
             <!-- 2FA code section (hidden by default) -->
             <div id="totp-section" class="totp-section">
@@ -2963,6 +3495,7 @@ CHAT_HTML = """<!DOCTYPE html>
                 <button onclick="doTOTPLogin()">Verify</button>
                 <div class="login-back" onclick="backToPassword()">Back to login</div>
             </div>
+        </div>
         </div>
     </div>
 
@@ -5505,56 +6038,198 @@ CHAT_HTML = """<!DOCTYPE html>
             }
         }
 
-        // Register service worker for PWA
+        // Matrix Rain Effect
+        (function initMatrix() {
+            const canvas = document.getElementById('matrix-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            let width, height, columns, drops;
+            const chars = '01';
+            const fontSize = 14;
+
+            function resize() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+                columns = Math.floor(width / fontSize);
+                drops = Array(columns).fill(1);
+            }
+
+            function draw() {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.fillStyle = '#00ff41';
+                ctx.font = fontSize + 'px monospace';
+
+                for (let i = 0; i < drops.length; i++) {
+                    const char = chars[Math.floor(Math.random() * chars.length)];
+                    const x = i * fontSize;
+                    const y = drops[i] * fontSize;
+
+                    // Varying brightness
+                    const brightness = Math.random();
+                    if (brightness > 0.9) {
+                        ctx.fillStyle = '#fff';
+                    } else if (brightness > 0.7) {
+                        ctx.fillStyle = '#00ff41';
+                    } else {
+                        ctx.fillStyle = 'rgba(0, 255, 65, 0.5)';
+                    }
+
+                    ctx.fillText(char, x, y);
+
+                    if (y > height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+
+            resize();
+            window.addEventListener('resize', resize);
+            setInterval(draw, 50);
+        })();
+
+        // Register service worker for PWA with update handling
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').then(reg => {
                 console.log('SW registered:', reg.scope);
+
+                // Check for updates on load and when user returns to tab (minimal CPU impact)
+                reg.update();
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') reg.update();
+                });
+
+                // Handle updates
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    console.log('SW update found, installing...');
+
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // New version available, notify user or auto-reload
+                            console.log('New version available, reloading...');
+                            newWorker.postMessage('SKIP_WAITING');
+                        }
+                    });
+                });
             }).catch(err => console.log('SW registration failed:', err));
+
+            // Listen for SW_UPDATED message and reload
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data && event.data.type === 'SW_UPDATED') {
+                    console.log('SW updated, reloading page...');
+                    window.location.reload();
+                }
+            });
+
+            // Handle controller change (new SW took over)
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('SW controller changed, reloading...');
+                window.location.reload();
+            });
         }
     </script>
 </body>
 </html>"""
 
 
-SERVICE_WORKER_JS = """
-const CACHE_NAME = 'alfred-v30';
+# Generate dynamic cache version based on app version and startup time
+import time as _time
+_BUILD_TIMESTAMP = str(int(_time.time()))
+
+def _get_service_worker_js():
+    """Generate service worker with dynamic cache version."""
+    return f"""
+const CACHE_NAME = 'alfred-v030-{_BUILD_TIMESTAMP}';
 const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
 
-self.addEventListener('install', event => {
+// Force install new service worker immediately
+self.addEventListener('install', event => {{
+    console.log('[SW] Installing new version:', CACHE_NAME);
     event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(PRECACHE_URLS))
+            .then(() => self.skipWaiting())  // Skip waiting, activate immediately
     );
-});
+}});
 
-self.addEventListener('activate', event => {
+// Clean up old caches and take control of all pages
+self.addEventListener('activate', event => {{
+    console.log('[SW] Activating new version:', CACHE_NAME);
     event.waitUntil(
-        caches.keys().then(keys =>
-            Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-        ).then(() => self.clients.claim())
+        caches.keys().then(keys => {{
+            // Delete ALL old caches (any cache not matching current version)
+            return Promise.all(
+                keys.filter(k => k !== CACHE_NAME).map(k => {{
+                    console.log('[SW] Deleting old cache:', k);
+                    return caches.delete(k);
+                }})
+            );
+        }}).then(() => {{
+            // Take control of all pages immediately
+            return self.clients.claim();
+        }}).then(() => {{
+            // Notify all clients to reload
+            return self.clients.matchAll().then(clients => {{
+                clients.forEach(client => client.postMessage({{type: 'SW_UPDATED'}}));
+            }});
+        }})
     );
-});
+}});
 
-self.addEventListener('fetch', event => {
+// Message handler for manual cache clearing
+self.addEventListener('message', event => {{
+    if (event.data === 'SKIP_WAITING') {{
+        self.skipWaiting();
+    }}
+    if (event.data === 'CLEAR_CACHE') {{
+        caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
+    }}
+}});
+
+self.addEventListener('fetch', event => {{
     const url = new URL(event.request.url);
-    // Network-first for API calls, cache-first for static assets
+
+    // NEVER cache API calls - always network first
     if (url.pathname.startsWith('/chat') || url.pathname.startsWith('/auth') ||
         url.pathname.startsWith('/conversations') || url.pathname.startsWith('/voice') ||
         url.pathname.startsWith('/integrations') || url.pathname.startsWith('/memory') ||
-        url.pathname.startsWith('/projects') || url.pathname.startsWith('/references')) {
+        url.pathname.startsWith('/projects') || url.pathname.startsWith('/references') ||
+        url.pathname.startsWith('/health') || url.pathname.startsWith('/settings') ||
+        url.pathname.startsWith('/api')) {{
         event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
-    } else {
+    }}
+    // For main HTML page - network first with cache fallback (always get latest)
+    else if (url.pathname === '/' || url.pathname.endsWith('.html')) {{
         event.respondWith(
-            caches.match(event.request).then(cached => cached || fetch(event.request).then(resp => {
-                if (resp.ok) {
+            fetch(event.request)
+                .then(resp => {{
                     const clone = resp.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-                }
-                return resp;
-            }))
+                    return resp;
+                }})
+                .catch(() => caches.match(event.request))
         );
-    }
-});
+    }}
+    // Static assets can be cache-first
+    else {{
+        event.respondWith(
+            caches.match(event.request).then(cached => cached || fetch(event.request).then(resp => {{
+                if (resp.ok) {{
+                    const clone = resp.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                }}
+                return resp;
+            }}))
+        );
+    }}
+}});
 """.strip()
+
+SERVICE_WORKER_JS = _get_service_worker_js()
 
 
 if __name__ == "__main__":

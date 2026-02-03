@@ -37,6 +37,7 @@ TOOL_CATEGORIES = {
               "email_list_accounts", "email_inbox", "email_read", "email_send", "email_search", "email_unread",
               "email_trash", "email_mark_read", "email_mark_unread"],
     "calendar": ["check_calendar", "create_event", "find_free_time", "today_schedule"],
+    "sms": ["send_sms", "make_call", "get_sms_history"],
     "crm": ["crm_add_note_to_company", "crm_add_note_to_deal", "crm_add_note_to_person",
             "crm_add_task_to_company", "crm_add_task_to_deal", "crm_add_task_to_person",
             "crm_create_company", "crm_create_opportunity", "crm_create_person", "crm_create_task",
@@ -60,6 +61,27 @@ TOOL_CATEGORIES = {
                "stripe_list_subscriptions", "stripe_refund_payment", "stripe_resume_subscription",
                "stripe_revenue_summary", "stripe_search_customers", "stripe_search_payments",
                "stripe_send_invoice", "stripe_update_customer", "stripe_void_invoice"],
+    "wordpress": [
+        # Site management
+        "wp_list_sites", "wp_test_connection", "wp_test_all_sites", "wp_site_health",
+        # Posts & Pages
+        "wp_get_posts", "wp_get_post", "wp_create_post", "wp_update_post",
+        "wp_get_pages", "wp_create_page",
+        # SEO (RankMath)
+        "wp_get_seo", "wp_update_seo",
+        # Plugins & Themes
+        "wp_get_plugins", "wp_activate_plugin", "wp_deactivate_plugin", "wp_get_themes",
+        # Media
+        "wp_upload_media",
+        # Tracking & Analytics
+        "wp_analyze_pixel", "wp_fix_pixel_tracking", "wp_add_tracking_code", "wp_get_snippets",
+        # Elementor Design
+        "wp_design_hero_section", "wp_design_features_section", "wp_design_cta_section",
+        "wp_design_testimonials_section", "wp_design_pricing_section", "wp_design_stats_section",
+        "wp_design_faq_section", "wp_design_contact_section", "wp_design_team_section",
+        "wp_create_elementor_page", "wp_update_elementor_page", "wp_get_elementor_data",
+        "wp_design_full_landing_page",
+    ],
     "nextcloud": ["nextcloud_add_participant", "nextcloud_add_user_to_group", "nextcloud_create_conversation",
                   "nextcloud_create_folder", "nextcloud_create_note", "nextcloud_create_user",
                   "nextcloud_delete_file", "nextcloud_delete_note", "nextcloud_delete_user",
@@ -73,6 +95,10 @@ TOOL_CATEGORIES = {
     "n8n": ["n8n_activate_workflow", "n8n_create_scheduled_workflow", "n8n_create_webhook_slack_workflow",
             "n8n_create_workflow", "n8n_deactivate_workflow", "n8n_delete_workflow",
             "n8n_execute_workflow", "n8n_get_executions", "n8n_get_workflow", "n8n_list_workflows"],
+    "firecrawl": [
+        "scrape_url", "crawl_website", "search_and_scrape", "extract_structured_data",
+        "scrape_to_knowledge", "crawl_to_knowledge", "get_crawl_status",
+    ],
     "radio": [
         # Basic info
         "radio_list_stations", "radio_now_playing", "radio_song_history", "radio_queue", "radio_listeners",
@@ -138,16 +164,34 @@ CATEGORY_KEYWORDS = {
               "lumabot", "luma bot", "support@loovacast", "mjohnson", "info@rucktalk", "info@loovacast", "info@groundrush",
               "trash", "delete email", "mark read", "mark unread"],
     "calendar": ["calendar", "schedule", "meeting", "event", "appointment", "book"],
+    "sms": ["sms", "text", "text message", "send text", "call", "phone call", "make a call",
+            "call him", "call her", "call them", "text him", "text her", "text them",
+            "twilio", "voicemail", "phone"],
     "crm": ["crm", "contact", "person", "company", "opportunity", "deal", "lead", "customer", "client"],
     "memory": ["remember", "recall", "knowledge", "what did", "what was", "forget",
                 "wife", "husband", "birthday", "favorite", "prefer", "my name", "who is", "who am"],
     "server": ["server", "status", "reboot", "restart", "ssh"],
     "stripe": ["stripe", "payment", "invoice", "subscription", "charge", "refund", "billing", "revenue"],
+    "wordpress": [
+        "wordpress", "wp", "website", "blog", "post", "page", "seo", "rankmath",
+        "plugin", "theme", "elementor", "groundrush", "loovacast", "rucktalk",
+        "nightlife", "lumabot", "myhandscarwash", "car wash site", "media library",
+        # Design keywords
+        "design", "landing page", "hero section", "features section", "cta", "call to action",
+        "testimonials", "pricing", "faq", "contact form", "team section", "stats",
+        "build page", "create page", "design page", "layout", "section", "widget",
+        # Tracking keywords
+        "pixel", "meta pixel", "facebook pixel", "tracking", "conversion tracking",
+        "fix pixel", "pixel not working", "no conversions", "tracking code", "snippet",
+    ],
     "nextcloud": ["nextcloud", "next cloud", "cloud storage", "nextcloud file",
                   "talk conversation", "talk chat", "my notes", "eswar", "donjuan"],
     "n8n": ["n8n", "workflow", "automation", "automate"],
     "radio": ["radio", "station", "playing", "song", "music", "playlist", "listener", "stream", "dj", "broadcast",
               "azuracast", "streamer", "mount", "webhook", "skip", "queue", "request", "upload song", "media library"],
+    "firecrawl": ["scrape", "crawl", "web scrape", "website content", "extract data", "google search",
+                  "search and scrape", "learn from website", "add to knowledge", "read website",
+                  "get webpage", "fetch url", "research topic", "scrape google"],
     "drive": ["drive", "google drive", "upload file", "download file", "my files", "share file"],
     "docs": ["doc", "document", "google doc", "write document", "create document"],
     "sheets": ["sheet", "spreadsheet", "google sheet", "excel", "csv", "row", "cell", "column"],
