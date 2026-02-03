@@ -1,0 +1,16 @@
+[Unit]
+Description=Alfred WhatsApp Bot
+After=network.target alfred.service
+Wants=alfred.service
+
+[Service]
+Type=simple
+User=aialfred
+WorkingDirectory=/home/aialfred/alfred/interfaces/whatsapp
+EnvironmentFile=/home/aialfred/alfred/config/.env
+ExecStart=/home/aialfred/.nvm/versions/node/v20.12.2/bin/node bot.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

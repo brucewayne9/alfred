@@ -1,12 +1,18 @@
-"""LLM Router - routes requests to Claude API, local Ollama, or Claude Code CLI.
-Supports native tool calling via Claude API for reliable tool execution.
-Complex queries hand off to Claude Code CLI (uses Max subscription, no API costs)."""
+"""LLM Router - intelligent multi-model routing for Alfred.
+
+Routes requests to the optimal model based on task type:
+- Local Ollama (RTX 4070): Embeddings, fast classification, simple tasks
+- Ollama Cloud: Code generation, reasoning, analysis
+- Claude API: Tool calling, orchestration, high-quality responses
+- Claude Code CLI: Complex multi-step tasks (Max subscription)
+"""
 
 import asyncio
 import json
 import logging
 import re
 import shutil
+from datetime import datetime
 from enum import Enum
 from typing import AsyncGenerator
 
@@ -15,6 +21,11 @@ import ollama as ollama_client
 
 from config.settings import settings
 from core.tools.registry import get_tools_prompt, parse_tool_call, execute_tool, get_tools, _tools
+import core.tools.definitions  # Import to register tools via @tool decorators
+from core.brain.models import (
+    ModelProvider, TaskType, ModelConfig, MODELS,
+    detect_task_type, select_model, get_model_for_query,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +63,50 @@ def get_memory_context(query: str) -> str:
     except Exception as e:
         logger.debug(f"Memory context retrieval failed: {e}")
         return ""
+
+
+async def get_knowledge_context(query: str) -> str:
+    """Get relevant context from LightRAG knowledge graph.
+
+    This provides deeper knowledge beyond simple memories.
+    """
+    try:
+        from integrations.lightrag.client import get_knowledge_context as lightrag_context, is_configured
+        if not is_configured():
+            return ""
+        context = await lightrag_context(query, top_k=3)
+        if context:
+            return f"\nRelevant knowledge:\n{context}"
+        return ""
+    except Exception as e:
+        logger.debug(f"Knowledge context retrieval failed: {e}")
+        return ""
+
+
+def get_full_context(query: str) -> str:
+    """Get combined memory and knowledge context.
+
+    Synchronous wrapper that runs async knowledge retrieval.
+    """
+    import asyncio
+
+    memory = get_memory_context(query)
+
+    # Try to get knowledge context (async)
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Already in async context - create task
+            knowledge = ""  # Skip in sync context
+        else:
+            knowledge = loop.run_until_complete(get_knowledge_context(query))
+    except RuntimeError:
+        # No event loop - create one
+        knowledge = asyncio.run(get_knowledge_context(query))
+    except Exception:
+        knowledge = ""
+
+    return memory + knowledge
 
 
 class ModelTier(str, Enum):
@@ -97,6 +152,19 @@ META_ADS_TRIGGERS = [
     "budget", "underperform", "ads manager",
 ]
 
+# Nextcloud queries also go to Claude API for reliable tool calling
+NEXTCLOUD_TRIGGERS = [
+    "nextcloud", "next cloud", "cloud storage", "upload to cloud",
+    "upload file", "upload image", "save to nextcloud",
+]
+
+# Email queries go to Claude API for reliable tool calling with multiple accounts
+EMAIL_TRIGGERS = [
+    "lumabot", "luma bot", "rucktalk", "ruck talk", "loovacast", "groundrush info",
+    "info@rucktalk", "info@loovacast", "info@groundrush", "support@loovacast",
+    "check my inbox", "check inbox", "email inbox", "unread email",
+]
+
 # Short follow-up phrases that should stay on the same tier as previous message
 FOLLOWUP_PHRASES = [
     "yes", "no", "yeah", "yep", "nope", "ok", "okay", "sure", "do it",
@@ -124,6 +192,12 @@ def classify_query(query: str, session_id: str = None) -> ModelTier:
         tier = ModelTier.CLAUDE_CODE
     # Meta Ads queries go to Claude API (native tool calling is more reliable)
     elif any(trigger in query_lower for trigger in META_ADS_TRIGGERS):
+        tier = ModelTier.CLOUD
+    # Nextcloud queries go to Claude API for reliable tool calling
+    elif any(trigger in query_lower for trigger in NEXTCLOUD_TRIGGERS):
+        tier = ModelTier.CLOUD
+    # Email queries (multi-account) go to Claude API for reliable tool calling
+    elif any(trigger in query_lower for trigger in EMAIL_TRIGGERS):
         tier = ModelTier.CLOUD
     # Other tool-related queries stay LOCAL
     elif any(trigger in query_lower for trigger in TOOL_TRIGGERS):
@@ -153,7 +227,7 @@ def get_system_prompt(query: str = None) -> str:
     tools_section = get_tools_prompt(query)
     memory_section = get_memory_context(query) if query else ""
 
-    prompt = SYSTEM_PROMPT_BASE
+    prompt = f"Current date and time: {get_current_datetime_str()}\n\n{SYSTEM_PROMPT_BASE}"
     if memory_section:
         prompt += "\n\n" + memory_section
     if tools_section:
@@ -176,6 +250,153 @@ async def stream_local(messages: list[dict], model: str | None = None) -> AsyncG
         content = chunk["message"]["content"]
         if content:
             yield content
+
+
+async def query_ollama_model(
+    messages: list[dict],
+    model_config: ModelConfig,
+    stream: bool = False
+) -> str | AsyncGenerator[str, None]:
+    """Query any Ollama model (local or cloud) based on ModelConfig.
+
+    Ollama cloud models are accessed the same way as local - Ollama
+    handles the routing transparently based on the model name.
+    """
+    model_name = model_config.name
+    provider = model_config.provider
+
+    logger.info(f"Querying {provider.value} model: {model_name}")
+
+    if stream:
+        async def _stream():
+            ollama_stream = ollama_client.chat(model=model_name, messages=messages, stream=True)
+            for chunk in ollama_stream:
+                content = chunk["message"]["content"]
+                if content:
+                    yield content
+        return _stream()
+
+    response = ollama_client.chat(model=model_name, messages=messages)
+    return response["message"]["content"]
+
+
+async def query_smart(
+    query: str,
+    messages: list[dict] | None = None,
+    has_image: bool = False,
+    has_document: bool = False,
+    force_model: str = None,
+    stream: bool = False,
+) -> dict:
+    """Smart query routing - selects optimal model based on task type.
+
+    This is the new intelligent router that picks the best model for each task.
+
+    Args:
+        query: The user's query
+        messages: Conversation history
+        has_image: Whether an image is attached
+        has_document: Whether a document is attached
+        force_model: Force a specific model ID (e.g., "cloud:deepseek-v3.1")
+        stream: Whether to stream the response
+
+    Returns:
+        dict with {response, model_used, task_type, images, ui_action}
+    """
+    # Detect task and select model
+    model_config, task_type = get_model_for_query(
+        query, has_image, has_document, force_model
+    )
+
+    logger.info(f"Smart routing: {task_type.value} → {model_config.name} ({model_config.provider.value})")
+
+    # Build messages if not provided
+    if messages is None:
+        messages = [
+            {"role": "system", "content": get_system_prompt(query)},
+            {"role": "user", "content": query},
+        ]
+
+    # Route to appropriate backend
+    if model_config.provider == ModelProvider.CLAUDE_CODE:
+        result = await query_claude_code(query)
+        if isinstance(result, str):
+            result = {"response": result}
+        result["model_used"] = model_config.name
+        result["task_type"] = task_type.value
+        return result
+
+    if model_config.provider == ModelProvider.CLAUDE:
+        # Use Claude API with tool calling
+        result = await query_claude_tools(query, messages)
+        if isinstance(result, str):
+            result = {"response": result}
+        result["model_used"] = model_config.name
+        result["task_type"] = task_type.value
+        return result
+
+    # Local or Ollama Cloud - both use ollama_client
+    if messages and messages[0]["role"] == "system":
+        messages[0]["content"] = get_system_prompt(query)
+
+    if stream:
+        return {
+            "stream": await query_ollama_model(messages, model_config, stream=True),
+            "model_used": model_config.name,
+            "task_type": task_type.value,
+        }
+
+    # Non-streaming with tool support
+    response = await query_ollama_model(messages, model_config)
+    generated_images = []
+    ui_action = None
+
+    # Check if LLM wants to call a tool
+    tool_call = parse_tool_call(response)
+    if tool_call:
+        tool_name, tool_args = tool_call
+        logger.info(f"LLM requested tool: {tool_name}")
+        tool_result = await execute_tool(tool_name, tool_args)
+
+        # Handle UI actions
+        if isinstance(tool_result, dict) and tool_result.get("ui_action"):
+            ui_action = {
+                "action": tool_result["ui_action"],
+                "value": tool_result.get("value"),
+            }
+            response = tool_result.get("message", "Done.")
+        # Handle image generation
+        elif tool_name == "generate_image" and tool_result.get("success") and tool_result.get("base64"):
+            generated_images.append({
+                "base64": tool_result["base64"],
+                "filename": tool_result.get("filename", "generated.png"),
+                "download_url": tool_result.get("download_url", ""),
+            })
+            tool_result_for_llm = {k: v for k, v in tool_result.items() if k != "base64"}
+            messages.append({"role": "assistant", "content": response})
+            messages.append({
+                "role": "user",
+                "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result_for_llm, indent=2, default=str)}\n```\nProvide a natural language response.",
+            })
+            response = await query_ollama_model(messages, model_config)
+        else:
+            # Feed tool result back for final response
+            messages.append({"role": "assistant", "content": response})
+            messages.append({
+                "role": "user",
+                "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result, indent=2, default=str)}\n```\nProvide a natural language response.",
+            })
+            response = await query_ollama_model(messages, model_config)
+
+    response = _strip_tool_json(response)
+
+    return {
+        "response": response,
+        "model_used": model_config.name,
+        "task_type": task_type.value,
+        "images": generated_images if generated_images else None,
+        "ui_action": ui_action,
+    }
 
 
 async def query_claude_vision(query: str, image_data: str, media_type: str = "image/jpeg") -> str:
@@ -277,14 +498,13 @@ async def query_claude_tools(query: str, messages: list[dict] | None = None) -> 
             {"role": "user", "content": query},
         ])
 
-    logger.info(f"Querying Claude API with tools: {query[:100]}...")
-
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     tools = _get_anthropic_tools(query)
+    logger.info(f"Querying Claude API with {len(tools)} tools: {query[:100]}...")
 
     # Build messages for Claude (without system role in messages)
     memory_context = get_memory_context(query)
-    system_content = SYSTEM_PROMPT_BASE
+    system_content = f"Current date and time: {get_current_datetime_str()}\n\n{SYSTEM_PROMPT_BASE}"
     if memory_context:
         system_content += "\n\n" + memory_context
 
@@ -305,13 +525,17 @@ async def query_claude_tools(query: str, messages: list[dict] | None = None) -> 
 
     for iteration in range(max_iterations):
         try:
-            response = client.messages.create(
-                model=settings.anthropic_model,
-                max_tokens=4096,
-                system=system_content,
-                tools=tools if tools else None,
-                messages=claude_messages,
-            )
+            # Build API call params - only include tools if we have them
+            api_params = {
+                "model": settings.anthropic_model,
+                "max_tokens": 4096,
+                "system": system_content,
+                "messages": claude_messages,
+            }
+            if tools:  # Only add tools parameter if we have tools
+                api_params["tools"] = tools
+
+            response = client.messages.create(**api_params)
         except Exception as e:
             logger.error(f"Claude API error: {e}")
             return {"response": f"I encountered an error: {e}", "images": None, "ui_action": None}
@@ -440,11 +664,32 @@ async def ask(
     messages: list[dict] | None = None,
     tier: ModelTier | None = None,
     stream: bool = False,
+    smart_routing: bool = False,
+    has_image: bool = False,
+    has_document: bool = False,
+    force_model: str = None,
 ):
     """Main entry point - ask Alfred a question.
 
     Routes to Claude API (with tools), local Ollama, or Claude Code CLI.
+
+    Args:
+        query: The user's query
+        messages: Conversation history
+        tier: Force a specific tier (legacy mode)
+        stream: Stream the response
+        smart_routing: Use intelligent model selection (new mode)
+        has_image: Image attached (for smart routing)
+        has_document: Document attached (for smart routing)
+        force_model: Force specific model ID (for smart routing)
     """
+    # New smart routing mode
+    if smart_routing or force_model:
+        return await query_smart(
+            query, messages, has_image, has_document, force_model, stream
+        )
+
+    # Legacy tier-based routing
     tier = tier or classify_query(query)
     logger.info(f"Routing to {tier.value}")
 
@@ -544,6 +789,11 @@ def _strip_tool_json(text: str) -> str:
     return text.strip()
 
 
+def get_current_datetime_str():
+    """Get current date/time string for system prompt."""
+    now = datetime.now()
+    return now.strftime("%A, %B %d, %Y at %I:%M %p")
+
 SYSTEM_PROMPT_BASE = """You are Alfred, a personal AI assistant for Mike Johnson, owner of GrondRush Inc | GroundRush Labs.
 
 Your role:
@@ -573,6 +823,11 @@ IMPORTANT - Memory instructions:
 - When the user says "remember" followed by personal information (names, preferences, dates), you MUST use the "remember" tool to store it.
 - Categories: "personal" for family/preferences, "business" for work, "financial" for money matters, "general" for everything else.
 - Example: "Remember my wife's name is Sarah" → use remember tool with text="Wife's name is Sarah" and category="personal"
+
+IMPORTANT - Email defaults:
+- When sending email without a specified account, use the DEFAULT Google account (send_email tool) which sends from Mike's groundrushinc.com address.
+- Only use the other email accounts (email_send tool) when Mike specifically asks to send from: rucktalk, loovacast, lumabot, support, groundrush, or groundrush info.
+- Available accounts: groundrush (mjohnson@groundrushlabs.com), rucktalk (info@rucktalk.com), loovacast (info@loovacast.com), lumabot (lumabot@groundrushlabs.com), support (support@loovacast.com), groundrush info (info@groundrushlabs.com).
 
 Be concise, helpful, and proactive. Address Mike as "sir" or by name.
 When you don't know something, say so. When you need more information, ask.

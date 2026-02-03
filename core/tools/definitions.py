@@ -45,6 +45,126 @@ def unread_email_count() -> dict:
     return {"unread": get_unread_count()}
 
 
+# ==================== MULTI-ACCOUNT EMAIL (IMAP/SMTP) ====================
+
+@tool(
+    name="email_list_accounts",
+    description="List all configured email accounts (Groundrush Labs, Ruck Talk, LoovaCast).",
+    parameters={},
+)
+def email_list_accounts() -> dict:
+    from integrations.email.client import email_client
+    return email_client.list_accounts()
+
+
+@tool(
+    name="email_inbox",
+    description="Get recent emails from a specific account's inbox. Accounts: groundrush, rucktalk, loovacast, lumabot, support, groundrush info.",
+    parameters={
+        "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
+        "limit": {"type": "integer", "description": "Max emails to return (default 10)"},
+    },
+)
+def email_inbox(account: str, limit: int = 10) -> dict:
+    from integrations.email.client import email_client
+    return email_client.get_inbox(account, limit)
+
+
+@tool(
+    name="email_read",
+    description="Read the full content of an email by ID from a specific account.",
+    parameters={
+        "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
+        "message_id": {"type": "string", "description": "The email message ID", "required": True},
+    },
+)
+def email_read(account: str, message_id: str) -> dict:
+    from integrations.email.client import email_client
+    return email_client.read_email(account, message_id)
+
+
+@tool(
+    name="email_send",
+    description="Send an email from a specific account. Accounts: groundrush (mjohnson@), rucktalk (info@rucktalk), loovacast (info@loovacast), lumabot, support (support@loovacast), groundrush info (info@groundrushlabs).",
+    parameters={
+        "account": {"type": "string", "description": "Account to send from: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
+        "to": {"type": "string", "description": "Recipient email address", "required": True},
+        "subject": {"type": "string", "description": "Email subject", "required": True},
+        "body": {"type": "string", "description": "Email body text", "required": True},
+    },
+)
+def email_send(account: str, to: str, subject: str, body: str) -> dict:
+    from integrations.email.client import email_client
+    return email_client.send_email(account, to, subject, body)
+
+
+@tool(
+    name="email_search",
+    description="Search emails in a specific account by keyword.",
+    parameters={
+        "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
+        "query": {"type": "string", "description": "Search keyword", "required": True},
+        "limit": {"type": "integer", "description": "Max results (default 10)"},
+    },
+)
+def email_search(account: str, query: str, limit: int = 10) -> dict:
+    from integrations.email.client import email_client
+    return email_client.search_emails(account, query, limit)
+
+
+@tool(
+    name="email_unread",
+    description="Get unread email count for a specific account or all accounts.",
+    parameters={
+        "account": {"type": "string", "description": "Account name (optional - omit to get all accounts)"},
+    },
+)
+def email_unread(account: str = None) -> dict:
+    from integrations.email.client import email_client
+    if account:
+        return email_client.get_unread_count(account)
+    return email_client.get_all_unread_counts()
+
+
+@tool(
+    name="email_trash",
+    description="Move an email to trash. Requires the message ID from email_inbox or email_read.",
+    parameters={
+        "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
+        "message_id": {"type": "string", "description": "The email message ID to trash", "required": True},
+    },
+)
+def email_trash(account: str, message_id: str) -> dict:
+    from integrations.email.client import email_client
+    return email_client.trash_email(account, message_id)
+
+
+@tool(
+    name="email_mark_read",
+    description="Mark an email as read.",
+    parameters={
+        "account": {"type": "string", "description": "Account name", "required": True},
+        "message_id": {"type": "string", "description": "The email message ID", "required": True},
+    },
+)
+def email_mark_read(account: str, message_id: str) -> dict:
+    from integrations.email.client import email_client
+    return email_client.mark_read(account, message_id)
+
+
+@tool(
+    name="email_mark_unread",
+    description="Mark an email as unread.",
+    parameters={
+        "account": {"type": "string", "description": "Account name", "required": True},
+        "message_id": {"type": "string", "description": "The email message ID", "required": True},
+    },
+)
+def email_mark_unread(account: str, message_id: str) -> dict:
+    from integrations.email.client import email_client
+    return email_client.mark_unread(account, message_id)
+
+
 # ==================== CALENDAR TOOLS ====================
 
 @tool(
@@ -1072,12 +1192,45 @@ def nextcloud_read_file(path: str) -> dict:
 
 @tool(
     name="nextcloud_upload_file",
-    description="Upload or create a file in Nextcloud.",
-    parameters={"path": "string - destination path", "content": "string - file content"},
+    description="Upload or create a text file in Nextcloud.",
+    parameters={"path": "string - destination path in Nextcloud", "content": "string - file content (text)"},
 )
 def nextcloud_upload_file(path: str, content: str) -> dict:
     from integrations.nextcloud.client import upload_file
     return upload_file(path, content)
+
+
+@tool(
+    name="nextcloud_upload_attached_file",
+    description="Upload an attached file to Nextcloud. The local_file_path is provided in the message context. IMPORTANT: If user doesn't specify a folder, ASK them where they want the file uploaded before calling this tool. Common folders: /Photos, /Documents, /Ruck Talk, /Projects.",
+    parameters={
+        "local_file_path": "string - the local server path of the attached file (from context)",
+        "destination_path": "string - FULL path in Nextcloud including filename (e.g., '/Ruck Talk/image.png', '/Photos/vacation.jpg'). Ask user if not specified.",
+    },
+)
+def nextcloud_upload_attached_file(local_file_path: str, destination_path: str) -> dict:
+    """Upload a local file to Nextcloud."""
+    import mimetypes
+    from pathlib import Path
+    from integrations.nextcloud.client import upload_file
+
+    try:
+        file_path = Path(local_file_path)
+        if not file_path.exists():
+            return {"error": f"File not found: {local_file_path}"}
+
+        # Read the file
+        file_bytes = file_path.read_bytes()
+
+        # Determine content type
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        if not content_type:
+            content_type = "application/octet-stream"
+
+        result = upload_file(destination_path, file_bytes, content_type)
+        return result
+    except Exception as e:
+        return {"error": f"Upload failed: {str(e)}"}
 
 
 @tool(
@@ -2659,6 +2812,237 @@ def meta_ads_update_ad_set_budget(ad_set_id: str, daily_budget: float = None, li
 def meta_ads_update_campaign_budget(campaign_id: str, daily_budget: float = None, lifetime_budget: float = None) -> dict:
     from integrations.meta_ads.client import update_campaign_budget
     return update_campaign_budget(campaign_id, daily_budget, lifetime_budget)
+
+
+# ==================== GOOGLE ANALYTICS ====================
+
+@tool(
+    name="ga_list_properties",
+    description="List all configured Google Analytics properties.",
+    parameters={},
+)
+def ga_list_properties() -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.list_properties()
+
+
+@tool(
+    name="ga_traffic_summary",
+    description="Get traffic summary for a Google Analytics property (users, sessions, page views, bounce rate).",
+    parameters={
+        "property_name": {"type": "string", "description": "Property name or ID (e.g., 'LensSniper', 'LoovaCast', 'Rod Wave')", "required": True},
+        "period": {"type": "string", "description": "Time period: today, yesterday, last_7_days, last_30_days, last_90_days (default: last_7_days)"},
+    },
+)
+def ga_traffic_summary(property_name: str, period: str = "last_7_days") -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.get_traffic_summary(property_name, period)
+
+
+@tool(
+    name="ga_realtime",
+    description="Get real-time active users for a property right now.",
+    parameters={
+        "property_name": {"type": "string", "description": "Property name or ID", "required": True},
+    },
+)
+def ga_realtime(property_name: str) -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.get_realtime(property_name)
+
+
+@tool(
+    name="ga_traffic_sources",
+    description="Get traffic sources breakdown (where visitors come from).",
+    parameters={
+        "property_name": {"type": "string", "description": "Property name or ID", "required": True},
+        "period": {"type": "string", "description": "Time period (default: last_7_days)"},
+        "limit": {"type": "integer", "description": "Max number of sources (default: 10)"},
+    },
+)
+def ga_traffic_sources(property_name: str, period: str = "last_7_days", limit: int = 10) -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.get_traffic_sources(property_name, period, limit)
+
+
+@tool(
+    name="ga_top_pages",
+    description="Get top pages by views.",
+    parameters={
+        "property_name": {"type": "string", "description": "Property name or ID", "required": True},
+        "period": {"type": "string", "description": "Time period (default: last_7_days)"},
+        "limit": {"type": "integer", "description": "Max number of pages (default: 10)"},
+    },
+)
+def ga_top_pages(property_name: str, period: str = "last_7_days", limit: int = 10) -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.get_top_pages(property_name, period, limit)
+
+
+@tool(
+    name="ga_devices",
+    description="Get device breakdown (mobile, desktop, tablet).",
+    parameters={
+        "property_name": {"type": "string", "description": "Property name or ID", "required": True},
+        "period": {"type": "string", "description": "Time period (default: last_7_days)"},
+    },
+)
+def ga_devices(property_name: str, period: str = "last_7_days") -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.get_devices(property_name, period)
+
+
+@tool(
+    name="ga_countries",
+    description="Get geographic breakdown by country.",
+    parameters={
+        "property_name": {"type": "string", "description": "Property name or ID", "required": True},
+        "period": {"type": "string", "description": "Time period (default: last_7_days)"},
+        "limit": {"type": "integer", "description": "Max number of countries (default: 10)"},
+    },
+)
+def ga_countries(property_name: str, period: str = "last_7_days", limit: int = 10) -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.get_countries(property_name, period, limit)
+
+
+@tool(
+    name="ga_daily_traffic",
+    description="Get daily traffic breakdown over time.",
+    parameters={
+        "property_name": {"type": "string", "description": "Property name or ID", "required": True},
+        "period": {"type": "string", "description": "Time period (default: last_30_days)"},
+    },
+)
+def ga_daily_traffic(property_name: str, period: str = "last_30_days") -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.get_daily_traffic(property_name, period)
+
+
+@tool(
+    name="ga_all_properties",
+    description="Get traffic summary for ALL configured properties at once.",
+    parameters={
+        "period": {"type": "string", "description": "Time period (default: last_7_days)"},
+    },
+)
+def ga_all_properties(period: str = "last_7_days") -> dict:
+    from integrations.google_analytics.client import ga_client
+    return ga_client.get_all_properties_summary(period)
+
+
+# ==================== Agent Orchestration Tools ====================
+
+@tool(
+    name="spawn_agent",
+    description="Spawn a specialized agent to work on a task. Use this to delegate work to specialist agents (coder, researcher, analyst, writer, planner). Returns a task ID to track progress.",
+    parameters={
+        "goal": {"type": "string", "description": "What the agent should accomplish"},
+        "agent_type": {"type": "string", "description": "Type: coder, researcher, analyst, writer, planner, executor, general"},
+        "context": {"type": "string", "description": "Additional context to help the agent (optional)"},
+    },
+)
+async def spawn_agent_tool(goal: str, agent_type: str = "general", context: str = "") -> dict:
+    from core.orchestration.agents import get_agent_pool, AgentType
+
+    try:
+        atype = AgentType(agent_type)
+    except ValueError:
+        atype = AgentType.GENERAL
+
+    pool = get_agent_pool()
+    task_id = await pool.spawn_agent(goal, atype, context)
+    return {
+        "success": True,
+        "task_id": task_id,
+        "agent_type": atype.value,
+        "message": f"Spawned {atype.value} agent. Task ID: {task_id}",
+    }
+
+
+@tool(
+    name="check_agent_task",
+    description="Check the status of a spawned agent task. Use this to see if an agent has completed its work.",
+    parameters={
+        "task_id": {"type": "string", "description": "The task ID returned from spawn_agent"},
+        "wait": {"type": "boolean", "description": "Wait for completion (default: false)"},
+    },
+)
+async def check_agent_task(task_id: str, wait: bool = False) -> dict:
+    from core.orchestration.agents import get_agent_pool
+
+    pool = get_agent_pool()
+    result = await pool.get_task_result(task_id, wait=wait, timeout=30)
+    if result:
+        return {"success": True, "task": result}
+    return {"success": False, "error": "Task not found"}
+
+
+@tool(
+    name="list_agent_tasks",
+    description="List all agent tasks and their status. Use to see what agents are working on.",
+    parameters={
+        "status": {"type": "string", "description": "Filter by status: pending, running, completed, failed (optional)"},
+    },
+)
+async def list_agent_tasks(status: str = None) -> dict:
+    from core.orchestration.agents import get_agent_pool, AgentStatus
+
+    pool = get_agent_pool()
+    status_filter = AgentStatus(status) if status else None
+    tasks = pool.list_tasks(status_filter)
+    return {"success": True, "tasks": tasks, "count": len(tasks)}
+
+
+@tool(
+    name="cancel_agent_task",
+    description="Cancel a pending or running agent task.",
+    parameters={
+        "task_id": {"type": "string", "description": "The task ID to cancel"},
+    },
+)
+async def cancel_agent_task(task_id: str) -> dict:
+    from core.orchestration.agents import get_agent_pool
+
+    pool = get_agent_pool()
+    cancelled = await pool.cancel_task(task_id)
+    return {
+        "success": cancelled,
+        "message": "Task cancelled" if cancelled else "Task could not be cancelled",
+    }
+
+
+# ==================== Daily Briefing ====================
+
+@tool(
+    name="daily_briefing",
+    description="Generate a personalized daily briefing with calendar events, emails, CRM tasks, server status, revenue, and weather. Use this when the user asks for their morning briefing or wants a summary of their day.",
+    parameters={
+        "include_weather": {"type": "boolean", "description": "Include weather forecast (default: true)"},
+        "weather_location": {"type": "string", "description": "Location for weather (default: Atlanta, GA)"},
+    },
+)
+async def daily_briefing_tool(
+    include_weather: bool = True,
+    weather_location: str = "Atlanta, GA",
+) -> dict:
+    from core.briefing.daily import generate_briefing
+
+    briefing = await generate_briefing(
+        include_weather=include_weather,
+        weather_location=weather_location,
+    )
+    return briefing.to_dict()
+
+
+@tool(
+    name="quick_briefing",
+    description="Generate a quick text briefing suitable for voice output. Use when user wants a spoken summary of their day.",
+    parameters={},
+)
+async def quick_briefing_tool() -> str:
+    from core.briefing.daily import generate_quick_briefing
+    return await generate_quick_briefing()
 
 
 def register_all():

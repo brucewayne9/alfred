@@ -1,0 +1,17 @@
+[Unit]
+Description=Alfred Telegram Bot
+After=network.target alfred.service
+Wants=alfred.service
+
+[Service]
+Type=simple
+User=aialfred
+WorkingDirectory=/home/aialfred/alfred
+Environment=PYTHONPATH=/home/aialfred/alfred
+EnvironmentFile=/home/aialfred/alfred/config/.env
+ExecStart=/home/aialfred/alfred/venv/bin/python -m interfaces.telegram.bot
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

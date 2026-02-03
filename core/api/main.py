@@ -36,6 +36,11 @@ from core.memory.conversations import (
 from core.security.auth import (
     create_user, verify_user, create_access_token, get_current_user,
     require_auth, setup_initial_user,
+    # 2FA and Passkey functions
+    setup_totp, verify_totp, enable_totp, disable_totp, is_totp_enabled,
+    get_passkey_registration_options, verify_passkey_registration,
+    get_passkey_login_options, verify_passkey_login,
+    list_passkeys, delete_passkey, get_user_auth_methods,
 )
 from core.security.google_oauth import get_auth_url, handle_callback, is_connected
 from config.settings import settings
@@ -75,7 +80,22 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"TTS warmup failed: {e}")
     loop.run_in_executor(None, _warmup_voice)
+    # Initialize agent pool for multi-agent orchestration
+    try:
+        from core.orchestration.agents import initialize_agent_pool
+        await initialize_agent_pool()
+        logger.info("Agent pool initialized with 3 workers")
+    except Exception as e:
+        logger.warning(f"Agent pool initialization failed: {e}")
     yield
+    # Shutdown agent pool
+    try:
+        from core.orchestration.agents import get_agent_pool
+        pool = get_agent_pool()
+        await pool.stop()
+        logger.info("Agent pool stopped")
+    except Exception:
+        pass
     logger.info("Alfred is shutting down...")
 
 
@@ -197,6 +217,26 @@ class ReferenceUpdateRequest(BaseModel):
     content: str | None = None
 
 
+# 2FA and Passkey models
+class TOTPVerifyRequest(BaseModel):
+    code: str
+
+
+class TOTPLoginRequest(BaseModel):
+    username: str
+    code: str
+
+
+class PasskeyCredentialRequest(BaseModel):
+    credential: dict
+    name: str | None = None
+
+
+class PasskeyLoginRequest(BaseModel):
+    credential: dict
+    username: str | None = None
+
+
 class ConversationProjectRequest(BaseModel):
     project_id: str | None = None
 
@@ -225,6 +265,17 @@ async def login(request: Request, req: LoginRequest):
     user = verify_user(req.username, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Check if 2FA is required
+    if user.get("totp_enabled"):
+        # Return partial auth - client needs to provide TOTP code
+        return JSONResponse({
+            "requires_2fa": True,
+            "username": user["username"],
+            "message": "Please enter your 2FA code"
+        })
+
+    # No 2FA - complete login
     token = create_access_token({"sub": user["username"], "role": user["role"]})
     response = JSONResponse({"token": token, "username": user["username"], "role": user["role"]})
     response.set_cookie("alfred_token", token, httponly=True, secure=True, samesite="lax", max_age=86400)
@@ -270,6 +321,144 @@ async def change_password(req: LoginRequest, user: dict = Depends(require_auth))
     users[username]["password_hash"] = pwd_context.hash(req.password)
     _save_users(users)
     return {"message": "Password changed"}
+
+
+# ==================== 2FA (TOTP) ====================
+
+@app.post("/auth/2fa/setup")
+async def totp_setup(user: dict = Depends(require_auth)):
+    """Generate TOTP secret and QR code for setup."""
+    username = user.get("sub", user.get("username"))
+    result = setup_totp(username)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/auth/2fa/verify")
+async def totp_verify(req: TOTPVerifyRequest, user: dict = Depends(require_auth)):
+    """Verify a TOTP code (for testing during setup)."""
+    username = user.get("sub", user.get("username"))
+    if verify_totp(username, req.code):
+        return {"valid": True}
+    raise HTTPException(status_code=400, detail="Invalid code")
+
+
+@app.post("/auth/2fa/enable")
+async def totp_enable(req: TOTPVerifyRequest, user: dict = Depends(require_auth)):
+    """Enable 2FA after verifying the TOTP code."""
+    username = user.get("sub", user.get("username"))
+    result = enable_totp(username, req.code)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/auth/2fa/disable")
+async def totp_disable(req: TOTPVerifyRequest, user: dict = Depends(require_auth)):
+    """Disable 2FA after verifying the TOTP code."""
+    username = user.get("sub", user.get("username"))
+    result = disable_totp(username, req.code)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/auth/2fa/status")
+async def totp_status(user: dict = Depends(require_auth)):
+    """Check if 2FA is enabled for current user."""
+    username = user.get("sub", user.get("username"))
+    return {"enabled": is_totp_enabled(username)}
+
+
+@app.post("/auth/2fa/login")
+@limiter.limit("5/minute")
+async def totp_login(request: Request, req: TOTPLoginRequest):
+    """Complete login with TOTP verification (step 2 of 2FA login)."""
+    if not verify_totp(req.username, req.code):
+        raise HTTPException(status_code=401, detail="Invalid 2FA code")
+    # Get user role for token
+    from core.security.auth import _load_users
+    users = _load_users()
+    user = users.get(req.username)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    # Create full access token
+    token = create_access_token({"sub": req.username, "role": user["role"]})
+    response = JSONResponse({"token": token, "username": req.username, "role": user["role"]})
+    response.set_cookie("alfred_token", token, httponly=True, secure=True, samesite="lax", max_age=86400)
+    return response
+
+
+# ==================== Passkeys (WebAuthn) ====================
+
+@app.post("/auth/passkey/register/begin")
+async def passkey_register_begin(user: dict = Depends(require_auth)):
+    """Start passkey registration."""
+    username = user.get("sub", user.get("username"))
+    result = get_passkey_registration_options(username)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/auth/passkey/register/complete")
+async def passkey_register_complete(req: PasskeyCredentialRequest, user: dict = Depends(require_auth)):
+    """Complete passkey registration."""
+    username = user.get("sub", user.get("username"))
+    if req.name:
+        req.credential["name"] = req.name
+    result = verify_passkey_registration(username, req.credential)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/auth/passkey/login/begin")
+@limiter.limit("10/minute")
+async def passkey_login_begin(request: Request, username: str = None):
+    """Get authentication options for passkey login."""
+    result = get_passkey_login_options(username)
+    return result
+
+
+@app.post("/auth/passkey/login/complete")
+@limiter.limit("5/minute")
+async def passkey_login_complete(request: Request, req: PasskeyLoginRequest):
+    """Complete passkey login."""
+    result = verify_passkey_login(req.credential, req.username)
+    if "error" in result:
+        raise HTTPException(status_code=401, detail=result["error"])
+    # Create access token
+    token = create_access_token({"sub": result["username"], "role": result["role"]})
+    response = JSONResponse({"token": token, "username": result["username"], "role": result["role"]})
+    response.set_cookie("alfred_token", token, httponly=True, secure=True, samesite="lax", max_age=86400)
+    return response
+
+
+@app.get("/auth/passkey/list")
+async def passkey_list(user: dict = Depends(require_auth)):
+    """List all passkeys for current user."""
+    username = user.get("sub", user.get("username"))
+    return {"passkeys": list_passkeys(username)}
+
+
+@app.delete("/auth/passkey/{credential_id}")
+async def passkey_delete(credential_id: str, user: dict = Depends(require_auth)):
+    """Delete a passkey."""
+    username = user.get("sub", user.get("username"))
+    result = delete_passkey(username, credential_id)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/auth/methods")
+async def auth_methods(username: str = None):
+    """Get available auth methods for a user (for login page)."""
+    if not username:
+        return {"exists": False, "totp_enabled": False, "has_passkeys": False}
+    return get_user_auth_methods(username)
 
 
 # ==================== Google OAuth ====================
@@ -351,6 +540,19 @@ async def integration_status(user: dict = Depends(require_auth)):
     except Exception:
         pass
 
+    # Check LightRAG connection
+    lightrag_connected = False
+    lightrag_doc_count = 0
+    try:
+        from integrations.lightrag.client import is_connected as lightrag_is_connected, get_document_status
+        lightrag_connected = await lightrag_is_connected()
+        if lightrag_connected:
+            status = await get_document_status()
+            if status.get("success"):
+                lightrag_doc_count = status.get("status", {}).get("status_counts", {}).get("processed", 0)
+    except Exception:
+        pass
+
     return {
         "google": {
             "connected": google,
@@ -380,6 +582,21 @@ async def integration_status(user: dict = Depends(require_auth)):
             "configured": bool(settings.stripe_api_key),
             "connected": stripe_connected,
             "label": "Stripe Payments",
+        },
+        "lightrag": {
+            "configured": True,  # Always configured via env
+            "connected": lightrag_connected,
+            "document_count": lightrag_doc_count,
+            "label": "LightRAG Knowledge Graph",
+        },
+        "agents": {
+            "active": True,
+            "max_concurrent": 3,
+            "label": "Agent Orchestration",
+        },
+        "learning": {
+            "active": True,
+            "label": "Adaptive Learning",
         },
         "ollama": {
             "model": settings.ollama_model,
@@ -488,6 +705,427 @@ async def set_tts_settings(backend: str, user: dict = Depends(require_auth)):
     settings.tts_model = backend
 
     return {"backend": backend, "message": f"TTS backend set to {backend}"}
+
+
+# ==================== Knowledge Management (LightRAG) ====================
+
+class KnowledgeTextRequest(BaseModel):
+    text: str
+    description: str = ""
+
+
+class KnowledgeQueryRequest(BaseModel):
+    query: str
+    mode: str = "hybrid"  # naive, local, global, hybrid
+    top_k: int = 10
+
+
+@app.get("/knowledge/status")
+async def knowledge_status(user: dict = Depends(require_auth)):
+    """Get LightRAG knowledge base status."""
+    from integrations.lightrag.client import health_check, get_document_status, is_connected
+
+    health = await health_check()
+    if not health.get("healthy"):
+        return {"connected": False, "error": health.get("error")}
+
+    status = await get_document_status()
+    return {
+        "connected": True,
+        "document_counts": status.get("status", {}).get("status_counts", {}),
+        "details": health.get("details", {}).get("configuration", {}),
+    }
+
+
+@app.get("/knowledge/documents")
+async def list_knowledge_documents(
+    limit: int = 20,
+    offset: int = 0,
+    user: dict = Depends(require_auth)
+):
+    """List documents in the knowledge base."""
+    from integrations.lightrag.client import list_documents
+
+    result = await list_documents(limit=limit, offset=offset)
+    if result.get("success"):
+        return result.get("documents", {})
+    raise HTTPException(status_code=500, detail=result.get("error", "Failed to list documents"))
+
+
+@app.post("/knowledge/upload/text")
+async def upload_knowledge_text(req: KnowledgeTextRequest, user: dict = Depends(require_auth)):
+    """Upload text content to the knowledge base."""
+    from integrations.lightrag.client import upload_text
+
+    if not req.text or len(req.text) < 10:
+        raise HTTPException(status_code=400, detail="Text must be at least 10 characters")
+
+    result = await upload_text(req.text, req.description)
+    if result.get("success"):
+        return {"message": "Text uploaded successfully", "result": result.get("result")}
+    raise HTTPException(status_code=500, detail=result.get("error", "Upload failed"))
+
+
+@app.post("/knowledge/upload/file")
+async def upload_knowledge_file(
+    file: UploadFile = File(...),
+    user: dict = Depends(require_auth)
+):
+    """Upload a file to the knowledge base (PDF, TXT, MD, DOCX)."""
+    from integrations.lightrag.client import upload_file
+    import tempfile
+    import os
+
+    # Validate file type
+    allowed_types = [".pdf", ".txt", ".md", ".docx", ".doc"]
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"File type {ext} not supported. Allowed: {allowed_types}")
+
+    # Save to temp file and upload
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        result = await upload_file(tmp_path)
+        if result.get("success"):
+            return {"message": f"File '{file.filename}' uploaded successfully", "result": result.get("result")}
+        raise HTTPException(status_code=500, detail=result.get("error", "Upload failed"))
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.post("/knowledge/query")
+async def query_knowledge(req: KnowledgeQueryRequest, user: dict = Depends(require_auth)):
+    """Query the knowledge base."""
+    from integrations.lightrag.client import query
+
+    result = await query(req.query, mode=req.mode, top_k=req.top_k)
+    if result.get("success"):
+        return result.get("result")
+    raise HTTPException(status_code=500, detail=result.get("error", "Query failed"))
+
+
+@app.get("/knowledge/context")
+async def get_knowledge_context_api(query: str, top_k: int = 5, user: dict = Depends(require_auth)):
+    """Get relevant context for a query (without LLM response)."""
+    from integrations.lightrag.client import query_context
+
+    result = await query_context(query, top_k=top_k)
+    if result.get("success"):
+        return result.get("result")
+    raise HTTPException(status_code=500, detail=result.get("error", "Context retrieval failed"))
+
+
+@app.get("/knowledge/entities")
+async def get_knowledge_entities(limit: int = 20, user: dict = Depends(require_auth)):
+    """Get popular entities from the knowledge graph."""
+    from integrations.lightrag.client import get_popular_entities
+
+    result = await get_popular_entities(limit=limit)
+    if result.get("success"):
+        return result.get("entities")
+    raise HTTPException(status_code=500, detail=result.get("error", "Failed to get entities"))
+
+
+@app.get("/knowledge/search")
+async def search_knowledge_graph(label: str, user: dict = Depends(require_auth)):
+    """Search the knowledge graph for entities matching a label."""
+    from integrations.lightrag.client import search_graph
+
+    result = await search_graph(label)
+    if result.get("success"):
+        return result.get("entities")
+    raise HTTPException(status_code=500, detail=result.get("error", "Search failed"))
+
+
+@app.delete("/knowledge/document/{doc_id}")
+async def delete_knowledge_document(doc_id: str, user: dict = Depends(require_auth)):
+    """Delete a document from the knowledge base."""
+    from integrations.lightrag.client import delete_document
+
+    result = await delete_document(doc_id)
+    if result.get("success"):
+        return {"message": "Document deleted", "result": result.get("result")}
+    raise HTTPException(status_code=500, detail=result.get("error", "Delete failed"))
+
+
+# ==================== Agent Orchestration ====================
+
+class SpawnAgentRequest(BaseModel):
+    goal: str
+    agent_type: str = "general"  # coder, researcher, analyst, writer, planner, executor, general
+    context: str = ""
+    model_override: str | None = None
+
+
+@app.post("/agents/spawn")
+async def spawn_agent(request: SpawnAgentRequest, user: dict = Depends(require_auth)):
+    """Spawn a specialized agent to work on a task."""
+    from core.orchestration.agents import get_agent_pool, AgentType
+
+    pool = get_agent_pool()
+
+    # Map string to AgentType enum
+    agent_type_map = {
+        "coder": AgentType.CODER,
+        "researcher": AgentType.RESEARCHER,
+        "analyst": AgentType.ANALYST,
+        "writer": AgentType.WRITER,
+        "planner": AgentType.PLANNER,
+        "executor": AgentType.EXECUTOR,
+        "general": AgentType.GENERAL,
+    }
+    agent_type = agent_type_map.get(request.agent_type.lower(), AgentType.GENERAL)
+
+    task_id = await pool.spawn_agent(
+        goal=request.goal,
+        agent_type=agent_type,
+        context=request.context,
+        model_override=request.model_override,
+    )
+
+    return {"task_id": task_id, "agent_type": agent_type.value, "status": "pending"}
+
+
+@app.get("/agents/tasks")
+async def list_agent_tasks(status: str | None = None, user: dict = Depends(require_auth)):
+    """List all agent tasks, optionally filtered by status."""
+    from core.orchestration.agents import get_agent_pool, AgentStatus
+
+    pool = get_agent_pool()
+
+    status_filter = None
+    if status:
+        status_map = {
+            "pending": AgentStatus.PENDING,
+            "running": AgentStatus.RUNNING,
+            "completed": AgentStatus.COMPLETED,
+            "failed": AgentStatus.FAILED,
+            "cancelled": AgentStatus.CANCELLED,
+        }
+        status_filter = status_map.get(status.lower())
+
+    tasks = pool.list_tasks(status=status_filter)
+    return {"tasks": tasks, "count": len(tasks)}
+
+
+@app.get("/agents/tasks/{task_id}")
+async def get_agent_task(task_id: str, wait: bool = False, user: dict = Depends(require_auth)):
+    """Get the status and result of an agent task."""
+    from core.orchestration.agents import get_agent_pool
+
+    pool = get_agent_pool()
+    result = await pool.get_task_result(task_id, wait=wait, timeout=30)
+
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+    return result
+
+
+@app.post("/agents/tasks/{task_id}/cancel")
+async def cancel_agent_task(task_id: str, user: dict = Depends(require_auth)):
+    """Cancel a pending or running agent task."""
+    from core.orchestration.agents import get_agent_pool
+
+    pool = get_agent_pool()
+    success = await pool.cancel_task(task_id)
+
+    if success:
+        return {"message": f"Task {task_id} cancelled"}
+    raise HTTPException(status_code=400, detail=f"Could not cancel task {task_id}")
+
+
+@app.get("/agents/pool")
+async def get_agent_pool_status(user: dict = Depends(require_auth)):
+    """Get the agent pool status and active agents."""
+    from core.orchestration.agents import get_agent_pool
+
+    pool = get_agent_pool()
+    agents = pool.list_agents()
+    tasks = pool.list_tasks()
+
+    pending = len([t for t in tasks if t["status"] == "pending"])
+    running = len([t for t in tasks if t["status"] == "running"])
+    completed = len([t for t in tasks if t["status"] == "completed"])
+    failed = len([t for t in tasks if t["status"] == "failed"])
+
+    return {
+        "max_concurrent": pool.max_concurrent,
+        "active_agents": len(agents),
+        "agents": agents,
+        "task_counts": {
+            "pending": pending,
+            "running": running,
+            "completed": completed,
+            "failed": failed,
+            "total": len(tasks),
+        },
+    }
+
+
+# ==================== Daily Briefing ====================
+
+class BriefingRequest(BaseModel):
+    include_calendar: bool = True
+    include_email: bool = True
+    include_crm: bool = True
+    include_servers: bool = True
+    include_revenue: bool = True
+    include_weather: bool = True
+    weather_location: str = "Atlanta, GA"
+
+
+@app.get("/briefing")
+async def get_daily_briefing(
+    include_weather: bool = True,
+    weather_location: str = "Atlanta, GA",
+    user: dict = Depends(require_auth),
+):
+    """Get a personalized daily briefing."""
+    from core.briefing.daily import generate_briefing
+
+    briefing = await generate_briefing(
+        include_weather=include_weather,
+        weather_location=weather_location,
+    )
+    return briefing.to_dict()
+
+
+@app.post("/briefing")
+async def generate_custom_briefing(request: BriefingRequest, user: dict = Depends(require_auth)):
+    """Generate a custom briefing with selected sections."""
+    from core.briefing.daily import generate_briefing
+
+    briefing = await generate_briefing(
+        include_calendar=request.include_calendar,
+        include_email=request.include_email,
+        include_crm=request.include_crm,
+        include_servers=request.include_servers,
+        include_revenue=request.include_revenue,
+        include_weather=request.include_weather,
+        weather_location=request.weather_location,
+    )
+    return briefing.to_dict()
+
+
+@app.get("/briefing/quick")
+async def get_quick_briefing(user: dict = Depends(require_auth)):
+    """Get a quick text briefing suitable for voice output."""
+    from core.briefing.daily import generate_quick_briefing
+
+    text = await generate_quick_briefing()
+    return {"text": text}
+
+
+# ==================== Learning System ====================
+
+class FeedbackRequest(BaseModel):
+    feedback_type: str  # 'positive', 'negative', 'correction'
+    original_response: str = ""
+    correction: str = ""
+    context: str = ""
+    category: str = ""
+    conversation_id: str = ""
+    message_id: str = ""
+
+
+class PreferenceRequest(BaseModel):
+    category: str
+    key: str
+    value: str
+
+
+@app.post("/learning/feedback")
+async def submit_feedback(request: FeedbackRequest, user: dict = Depends(require_auth)):
+    """Submit feedback on Alfred's response."""
+    from core.learning.feedback import record_feedback
+
+    feedback_id = record_feedback(
+        feedback_type=request.feedback_type,
+        original_response=request.original_response,
+        correction=request.correction,
+        context=request.context,
+        category=request.category,
+        conversation_id=request.conversation_id,
+        message_id=request.message_id,
+    )
+    return {"feedback_id": feedback_id, "message": "Feedback recorded. Thank you!"}
+
+
+@app.get("/learning/feedback/stats")
+async def get_feedback_statistics(user: dict = Depends(require_auth)):
+    """Get feedback statistics."""
+    from core.learning.feedback import get_feedback_stats
+    return get_feedback_stats()
+
+
+@app.get("/learning/preferences")
+async def get_all_preferences(category: str = None, user: dict = Depends(require_auth)):
+    """Get user preferences."""
+    from core.learning.preferences import get_preferences
+    return get_preferences(category)
+
+
+@app.put("/learning/preferences")
+async def set_preference(request: PreferenceRequest, user: dict = Depends(require_auth)):
+    """Set a user preference."""
+    from core.learning.preferences import update_preference
+
+    success = update_preference(
+        category=request.category,
+        key=request.key,
+        value=request.value,
+        source="explicit",
+    )
+    return {"success": success, "message": f"Preference {request.category}.{request.key} updated"}
+
+
+@app.get("/learning/patterns")
+async def get_detected_patterns(user: dict = Depends(require_auth)):
+    """Get detected usage patterns."""
+    from core.learning.patterns import detect_patterns, get_pattern_stats
+
+    return {
+        "patterns": detect_patterns(),
+        "stats": get_pattern_stats(),
+    }
+
+
+@app.get("/learning/suggestions")
+async def get_workflow_suggestions_endpoint(user: dict = Depends(require_auth)):
+    """Get pending workflow automation suggestions."""
+    from core.learning.patterns import get_workflow_suggestions
+    return {"suggestions": get_workflow_suggestions()}
+
+
+@app.post("/learning/suggestions/{suggestion_id}")
+async def respond_to_workflow_suggestion(
+    suggestion_id: int,
+    accept: bool,
+    user: dict = Depends(require_auth),
+):
+    """Accept or dismiss a workflow suggestion."""
+    from core.learning.patterns import respond_to_suggestion
+
+    success = respond_to_suggestion(suggestion_id, accept)
+    action = "accepted" if accept else "dismissed"
+    return {"success": success, "message": f"Suggestion {action}"}
+
+
+@app.get("/learning/stats")
+async def get_learning_stats(user: dict = Depends(require_auth)):
+    """Get overall learning system statistics."""
+    from core.learning.feedback import get_feedback_stats
+    from core.learning.patterns import get_pattern_stats
+
+    return {
+        "feedback": get_feedback_stats(),
+        "patterns": get_pattern_stats(),
+    }
 
 
 # Kokoro voice options
@@ -974,22 +1612,36 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
     messages = get_session_messages(req.session_id)
     messages.append({"role": "user", "content": req.message})
 
-    # Handle image vision request
+    # Handle image - check if user wants to upload vs analyze
     if req.image_base64 and req.image_media_type:
-        from core.brain.router import query_claude_vision
-        response = await query_claude_vision(
-            req.message or "Describe this image in detail.",
-            req.image_base64,
-            req.image_media_type
-        )
-        messages.append({"role": "assistant", "content": response})
-        store_conversation(req.message, response, req.session_id)
-        try:
-            add_message(req.session_id, "user", req.message, "cloud")
-            add_message(req.session_id, "assistant", response, "cloud")
-        except Exception as e:
-            logger.warning(f"Failed to persist vision message: {e}")
-        return ChatResponse(response=response, tier="cloud", timestamp=datetime.now().isoformat())
+        msg_lower = (req.message or "").lower()
+        upload_keywords = ["upload", "save", "put", "store", "send to", "nextcloud", "cloud", "drive"]
+        wants_upload = any(kw in msg_lower for kw in upload_keywords)
+
+        if wants_upload and req.image_path:
+            # User wants to upload the file - pass to tool flow with file context
+            # Extract filename from path for suggested destination
+            from pathlib import Path
+            filename = Path(req.image_path).name
+            augmented_msg = f"[Attached file for upload - local_file_path: {req.image_path}, filename: {filename}]\nUser request: {req.message}"
+            messages[-1]["content"] = augmented_msg
+            # Continue to normal tool flow below (don't return here)
+        else:
+            # User wants image analysis - use vision
+            from core.brain.router import query_claude_vision
+            response = await query_claude_vision(
+                req.message or "Describe this image in detail.",
+                req.image_base64,
+                req.image_media_type
+            )
+            messages.append({"role": "assistant", "content": response})
+            store_conversation(req.message, response, req.session_id)
+            try:
+                add_message(req.session_id, "user", req.message, "cloud")
+                add_message(req.session_id, "assistant", response, "cloud")
+            except Exception as e:
+                logger.warning(f"Failed to persist vision message: {e}")
+            return ChatResponse(response=response, tier="cloud", timestamp=datetime.now().isoformat())
 
     # Handle document analysis request
     if req.document_path:
@@ -1966,6 +2618,24 @@ CHAT_HTML = """<!DOCTYPE html>
         .login-box input:focus { border-color: #4a9eff; }
         .login-box button { width: 100%; margin-top: 8px; }
         .login-error { color: #f87171; font-size: 13px; margin-bottom: 8px; }
+        .login-divider {
+            display: flex; align-items: center; margin: 16px 0; color: #666;
+        }
+        .login-divider::before, .login-divider::after {
+            content: ''; flex: 1; border-bottom: 1px solid #333;
+        }
+        .login-divider span { padding: 0 12px; font-size: 12px; }
+        .passkey-btn {
+            background: #1a1a1a; border: 1px solid #333; color: #e0e0e0;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .passkey-btn:hover { background: #2a2a2a; border-color: #4a9eff; }
+        .passkey-btn svg { width: 18px; height: 18px; }
+        .totp-section { display: none; }
+        .totp-section.visible { display: block; }
+        .totp-input { text-align: center; font-size: 24px; letter-spacing: 8px; font-family: monospace; }
+        .login-back { color: #4a9eff; cursor: pointer; font-size: 13px; margin-top: 12px; text-align: center; }
+        .login-back:hover { text-decoration: underline; }
 
         /* Settings panel */
         #settings-panel {
@@ -2270,10 +2940,29 @@ CHAT_HTML = """<!DOCTYPE html>
         <div class="login-box">
             <h2>Alfred</h2>
             <div id="login-error" class="login-error" style="display:none"></div>
-            <input id="login-user" type="text" placeholder="Username" autocomplete="username">
-            <input id="login-pass" type="password" placeholder="Password" autocomplete="current-password"
-                onkeydown="if(event.key==='Enter')doLogin()">
-            <button onclick="doLogin()">Sign In</button>
+
+            <!-- Password login section -->
+            <div id="password-section">
+                <input id="login-user" type="text" placeholder="Username" autocomplete="username">
+                <input id="login-pass" type="password" placeholder="Password" autocomplete="current-password"
+                    onkeydown="if(event.key==='Enter')doLogin()">
+                <button onclick="doLogin()">Sign In</button>
+                <div class="login-divider"><span>or</span></div>
+                <button class="passkey-btn" onclick="doPasskeyLogin()">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                    Sign in with Passkey
+                </button>
+            </div>
+
+            <!-- 2FA code section (hidden by default) -->
+            <div id="totp-section" class="totp-section">
+                <p style="color:#888;font-size:13px;margin-bottom:16px;text-align:center;">Enter your 2FA code from your authenticator app</p>
+                <input id="totp-code" type="text" class="totp-input" placeholder="000000" maxlength="6"
+                    autocomplete="one-time-code" inputmode="numeric"
+                    onkeydown="if(event.key==='Enter')doTOTPLogin()">
+                <button onclick="doTOTPLogin()">Verify</button>
+                <div class="login-back" onclick="backToPassword()">Back to login</div>
+            </div>
         </div>
     </div>
 
@@ -2451,6 +3140,32 @@ CHAT_HTML = """<!DOCTYPE html>
                 <div id="pass-msg" style="font-size:12px;margin-top:6px;display:none"></div>
             </div>
             <button class="header-btn" style="margin-top:12px;width:100%" onclick="doLogout()">Sign Out</button>
+        </div>
+
+        <div class="setting-section">
+            <h3>Security</h3>
+
+            <!-- 2FA Section -->
+            <div style="margin-bottom:16px;padding:12px;background:#1a1a1a;border-radius:8px;border:1px solid #333">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <span style="font-size:14px;color:#e0e0e0">Two-Factor Authentication</span>
+                    <span id="2fa-status" style="font-size:12px;padding:2px 8px;border-radius:4px"></span>
+                </div>
+                <p style="font-size:12px;color:#888;margin-bottom:8px">Add an extra layer of security with TOTP authentication</p>
+                <div id="2fa-setup-area"></div>
+                <button id="2fa-toggle-btn" class="header-btn" style="width:100%" onclick="toggle2FA()">Loading...</button>
+            </div>
+
+            <!-- Passkeys Section -->
+            <div style="padding:12px;background:#1a1a1a;border-radius:8px;border:1px solid #333">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <span style="font-size:14px;color:#e0e0e0">Passkeys</span>
+                    <span id="passkey-count" style="font-size:12px;color:#888"></span>
+                </div>
+                <p style="font-size:12px;color:#888;margin-bottom:8px">Sign in securely with Face ID, Touch ID, or security key</p>
+                <div id="passkeys-list" style="margin-bottom:8px"></div>
+                <button class="header-btn" style="width:100%" onclick="addPasskey()">Add Passkey</button>
+            </div>
         </div>
     </div>
 
@@ -3164,6 +3879,8 @@ CHAT_HTML = """<!DOCTYPE html>
             } catch(e) {}
         })();
 
+        let pendingTOTPUsername = '';
+
         async function doLogin() {
             const user = document.getElementById('login-user').value;
             const pass = document.getElementById('login-pass').value;
@@ -3182,27 +3899,167 @@ CHAT_HTML = """<!DOCTYPE html>
                     return;
                 }
                 const data = await resp.json();
-                authToken = data.token;
-                localStorage.setItem('alfred_token', authToken);
-                document.getElementById('login-overlay').classList.add('hidden');
-                loadIntegrations();
-                initConversations();
-                // Auto-enable Hey Alfred wake word on startup
-                setTimeout(() => {
-                    toggleWakeWord();
-                    // Force menu closed after everything initializes
-                    document.getElementById('history-panel').classList.remove('open');
-                    document.getElementById('history-overlay').classList.remove('open');
-                }, 500);
-                // Extra delayed close in case async operations open it
-                setTimeout(() => {
-                    document.getElementById('history-panel').classList.remove('open');
-                    document.getElementById('history-overlay').classList.remove('open');
-                }, 1200);
+
+                // Check if 2FA is required
+                if (data.requires_2fa) {
+                    pendingTOTPUsername = data.username;
+                    document.getElementById('password-section').style.display = 'none';
+                    document.getElementById('totp-section').classList.add('visible');
+                    document.getElementById('totp-code').focus();
+                    return;
+                }
+
+                completeLogin(data);
             } catch(e) {
                 errEl.textContent = 'Connection error';
                 errEl.style.display = 'block';
             }
+        }
+
+        async function doTOTPLogin() {
+            const code = document.getElementById('totp-code').value.trim();
+            const errEl = document.getElementById('login-error');
+            errEl.style.display = 'none';
+
+            if (code.length !== 6) {
+                errEl.textContent = 'Please enter a 6-digit code';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                const resp = await fetch('/auth/2fa/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: pendingTOTPUsername, code: code})
+                });
+                if (!resp.ok) {
+                    errEl.textContent = 'Invalid 2FA code';
+                    errEl.style.display = 'block';
+                    document.getElementById('totp-code').value = '';
+                    return;
+                }
+                const data = await resp.json();
+                completeLogin(data);
+            } catch(e) {
+                errEl.textContent = 'Connection error';
+                errEl.style.display = 'block';
+            }
+        }
+
+        function backToPassword() {
+            pendingTOTPUsername = '';
+            document.getElementById('totp-section').classList.remove('visible');
+            document.getElementById('password-section').style.display = 'block';
+            document.getElementById('totp-code').value = '';
+            document.getElementById('login-error').style.display = 'none';
+        }
+
+        async function doPasskeyLogin() {
+            const errEl = document.getElementById('login-error');
+            errEl.style.display = 'none';
+
+            if (!window.PublicKeyCredential) {
+                errEl.textContent = 'Passkeys not supported in this browser';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                // Get authentication options from server
+                const optResp = await fetch('/auth/passkey/login/begin', {method: 'POST'});
+                const options = await optResp.json();
+
+                // Decode challenge
+                options.challenge = base64urlToBuffer(options.challenge);
+                if (options.allowCredentials) {
+                    options.allowCredentials = options.allowCredentials.map(c => ({
+                        ...c,
+                        id: base64urlToBuffer(c.id)
+                    }));
+                }
+
+                // Get credential from authenticator
+                const credential = await navigator.credentials.get({publicKey: options});
+
+                // Send to server for verification
+                const credData = {
+                    id: credential.id,
+                    rawId: bufferToBase64url(credential.rawId),
+                    type: credential.type,
+                    response: {
+                        clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                        authenticatorData: bufferToBase64url(credential.response.authenticatorData),
+                        signature: bufferToBase64url(credential.response.signature),
+                        userHandle: credential.response.userHandle ? bufferToBase64url(credential.response.userHandle) : null
+                    }
+                };
+
+                const verifyResp = await fetch('/auth/passkey/login/complete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({credential: credData})
+                });
+
+                if (!verifyResp.ok) {
+                    const err = await verifyResp.json();
+                    errEl.textContent = err.detail || 'Passkey login failed';
+                    errEl.style.display = 'block';
+                    return;
+                }
+
+                const data = await verifyResp.json();
+                completeLogin(data);
+            } catch(e) {
+                if (e.name === 'NotAllowedError') {
+                    errEl.textContent = 'Passkey request cancelled';
+                } else {
+                    errEl.textContent = 'Passkey login failed: ' + e.message;
+                }
+                errEl.style.display = 'block';
+            }
+        }
+
+        function completeLogin(data) {
+            authToken = data.token;
+            localStorage.setItem('alfred_token', authToken);
+            document.getElementById('login-overlay').classList.add('hidden');
+            loadIntegrations();
+            initConversations();
+            // Auto-enable Hey Alfred wake word on startup
+            setTimeout(() => {
+                toggleWakeWord();
+                // Force menu closed after everything initializes
+                document.getElementById('history-panel').classList.remove('open');
+                document.getElementById('history-overlay').classList.remove('open');
+            }, 500);
+            // Extra delayed close in case async operations open it
+            setTimeout(() => {
+                document.getElementById('history-panel').classList.remove('open');
+                document.getElementById('history-overlay').classList.remove('open');
+            }, 1200);
+        }
+
+        // WebAuthn helper functions
+        function base64urlToBuffer(base64url) {
+            const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = base64.length % 4;
+            const padded = pad ? base64 + '='.repeat(4 - pad) : base64;
+            const binary = atob(padded);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function bufferToBase64url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
         }
 
         async function doLogout() {
@@ -3245,6 +4102,230 @@ CHAT_HTML = """<!DOCTYPE html>
         function toggleSettings() {
             document.getElementById('settings-panel').classList.toggle('open');
             document.getElementById('settings-overlay').classList.toggle('open');
+            if (document.getElementById('settings-panel').classList.contains('open')) {
+                loadSecuritySettings();
+            }
+        }
+
+        // ==================== 2FA Management ====================
+        let totpSecret = null;
+
+        async function loadSecuritySettings() {
+            try {
+                // Load 2FA status
+                const resp = await fetch('/auth/2fa/status', {headers: authHeaders()});
+                const data = await resp.json();
+                const statusEl = document.getElementById('2fa-status');
+                const btnEl = document.getElementById('2fa-toggle-btn');
+                const setupEl = document.getElementById('2fa-setup-area');
+
+                if (data.enabled) {
+                    statusEl.textContent = 'Enabled';
+                    statusEl.style.background = '#166534';
+                    statusEl.style.color = '#4ade80';
+                    btnEl.textContent = 'Disable 2FA';
+                    btnEl.onclick = disable2FA;
+                    setupEl.innerHTML = '';
+                } else {
+                    statusEl.textContent = 'Disabled';
+                    statusEl.style.background = '#7f1d1d';
+                    statusEl.style.color = '#f87171';
+                    btnEl.textContent = 'Enable 2FA';
+                    btnEl.onclick = setup2FA;
+                    setupEl.innerHTML = '';
+                }
+
+                // Load passkeys
+                await loadPasskeys();
+            } catch(e) {
+                console.error('Failed to load security settings:', e);
+            }
+        }
+
+        async function setup2FA() {
+            try {
+                const resp = await fetch('/auth/2fa/setup', {
+                    method: 'POST',
+                    headers: authHeaders()
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    alert('Failed to setup 2FA: ' + data.error);
+                    return;
+                }
+                totpSecret = data.secret;
+                const setupEl = document.getElementById('2fa-setup-area');
+                setupEl.innerHTML = `
+                    <div style="text-align:center;margin-bottom:12px">
+                        <img src="${data.qr_code}" alt="QR Code" style="max-width:180px;border-radius:8px;background:#fff;padding:8px">
+                    </div>
+                    <p style="font-size:11px;color:#888;text-align:center;margin-bottom:8px">Scan with your authenticator app</p>
+                    <p style="font-size:10px;color:#666;text-align:center;margin-bottom:12px;word-break:break-all">Secret: ${data.secret}</p>
+                    <input type="text" id="2fa-verify-code" placeholder="Enter 6-digit code" maxlength="6"
+                        style="width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#e0e0e0;font-size:16px;text-align:center;letter-spacing:4px;margin-bottom:8px"
+                        onkeydown="if(event.key==='Enter')verify2FASetup()">
+                `;
+                document.getElementById('2fa-toggle-btn').textContent = 'Verify & Enable';
+                document.getElementById('2fa-toggle-btn').onclick = verify2FASetup;
+            } catch(e) {
+                alert('Error setting up 2FA: ' + e.message);
+            }
+        }
+
+        async function verify2FASetup() {
+            const code = document.getElementById('2fa-verify-code').value.trim();
+            if (code.length !== 6) {
+                alert('Please enter a 6-digit code');
+                return;
+            }
+            try {
+                const resp = await fetch('/auth/2fa/enable', {
+                    method: 'POST',
+                    headers: authHeaders({'Content-Type': 'application/json'}),
+                    body: JSON.stringify({code: code})
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    alert('Invalid code. Please try again.');
+                    return;
+                }
+                alert('2FA enabled successfully!');
+                loadSecuritySettings();
+            } catch(e) {
+                alert('Error enabling 2FA: ' + e.message);
+            }
+        }
+
+        async function disable2FA() {
+            const code = prompt('Enter your 2FA code to disable:');
+            if (!code) return;
+            try {
+                const resp = await fetch('/auth/2fa/disable', {
+                    method: 'POST',
+                    headers: authHeaders({'Content-Type': 'application/json'}),
+                    body: JSON.stringify({code: code})
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    alert('Invalid code. 2FA was not disabled.');
+                    return;
+                }
+                alert('2FA disabled.');
+                loadSecuritySettings();
+            } catch(e) {
+                alert('Error disabling 2FA: ' + e.message);
+            }
+        }
+
+        function toggle2FA() {
+            // Placeholder - replaced by setup2FA or disable2FA
+        }
+
+        // ==================== Passkey Management ====================
+        async function loadPasskeys() {
+            try {
+                const resp = await fetch('/auth/passkey/list', {headers: authHeaders()});
+                const data = await resp.json();
+                const listEl = document.getElementById('passkeys-list');
+                const countEl = document.getElementById('passkey-count');
+
+                countEl.textContent = data.passkeys.length + ' registered';
+
+                if (data.passkeys.length === 0) {
+                    listEl.innerHTML = '<p style="font-size:12px;color:#666;text-align:center;padding:8px">No passkeys registered</p>';
+                } else {
+                    listEl.innerHTML = data.passkeys.map(p => `
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:#0a0a0a;border-radius:6px;margin-bottom:4px">
+                            <div>
+                                <span style="font-size:13px;color:#e0e0e0">${p.name}</span>
+                                <span style="font-size:11px;color:#666;margin-left:8px">${new Date(p.created).toLocaleDateString()}</span>
+                            </div>
+                            <button onclick="deletePasskey('${p.id}')" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:16px" title="Delete">&times;</button>
+                        </div>
+                    `).join('');
+                }
+            } catch(e) {
+                console.error('Failed to load passkeys:', e);
+            }
+        }
+
+        async function addPasskey() {
+            if (!window.PublicKeyCredential) {
+                alert('Passkeys are not supported in this browser');
+                return;
+            }
+
+            const name = prompt('Name this passkey (e.g., "MacBook Touch ID"):', 'My Passkey');
+            if (!name) return;
+
+            try {
+                // Get registration options
+                const optResp = await fetch('/auth/passkey/register/begin', {
+                    method: 'POST',
+                    headers: authHeaders()
+                });
+                const options = await optResp.json();
+                if (options.error) {
+                    alert('Failed to start passkey registration: ' + options.error);
+                    return;
+                }
+
+                // Decode challenge and user ID
+                options.challenge = base64urlToBuffer(options.challenge);
+                options.user.id = base64urlToBuffer(options.user.id);
+
+                // Create credential
+                const credential = await navigator.credentials.create({publicKey: options});
+
+                // Send to server
+                const credData = {
+                    id: credential.id,
+                    rawId: bufferToBase64url(credential.rawId),
+                    type: credential.type,
+                    response: {
+                        clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                        attestationObject: bufferToBase64url(credential.response.attestationObject)
+                    }
+                };
+
+                const verifyResp = await fetch('/auth/passkey/register/complete', {
+                    method: 'POST',
+                    headers: authHeaders({'Content-Type': 'application/json'}),
+                    body: JSON.stringify({credential: credData, name: name})
+                });
+                const result = await verifyResp.json();
+                if (result.error) {
+                    alert('Failed to register passkey: ' + result.error);
+                    return;
+                }
+
+                alert('Passkey registered successfully!');
+                loadPasskeys();
+            } catch(e) {
+                if (e.name === 'NotAllowedError') {
+                    alert('Passkey registration was cancelled');
+                } else {
+                    alert('Error registering passkey: ' + e.message);
+                }
+            }
+        }
+
+        async function deletePasskey(id) {
+            if (!confirm('Delete this passkey?')) return;
+            try {
+                const resp = await fetch('/auth/passkey/' + encodeURIComponent(id), {
+                    method: 'DELETE',
+                    headers: authHeaders()
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    alert('Failed to delete passkey: ' + data.error);
+                    return;
+                }
+                loadPasskeys();
+            } catch(e) {
+                alert('Error deleting passkey: ' + e.message);
+            }
         }
 
         async function loadIntegrations() {

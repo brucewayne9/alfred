@@ -1,17 +1,22 @@
 """LightRAG integration for document memory and knowledge graph queries."""
 
 import logging
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 
 import httpx
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv("/home/aialfred/alfred/config/.env")
 
 logger = logging.getLogger(__name__)
 
-# LightRAG configuration
-LIGHTRAG_URL = "http://75.43.156.117:9621"
-LIGHTRAG_USER = "brucewayne9"
-LIGHTRAG_PASS = "AlwaysGive100%"
+# LightRAG configuration from environment
+LIGHTRAG_URL = os.getenv("LIGHTRAG_URL", "http://75.43.156.117:9621")
+LIGHTRAG_USER = os.getenv("LIGHTRAG_USER", "")
+LIGHTRAG_PASS = os.getenv("LIGHTRAG_PASS", "")
 
 # Token cache
 _token_cache = {"token": None, "expires": None}
@@ -166,11 +171,13 @@ async def list_documents(limit: int = 100, offset: int = 0) -> dict:
     """List documents in LightRAG."""
     try:
         headers = await _auth_headers()
+        # LightRAG requires page_size >= 10
+        page_size = max(10, limit)
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{LIGHTRAG_URL}/documents/paginated",
                 headers=headers,
-                json={"page": offset // limit + 1, "page_size": limit},
+                json={"page": offset // page_size + 1, "page_size": page_size},
             )
             if resp.status_code == 200:
                 return {"success": True, "documents": resp.json()}
@@ -249,3 +256,48 @@ async def get_popular_entities(limit: int = 20) -> dict:
     except Exception as e:
         logger.error(f"LightRAG get_popular_entities failed: {e}")
         return {"success": False, "error": str(e)}
+
+
+async def get_knowledge_context(query: str, top_k: int = 5) -> str:
+    """Get relevant knowledge context for a query.
+
+    This is the main function Alfred uses to enrich responses
+    with knowledge from the graph.
+
+    Args:
+        query: The user's query
+        top_k: Number of context chunks to retrieve
+
+    Returns:
+        String of relevant context, or empty string if none found
+    """
+    try:
+        result = await query_context(query, top_k=top_k)
+        if result.get("success") and result.get("result"):
+            context = result["result"]
+            if isinstance(context, dict):
+                # Extract text from context response
+                chunks = context.get("chunks", [])
+                if chunks:
+                    return "\n\n".join([c.get("content", "") for c in chunks if c.get("content")])
+                # Or it might be a direct response
+                return context.get("response", "")
+            elif isinstance(context, str):
+                return context
+        return ""
+    except Exception as e:
+        logger.debug(f"Knowledge context retrieval failed: {e}")
+        return ""
+
+
+def is_configured() -> bool:
+    """Check if LightRAG is properly configured."""
+    return bool(LIGHTRAG_URL and LIGHTRAG_USER and LIGHTRAG_PASS)
+
+
+async def is_connected() -> bool:
+    """Check if LightRAG is accessible."""
+    if not is_configured():
+        return False
+    health = await health_check()
+    return health.get("healthy", False)

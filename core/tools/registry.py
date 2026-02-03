@@ -33,7 +33,9 @@ def get_tools() -> list[dict]:
 
 # Tool categories for smart filtering
 TOOL_CATEGORIES = {
-    "email": ["check_email", "read_email", "send_email", "unread_email_count"],
+    "email": ["check_email", "read_email", "send_email", "unread_email_count",
+              "email_list_accounts", "email_inbox", "email_read", "email_send", "email_search", "email_unread",
+              "email_trash", "email_mark_read", "email_mark_unread"],
     "calendar": ["check_calendar", "create_event", "find_free_time", "today_schedule"],
     "crm": ["crm_add_note_to_company", "crm_add_note_to_deal", "crm_add_note_to_person",
             "crm_add_task_to_company", "crm_add_task_to_deal", "crm_add_task_to_person",
@@ -67,7 +69,7 @@ TOOL_CATEGORIES = {
                   "nextcloud_list_groups", "nextcloud_list_notes", "nextcloud_list_users",
                   "nextcloud_move_file", "nextcloud_read_file", "nextcloud_search_files",
                   "nextcloud_send_message", "nextcloud_storage_info", "nextcloud_update_note",
-                  "nextcloud_upload_file"],
+                  "nextcloud_upload_file", "nextcloud_upload_attached_file"],
     "n8n": ["n8n_activate_workflow", "n8n_create_scheduled_workflow", "n8n_create_webhook_slack_workflow",
             "n8n_create_workflow", "n8n_deactivate_workflow", "n8n_delete_workflow",
             "n8n_execute_workflow", "n8n_get_executions", "n8n_get_workflow", "n8n_list_workflows"],
@@ -117,11 +119,24 @@ TOOL_CATEGORIES = {
         "meta_ads_pause_campaign", "meta_ads_enable_campaign",
         "meta_ads_update_ad_set_budget", "meta_ads_update_campaign_budget",
     ],
+    "analytics": [
+        "ga_list_properties", "ga_traffic_summary", "ga_realtime",
+        "ga_traffic_sources", "ga_top_pages", "ga_devices",
+        "ga_countries", "ga_daily_traffic", "ga_all_properties",
+    ],
+    "agents": [
+        "spawn_agent", "check_agent_task", "list_agent_tasks", "cancel_agent_task",
+    ],
+    "briefing": [
+        "daily_briefing", "quick_briefing",
+    ],
 }
 
 # Keywords that trigger each category
 CATEGORY_KEYWORDS = {
-    "email": ["email", "mail", "send", "inbox", "message"],
+    "email": ["email", "mail", "send", "inbox", "message", "groundrush", "rucktalk", "loovacast",
+              "lumabot", "luma bot", "support@loovacast", "mjohnson", "info@rucktalk", "info@loovacast", "info@groundrush",
+              "trash", "delete email", "mark read", "mark unread"],
     "calendar": ["calendar", "schedule", "meeting", "event", "appointment", "book"],
     "crm": ["crm", "contact", "person", "company", "opportunity", "deal", "lead", "customer", "client"],
     "memory": ["remember", "recall", "knowledge", "what did", "what was", "forget",
@@ -143,6 +158,15 @@ CATEGORY_KEYWORDS = {
                  "campaign", "ad set", "ad performance", "ctr", "cpc", "cpm", "roas", "impressions",
                  "reach", "conversions", "ad spend", "advertising", "ads manager", "audience insights",
                  "pause ad", "enable ad", "unpause", "budget", "daily budget", "underperform"],
+    "analytics": ["analytics", "google analytics", "ga4", "traffic", "visitors", "page views", "pageviews",
+                  "bounce rate", "sessions", "active users", "realtime", "real-time", "top pages",
+                  "traffic sources", "where visitors", "website stats", "site traffic", "daily traffic",
+                  "lenssniper", "loovacast", "lumabot", "luma bot", "myhands", "car wash", "nightlife",
+                  "rodwave", "rod wave", "rucktalk", "ag entertainment"],
+    "agents": ["spawn agent", "agent", "delegate", "specialist", "coder agent", "research agent",
+               "analyst agent", "writer agent", "parallel", "background task", "multi-step"],
+    "briefing": ["briefing", "morning", "daily summary", "what's on my", "my day", "today's schedule",
+                 "good morning", "start my day", "catch me up", "status update", "overview"],
     "core": [],  # Always included
 }
 
