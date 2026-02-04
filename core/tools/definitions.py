@@ -189,18 +189,19 @@ def today_schedule() -> list[dict]:
 
 @tool(
     name="create_event",
-    description="Create a new calendar event.",
+    description="Create a new calendar event with optional attendees.",
     parameters={
         "summary": "string - event title",
         "start_time": "string - ISO datetime (e.g. 2026-01-28T10:00:00-05:00)",
         "end_time": "string - ISO datetime",
         "description": "string (optional)",
         "location": "string (optional)",
+        "attendees": "list of strings - email addresses to invite (optional)",
     },
 )
-def create_event(summary: str, start_time: str, end_time: str, description: str = "", location: str = "") -> dict:
+def create_event(summary: str, start_time: str, end_time: str, description: str = "", location: str = "", attendees: list[str] = None) -> dict:
     from integrations.calendar.client import create_event as _create
-    return _create(summary, start_time, end_time, description, location)
+    return _create(summary, start_time, end_time, description, location, attendees)
 
 
 @tool(
@@ -211,6 +212,55 @@ def create_event(summary: str, start_time: str, end_time: str, description: str 
 def find_free_time(date: str, duration_minutes: int = 60) -> list[dict]:
     from integrations.calendar.client import find_free_time as _find
     return _find(date, duration_minutes)
+
+
+@tool(
+    name="update_event",
+    description="Update an existing calendar event. Use this to reschedule, rename, or modify events.",
+    parameters={
+        "event_id": "string - the event ID to update",
+        "summary": "string (optional) - new event title",
+        "start_time": "string (optional) - new start time in ISO format",
+        "end_time": "string (optional) - new end time in ISO format",
+        "description": "string (optional) - new description",
+        "location": "string (optional) - new location",
+        "attendees": "list of strings (optional) - new attendee emails (replaces existing)",
+    },
+)
+def update_event(
+    event_id: str,
+    summary: str = None,
+    start_time: str = None,
+    end_time: str = None,
+    description: str = None,
+    location: str = None,
+    attendees: list[str] = None,
+) -> dict:
+    from integrations.calendar.client import update_event as _update
+    return _update(event_id, summary, start_time, end_time, description, location, attendees)
+
+
+@tool(
+    name="delete_event",
+    description="Delete a calendar event. Use this to remove cancelled or duplicate meetings.",
+    parameters={"event_id": "string - the event ID to delete"},
+)
+def delete_event(event_id: str) -> dict:
+    from integrations.calendar.client import delete_event as _delete
+    return _delete(event_id)
+
+
+@tool(
+    name="add_attendees",
+    description="Add attendees to an existing calendar event and send them invitations.",
+    parameters={
+        "event_id": "string - the event ID",
+        "attendees": "list of strings - email addresses to add",
+    },
+)
+def add_attendees(event_id: str, attendees: list[str]) -> dict:
+    from integrations.calendar.client import add_attendees as _add
+    return _add(event_id, attendees)
 
 
 # ==================== SERVER TOOLS ====================

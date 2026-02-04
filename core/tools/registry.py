@@ -36,7 +36,7 @@ TOOL_CATEGORIES = {
     "email": ["check_email", "read_email", "send_email", "unread_email_count",
               "email_list_accounts", "email_inbox", "email_read", "email_send", "email_search", "email_unread",
               "email_trash", "email_mark_read", "email_mark_unread"],
-    "calendar": ["check_calendar", "create_event", "find_free_time", "today_schedule"],
+    "calendar": ["check_calendar", "create_event", "find_free_time", "today_schedule", "update_event", "delete_event", "add_attendees"],
     "sms": ["send_sms", "make_call", "get_sms_history"],
     "crm": ["crm_add_note_to_company", "crm_add_note_to_deal", "crm_add_note_to_person",
             "crm_add_task_to_company", "crm_add_task_to_deal", "crm_add_task_to_person",

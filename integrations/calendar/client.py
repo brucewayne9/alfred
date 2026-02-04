@@ -101,6 +101,113 @@ def create_event(
     }
 
 
+def update_event(
+    event_id: str,
+    summary: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    description: str | None = None,
+    location: str | None = None,
+    attendees: list[str] | None = None,
+) -> dict:
+    """Update an existing calendar event.
+
+    Args:
+        event_id: The event ID to update
+        summary: New event title (optional)
+        start_time: New start time in ISO format (optional)
+        end_time: New end time in ISO format (optional)
+        description: New description (optional)
+        location: New location (optional)
+        attendees: New list of attendee emails (optional, replaces existing)
+    """
+    service = _get_service()
+
+    # Get existing event
+    event = service.events().get(calendarId="primary", eventId=event_id).execute()
+
+    # Update fields if provided
+    if summary is not None:
+        event["summary"] = summary
+    if start_time is not None:
+        event["start"] = {"dateTime": start_time}
+    if end_time is not None:
+        event["end"] = {"dateTime": end_time}
+    if description is not None:
+        event["description"] = description
+    if location is not None:
+        event["location"] = location
+    if attendees is not None:
+        event["attendees"] = [{"email": e} for e in attendees]
+
+    updated = service.events().update(
+        calendarId="primary", eventId=event_id, body=event
+    ).execute()
+
+    logger.info(f"Event updated: {event_id}")
+    return {
+        "id": updated["id"],
+        "summary": updated.get("summary"),
+        "link": updated.get("htmlLink"),
+        "status": "updated",
+    }
+
+
+def delete_event(event_id: str) -> dict:
+    """Delete a calendar event.
+
+    Args:
+        event_id: The event ID to delete
+    """
+    service = _get_service()
+
+    # Get event details before deleting for confirmation
+    try:
+        event = service.events().get(calendarId="primary", eventId=event_id).execute()
+        summary = event.get("summary", "Unknown")
+    except Exception:
+        summary = "Unknown"
+
+    service.events().delete(calendarId="primary", eventId=event_id).execute()
+
+    logger.info(f"Event deleted: {event_id}")
+    return {
+        "id": event_id,
+        "summary": summary,
+        "status": "deleted",
+    }
+
+
+def add_attendees(event_id: str, attendees: list[str]) -> dict:
+    """Add attendees to an existing calendar event.
+
+    Args:
+        event_id: The event ID
+        attendees: List of email addresses to add
+    """
+    service = _get_service()
+
+    # Get existing event
+    event = service.events().get(calendarId="primary", eventId=event_id).execute()
+
+    # Merge existing and new attendees
+    existing = [a.get("email") for a in event.get("attendees", [])]
+    all_attendees = list(set(existing + attendees))
+    event["attendees"] = [{"email": e} for e in all_attendees]
+
+    updated = service.events().update(
+        calendarId="primary", eventId=event_id, body=event, sendUpdates="all"
+    ).execute()
+
+    logger.info(f"Added attendees to event {event_id}: {attendees}")
+    return {
+        "id": updated["id"],
+        "summary": updated.get("summary"),
+        "attendees": [a.get("email") for a in updated.get("attendees", [])],
+        "status": "attendees_added",
+    }
+
+
 def find_free_time(date: str, duration_minutes: int = 60) -> list[dict]:
     """Find available time slots on a given date.
 
