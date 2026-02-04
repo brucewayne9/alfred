@@ -2610,6 +2610,67 @@ async def websocket_chat(ws: WebSocket):
         logger.info(f"WebSocket disconnected: {session_id}")
 
 
+# ==================== Notifications WebSocket ====================
+
+@app.websocket("/ws/notifications")
+async def websocket_notifications(ws: WebSocket):
+    """WebSocket endpoint for push notifications (agent completion, alerts, etc.)."""
+    # Authenticate via query param or cookie
+    token = ws.query_params.get("token") or ws.cookies.get("alfred_token")
+    if not token:
+        await ws.close(code=4001, reason="Authentication required")
+        return
+    from core.security.auth import decode_token
+    payload = decode_token(token)
+    if not payload:
+        await ws.close(code=4001, reason="Invalid token")
+        return
+
+    await ws.accept()
+    user_id = payload.get("sub", "anonymous")
+
+    # Register with notification manager
+    from core.notifications import get_notification_manager
+    manager = get_notification_manager()
+    await manager.connect(ws, user_id)
+
+    try:
+        # Send welcome message
+        await ws.send_json({
+            "type": "connected",
+            "message": "Notification channel established",
+            "user": user_id,
+        })
+
+        # Keep connection alive - just wait for disconnect
+        while True:
+            try:
+                # Wait for ping/pong or disconnect
+                data = await ws.receive_text()
+                # Echo pings back as pongs
+                if data == "ping":
+                    await ws.send_text("pong")
+            except WebSocketDisconnect:
+                break
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await manager.disconnect(ws, user_id)
+        logger.info(f"Notification client disconnected: {user_id}")
+
+
+@app.get("/notifications/status")
+async def notification_status(user: dict = Depends(require_auth)):
+    """Get notification system status."""
+    from core.notifications import get_notification_manager
+    manager = get_notification_manager()
+    return {
+        "connected_clients": manager.connection_count,
+        "websocket_url": "/ws/notifications",
+    }
+
+
 # ==================== Wake Word WebSocket ====================
 
 # Wake word detection state
@@ -3821,7 +3882,7 @@ CHAT_HTML = """<!DOCTYPE html>
         function sendFromWelcome() {
             const welcomeInput = document.getElementById('welcome-input');
             const text = welcomeInput.value.trim();
-            if (!text) return;
+            if (!text && !pendingFile) return;
             // Transfer to main input and send
             document.getElementById('input').value = text;
             welcomeInput.value = '';
@@ -3829,10 +3890,13 @@ CHAT_HTML = """<!DOCTYPE html>
             send();
         }
 
-        // Enable welcome send button on input
-        document.getElementById('welcome-input')?.addEventListener('input', function() {
-            document.getElementById('welcome-send-btn').disabled = !this.value.trim();
-        });
+        // Enable welcome send button on input or pending file
+        function updateWelcomeSendBtn() {
+            const welcomeInput = document.getElementById('welcome-input');
+            const btn = document.getElementById('welcome-send-btn');
+            btn.disabled = !welcomeInput?.value.trim() && !pendingFile;
+        }
+        document.getElementById('welcome-input')?.addEventListener('input', updateWelcomeSendBtn);
 
         // ==================== Conversation History ====================
 
@@ -5282,12 +5346,66 @@ CHAT_HTML = """<!DOCTYPE html>
             container.classList.add('visible');
             // Mark both upload buttons as having a file
             document.querySelectorAll('.upload-btn').forEach(btn => btn.classList.add('has-file'));
+            // Enable send buttons when file is pending
+            if (typeof updateWelcomeSendBtn === 'function') updateWelcomeSendBtn();
         }
 
         function clearPendingFile() {
             pendingFile = null;
             document.getElementById('pending-file').classList.remove('visible');
             document.querySelectorAll('.upload-btn').forEach(btn => btn.classList.remove('has-file'));
+            // Update send button state
+            if (typeof updateWelcomeSendBtn === 'function') updateWelcomeSendBtn();
+        }
+
+        // ==================== Image Paste Handler ====================
+
+        document.addEventListener('paste', async function(e) {
+            // Check if we have image data in clipboard
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const blob = item.getAsFile();
+                    if (blob) {
+                        await handlePastedImage(blob, item.type);
+                    }
+                    return;
+                }
+            }
+        });
+
+        async function handlePastedImage(blob, mimeType) {
+            // Convert blob to base64
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const base64 = reader.result.split(',')[1];
+                const ext = mimeType.split('/')[1] || 'png';
+                const filename = `pasted-image-${Date.now()}.${ext}`;
+                const sizeKB = Math.round(blob.size / 1024);
+
+                // Store as pending file
+                pendingFile = {
+                    type: 'image',
+                    path: null,  // No server path yet
+                    base64: base64,
+                    media_type: mimeType,
+                    filename: filename
+                };
+
+                // Show preview
+                showPendingFile(filename, `Pasted image (${sizeKB}KB)`, `data:${mimeType};base64,${base64}`);
+
+                // Focus input so user can add a message
+                if (isWelcomeState) {
+                    document.getElementById('welcome-input').focus();
+                } else {
+                    document.getElementById('input').focus();
+                }
+            };
+            reader.readAsDataURL(blob);
         }
 
         function escapeHtml(t) {
@@ -6130,6 +6248,159 @@ CHAT_HTML = """<!DOCTYPE html>
                 console.log('SW controller changed, reloading...');
                 window.location.reload();
             });
+        }
+
+        // ==================== Push Notifications WebSocket ====================
+        let notificationWs = null;
+        let notificationReconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+
+        function connectNotifications() {
+            const token = localStorage.getItem('alfred_token');
+            if (!token) return;
+
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            notificationWs = new WebSocket(`${wsProtocol}//${window.location.host}/ws/notifications?token=${token}`);
+
+            notificationWs.onopen = () => {
+                console.log('Notification WebSocket connected');
+                notificationReconnectAttempts = 0;
+                // Keep-alive ping every 30 seconds
+                notificationWs._pingInterval = setInterval(() => {
+                    if (notificationWs && notificationWs.readyState === WebSocket.OPEN) {
+                        notificationWs.send('ping');
+                    }
+                }, 30000);
+            };
+
+            notificationWs.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleNotification(data);
+                } catch (e) {
+                    // Ignore pong responses
+                    if (event.data !== 'pong') {
+                        console.log('Notification:', event.data);
+                    }
+                }
+            };
+
+            notificationWs.onclose = () => {
+                console.log('Notification WebSocket closed');
+                if (notificationWs && notificationWs._pingInterval) {
+                    clearInterval(notificationWs._pingInterval);
+                }
+                notificationWs = null;
+                // Reconnect with backoff
+                if (notificationReconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    const delay = Math.min(1000 * Math.pow(2, notificationReconnectAttempts), 30000);
+                    notificationReconnectAttempts++;
+                    setTimeout(connectNotifications, delay);
+                }
+            };
+
+            notificationWs.onerror = (err) => {
+                console.error('Notification WebSocket error:', err);
+            };
+        }
+
+        function handleNotification(data) {
+            console.log('Received notification:', data);
+
+            // Handle different notification types
+            switch (data.type) {
+                case 'agent_completed':
+                    showAgentNotification(data.data, 'completed');
+                    break;
+                case 'agent_failed':
+                    showAgentNotification(data.data, 'failed');
+                    break;
+                case 'agent_started':
+                    // Optional: show subtle indicator
+                    console.log(`Agent started: ${data.data.agent_type} - ${data.data.goal}`);
+                    break;
+                case 'connected':
+                    console.log('Notification channel ready');
+                    break;
+                default:
+                    console.log('Unknown notification type:', data.type);
+            }
+        }
+
+        function showAgentNotification(data, status) {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = 'agent-notification';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${status === 'completed' ? '#1a472a' : '#4a1a1a'};
+                border: 1px solid ${status === 'completed' ? '#2d6a4f' : '#6a2d2d'};
+                border-radius: 12px;
+                padding: 16px 20px;
+                max-width: 400px;
+                z-index: 10000;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                animation: slideIn 0.3s ease-out;
+            `;
+
+            const icon = status === 'completed' ? '✓' : '✗';
+            const title = status === 'completed' ? 'Agent Completed' : 'Agent Failed';
+            const color = status === 'completed' ? '#4ade80' : '#f87171';
+
+            toast.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <span style="font-size: 24px; color: ${color};">${icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: ${color}; margin-bottom: 4px;">${title}</div>
+                        <div style="font-size: 13px; color: #9ca3af; margin-bottom: 8px;">
+                            ${data.agent_type} agent ${status === 'completed' ? `finished in ${data.duration_seconds?.toFixed(1) || '?'}s` : 'encountered an error'}
+                        </div>
+                        <div style="font-size: 14px; color: #e0e0e0; line-height: 1.4;">
+                            ${status === 'completed' ? (data.result_preview || '').substring(0, 200) : data.error}
+                            ${(data.result_preview || '').length > 200 ? '...' : ''}
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                            Task ID: ${data.task_id}
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" style="
+                        background: none; border: none; color: #9ca3af; cursor: pointer;
+                        font-size: 18px; padding: 0; line-height: 1;
+                    ">×</button>
+                </div>
+            `;
+
+            // Add animation keyframes if not already added
+            if (!document.getElementById('notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            document.body.appendChild(toast);
+
+            // Auto-remove after 15 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 15000);
+        }
+
+        // Connect to notifications when page loads (if authenticated)
+        if (localStorage.getItem('alfred_token')) {
+            connectNotifications();
         }
     </script>
 </body>

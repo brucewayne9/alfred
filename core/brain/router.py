@@ -165,6 +165,16 @@ EMAIL_TRIGGERS = [
     "check my inbox", "check inbox", "email inbox", "unread email",
 ]
 
+# Home Assistant / Smart Home queries - now using smart routing with Ollama first
+# The improved tool-calling instructions should help Ollama handle these reliably
+# If Ollama fails, the smart routing in models.py will fallback to Claude
+SMARTHOME_TRIGGERS = [
+    "turn on", "turn off", "lights", "light", "switch", "thermostat",
+    "temperature", "hvac", "heat", "cool", "dim", "brightness",
+    "home assistant", "smart home", "nest", "scene", "media player",
+    "living room", "bedroom", "kitchen", "backyard", "weather",
+]
+
 # Short follow-up phrases that should stay on the same tier as previous message
 FOLLOWUP_PHRASES = [
     "yes", "no", "yeah", "yep", "nope", "ok", "okay", "sure", "do it",
@@ -198,6 +208,10 @@ def classify_query(query: str, session_id: str = None) -> ModelTier:
         tier = ModelTier.CLOUD
     # Email queries (multi-account) go to Claude API for reliable tool calling
     elif any(trigger in query_lower for trigger in EMAIL_TRIGGERS):
+        tier = ModelTier.CLOUD
+    # Smart Home queries - use Claude API with native tool calling
+    # Claude Code CLI doesn't have access to Alfred's HA tools (runs as separate process)
+    elif any(trigger in query_lower for trigger in SMARTHOME_TRIGGERS):
         tier = ModelTier.CLOUD
     # Other tool-related queries stay LOCAL
     elif any(trigger in query_lower for trigger in TOOL_TRIGGERS):
@@ -882,6 +896,17 @@ CRITICAL tool-calling rules:
 3. NEVER say "I don't have that data" if a tool exists that can get it. Use the tool.
 4. NEVER narrate what you're about to do. Just do it.
 5. Either speak OR call a tool, never both in the same response.
+
+SMART HOME tool-calling (Home Assistant):
+- "Turn on/off living room lights" → {"tool": "ha_room_control", "args": {"room": "living room", "action": "on"}}
+- "Turn on/off kitchen lights" → {"tool": "ha_room_control", "args": {"room": "kitchen", "action": "off"}}
+- "Turn on/off front yard lights" → {"tool": "ha_room_control", "args": {"room": "front yard", "action": "on"}}
+- "Turn on/off backyard lights" → {"tool": "ha_room_control", "args": {"room": "backyard", "action": "off"}}
+- "Turn on/off overheads" → {"tool": "ha_room_control", "args": {"room": "overheads", "action": "on"}}
+- "Turn on/off [single device]" → {"tool": "ha_turn_on", "args": {"entity_id": "light.device_name"}}
+- "Set thermostat to 72" → {"tool": "ha_set_thermostat", "args": {"entity_id": "climate.main", "temperature": 72}}
+- Room groups: living room, kitchen, front yard, backyard, overheads.
+- ALWAYS use ha_room_control for room-wide commands - it's more reliable than individual calls.
 
 CRITICAL - Data analysis and synthesis:
 1. When you retrieve data, ALWAYS provide meaningful analysis and insights - never just say "I completed the requested actions" or "Done".

@@ -265,6 +265,467 @@ def docker_restart(server_name: str, container: str) -> str:
     return _restart(server_name, container)
 
 
+# ==================== SERVER UPDATE TOOLS ====================
+
+@tool(
+    name="server_check_updates",
+    description="Check what updates are available on a server WITHOUT installing. Shows package count, security updates, and if reboot is needed. Always use this BEFORE running updates.",
+    parameters={"server_name": "string - name of the server (e.g., 'lonewolf-dev', 'groundrush-prod')"},
+)
+def server_check_updates(server_name: str) -> dict:
+    from integrations.servers.manager import check_updates
+    return check_updates(server_name)
+
+
+@tool(
+    name="server_check_all_updates",
+    description="Check updates available on ALL servers at once. Returns summary for each server.",
+    parameters={},
+)
+def server_check_all_updates() -> list[dict]:
+    from integrations.servers.manager import check_all_updates
+    return check_all_updates()
+
+
+@tool(
+    name="server_run_updates",
+    description="Run apt update && apt upgrade on a server. For PRODUCTION servers, confirm_production must be True (requires explicit user confirmation first).",
+    parameters={
+        "server_name": "string - name of the server",
+        "confirm_production": "boolean - must be True to update production servers (default False)"
+    },
+)
+def server_run_updates(server_name: str, confirm_production: bool = False) -> dict:
+    from integrations.servers.manager import run_updates
+    return run_updates(server_name, confirm_production)
+
+
+@tool(
+    name="server_autoremove",
+    description="Remove unused packages (apt autoremove) on a server.",
+    parameters={"server_name": "string - name of the server"},
+)
+def server_autoremove(server_name: str) -> dict:
+    from integrations.servers.manager import run_autoremove
+    return run_autoremove(server_name)
+
+
+@tool(
+    name="server_reboot",
+    description="Reboot a server. Requires explicit confirmation. Only use when reboot is needed (e.g., after kernel updates).",
+    parameters={
+        "server_name": "string - name of the server",
+        "confirm": "boolean - must be True to proceed with reboot"
+    },
+)
+def server_reboot(server_name: str, confirm: bool = False) -> dict:
+    from integrations.servers.manager import reboot_server
+    return reboot_server(server_name, confirm)
+
+
+# ==================== MAILCOW TOOLS ====================
+
+@tool(
+    name="mailcow_check_updates",
+    description="Check if Mailcow mail server has updates available. Shows current version, latest version, and pending updates.",
+    parameters={},
+)
+def mailcow_check_updates() -> dict:
+    from integrations.servers.manager import mailcow_check_updates as _check
+    return _check()
+
+
+@tool(
+    name="mailcow_update",
+    description="Update Mailcow to the latest version. REQUIRES CONFIRMATION as this is the production mail server. Brief mail interruption may occur.",
+    parameters={
+        "confirm": "boolean - must be True to proceed with update"
+    },
+)
+def mailcow_update(confirm: bool = False) -> dict:
+    from integrations.servers.manager import mailcow_update as _update
+    return _update(confirm)
+
+
+@tool(
+    name="mailcow_restart",
+    description="Restart all Mailcow Docker containers. Use if mail services are having issues.",
+    parameters={},
+)
+def mailcow_restart() -> dict:
+    from integrations.servers.manager import mailcow_restart as _restart
+    return _restart()
+
+
+@tool(
+    name="mailcow_status",
+    description="Get Mailcow status including container health, disk usage, and mail queue.",
+    parameters={},
+)
+def mailcow_status() -> dict:
+    from integrations.servers.manager import mailcow_status as _status
+    return _status()
+
+
+# ==================== HOME ASSISTANT TOOLS ====================
+
+@tool(
+    name="homeassistant_status",
+    description="Get Home Assistant status - container health, URL, and recent logs.",
+    parameters={},
+)
+def homeassistant_status() -> dict:
+    from integrations.servers.manager import homeassistant_status as _status
+    return _status()
+
+
+@tool(
+    name="homeassistant_restart",
+    description="Restart the Home Assistant container.",
+    parameters={},
+)
+def homeassistant_restart() -> dict:
+    from integrations.servers.manager import homeassistant_restart as _restart
+    return _restart()
+
+
+@tool(
+    name="homeassistant_update",
+    description="Update Home Assistant to the latest version (pulls new image and restarts).",
+    parameters={},
+)
+def homeassistant_update() -> dict:
+    from integrations.servers.manager import homeassistant_update as _update
+    return _update()
+
+
+@tool(
+    name="homeassistant_logs",
+    description="Get recent Home Assistant logs for debugging.",
+    parameters={"lines": "int - number of log lines (default 50)"},
+)
+def homeassistant_logs(lines: int = 50) -> dict:
+    from integrations.servers.manager import homeassistant_logs as _logs
+    return _logs(lines)
+
+
+# ==================== HOME ASSISTANT SMART HOME CONTROL ====================
+
+@tool(
+    name="ha_list_devices",
+    description="List all smart home devices (lights, switches, media players, climate, sensors) with their current states.",
+    parameters={},
+)
+def ha_list_devices() -> dict:
+    from integrations.homeassistant.client import list_devices
+    return list_devices()
+
+
+@tool(
+    name="ha_turn_on",
+    description="Turn on a smart home device (light, switch, media player, etc.) by entity ID or name.",
+    parameters={
+        "entity_id": "string - entity ID (e.g., 'light.kitchen') or device name (e.g., 'kitchen lights')",
+    },
+)
+def ha_turn_on(entity_id: str) -> dict:
+    from integrations.homeassistant.client import turn_on, find_entity
+    # Check if it's a name or entity_id
+    if "." not in entity_id:
+        found = find_entity(entity_id)
+        if found:
+            entity_id = found
+        else:
+            return {"error": f"Device '{entity_id}' not found"}
+    return turn_on(entity_id)
+
+
+@tool(
+    name="ha_turn_off",
+    description="Turn off a smart home device (light, switch, media player, etc.).",
+    parameters={
+        "entity_id": "string - entity ID or device name",
+    },
+)
+def ha_turn_off(entity_id: str) -> dict:
+    from integrations.homeassistant.client import turn_off, find_entity
+    if "." not in entity_id:
+        found = find_entity(entity_id)
+        if found:
+            entity_id = found
+        else:
+            return {"error": f"Device '{entity_id}' not found"}
+    return turn_off(entity_id)
+
+
+# Room groups stored in memory for quick access
+_ROOM_GROUPS = {
+    "living room": [
+        "light.freddy_s_light",
+        "light.the_skull",
+        "light.overhead_4",
+        "switch.johnson_sign",
+    ],
+    "kitchen": [
+        "light.kitchen_overhead_1",
+        "light.kitchen_overhead_2",
+        "light.kitchen_overhead_3",
+        "light.kitchen_overhead_4",
+        "light.stove_1",
+        "light.stove_3",  # Stove Light
+        "light.tp_link_smart_bulb_7f8d",  # Stove 2
+        "light.kitchen_window",
+    ],
+    "front yard": [
+        "light.outdoor_front_left_1",
+        "light.outdoor_front_left_2",
+        "light.outdoor_front_right_1",
+        "light.outdoor_front_right_2",
+        "light.left_side_light",
+    ],
+    "backyard": [
+        "light.outdoor_back_1",
+        "light.outdoor_back_2",
+        "light.studio_outside",
+    ],
+    "overheads": [
+        "light.overhead_1",
+        "light.overhead_2",
+        "light.overhead_3",
+        "light.overhead_4",
+    ],
+}
+
+
+@tool(
+    name="ha_room_control",
+    description="Turn on or off all lights/devices in a room at once. Supports: living room, kitchen, front yard, backyard, overheads. Use this for room-wide control.",
+    parameters={
+        "room": "string - room name (living room, kitchen, front yard, backyard, overheads)",
+        "action": "string - 'on' or 'off'",
+    },
+)
+def ha_room_control(room: str, action: str) -> dict:
+    """Control all devices in a room at once."""
+    from integrations.homeassistant.client import turn_on, turn_off
+
+    room_lower = room.lower().strip()
+    if room_lower not in _ROOM_GROUPS:
+        return {
+            "error": f"Unknown room: {room}. Available rooms: {list(_ROOM_GROUPS.keys())}",
+            "hint": "Use ha_add_room_group to create a new room group"
+        }
+
+    entities = _ROOM_GROUPS[room_lower]
+    results = []
+    errors = []
+
+    for entity_id in entities:
+        try:
+            if action.lower() == "on":
+                result = turn_on(entity_id)
+            else:
+                result = turn_off(entity_id)
+            results.append({"entity": entity_id, "success": True})
+        except Exception as e:
+            errors.append({"entity": entity_id, "error": str(e)})
+
+    return {
+        "room": room,
+        "action": action,
+        "devices_controlled": len(results),
+        "successes": results,
+        "errors": errors if errors else None,
+    }
+
+
+@tool(
+    name="ha_add_room_group",
+    description="Add or update a room group for controlling multiple devices at once. Store in memory so 'turn on [room] lights' works.",
+    parameters={
+        "room": "string - room name (e.g., 'living room', 'bedroom')",
+        "entities": "list - list of entity IDs to include in this room",
+    },
+)
+def ha_add_room_group(room: str, entities: list) -> dict:
+    """Add or update a room group."""
+    room_lower = room.lower().strip()
+    _ROOM_GROUPS[room_lower] = entities
+
+    # Also store to memory for persistence
+    try:
+        from core.memory.store import add_memory
+        memory_text = f"Room group '{room}' contains: {', '.join(entities)}"
+        add_memory(memory_text, category="personal")
+    except Exception:
+        pass  # Memory storage is optional
+
+    return {
+        "success": True,
+        "room": room,
+        "entities": entities,
+        "message": f"Room group '{room}' saved with {len(entities)} devices. Use ha_room_control to control them all at once.",
+    }
+
+
+@tool(
+    name="ha_list_room_groups",
+    description="List all configured room groups and their devices.",
+    parameters={},
+)
+def ha_list_room_groups() -> dict:
+    """List all room groups."""
+    return {
+        "rooms": {room: entities for room, entities in _ROOM_GROUPS.items()},
+        "count": len(_ROOM_GROUPS),
+    }
+
+
+@tool(
+    name="ha_set_light",
+    description="Control a light - set brightness, color, or color temperature.",
+    parameters={
+        "entity_id": "string - light entity ID or name",
+        "brightness": "int - brightness 0-255 (optional)",
+        "color": "string - color name like 'red', 'blue' or hex '#FF0000' (optional)",
+        "temperature": "int - color temperature in mireds, lower=cooler (optional)",
+    },
+)
+def ha_set_light(entity_id: str, brightness: int = None, color: str = None, temperature: int = None) -> dict:
+    from integrations.homeassistant.client import set_light, find_entity
+    if "." not in entity_id:
+        found = find_entity(entity_id)
+        if found:
+            entity_id = found
+        else:
+            return {"error": f"Light '{entity_id}' not found"}
+    return set_light(entity_id, brightness, color, temperature)
+
+
+@tool(
+    name="ha_media_players",
+    description="Get all media players (TVs, speakers, displays) with their current state, volume, and now playing info.",
+    parameters={},
+)
+def ha_media_players() -> list[dict]:
+    from integrations.homeassistant.client import get_media_players
+    return get_media_players()
+
+
+@tool(
+    name="ha_media_control",
+    description="Control media playback on a device (play, pause, stop, next, previous).",
+    parameters={
+        "entity_id": "string - media player entity ID or name",
+        "action": "string - 'play', 'pause', 'stop', 'next', 'previous'",
+    },
+)
+def ha_media_control(entity_id: str, action: str) -> dict:
+    from integrations.homeassistant.client import media_play, media_pause, media_stop, media_next, media_previous, find_entity
+    if "." not in entity_id:
+        found = find_entity(entity_id)
+        if found:
+            entity_id = found
+        else:
+            return {"error": f"Media player '{entity_id}' not found"}
+
+    actions = {
+        "play": media_play,
+        "pause": media_pause,
+        "stop": media_stop,
+        "next": media_next,
+        "previous": media_previous,
+    }
+    if action not in actions:
+        return {"error": f"Unknown action '{action}'. Use: play, pause, stop, next, previous"}
+    return actions[action](entity_id)
+
+
+@tool(
+    name="ha_set_volume",
+    description="Set volume on a media player (0.0 to 1.0).",
+    parameters={
+        "entity_id": "string - media player entity ID or name",
+        "volume": "float - volume level 0.0 to 1.0",
+    },
+)
+def ha_set_volume(entity_id: str, volume: float) -> dict:
+    from integrations.homeassistant.client import set_volume, find_entity
+    if "." not in entity_id:
+        found = find_entity(entity_id)
+        if found:
+            entity_id = found
+        else:
+            return {"error": f"Media player '{entity_id}' not found"}
+    return set_volume(entity_id, volume)
+
+
+@tool(
+    name="ha_set_thermostat",
+    description="Control a thermostat - set temperature or mode.",
+    parameters={
+        "entity_id": "string - climate entity ID or name",
+        "temperature": "float - target temperature (optional)",
+        "hvac_mode": "string - 'heat', 'cool', 'heat_cool', 'off', 'auto' (optional)",
+    },
+)
+def ha_set_thermostat(entity_id: str, temperature: float = None, hvac_mode: str = None) -> dict:
+    from integrations.homeassistant.client import set_thermostat, find_entity
+    if "." not in entity_id:
+        found = find_entity(entity_id)
+        if found:
+            entity_id = found
+        else:
+            return {"error": f"Thermostat '{entity_id}' not found"}
+    return set_thermostat(entity_id, temperature, hvac_mode)
+
+
+@tool(
+    name="ha_get_weather",
+    description="Get current weather and forecast from Home Assistant.",
+    parameters={},
+)
+def ha_get_weather() -> dict:
+    from integrations.homeassistant.client import get_weather
+    return get_weather()
+
+
+@tool(
+    name="ha_activate_scene",
+    description="Activate a Home Assistant scene (e.g., 'movie_mode', 'good_night').",
+    parameters={
+        "scene": "string - scene name or ID",
+    },
+)
+def ha_activate_scene(scene: str) -> dict:
+    from integrations.homeassistant.client import activate_scene
+    return activate_scene(scene)
+
+
+@tool(
+    name="ha_run_script",
+    description="Run a Home Assistant script/automation.",
+    parameters={
+        "script": "string - script name or ID",
+    },
+)
+def ha_run_script(script: str) -> dict:
+    from integrations.homeassistant.client import run_script
+    return run_script(script)
+
+
+@tool(
+    name="ha_get_state",
+    description="Get the current state of any Home Assistant entity.",
+    parameters={
+        "entity_id": "string - entity ID (e.g., 'sensor.temperature', 'binary_sensor.front_door')",
+    },
+)
+def ha_get_state(entity_id: str) -> dict:
+    from integrations.homeassistant.client import get_state
+    return get_state(entity_id)
+
+
 # ==================== CRM TOOLS (Twenty CRM) ====================
 
 @tool(
@@ -777,11 +1238,91 @@ async def store_to_knowledge(text: str, description: str = "") -> dict:
     parameters={"limit": "int - max documents to return (default 20)"},
 )
 async def list_knowledge_documents(limit: int = 20) -> dict:
-    from integrations.lightrag.client import list_documents
-    result = await list_documents(limit=limit)
-    if not result["success"]:
-        return {"success": False, "error": result["error"]}
-    return {"success": True, "documents": result["documents"]}
+    from integrations.lightrag.client import list_documents, get_document_status
+    # Try to get document status first (more reliable)
+    status = await get_document_status()
+    if status.get("success"):
+        doc_counts = status.get("status", {})
+        result = await list_documents(limit=limit)
+        if result.get("success"):
+            return {"success": True, "documents": result["documents"], "counts": doc_counts}
+        # If list fails, return just the counts
+        return {"success": True, "counts": doc_counts, "note": "Document listing unavailable, showing counts only"}
+    return {"success": False, "error": "Could not retrieve document status"}
+
+
+@tool(
+    name="list_knowledge_entities",
+    description="List entities in the knowledge graph. Shows what concepts, people, systems, and topics Alfred knows about.",
+    parameters={
+        "limit": "int - max entities to return (default 50)",
+        "search": "string - optional filter to search entity names (optional)",
+    },
+)
+async def list_knowledge_entities(limit: int = 50, search: str = None) -> dict:
+    """List entities from the knowledge graph."""
+    from integrations.lightrag.client import get_popular_entities, search_graph
+
+    if search:
+        # Search for specific entities
+        result = await search_graph(search)
+        if result.get("success"):
+            entities = result.get("entities", [])
+            return {
+                "success": True,
+                "search_term": search,
+                "entities": entities[:limit] if isinstance(entities, list) else entities,
+                "count": len(entities) if isinstance(entities, list) else "unknown",
+            }
+        return {"success": False, "error": result.get("error", "Search failed")}
+
+    # Get popular entities (most connected in graph)
+    result = await get_popular_entities(limit=limit)
+    if result.get("success"):
+        return {
+            "success": True,
+            "entities": result.get("entities", []),
+            "note": "Showing most connected entities in knowledge graph",
+        }
+    return {"success": False, "error": result.get("error", "Failed to get entities")}
+
+
+@tool(
+    name="knowledge_graph_stats",
+    description="Get statistics about the knowledge graph - how many documents, entities, and what topics are covered.",
+    parameters={},
+)
+async def knowledge_graph_stats() -> dict:
+    """Get knowledge graph statistics."""
+    from integrations.lightrag.client import get_document_status, get_popular_entities, health_check
+
+    stats = {"success": True}
+
+    # Get health info
+    health = await health_check()
+    if health.get("healthy"):
+        details = health.get("details", {})
+        stats["version"] = details.get("core_version", "unknown")
+        stats["api_version"] = details.get("api_version", "unknown")
+
+    # Get document counts
+    doc_status = await get_document_status()
+    if doc_status.get("success"):
+        counts = doc_status.get("status", {}).get("status_counts", {})
+        stats["documents"] = {
+            "total": counts.get("all", 0),
+            "processed": counts.get("processed", 0),
+            "pending": counts.get("pending", 0),
+            "failed": counts.get("failed", 0),
+        }
+
+    # Get top entities to show coverage
+    entities = await get_popular_entities(limit=30)
+    if entities.get("success"):
+        stats["top_entities"] = entities.get("entities", [])
+        stats["note"] = "Top entities represent the most connected concepts in the knowledge graph"
+
+    return stats
 
 
 # ==================== GOOGLE DRIVE ====================
@@ -1499,12 +2040,17 @@ def nextcloud_get_tasks(list_id: str) -> list[dict]:
 
 @tool(
     name="stripe_get_balance",
-    description="Get Stripe account balance (available and pending funds).",
+    description="Get Stripe account balance. Returns amounts in DOLLARS (already converted from cents). Example: amount=398.0 means $398.00 USD, NOT $3.98.",
     parameters={},
 )
 def stripe_get_balance() -> dict:
     from integrations.stripe.client import get_balance
-    return get_balance()
+    result = get_balance()
+    # Add explicit formatting hint for LLM
+    for bal_type in ["available", "pending"]:
+        for item in result.get(bal_type, []):
+            item["formatted"] = f"${item['amount']:.2f} {item['currency']}"
+    return result
 
 
 @tool(
@@ -3098,6 +3644,174 @@ def wp_list_sites() -> list[dict]:
 
 
 @tool(
+    name="wp_add_site",
+    description="Add a new WordPress site to Alfred's roster. Requires the site URL, username, and application password. The user must first create an Application Password in WordPress (Users > Profile > Application Passwords).",
+    parameters={
+        "name": "string - short name for the site (lowercase, no spaces, e.g. 'mysite')",
+        "url": "string - full URL of the WordPress site (e.g. 'https://example.com')",
+        "username": "string - WordPress username with admin access",
+        "password": "string - WordPress Application Password (NOT the regular login password)",
+    },
+)
+def wp_add_site(name: str, url: str, username: str, password: str) -> dict:
+    """Add a new WordPress site to Alfred's configuration."""
+    import os
+    import re
+
+    env_path = "/home/aialfred/alfred/config/.env"
+
+    # Validate inputs
+    name = name.lower().strip()
+    if not re.match(r'^[a-z0-9_]+$', name):
+        return {"success": False, "error": "Site name must be lowercase letters, numbers, and underscores only"}
+
+    url = url.rstrip("/")
+    if not url.startswith("http"):
+        url = f"https://{url}"
+
+    # Read current .env file
+    try:
+        with open(env_path, "r") as f:
+            content = f.read()
+    except Exception as e:
+        return {"success": False, "error": f"Could not read .env file: {e}"}
+
+    # Check if site already exists
+    name_upper = name.upper()
+    if f"WP_SITE_{name_upper}_URL" in content:
+        return {"success": False, "error": f"Site '{name}' already exists in configuration"}
+
+    # Update WP_SITES list
+    wp_sites_match = re.search(r'^WP_SITES=(.*)$', content, re.MULTILINE)
+    if wp_sites_match:
+        current_sites = wp_sites_match.group(1)
+        if current_sites:
+            new_sites = f"{current_sites},{name}"
+        else:
+            new_sites = name
+        content = content.replace(f"WP_SITES={current_sites}", f"WP_SITES={new_sites}")
+    else:
+        # WP_SITES doesn't exist, add it
+        content += f"\n# WordPress Sites\nWP_SITES={name}\n"
+
+    # Add the new site's credentials
+    new_site_config = f"""
+# {name.title()} WordPress Site
+WP_SITE_{name_upper}_URL={url}
+WP_SITE_{name_upper}_USER={username}
+WP_SITE_{name_upper}_PASS={password}
+"""
+    content += new_site_config
+
+    # Write updated .env file
+    try:
+        with open(env_path, "w") as f:
+            f.write(content)
+    except Exception as e:
+        return {"success": False, "error": f"Could not write .env file: {e}"}
+
+    # Reload the WordPress client configuration
+    try:
+        from integrations.wordpress import client as wp_client
+        from dotenv import load_dotenv
+        load_dotenv(env_path, override=True)
+        wp_client._load_sites()  # Reload sites from environment
+    except Exception as e:
+        return {"success": True, "warning": f"Site added but reload failed: {e}. Restart Alfred to apply."}
+
+    # Test the connection
+    try:
+        from integrations.wordpress.client import test_connection
+        test_result = test_connection(name)
+        if test_result.get("success"):
+            return {
+                "success": True,
+                "message": f"WordPress site '{name}' added and connected successfully!",
+                "site": name,
+                "url": url,
+                "connected_as": test_result.get("connected_as", username),
+            }
+        else:
+            return {
+                "success": True,
+                "warning": f"Site added but connection test failed: {test_result.get('error')}. Please verify credentials.",
+                "site": name,
+                "url": url,
+            }
+    except Exception as e:
+        return {
+            "success": True,
+            "warning": f"Site added but could not test connection: {e}",
+            "site": name,
+            "url": url,
+        }
+
+
+@tool(
+    name="wp_remove_site",
+    description="Remove a WordPress site from Alfred's roster. This only removes the configuration, not the actual WordPress site.",
+    parameters={
+        "name": "string - the site name to remove (e.g. 'mysite')",
+    },
+)
+def wp_remove_site(name: str) -> dict:
+    """Remove a WordPress site from Alfred's configuration."""
+    import re
+
+    env_path = "/home/aialfred/alfred/config/.env"
+    name = name.lower().strip()
+    name_upper = name.upper()
+
+    # Read current .env file
+    try:
+        with open(env_path, "r") as f:
+            content = f.read()
+    except Exception as e:
+        return {"success": False, "error": f"Could not read .env file: {e}"}
+
+    # Check if site exists
+    if f"WP_SITE_{name_upper}_URL" not in content:
+        return {"success": False, "error": f"Site '{name}' not found in configuration"}
+
+    # Remove from WP_SITES list
+    wp_sites_match = re.search(r'^WP_SITES=(.*)$', content, re.MULTILINE)
+    if wp_sites_match:
+        current_sites = wp_sites_match.group(1)
+        sites_list = [s.strip() for s in current_sites.split(",")]
+        sites_list = [s for s in sites_list if s.lower() != name]
+        new_sites = ",".join(sites_list)
+        content = content.replace(f"WP_SITES={current_sites}", f"WP_SITES={new_sites}")
+
+    # Remove the site's credentials (URL, USER, PASS lines and any comment above)
+    content = re.sub(rf'\n# {name.title()} WordPress Site\n', '\n', content, flags=re.IGNORECASE)
+    content = re.sub(rf'^WP_SITE_{name_upper}_URL=.*\n', '', content, flags=re.MULTILINE)
+    content = re.sub(rf'^WP_SITE_{name_upper}_USER=.*\n', '', content, flags=re.MULTILINE)
+    content = re.sub(rf'^WP_SITE_{name_upper}_PASS=.*\n', '', content, flags=re.MULTILINE)
+
+    # Write updated .env file
+    try:
+        with open(env_path, "w") as f:
+            f.write(content)
+    except Exception as e:
+        return {"success": False, "error": f"Could not write .env file: {e}"}
+
+    # Reload the WordPress client configuration
+    try:
+        from integrations.wordpress import client as wp_client
+        from dotenv import load_dotenv
+        load_dotenv(env_path, override=True)
+        wp_client._load_sites()
+    except Exception as e:
+        return {"success": True, "warning": f"Site removed but reload failed: {e}. Restart Alfred to apply."}
+
+    return {
+        "success": True,
+        "message": f"WordPress site '{name}' removed from Alfred's roster.",
+        "site": name,
+    }
+
+
+@tool(
     name="wp_test_connection",
     description="Test connection to a WordPress site.",
     parameters={"site": "string - site name (groundrush, loovacast, rucktalk, nightlife, lumabot, myhandscarwash)"},
@@ -3276,6 +3990,49 @@ def wp_get_themes(site: str) -> list[dict]:
 def wp_upload_media(site: str, file_path: str, title: str = None, alt_text: str = None) -> dict:
     from integrations.wordpress.client import upload_media
     return upload_media(site, file_path, title, alt_text)
+
+
+@tool(
+    name="wp_upload_media_base64",
+    description="Upload an image or file to WordPress from base64-encoded data. Use this when user pastes/uploads an image directly in chat.",
+    parameters={
+        "site": "string - site name",
+        "base64_data": "string - base64-encoded file content (can include data URI prefix)",
+        "filename": "string - desired filename with extension (e.g., 'banner.jpg')",
+        "title": "string - media title (optional)",
+        "alt_text": "string - alt text for images (optional)",
+    },
+)
+def wp_upload_media_base64(site: str, base64_data: str, filename: str, title: str = None, alt_text: str = None) -> dict:
+    from integrations.wordpress.client import upload_media_base64
+    return upload_media_base64(site, base64_data, filename, title, alt_text)
+
+
+@tool(
+    name="wp_get_media",
+    description="Get details of a specific media item from WordPress library.",
+    parameters={
+        "site": "string - site name",
+        "media_id": "integer - media ID",
+    },
+)
+def wp_get_media(site: str, media_id: int) -> dict:
+    from integrations.wordpress.client import get_media_item
+    return get_media_item(site, media_id)
+
+
+@tool(
+    name="wp_delete_media",
+    description="Delete a media item from WordPress library.",
+    parameters={
+        "site": "string - site name",
+        "media_id": "integer - media ID to delete",
+        "force": "boolean - permanently delete (true) or trash (false), default true",
+    },
+)
+def wp_delete_media(site: str, media_id: int, force: bool = True) -> dict:
+    from integrations.wordpress.client import delete_media
+    return delete_media(site, media_id, force)
 
 
 @tool(
@@ -3795,6 +4552,336 @@ def firecrawl_crawl_to_lightrag(
 def firecrawl_get_crawl_status(crawl_id: str) -> dict:
     from integrations.firecrawl.client import get_crawl_status
     return get_crawl_status(crawl_id)
+
+
+# ==================== SYSTEMS CHECK ====================
+
+@tool(
+    name="systems_check",
+    description="Run a full systems check on all Alfred integrations to verify they are operational. Returns status of Home Assistant, Email, WordPress, Servers, and other integrations.",
+    parameters={},
+)
+def systems_check() -> dict:
+    """Run comprehensive systems check on all integrations."""
+    results = {}
+
+    # Home Assistant
+    try:
+        from integrations.homeassistant.client import is_configured, list_devices
+        if is_configured():
+            devices = list_devices()
+            if isinstance(devices, dict) and "error" not in devices:
+                results["home_assistant"] = {
+                    "status": "OK",
+                    "lights": len(devices.get("lights", [])),
+                    "climate": len(devices.get("climate", [])),
+                    "switches": len(devices.get("switches", [])),
+                }
+            else:
+                results["home_assistant"] = {"status": "ERROR", "error": str(devices)}
+        else:
+            results["home_assistant"] = {"status": "NOT_CONFIGURED"}
+    except Exception as e:
+        results["home_assistant"] = {"status": "ERROR", "error": str(e)}
+
+    # Gmail
+    try:
+        from integrations.gmail.client import get_unread_count
+        count = get_unread_count()
+        results["gmail"] = {"status": "OK", "unread": count}
+    except Exception as e:
+        results["gmail"] = {"status": "ERROR", "error": str(e)}
+
+    # Multi-Account Email
+    try:
+        from integrations.email.client import email_client
+        accounts = email_client.list_accounts()
+        results["email_accounts"] = {"status": "OK", "count": len(accounts.get("accounts", []))}
+    except Exception as e:
+        results["email_accounts"] = {"status": "ERROR", "error": str(e)}
+
+    # WordPress
+    try:
+        from integrations.wordpress.client import list_sites
+        sites = list_sites()
+        results["wordpress"] = {"status": "OK", "sites": len(sites)}
+    except Exception as e:
+        results["wordpress"] = {"status": "ERROR", "error": str(e)}
+
+    # Servers
+    try:
+        from integrations.servers.manager import list_servers
+        servers = list_servers()
+        results["servers"] = {"status": "OK", "count": len(servers)}
+    except Exception as e:
+        results["servers"] = {"status": "ERROR", "error": str(e)}
+
+    # LightRAG
+    try:
+        from integrations.lightrag.client import is_connected
+        import asyncio
+        connected = asyncio.run(is_connected())
+        results["lightrag"] = {"status": "OK" if connected else "ERROR"}
+    except Exception as e:
+        results["lightrag"] = {"status": "ERROR", "error": str(e)}
+
+    # Twenty CRM
+    try:
+        from integrations.base_crm.client import list_people
+        people = list_people(limit=1)
+        results["twenty_crm"] = {"status": "OK"}
+    except Exception as e:
+        results["twenty_crm"] = {"status": "ERROR", "error": str(e)}
+
+    # n8n Automations
+    try:
+        from integrations.n8n.client import list_workflows
+        workflows = list_workflows()
+        if isinstance(workflows, list):
+            results["n8n"] = {"status": "OK", "workflows": len(workflows)}
+        else:
+            results["n8n"] = {"status": "OK"}
+    except Exception as e:
+        results["n8n"] = {"status": "ERROR", "error": str(e)}
+
+    # Nextcloud
+    try:
+        from integrations.nextcloud.client import get_storage_info
+        info = get_storage_info()
+        if "error" not in str(info):
+            results["nextcloud"] = {"status": "OK"}
+        else:
+            results["nextcloud"] = {"status": "ERROR", "error": str(info)}
+    except Exception as e:
+        results["nextcloud"] = {"status": "ERROR", "error": str(e)}
+
+    # Stripe
+    try:
+        from integrations.stripe.client import get_balance
+        balance = get_balance()
+        if "error" not in str(balance):
+            results["stripe"] = {"status": "OK"}
+        else:
+            results["stripe"] = {"status": "ERROR", "error": str(balance)}
+    except Exception as e:
+        results["stripe"] = {"status": "ERROR", "error": str(e)}
+
+    # Twilio
+    try:
+        import os
+        phone = os.getenv("TWILIO_PHONE_NUMBER")
+        if phone:
+            results["twilio"] = {"status": "OK", "phone": phone}
+        else:
+            results["twilio"] = {"status": "NOT_CONFIGURED"}
+    except Exception as e:
+        results["twilio"] = {"status": "ERROR", "error": str(e)}
+
+    # Summary
+    ok_count = sum(1 for v in results.values() if v.get("status") == "OK")
+    total = len(results)
+
+    return {
+        "summary": f"{ok_count}/{total} integrations operational",
+        "integrations": results
+    }
+
+
+@tool(
+    name="alfred_self_diagnostic",
+    description="Run a comprehensive self-diagnostic on Alfred, checking services, logs, and configuration. Can also log issues to LightRAG for permanent record.",
+    parameters={
+        "log_to_lightrag": "bool - whether to store diagnostic results in LightRAG (default True)",
+    },
+)
+def alfred_self_diagnostic(log_to_lightrag: bool = True) -> dict:
+    """Run comprehensive self-diagnostic on Alfred."""
+    import subprocess
+    import os
+    from datetime import datetime
+
+    results = {
+        "timestamp": datetime.now().isoformat(),
+        "checks": {},
+        "issues": [],
+        "recommendations": [],
+    }
+
+    # Check Alfred service status
+    try:
+        status = subprocess.run(
+            ["systemctl", "status", "alfred", "--no-pager"],
+            capture_output=True, text=True, timeout=10
+        )
+        is_running = "active (running)" in status.stdout
+        results["checks"]["alfred_service"] = {
+            "status": "OK" if is_running else "ERROR",
+            "running": is_running,
+        }
+        if not is_running:
+            results["issues"].append("Alfred service is not running")
+            results["recommendations"].append("Run: sudo systemctl restart alfred")
+    except Exception as e:
+        results["checks"]["alfred_service"] = {"status": "ERROR", "error": str(e)}
+
+    # Check memory usage
+    try:
+        mem = subprocess.run(
+            ["free", "-h"], capture_output=True, text=True, timeout=5
+        )
+        results["checks"]["memory"] = {"status": "OK", "output": mem.stdout.strip()}
+    except Exception as e:
+        results["checks"]["memory"] = {"status": "ERROR", "error": str(e)}
+
+    # Check disk space
+    try:
+        disk = subprocess.run(
+            ["df", "-h", "/home/aialfred"], capture_output=True, text=True, timeout=5
+        )
+        results["checks"]["disk"] = {"status": "OK", "output": disk.stdout.strip()}
+    except Exception as e:
+        results["checks"]["disk"] = {"status": "ERROR", "error": str(e)}
+
+    # Check recent logs for errors
+    try:
+        logs = subprocess.run(
+            ["journalctl", "-u", "alfred", "-n", "50", "--no-pager"],
+            capture_output=True, text=True, timeout=10
+        )
+        error_lines = [l for l in logs.stdout.split('\n') if 'error' in l.lower() or 'exception' in l.lower()]
+        results["checks"]["recent_errors"] = {
+            "status": "OK" if len(error_lines) == 0 else "WARNING",
+            "error_count": len(error_lines),
+            "recent_errors": error_lines[-5:] if error_lines else [],
+        }
+        if error_lines:
+            results["issues"].append(f"Found {len(error_lines)} errors in recent logs")
+    except Exception as e:
+        results["checks"]["recent_errors"] = {"status": "ERROR", "error": str(e)}
+
+    # Check key files exist
+    key_files = [
+        "/home/aialfred/alfred/core/api/main.py",
+        "/home/aialfred/alfred/core/tools/definitions.py",
+        "/home/aialfred/alfred/core/tools/registry.py",
+        "/home/aialfred/alfred/config/.env",
+    ]
+    for f in key_files:
+        exists = os.path.exists(f)
+        results["checks"][f"file_{os.path.basename(f)}"] = {
+            "status": "OK" if exists else "ERROR",
+            "exists": exists,
+        }
+        if not exists:
+            results["issues"].append(f"Missing critical file: {f}")
+
+    # Run systems_check for integrations
+    try:
+        integration_results = systems_check()
+        results["checks"]["integrations"] = integration_results
+    except Exception as e:
+        results["checks"]["integrations"] = {"status": "ERROR", "error": str(e)}
+
+    # Add self-modification info
+    results["self_modification"] = {
+        "ui_file": "/home/aialfred/alfred/core/api/main.py",
+        "tools_file": "/home/aialfred/alfred/core/tools/definitions.py",
+        "config_file": "/home/aialfred/alfred/config/.env",
+        "restart_command": "sudo systemctl restart alfred",
+    }
+
+    # Log to LightRAG if requested
+    if log_to_lightrag and results["issues"]:
+        try:
+            import asyncio
+            from integrations.lightrag.client import upload_text
+
+            log_entry = f"""
+# Alfred Diagnostic Log - {results['timestamp']}
+
+## Issues Found
+{chr(10).join('- ' + issue for issue in results['issues']) if results['issues'] else 'No issues found'}
+
+## Recommendations
+{chr(10).join('- ' + rec for rec in results['recommendations']) if results['recommendations'] else 'None'}
+
+## Integration Status
+{results['checks'].get('integrations', {}).get('summary', 'Unknown')}
+"""
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(upload_text(log_entry, f"Alfred diagnostic log {results['timestamp']}"))
+            finally:
+                loop.close()
+            results["logged_to_lightrag"] = True
+        except Exception as e:
+            results["logged_to_lightrag"] = False
+            results["lightrag_error"] = str(e)
+
+    return results
+
+
+@tool(
+    name="alfred_read_own_code",
+    description="Read Alfred's own source code files. Use this when asked to modify Alfred's UI, add features, or fix issues.",
+    parameters={
+        "file": "string - which file to read: 'ui' (main.py), 'tools' (definitions.py), 'registry', 'config', 'router'",
+        "section": "string - optional section to focus on (e.g., 'login', 'css', 'html')",
+    },
+)
+def alfred_read_own_code(file: str, section: str = None) -> dict:
+    """Read Alfred's source code for self-modification."""
+    file_map = {
+        "ui": "/home/aialfred/alfred/core/api/main.py",
+        "main": "/home/aialfred/alfred/core/api/main.py",
+        "tools": "/home/aialfred/alfred/core/tools/definitions.py",
+        "definitions": "/home/aialfred/alfred/core/tools/definitions.py",
+        "registry": "/home/aialfred/alfred/core/tools/registry.py",
+        "config": "/home/aialfred/alfred/config/.env",
+        "router": "/home/aialfred/alfred/core/brain/router.py",
+    }
+
+    file_path = file_map.get(file.lower())
+    if not file_path:
+        return {"error": f"Unknown file: {file}. Valid options: {list(file_map.keys())}"}
+
+    try:
+        with open(file_path, 'r') as f:
+            content = f.read()
+
+        # If section specified, try to extract relevant portion
+        if section:
+            section_lower = section.lower()
+            lines = content.split('\n')
+            relevant_lines = []
+            in_section = False
+
+            for i, line in enumerate(lines):
+                if section_lower in line.lower():
+                    # Get context around the match
+                    start = max(0, i - 5)
+                    end = min(len(lines), i + 50)
+                    relevant_lines.extend(lines[start:end])
+                    relevant_lines.append(f"... (line {i+1})")
+                    break
+
+            if relevant_lines:
+                content = '\n'.join(relevant_lines)
+            else:
+                return {"error": f"Section '{section}' not found in {file}"}
+
+        # Limit content length for response
+        if len(content) > 10000:
+            content = content[:10000] + "\n\n... [truncated, file is very long]"
+
+        return {
+            "file": file_path,
+            "content": content,
+            "note": "Alfred can modify this file to change his own behavior/appearance",
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def register_all():

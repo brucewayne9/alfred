@@ -471,6 +471,105 @@ def upload_media(
     }
 
 
+def upload_media_base64(
+    site_name: str,
+    base64_data: str,
+    filename: str,
+    title: str = None,
+    alt_text: str = None,
+) -> dict:
+    """Upload media to WordPress from base64-encoded data.
+
+    Args:
+        site_name: Site identifier
+        base64_data: Base64-encoded file content (with or without data URI prefix)
+        filename: Desired filename (e.g., 'banner.jpg')
+        title: Media title (optional)
+        alt_text: Alt text for images (optional)
+
+    Returns:
+        dict with success, id, url, title
+    """
+    import tempfile
+    from pathlib import Path
+
+    try:
+        # Strip data URI prefix if present (e.g., "data:image/jpeg;base64,...")
+        if "," in base64_data and base64_data.startswith("data:"):
+            base64_data = base64_data.split(",", 1)[1]
+
+        # Decode base64
+        file_bytes = base64.b64decode(base64_data)
+
+        # Save to temp file
+        temp_dir = Path(tempfile.gettempdir()) / "alfred_uploads"
+        temp_dir.mkdir(exist_ok=True)
+        temp_file = temp_dir / filename
+
+        with open(temp_file, "wb") as f:
+            f.write(file_bytes)
+
+        # Upload using existing function
+        result = upload_media(site_name, str(temp_file), title, alt_text)
+
+        # Clean up temp file
+        try:
+            temp_file.unlink()
+        except Exception:
+            pass
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to upload base64 media: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def get_media_item(site_name: str, media_id: int) -> dict:
+    """Get details of a specific media item.
+
+    Args:
+        site_name: Site identifier
+        media_id: Media ID
+
+    Returns:
+        Media details including URL, title, alt text
+    """
+    try:
+        media = _api_request(site_name, f"media/{media_id}")
+        return {
+            "success": True,
+            "id": media["id"],
+            "title": media["title"]["rendered"],
+            "url": media["source_url"],
+            "alt_text": media.get("alt_text", ""),
+            "mime_type": media["mime_type"],
+            "media_type": media["media_type"],
+            "width": media.get("media_details", {}).get("width"),
+            "height": media.get("media_details", {}).get("height"),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def delete_media(site_name: str, media_id: int, force: bool = True) -> dict:
+    """Delete a media item from WordPress.
+
+    Args:
+        site_name: Site identifier
+        media_id: Media ID to delete
+        force: Permanently delete (True) or trash (False)
+
+    Returns:
+        Success status
+    """
+    try:
+        _api_request(site_name, f"media/{media_id}", method="DELETE", data={"force": force})
+        return {"success": True, "id": media_id, "deleted": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ============ SEO (RankMath) ============
 
 def get_seo_meta(site_name: str, post_id: int, post_type: str = "post") -> dict:

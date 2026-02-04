@@ -162,6 +162,14 @@ class AgentPool:
 
         logger.info(f"[{worker_id}] Executing task {task.id} with agent {agent.id} ({agent.model})")
 
+        # Send start notification
+        try:
+            from core.notifications import get_notification_manager
+            manager = get_notification_manager()
+            await manager.send_agent_started(task.id, task.agent_type.value, task.goal)
+        except Exception as e:
+            logger.debug(f"Failed to send start notification: {e}")
+
         try:
             # Build the agent's system prompt
             system_prompt = self._build_agent_prompt(task, agent)
@@ -195,11 +203,28 @@ class AgentPool:
 
             logger.info(f"Task {task.id} completed successfully")
 
+            # Send completion notification
+            try:
+                from core.notifications import get_notification_manager
+                manager = get_notification_manager()
+                duration = (task.completed_at - task.started_at).total_seconds() if task.started_at else None
+                await manager.send_agent_completed(task.id, task.agent_type.value, task.result, duration)
+            except Exception as e:
+                logger.debug(f"Failed to send completion notification: {e}")
+
         except Exception as e:
             task.error = str(e)
             task.status = AgentStatus.FAILED
             task.completed_at = datetime.now(timezone.utc)
             logger.error(f"Task {task.id} failed: {e}")
+
+            # Send failure notification
+            try:
+                from core.notifications import get_notification_manager
+                manager = get_notification_manager()
+                await manager.send_agent_failed(task.id, task.agent_type.value, str(e))
+            except Exception as ne:
+                logger.debug(f"Failed to send failure notification: {ne}")
 
         finally:
             self._tasks[task.id] = task

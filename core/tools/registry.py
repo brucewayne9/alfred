@@ -47,9 +47,22 @@ TOOL_CATEGORIES = {
             "crm_pipeline_summary", "crm_search_companies", "crm_search_opportunities", "crm_search_people",
             "crm_update_company", "crm_update_deal_stage", "crm_update_person", "crm_update_task"],
     "memory": ["remember", "recall", "search_knowledge", "ask_knowledge",
-               "store_to_knowledge", "list_knowledge_documents"],
+               "store_to_knowledge", "list_knowledge_documents",
+               "list_knowledge_entities", "knowledge_graph_stats"],
     "server": ["list_servers", "server_status", "server_command",
-               "docker_containers", "docker_restart"],
+               "docker_containers", "docker_restart",
+               "server_check_updates", "server_check_all_updates", "server_run_updates",
+               "server_autoremove", "server_reboot",
+               "mailcow_check_updates", "mailcow_update", "mailcow_restart", "mailcow_status",
+               "homeassistant_status", "homeassistant_restart", "homeassistant_update", "homeassistant_logs",
+               "systems_check", "alfred_self_diagnostic", "alfred_read_own_code"],
+    "smarthome": [
+        "ha_list_devices", "ha_turn_on", "ha_turn_off", "ha_set_light",
+        "ha_room_control", "ha_add_room_group", "ha_list_room_groups",
+        "ha_media_players", "ha_media_control", "ha_set_volume",
+        "ha_set_thermostat", "ha_get_weather", "ha_activate_scene",
+        "ha_run_script", "ha_get_state",
+    ],
     "stripe": ["stripe_add_invoice_item", "stripe_cancel_subscription", "stripe_create_customer",
                "stripe_create_invoice", "stripe_create_payment_link", "stripe_create_price",
                "stripe_create_product", "stripe_create_subscription", "stripe_deactivate_payment_link",
@@ -63,7 +76,7 @@ TOOL_CATEGORIES = {
                "stripe_send_invoice", "stripe_update_customer", "stripe_void_invoice"],
     "wordpress": [
         # Site management
-        "wp_list_sites", "wp_test_connection", "wp_test_all_sites", "wp_site_health",
+        "wp_list_sites", "wp_add_site", "wp_remove_site", "wp_test_connection", "wp_test_all_sites", "wp_site_health",
         # Posts & Pages
         "wp_get_posts", "wp_get_post", "wp_create_post", "wp_update_post",
         "wp_get_pages", "wp_create_page",
@@ -72,7 +85,7 @@ TOOL_CATEGORIES = {
         # Plugins & Themes
         "wp_get_plugins", "wp_activate_plugin", "wp_deactivate_plugin", "wp_get_themes",
         # Media
-        "wp_upload_media",
+        "wp_upload_media", "wp_upload_media_base64", "wp_get_media", "wp_delete_media",
         # Tracking & Analytics
         "wp_analyze_pixel", "wp_fix_pixel_tracking", "wp_add_tracking_code", "wp_get_snippets",
         # Elementor Design
@@ -170,12 +183,27 @@ CATEGORY_KEYWORDS = {
     "crm": ["crm", "contact", "person", "company", "opportunity", "deal", "lead", "customer", "client"],
     "memory": ["remember", "recall", "knowledge", "what did", "what was", "forget",
                 "wife", "husband", "birthday", "favorite", "prefer", "my name", "who is", "who am"],
-    "server": ["server", "status", "reboot", "restart", "ssh"],
+    "server": ["server", "status", "reboot", "restart", "ssh", "update", "upgrade", "apt",
+               "packages", "security updates", "patch", "lonewolf", "loovacast-dev", "loovacast-prod",
+               "groundrush-prod", "mailcow", "autoremove", "mail server", "email server",
+               "postfix", "dovecot", "mail queue", "systems check", "system check", "integrations",
+               "what can you do", "what tools", "check all", "all integrations",
+               # Self-modification keywords
+               "your login", "your screen", "your interface", "your ui", "change yourself",
+               "fix yourself", "modify yourself", "your code", "your appearance", "redesign",
+               "self diagnostic", "diagnose yourself", "your colors", "your css", "your design"],
+    "smarthome": ["home assistant", "homeassistant", "smart home", "lights", "light", "turn on", "turn off",
+                  "thermostat", "temperature", "hvac", "heat", "cool", "media player", "tv", "speaker",
+                  "volume", "play", "pause", "scene", "bedroom", "kitchen", "living room", "display",
+                  "google home", "nest", "sonos", "chromecast", "weather forecast", "dim", "brightness"],
     "stripe": ["stripe", "payment", "invoice", "subscription", "charge", "refund", "billing", "revenue"],
     "wordpress": [
         "wordpress", "wp", "website", "blog", "post", "page", "seo", "rankmath",
         "plugin", "theme", "elementor", "groundrush", "loovacast", "rucktalk",
         "nightlife", "lumabot", "myhandscarwash", "car wash site", "media library",
+        # Site management keywords
+        "add wordpress", "add site", "new site", "add website", "remove site", "delete site",
+        "connect wordpress", "wordpress roster", "site roster", "application password",
         # Design keywords
         "design", "landing page", "hero section", "features section", "cta", "call to action",
         "testimonials", "pricing", "faq", "contact form", "team section", "stats",
@@ -255,6 +283,9 @@ def get_tools_prompt(query: str = None) -> str:
 
     lines = ["You have access to tools. To use one, respond with ONLY a JSON block:",
              '{"tool": "tool_name", "args": {"param1": "value1"}}',
+             "",
+             "IMPORTANT: When asked to DO something, output ONLY the JSON - no words before or after.",
+             "DO NOT say 'I will turn on the lights' - just output the JSON to actually do it.",
              "",
              "Tools:"]
 

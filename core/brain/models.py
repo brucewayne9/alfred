@@ -41,6 +41,7 @@ class TaskType(str, Enum):
     # Tool/Integration tasks
     TOOL_CALLING = "tool_calling"
     INTEGRATION = "integration"
+    SMART_HOME = "smart_home"  # Home Assistant control
 
     # Agentic tasks
     ORCHESTRATION = "orchestration"
@@ -234,6 +235,20 @@ MODELS = {
         cost_tier=4, speed_tier=3, quality_tier=3,
         description="Claude Opus - highest quality"
     ),
+
+    # CLAUDE CODE (Max Subscription - unlimited usage)
+    "claude-code": ModelConfig(
+        name="claude-code-cli",
+        provider=ModelProvider.CLAUDE_CODE,
+        context_window=200000,
+        supports_tools=True,
+        supports_vision=True,
+        supports_thinking=True,
+        cost_tier=1,  # Free with Max subscription!
+        speed_tier=2,
+        quality_tier=3,
+        description="Claude Code CLI - Max subscription, unlimited"
+    ),
 }
 
 
@@ -257,9 +272,12 @@ TASK_ROUTING: dict[TaskType, list[str]] = {
     TaskType.RESEARCH: ["cloud:deepseek-v3.1", "cloud:gpt-oss-120b", "claude:sonnet"],
     TaskType.PLANNING: ["claude:sonnet", "cloud:deepseek-v3.1", "cloud:nemotron-30b"],
 
-    # Tool/Integration tasks - need tool support
-    TaskType.TOOL_CALLING: ["claude:sonnet", "cloud:nemotron-30b", "cloud:devstral-24b"],
-    TaskType.INTEGRATION: ["claude:sonnet", "cloud:kimi-k2.5"],
+    # Tool/Integration tasks - prefer Ollama, Claude API as fallback
+    TaskType.TOOL_CALLING: ["local:mistral:7b", "cloud:nemotron-30b", "cloud:devstral-24b", "claude:sonnet"],
+    TaskType.INTEGRATION: ["cloud:nemotron-30b", "local:mistral:7b", "claude:sonnet"],
+    # Smart home - use Claude API for reliable native tool calling
+    # Claude Code CLI doesn't have access to Alfred's HA tools (runs as separate process)
+    TaskType.SMART_HOME: ["claude:sonnet", "local:mistral:7b"],
 
     # Agentic tasks - orchestration models
     TaskType.ORCHESTRATION: ["claude:sonnet", "cloud:kimi-k2.5", "cloud:nemotron-30b"],
@@ -316,6 +334,14 @@ TASK_KEYWORDS: dict[TaskType, list[str]] = {
         "step by step", "multiple steps", "process", "workflow",
         "then", "after that", "next",
     ],
+    TaskType.SMART_HOME: [
+        "turn on", "turn off", "lights", "light", "switch",
+        "thermostat", "temperature", "hvac", "heat", "cool",
+        "dim", "brightness", "home assistant", "smart home",
+        "nest", "scene", "living room", "bedroom", "kitchen",
+        "backyard", "media player", "tv", "speaker", "volume",
+        "johnson sign",
+    ],
 }
 
 # Tool-related keywords (routes to TOOL_CALLING)
@@ -369,14 +395,20 @@ def detect_task_type(query: str, has_image: bool = False, has_document: bool = F
     if has_document:
         return TaskType.DOCUMENT_ANALYSIS
 
-    # Check for tool keywords (these need tool calling)
-    if any(kw in query_lower for kw in TOOL_KEYWORDS):
-        return TaskType.TOOL_CALLING
+    # Check for smart home first (specific routing)
+    smart_home_keywords = TASK_KEYWORDS.get(TaskType.SMART_HOME, [])
+    if any(kw in query_lower for kw in smart_home_keywords):
+        return TaskType.SMART_HOME
 
     # Check task-specific keywords
     for task_type, keywords in TASK_KEYWORDS.items():
-        if any(kw in query_lower for kw in keywords):
-            return task_type
+        if task_type != TaskType.SMART_HOME:  # Already checked
+            if any(kw in query_lower for kw in keywords):
+                return task_type
+
+    # Check for tool keywords (these need tool calling)
+    if any(kw in query_lower for kw in TOOL_KEYWORDS):
+        return TaskType.TOOL_CALLING
 
     # Check query length - long queries likely need reasoning
     if len(query) > 500:

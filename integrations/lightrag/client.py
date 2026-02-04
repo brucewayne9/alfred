@@ -230,7 +230,7 @@ async def search_graph(label: str) -> dict:
             resp = await client.get(
                 f"{LIGHTRAG_URL}/graph/label/search",
                 headers=headers,
-                params={"label": label},
+                params={"q": label},  # API expects 'q' parameter
             )
             if resp.status_code == 200:
                 return {"success": True, "entities": resp.json()}
