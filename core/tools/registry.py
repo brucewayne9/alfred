@@ -45,7 +45,13 @@ TOOL_CATEGORIES = {
             "crm_get_company", "crm_get_opportunity", "crm_get_person",
             "crm_list_companies", "crm_list_opportunities", "crm_list_people", "crm_list_tasks",
             "crm_pipeline_summary", "crm_search_companies", "crm_search_opportunities", "crm_search_people",
-            "crm_update_company", "crm_update_deal_stage", "crm_update_person", "crm_update_task"],
+            "crm_update_company", "crm_update_deal_stage", "crm_update_person", "crm_update_task",
+            # Workflow tools
+            "crm_list_workflows", "crm_get_workflow", "crm_create_workflow", "crm_update_workflow",
+            "crm_delete_workflow", "crm_list_workflow_versions", "crm_get_workflow_version",
+            "crm_create_workflow_version", "crm_activate_workflow", "crm_deactivate_workflow",
+            "crm_list_workflow_runs", "crm_get_workflow_run", "crm_trigger_workflow",
+            "crm_set_workflow_trigger"],
     "memory": ["remember", "recall", "search_knowledge", "ask_knowledge",
                "store_to_knowledge", "list_knowledge_documents",
                "list_knowledge_entities", "knowledge_graph_stats"],
@@ -94,6 +100,8 @@ TOOL_CATEGORIES = {
         "wp_design_faq_section", "wp_design_contact_section", "wp_design_team_section",
         "wp_create_elementor_page", "wp_update_elementor_page", "wp_get_elementor_data",
         "wp_design_full_landing_page",
+        # Newsletter Popup
+        "wp_create_newsletter_popup", "wp_design_premium_page",
     ],
     "nextcloud": ["nextcloud_add_participant", "nextcloud_add_user_to_group", "nextcloud_create_conversation",
                   "nextcloud_create_folder", "nextcloud_create_note", "nextcloud_create_user",
@@ -107,7 +115,9 @@ TOOL_CATEGORIES = {
                   "nextcloud_upload_file", "nextcloud_upload_attached_file"],
     "n8n": ["n8n_activate_workflow", "n8n_create_scheduled_workflow", "n8n_create_webhook_slack_workflow",
             "n8n_create_workflow", "n8n_deactivate_workflow", "n8n_delete_workflow",
-            "n8n_execute_workflow", "n8n_get_executions", "n8n_get_workflow", "n8n_list_workflows"],
+            "n8n_convert_newsletter_to_webhook", "n8n_duplicate_workflow", "n8n_execute_workflow",
+            "n8n_get_executions", "n8n_get_workflow", "n8n_list_workflows",
+            "wp_create_newsletter_popup"],
     "firecrawl": [
         "scrape_url", "crawl_website", "search_and_scrape", "extract_structured_data",
         "scrape_to_knowledge", "crawl_to_knowledge", "get_crawl_status",
@@ -163,6 +173,11 @@ TOOL_CATEGORIES = {
         "ga_traffic_sources", "ga_top_pages", "ga_devices",
         "ga_countries", "ga_daily_traffic", "ga_all_properties",
     ],
+    "google_ads": [
+        "gads_list_accounts", "gads_account_info", "gads_campaigns",
+        "gads_campaign_performance", "gads_ad_groups", "gads_keywords",
+        "gads_spend", "gads_set_campaign_status",
+    ],
     "agents": [
         "spawn_agent", "check_agent_task", "list_agent_tasks", "cancel_agent_task",
     ],
@@ -180,7 +195,10 @@ CATEGORY_KEYWORDS = {
     "sms": ["sms", "text", "text message", "send text", "call", "phone call", "make a call",
             "call him", "call her", "call them", "text him", "text her", "text them",
             "twilio", "voicemail", "phone"],
-    "crm": ["crm", "contact", "person", "company", "opportunity", "deal", "lead", "customer", "client"],
+    "crm": ["crm", "contact", "person", "company", "opportunity", "deal", "lead", "customer", "client",
+            "add note", "save note", "place report", "store report", "note for", "notes for",
+            "my hands car wash", "car wash", "myhands",
+            "workflow", "automation", "trigger", "automate crm", "crm workflow", "workflow run"],
     "memory": ["remember", "recall", "knowledge", "what did", "what was", "forget",
                 "wife", "husband", "birthday", "favorite", "prefer", "my name", "who is", "who am"],
     "server": ["server", "status", "reboot", "restart", "ssh", "update", "upgrade", "apt",
@@ -213,7 +231,9 @@ CATEGORY_KEYWORDS = {
         "fix pixel", "pixel not working", "no conversions", "tracking code", "snippet",
     ],
     "nextcloud": ["nextcloud", "next cloud", "cloud storage", "nextcloud file",
-                  "talk conversation", "talk chat", "my notes", "eswar", "donjuan"],
+                  "talk conversation", "talk chat", "my notes", "eswar", "donjuan",
+                  "message eswar", "send message", "tell eswar", "ask eswar", "team message",
+                  "message to", "chat with", "notify team"],
     "n8n": ["n8n", "workflow", "automation", "automate"],
     "radio": ["radio", "station", "playing", "song", "music", "playlist", "listener", "stream", "dj", "broadcast",
               "azuracast", "streamer", "mount", "webhook", "skip", "queue", "request", "upload song", "media library"],
@@ -235,6 +255,9 @@ CATEGORY_KEYWORDS = {
                   "traffic sources", "where visitors", "website stats", "site traffic", "daily traffic",
                   "lenssniper", "loovacast", "lumabot", "luma bot", "myhands", "car wash", "nightlife",
                   "rodwave", "rod wave", "rucktalk", "ag entertainment"],
+    "google_ads": ["google ads", "gads", "adwords", "ad words", "google campaign", "search campaign",
+                   "display campaign", "ppc", "pay per click", "ad spend", "google ad", "ad account",
+                   "keyword performance", "quality score", "ad group", "google advertising"],
     "agents": ["spawn agent", "agent", "delegate", "specialist", "coder agent", "research agent",
                "analyst agent", "writer agent", "parallel", "background task", "multi-step"],
     "briefing": ["briefing", "morning", "daily summary", "what's on my", "my day", "today's schedule",
@@ -243,22 +266,38 @@ CATEGORY_KEYWORDS = {
 }
 
 
-def get_relevant_tools(query: str) -> list[str]:
-    """Get tool names relevant to the query based on keywords."""
+def get_relevant_tools(query: str, max_tools: int = 128) -> list[str]:
+    """Get tool names relevant to the query based on keywords, capped at max_tools."""
     query_lower = query.lower()
     relevant = set(TOOL_CATEGORIES.get("core", []))  # Always include core tools
 
+    # Score each category by number of keyword matches
+    category_scores = {}
     for category, keywords in CATEGORY_KEYWORDS.items():
+        score = 0
         for keyword in keywords:
             if keyword in query_lower:
-                relevant.update(TOOL_CATEGORIES.get(category, []))
-                break
+                score += 1
+        if score > 0:
+            category_scores[category] = score
+
+    # Sort categories by score (most relevant first)
+    sorted_categories = sorted(category_scores.keys(), key=lambda c: category_scores[c], reverse=True)
+
+    # Add tools category by category, stopping before exceeding max
+    for category in sorted_categories:
+        cat_tools = TOOL_CATEGORIES.get(category, [])
+        if len(relevant) + len(cat_tools) <= max_tools:
+            relevant.update(cat_tools)
+        elif len(relevant) < max_tools:
+            # Partial add: fill remaining slots
+            remaining = max_tools - len(relevant)
+            relevant.update(cat_tools[:remaining])
 
     # If no specific tools matched, include common ones
-    if len(relevant) <= 2:
-        relevant.update(TOOL_CATEGORIES.get("email", []))
-        relevant.update(TOOL_CATEGORIES.get("calendar", []))
-        relevant.update(TOOL_CATEGORIES.get("memory", []))
+    if len(relevant) <= len(TOOL_CATEGORIES.get("core", [])):
+        for cat in ["email", "calendar", "memory"]:
+            relevant.update(TOOL_CATEGORIES.get(cat, []))
 
     return list(relevant)
 
@@ -284,16 +323,26 @@ def get_tools_prompt(query: str = None) -> str:
     lines = ["You have access to tools. To use one, respond with ONLY a JSON block:",
              '{"tool": "tool_name", "args": {"param1": "value1"}}',
              "",
-             "IMPORTANT: When asked to DO something, output ONLY the JSON - no words before or after.",
-             "DO NOT say 'I will turn on the lights' - just output the JSON to actually do it.",
+             "IMPORTANT RULES:",
+             "- When asked to DO something, output ONLY the JSON - no words before or after.",
+             "- DO NOT say 'I will turn on the lights' - just output the JSON to actually do it.",
+             "- ONLY use tool names listed below. NEVER invent tool names like '_v2' or '_alt'.",
+             "- All arg values must be strings unless noted otherwise.",
              "",
              "Tools:"]
 
     for t in tools_to_include.values():
-        params = ", ".join(f"{k}" for k in t["parameters"].keys()) if t["parameters"] else ""
-        # Shorter description format
-        lines.append(f"- {t['name']}: {t['description'][:80]}{'...' if len(t['description']) > 80 else ''}" +
-                    (f" ({params})" if params else ""))
+        desc = t['description'][:100] + ('...' if len(t['description']) > 100 else '')
+        lines.append(f"\n- {t['name']}: {desc}")
+        if t["parameters"]:
+            for pname, pinfo in t["parameters"].items():
+                if isinstance(pinfo, dict):
+                    ptype = pinfo.get("type", "string")
+                    pdesc = pinfo.get("description", "")
+                    req = " (REQUIRED)" if pinfo.get("required") else " (optional)"
+                    lines.append(f"    {pname}: {ptype}{req} - {pdesc}")
+                else:
+                    lines.append(f"    {pname}: {pinfo}")
 
     return "\n".join(lines)
 

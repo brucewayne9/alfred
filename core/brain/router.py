@@ -1,15 +1,15 @@
 """LLM Router - intelligent multi-model routing for Alfred.
 
 Routes requests to the optimal model based on task type:
-- Local Ollama (RTX 4070): Embeddings, fast classification, simple tasks
-- Ollama Cloud: Code generation, reasoning, analysis
-- Claude API: Tool calling, orchestration, high-quality responses
-- Claude Code CLI: Complex multi-step tasks (Max subscription)
+- Qwen (Ollama): Primary model — handles all queries first
+- OpenAI (ChatGPT): Escalation target when Qwen tries to use tools (native tool calling)
+- Claude Code CLI: Heavy bash/SSH tasks and complex multi-step work (Max subscription)
 """
 
 import asyncio
 import json
 import logging
+import os
 import re
 import shutil
 from datetime import datetime
@@ -112,6 +112,7 @@ def get_full_context(query: str) -> str:
 class ModelTier(str, Enum):
     LOCAL = "local"
     CLOUD = "cloud"  # Claude API with native tool calling
+    OPENAI = "openai"  # OpenAI gpt-4o-mini with native tool calling
     CLAUDE_CODE = "claude-code"
 
 
@@ -144,7 +145,7 @@ TOOL_TRIGGERS = [
 ]
 
 
-# Meta Ads queries go to Claude API for reliable native tool calling
+# Meta Ads queries - routed to Ollama (qwen3-coder-next)
 META_ADS_TRIGGERS = [
     "meta", "facebook", "instagram", "meta ads", "facebook ads", "instagram ads",
     "campaign", "ad set", "ad performance", "ctr", "cpc", "cpm", "roas",
@@ -152,22 +153,20 @@ META_ADS_TRIGGERS = [
     "budget", "underperform", "ads manager",
 ]
 
-# Nextcloud queries also go to Claude API for reliable tool calling
+# Nextcloud queries - routed to Ollama (qwen3-coder-next)
 NEXTCLOUD_TRIGGERS = [
     "nextcloud", "next cloud", "cloud storage", "upload to cloud",
     "upload file", "upload image", "save to nextcloud",
 ]
 
-# Email queries go to Claude API for reliable tool calling with multiple accounts
+# Email queries - routed to Ollama (qwen3-coder-next)
 EMAIL_TRIGGERS = [
     "lumabot", "luma bot", "rucktalk", "ruck talk", "loovacast", "groundrush info",
     "info@rucktalk", "info@loovacast", "info@groundrush", "support@loovacast",
     "check my inbox", "check inbox", "email inbox", "unread email",
 ]
 
-# Home Assistant / Smart Home queries - now using smart routing with Ollama first
-# The improved tool-calling instructions should help Ollama handle these reliably
-# If Ollama fails, the smart routing in models.py will fallback to Claude
+# Smart Home queries - routed to Ollama (qwen3-coder-next)
 SMARTHOME_TRIGGERS = [
     "turn on", "turn off", "lights", "light", "switch", "thermostat",
     "temperature", "hvac", "heat", "cool", "dim", "brightness",
@@ -187,7 +186,12 @@ _session_tiers: dict[str, ModelTier] = {}
 
 
 def classify_query(query: str, session_id: str = None) -> ModelTier:
-    """Determine if a query needs local Ollama (tools), Claude API, or Claude Code."""
+    """Hybrid routing: Qwen first, ChatGPT for tools, Claude Code for bash.
+
+    Qwen (local Ollama) handles all queries first. If Qwen tries to use a
+    tool, the response is escalated to OpenAI (ChatGPT) for reliable native
+    tool calling. Heavy bash/SSH tasks go to Claude Code CLI.
+    """
     query_lower = query.lower().strip()
 
     # Short follow-up messages stay on the same tier as the previous message
@@ -197,32 +201,71 @@ def classify_query(query: str, session_id: str = None) -> ModelTier:
         if is_followup and session_id in _session_tiers:
             return _session_tiers[session_id]
 
-    # "claude" prefix always goes to Claude Code CLI
-    if query_lower.startswith("claude ") or query_lower.startswith("claude,"):
-        tier = ModelTier.CLAUDE_CODE
-    # Meta Ads queries go to Claude API (native tool calling is more reliable)
-    elif any(trigger in query_lower for trigger in META_ADS_TRIGGERS):
-        tier = ModelTier.CLOUD
-    # Nextcloud queries go to Claude API for reliable tool calling
-    elif any(trigger in query_lower for trigger in NEXTCLOUD_TRIGGERS):
-        tier = ModelTier.CLOUD
-    # Email queries (multi-account) go to Claude API for reliable tool calling
-    elif any(trigger in query_lower for trigger in EMAIL_TRIGGERS):
-        tier = ModelTier.CLOUD
-    # Smart Home queries - use Claude API with native tool calling
-    # Claude Code CLI doesn't have access to Alfred's HA tools (runs as separate process)
-    elif any(trigger in query_lower for trigger in SMARTHOME_TRIGGERS):
-        tier = ModelTier.CLOUD
-    # Other tool-related queries stay LOCAL
-    elif any(trigger in query_lower for trigger in TOOL_TRIGGERS):
-        tier = ModelTier.LOCAL
-    # Long queries without tool triggers go to Claude Code
-    elif len(query) > 500:
-        tier = ModelTier.CLAUDE_CODE
-    elif any(trigger in query_lower for trigger in CLAUDE_CODE_TRIGGERS):
+    # Check if query needs tools → Claude Code
+    all_tool_triggers = (
+        TOOL_TRIGGERS + META_ADS_TRIGGERS + NEXTCLOUD_TRIGGERS +
+        EMAIL_TRIGGERS + SMARTHOME_TRIGGERS + CLAUDE_CODE_TRIGGERS
+    )
+    needs_tools = any(trigger in query_lower for trigger in all_tool_triggers)
+
+    # Also check for action/command/lookup patterns
+    action_patterns = [
+        "how many", "show me", "list ", "get ", "find ",
+        "what's on my", "what is on my", "what do i have",
+        "scrape", "crawl", "wordpress", "wp ",
+        "stripe", "payment", "invoice",
+        "remind", "set ", "pause", "enable", "disable",
+        "status of", "check on",
+        # Contact/data lookups
+        "phone", "number", "address", "email for",
+        "who is", "who's", "look up", "lookup",
+        # Possessive queries about people ("what's X's ...")
+        "'s phone", "'s email", "'s address", "'s number",
+        "'s birthday", "'s company",
+        # Briefing / schedule
+        "my day", "my schedule", "my calendar", "my inbox",
+        "my email", "my tasks", "my notes",
+        "good morning", "briefing", "catch me up",
+        # Weather / smart home state
+        "weather", "temperature", "forecast",
+        # Radio / streaming / TTS on stations
+        "tts", "ai dj", "on air", "playing", "station", "stream",
+        "azuracast", "studio b", "studiob",
+        # Knowledge queries
+        "do you remember", "what did i", "what was",
+        # Analytics / ads / data queries
+        "analytics", "google ads", "meta ads", "campaign",
+        "page views", "pageviews", "visitors", "traffic",
+        "sessions", "bounce rate", "conversion",
+        "report", "correlat", "performance", "spend",
+        "impressions", "clicks", "ctr", "cpc", "roas",
+        "country", "region", "coming from", "where are",
+        # CRM data
+        "manager", "owner of", "contact", "company",
+        # Email actions
+        "send ", "email ", "latest email", "new email",
+        "unread", "inbox",
+        # Generic data requests
+        "can you check", "pull up", "what about my",
+        "give me", "tell me about my",
+    ]
+    if not needs_tools:
+        needs_tools = any(p in query_lower for p in action_patterns)
+
+    # Heavy tasks that need bash/SSH access → Claude Code CLI
+    heavy_patterns = [
+        "ssh ", "run ", "deploy", "restart", "install", "update server",
+        "reboot", "docker", "systemctl", "apt ", "git ",
+        "write code", "debug", "refactor", "build",
+        "explain this code", "analyze code",
+    ]
+    needs_bash = any(p in query_lower for p in heavy_patterns)
+
+    if needs_bash:
         tier = ModelTier.CLAUDE_CODE
     else:
-        # Simple queries stay local (cheap, fast)
+        # Qwen handles everything first — if it tries to use a tool,
+        # the ask() function will escalate to OpenAI for reliable tool calling
         tier = ModelTier.LOCAL
 
     # Track the tier for this session
@@ -232,18 +275,21 @@ def classify_query(query: str, session_id: str = None) -> ModelTier:
     return tier
 
 
-def get_system_prompt(query: str = None) -> str:
-    """Build the full system prompt including available tools and memory context.
+async def get_system_prompt(query: str = None) -> str:
+    """Build the full system prompt including available tools, memory, and knowledge context.
 
     If query is provided, only includes relevant tools to reduce context size.
-    Also automatically retrieves relevant memories about the user.
+    Also automatically retrieves relevant memories and LightRAG knowledge.
     """
     tools_section = get_tools_prompt(query)
     memory_section = get_memory_context(query) if query else ""
+    knowledge_section = await get_knowledge_context(query) if query else ""
 
     prompt = f"Current date and time: {get_current_datetime_str()}\n\n{SYSTEM_PROMPT_BASE}"
     if memory_section:
         prompt += "\n\n" + memory_section
+    if knowledge_section:
+        prompt += "\n\n" + knowledge_section
     if tools_section:
         prompt += "\n\n" + tools_section
     return prompt
@@ -327,7 +373,7 @@ async def query_smart(
     # Build messages if not provided
     if messages is None:
         messages = [
-            {"role": "system", "content": get_system_prompt(query)},
+            {"role": "system", "content": await get_system_prompt(query)},
             {"role": "user", "content": query},
         ]
 
@@ -351,7 +397,7 @@ async def query_smart(
 
     # Local or Ollama Cloud - both use ollama_client
     if messages and messages[0]["role"] == "system":
-        messages[0]["content"] = get_system_prompt(query)
+        messages[0]["content"] = await get_system_prompt(query)
 
     if stream:
         return {
@@ -458,6 +504,56 @@ async def query_claude_vision(query: str, image_data: str, media_type: str = "im
         return f"Vision analysis failed: {e}"
 
 
+async def query_openai_vision(query: str, image_data: str, media_type: str = "image/jpeg") -> str:
+    """Query OpenAI gpt-4o-mini with an image for vision analysis.
+
+    Args:
+        query: The user's question about the image
+        image_data: Base64-encoded image data
+        media_type: MIME type (image/jpeg, image/png, etc.)
+    """
+    import openai as openai_client
+
+    if not settings.openai_api_key:
+        # Fallback to Claude vision
+        return await query_claude_vision(query, image_data, media_type)
+
+    logger.info(f"Querying OpenAI vision: {query[:100]}...")
+
+    try:
+        client = openai_client.OpenAI(api_key=settings.openai_api_key)
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            max_tokens=2048,
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"Current date and time: {get_current_datetime_str()}\n\n{SYSTEM_PROMPT_BASE}",
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{media_type};base64,{image_data}",
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": query or "Describe this image in detail.",
+                        },
+                    ],
+                },
+            ],
+        )
+        return response.choices[0].message.content or "I couldn't analyze this image."
+    except Exception as e:
+        logger.error(f"OpenAI vision error: {e}")
+        # Fallback to Claude
+        return await query_claude_vision(query, image_data, media_type)
+
+
 def _get_anthropic_tools(query: str = None) -> list[dict]:
     """Convert our tool definitions to Anthropic's tool format."""
     from core.tools.registry import get_relevant_tools
@@ -496,6 +592,9 @@ def _get_anthropic_tools(query: str = None) -> list[dict]:
                 "required": required,
             }
         })
+    # Hard cap at 128 tools (Anthropic API limit)
+    if len(tools) > 128:
+        tools = tools[:128]
     return tools
 
 
@@ -508,7 +607,7 @@ async def query_claude_tools(query: str, messages: list[dict] | None = None) -> 
     if not settings.anthropic_api_key or settings.anthropic_api_key == "sk-ant-CHANGEME":
         logger.warning("Claude API key not configured, falling back to local")
         return await query_local([
-            {"role": "system", "content": get_system_prompt(query)},
+            {"role": "system", "content": await get_system_prompt(query)},
             {"role": "user", "content": query},
         ])
 
@@ -642,18 +741,167 @@ async def query_claude_tools(query: str, messages: list[dict] | None = None) -> 
     return {"response": text_response.strip() or "I completed the requested actions.", "images": generated_images or None, "ui_action": ui_action}
 
 
-async def query_claude_code(query: str, allow_tools: bool = False) -> str:
+def _get_openai_tools(query: str = None) -> list[dict]:
+    """Convert our tool definitions to OpenAI's function calling format."""
+    from core.tools.registry import get_relevant_tools
+
+    relevant_names = get_relevant_tools(query) if query else list(_tools.keys())
+
+    tools = []
+    for name, tool in _tools.items():
+        if name not in relevant_names:
+            continue
+        properties = {}
+        required = []
+        for param_name, param_info in tool.get("parameters", {}).items():
+            if isinstance(param_info, dict):
+                properties[param_name] = {
+                    "type": param_info.get("type", "string"),
+                    "description": param_info.get("description", ""),
+                }
+                if param_info.get("required", False):
+                    required.append(param_name)
+            else:
+                properties[param_name] = {"type": "string", "description": str(param_info)}
+
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": tool["description"],
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                },
+            },
+        })
+    return tools
+
+
+async def query_openai_tools(query: str, messages: list[dict] | None = None) -> dict:
+    """Query OpenAI gpt-4o-mini with native tool calling.
+
+    Fast and cheap for tool-based queries. Uses structured function calling
+    so tools are executed reliably without text-parsing hacks.
+    """
+    import openai as openai_client
+
+    if not settings.openai_api_key:
+        logger.warning("OpenAI API key not configured, falling back to Claude Code")
+        result = await query_claude_code(query)
+        return {"response": result} if isinstance(result, str) else result
+
+    client = openai_client.OpenAI(api_key=settings.openai_api_key)
+    tools = _get_openai_tools(query)
+    logger.info(f"Querying OpenAI {settings.openai_model} with {len(tools)} tools: {query[:100]}...")
+
+    # Build system + memory context
+    memory_context = get_memory_context(query)
+    system_content = f"Current date and time: {get_current_datetime_str()}\n\n{SYSTEM_PROMPT_BASE}"
+    if memory_context:
+        system_content += "\n\n" + memory_context
+
+    # Build messages
+    oai_messages = [{"role": "system", "content": system_content}]
+    if messages:
+        for msg in messages:
+            if msg["role"] != "system" and msg.get("content"):
+                content = msg["content"]
+                if isinstance(content, str) and content.strip():
+                    oai_messages.append({"role": msg["role"], "content": content})
+
+    if not oai_messages or oai_messages[-1].get("content") != query:
+        oai_messages.append({"role": "user", "content": query})
+
+    generated_images = []
+    ui_action = None
+    max_iterations = 5
+
+    for iteration in range(max_iterations):
+        try:
+            api_params = {
+                "model": settings.openai_model,
+                "messages": oai_messages,
+                "max_tokens": 4096,
+            }
+            if tools:
+                api_params["tools"] = tools
+
+            response = client.chat.completions.create(**api_params)
+        except Exception as e:
+            logger.error(f"OpenAI API error: {e}")
+            return {"response": f"I encountered an error: {e}", "images": None, "ui_action": None}
+
+        choice = response.choices[0]
+        message = choice.message
+
+        # If no tool calls, return the text
+        if not message.tool_calls:
+            return {
+                "response": (message.content or "").strip(),
+                "images": generated_images or None,
+                "ui_action": ui_action,
+            }
+
+        # Execute tool calls
+        oai_messages.append(message)  # Add assistant message with tool_calls
+
+        for tool_call in message.tool_calls:
+            tool_name = tool_call.function.name
+            try:
+                tool_args = json.loads(tool_call.function.arguments)
+            except json.JSONDecodeError:
+                tool_args = {}
+
+            logger.info(f"OpenAI requested tool: {tool_name} with args: {tool_args}")
+            tool_result = await execute_tool(tool_name, tool_args)
+
+            # Handle special results
+            if isinstance(tool_result, dict):
+                if tool_result.get("ui_action"):
+                    ui_action = {
+                        "action": tool_result["ui_action"],
+                        "value": tool_result.get("value"),
+                    }
+                if tool_name == "generate_image" and tool_result.get("success") and tool_result.get("base64"):
+                    generated_images.append({
+                        "base64": tool_result["base64"],
+                        "filename": tool_result.get("filename", "generated.png"),
+                        "download_url": tool_result.get("download_url", ""),
+                    })
+                    tool_result = {k: v for k, v in tool_result.items() if k != "base64"}
+
+            # Add tool result
+            oai_messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(tool_result, default=str) if not isinstance(tool_result, str) else tool_result,
+            })
+
+    # Max iterations — return whatever text we have
+    return {
+        "response": (message.content or "I completed the requested actions.").strip(),
+        "images": generated_images or None,
+        "ui_action": ui_action,
+    }
+
+
+async def query_claude_code(query: str, allow_tools: bool = True) -> str:
     """Hand off a query to Claude Code CLI (uses Max subscription).
+
+    Claude Code is the primary brain for Alfred. It has full bash access
+    to execute commands, SSH into servers, and use all system tools.
 
     Args:
         query: The user's query
-        allow_tools: If True, enables file editing and tool use (for "fix alfred" type tasks)
+        allow_tools: Always True — Claude Code needs bash to act on requests
     """
-    claude_path = shutil.which("claude")
-    if not claude_path:
+    claude_path = shutil.which("claude") or "/home/aialfred/.nvm/versions/node/v20.12.2/bin/claude"
+    if not os.path.isfile(claude_path):
         logger.warning("Claude Code CLI not found, falling back to local")
         return await query_local([
-            {"role": "system", "content": get_system_prompt()},
+            {"role": "system", "content": await get_system_prompt()},
             {"role": "user", "content": query},
         ])
 
@@ -664,19 +912,58 @@ async def query_claude_code(query: str, allow_tools: bool = False) -> str:
             clean_query = clean_query[len(prefix):].strip()
             break
 
-    # Check if this is a "fix alfred" type request that needs tools
-    fix_keywords = ["fix", "edit", "update", "modify", "change", "add", "implement", "refactor", "debug"]
-    alfred_keywords = ["alfred", "this code", "the code", "this file", "codebase"]
-    query_lower = clean_query.lower()
-    needs_tools = any(f in query_lower for f in fix_keywords) and any(a in query_lower for a in alfred_keywords)
+    # Build context-rich prompt so Claude Code knows who it is and what it can do
+    memory_context = get_memory_context(clean_query)
+    now = get_current_datetime_str()
 
-    if needs_tools or allow_tools:
-        logger.info(f"Handing off to Claude Code WITH TOOLS: {clean_query[:100]}...")
-        # Use --dangerously-skip-permissions for full tool access
-        cmd = [claude_path, "--dangerously-skip-permissions", "-p", clean_query]
-    else:
-        logger.info(f"Handing off to Claude Code (read-only): {clean_query[:100]}...")
-        cmd = [claude_path, "-p", clean_query]
+    system_context = f"""You are Alfred, a personal AI assistant for Mike Johnson, owner of GroundRush Inc | GroundRush Labs.
+Current date/time: {now}
+
+You have full bash access. Use it to accomplish tasks:
+- SSH into servers: ssh loovacast, ssh groundrush, ssh lonewolf, ssh mailcow
+- Check server status: uptime, free -h, df -h, docker ps, etc.
+- Send emails via the Alfred API: curl -s http://localhost:8400/...
+- Access CRM, calendar, Stripe, etc. via Alfred's REST API on localhost:8400
+- Run any system command needed
+
+Key API endpoints on localhost:8400 (use curl with -b /tmp/alfred_cookie):
+- GET /calendar/today - today's schedule
+- GET /conversations - chat history
+- POST /chat - send a message
+- GET /integrations/crm/people - CRM contacts
+- GET /integrations/crm/companies - CRM companies
+- GET /integrations/stripe/balance - Stripe balance
+
+Server SSH aliases: loovacast, groundrush, lonewolf, mailcow
+
+Response style: Speak naturally as a British butler. No markdown tables. No bullet lists. Conversational, concise, voice-friendly. Address the user as "sir" or by name. Never add email-style signatures. Never use filler phrases like "One moment sir" — go straight to the answer."""
+
+    if memory_context:
+        system_context += f"\n\n{memory_context}"
+
+    full_prompt = f"{system_context}\n\nUser request: {clean_query}"
+
+    logger.info(f"Handing off to Claude Code: {clean_query[:100]}...")
+    cmd = [
+        claude_path,
+        "--dangerously-skip-permissions",
+        "--max-turns", "10",
+        "-p", full_prompt,
+    ]
+
+    # Clean environment — don't inherit systemd's minimal env which confuses Claude
+    env = {
+        "HOME": "/home/aialfred",
+        "USER": "aialfred",
+        "LOGNAME": "aialfred",
+        "PATH": "/home/aialfred/.nvm/versions/node/v20.12.2/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NODE_PATH": "/home/aialfred/.nvm/versions/node/v20.12.2/lib/node_modules",
+        "NVM_DIR": "/home/aialfred/.nvm",
+        "TERM": "xterm-256color",
+        "XDG_CONFIG_HOME": "/home/aialfred/.config",
+        "GIT_TERMINAL_PROMPT": "0",
+        "LANG": "en_US.UTF-8",
+    }
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -684,10 +971,7 @@ async def query_claude_code(query: str, allow_tools: bool = False) -> str:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd="/home/aialfred/alfred",
-            env={
-                **__import__("os").environ,
-                "PATH": "/home/aialfred/.nvm/versions/node/v20.12.2/bin:" + __import__("os").environ.get("PATH", ""),
-            },
+            env=env,
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)  # 5 min for complex tasks
         response = stdout.decode("utf-8", errors="replace").strip()
@@ -740,74 +1024,41 @@ async def ask(
     if tier == ModelTier.CLAUDE_CODE:
         return await query_claude_code(query)
 
-    # Claude API with native tool calling - most reliable for tool queries
+    # Claude API with native tool calling
     if tier == ModelTier.CLOUD:
         return await query_claude_tools(query, messages)
 
+    # OpenAI gpt-4o-mini with native tool calling (fast + cheap)
+    if tier == ModelTier.OPENAI:
+        return await query_openai_tools(query, messages)
+
+    # LOCAL tier = Qwen first, escalate to ChatGPT if tool call detected
+    system_prompt = await get_system_prompt(query)
+
     if messages is None:
         messages = [
-            {"role": "system", "content": get_system_prompt(query)},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": query},
         ]
-
-    # Ensure system prompt has tools (filtered by query)
-    if messages and messages[0]["role"] == "system":
-        messages[0]["content"] = get_system_prompt(query)
+    elif messages and messages[0]["role"] == "system":
+        messages[0]["content"] = system_prompt
 
     if stream:
         return stream_local(messages)
 
-    # Non-streaming: support tool calling loop
+    # Ask Qwen first
     response = await query_local(messages)
-    generated_images = []
-    ui_action = None
 
-    # Check if LLM wants to call a tool
+    # Check if Qwen tried to call a tool — if so, hand off to ChatGPT
+    # which has reliable native tool calling
     tool_call = parse_tool_call(response)
     if tool_call:
-        tool_name, tool_args = tool_call
-        logger.info(f"LLM requested tool: {tool_name}")
-        tool_result = await execute_tool(tool_name, tool_args)
+        logger.info(f"Qwen attempted tool call ({tool_call[0]}), escalating to OpenAI for reliable execution")
+        return await query_openai_tools(query, messages)
 
-        # Capture UI actions (for frontend to execute)
-        if isinstance(tool_result, dict) and tool_result.get("ui_action"):
-            ui_action = {
-                "action": tool_result["ui_action"],
-                "value": tool_result.get("value"),
-            }
-            # Use the message from the tool as the response
-            response = tool_result.get("message", "Done.")
-            # Don't need to query LLM again for UI actions
-        # Capture generated images
-        elif tool_name == "generate_image" and tool_result.get("success") and tool_result.get("base64"):
-            generated_images.append({
-                "base64": tool_result["base64"],
-                "filename": tool_result.get("filename", "generated.png"),
-                "download_url": tool_result.get("download_url", ""),
-            })
-            # Don't include base64 in LLM context (too large)
-            tool_result_for_llm = {k: v for k, v in tool_result.items() if k != "base64"}
-            # Feed tool result back to LLM for final response
-            messages.append({"role": "assistant", "content": response})
-            messages.append({
-                "role": "user",
-                "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result_for_llm, indent=2, default=str)}\n```\nNow provide a natural language response to the user based on this data.",
-            })
-            response = await query_local(messages)
-        else:
-            tool_result_for_llm = tool_result
-            # Feed tool result back to LLM for final response
-            messages.append({"role": "assistant", "content": response})
-            messages.append({
-                "role": "user",
-                "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result_for_llm, indent=2, default=str)}\n```\nNow provide a natural language response to the user based on this data.",
-            })
-            response = await query_local(messages)
-
-    # Safety net: strip any leaked JSON tool blocks from the final response
+    # No tool call — Qwen handled it, return the response
     response = _strip_tool_json(response)
-
-    return {"response": response, "images": generated_images if generated_images else None, "ui_action": ui_action}
+    return {"response": response, "images": None, "ui_action": None}
 
 
 def _strip_tool_json(text: str) -> str:
@@ -931,4 +1182,17 @@ Firecrawl Integration:
 - scrape_to_knowledge: Scrape single page → LightRAG
 - crawl_to_knowledge: Crawl site → LightRAG (use this for docs/multi-page)
 - search_and_scrape: Google search + scrape results
-- ALWAYS save scraped content to knowledge base unless user says otherwise"""
+- ALWAYS save scraped content to knowledge base unless user says otherwise
+
+⚠️ MANDATORY - WordPress Premium Page Design:
+When Mike asks for page designs, contact forms, landing pages, or ANY visual WordPress content with words like "elegant", "chic", "premium", "slick", or "award-winning":
+
+USE THIS SINGLE TOOL - it handles everything automatically:
+{"tool": "wp_design_premium_page", "args": {"site": "nightlife", "title": "Page Title", "description": "Describe the page: what it should contain, any specific elements like contact forms, taglines (#IYKYK means 'if you know you know'), styling preferences"}}
+
+This tool:
+1. Spawns a designer agent with the qwen3-coder model
+2. Generates premium HTML/CSS with dark backgrounds, gold accents, animations
+3. Automatically publishes the page
+
+DO NOT use wp_create_page directly for design requests - use wp_design_premium_page instead."""
