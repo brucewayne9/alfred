@@ -34,17 +34,19 @@ class AgentType(str, Enum):
     WRITER = "writer"         # Content creation
     PLANNER = "planner"       # Task planning and breakdown
     EXECUTOR = "executor"     # Tool execution
+    DESIGNER = "designer"     # Web design, HTML/CSS, WordPress pages
     GENERAL = "general"       # General purpose
 
 
 # Map agent types to preferred models
 AGENT_MODELS = {
-    AgentType.CODER: "cloud:devstral-24b",
+    AgentType.CODER: "cloud:qwen3-coder-next",
     AgentType.RESEARCHER: "cloud:deepseek-v3.2",
     AgentType.ANALYST: "cloud:deepseek-v3.1",
     AgentType.WRITER: "cloud:gpt-oss-120b",
     AgentType.PLANNER: "claude:sonnet",
     AgentType.EXECUTOR: "cloud:nemotron-30b",
+    AgentType.DESIGNER: "cloud:qwen3-coder",  # Best for HTML/CSS/design
     AgentType.GENERAL: "cloud:ministral-8b",
 }
 
@@ -184,18 +186,24 @@ class AgentPool:
                 messages[1]["content"] = f"Context:\n{task.context}\n\nTask:\n{task.goal}"
 
             # Execute with the appropriate model
-            from core.brain.router import query_smart
+            from core.brain.router import query_smart, query_local
             from core.brain.models import MODELS
 
             model_config = MODELS.get(agent.model)
             if not model_config:
                 raise ValueError(f"Unknown model: {agent.model}")
 
-            result = await query_smart(
-                task.goal,
-                messages=messages,
-                force_model=agent.model,
-            )
+            # Designer agents should NOT have tool access - just generate content
+            if task.agent_type == AgentType.DESIGNER:
+                # Use direct query without tools
+                response = await query_local(messages, model_config.name)
+                result = {"response": response}
+            else:
+                result = await query_smart(
+                    task.goal,
+                    messages=messages,
+                    force_model=agent.model,
+                )
 
             task.result = result.get("response", "")
             task.status = AgentStatus.COMPLETED
@@ -275,6 +283,29 @@ Be systematic and thorough. Provide clear, actionable steps.""",
 - Handle errors gracefully
 Be efficient and accurate. Report what was done and the outcome.""",
 
+            AgentType.DESIGNER: """You are a web design specialist. Your ONLY job is to output complete HTML/CSS code.
+
+⛔ DO NOT call any tools. DO NOT spawn agents. DO NOT use JSON tool syntax.
+✅ ONLY output the raw HTML code starting with <!DOCTYPE html>
+
+REQUIREMENTS:
+1. Output ONLY HTML - no explanations, no tool calls, no JSON
+2. Full <!DOCTYPE html> document with embedded <style> block
+3. CSS variables for theming (:root { --void-black: #000; --gold: #c9a962; })
+4. Google Fonts: Cinzel for headings, Raleway for body
+5. Hover states, transitions, animations
+6. Mobile responsive @media queries
+
+FOR NIGHTLIFE SITES:
+- Dark backgrounds: #000000, #030308
+- Gold accents: #c9a962
+- Animated nebula/starfield effects
+- Glass-morphism on forms
+- Cinematic, premium feel
+
+YOUR RESPONSE MUST START WITH: <!DOCTYPE html>
+DO NOT include any text before or after the HTML code.""",
+
             AgentType.GENERAL: """You are a helpful assistant agent. Your role is to:
 - Understand and complete the given task
 - Provide clear, accurate responses
@@ -334,13 +365,14 @@ Be helpful and thorough.""",
         task = self._tasks.get(task_id)
         return task.to_dict() if task else None
 
-    async def get_task_result(self, task_id: str, wait: bool = False, timeout: float = 60) -> Any:
+    async def get_task_result(self, task_id: str, wait: bool = False, timeout: float = 60, full_result: bool = False) -> Any:
         """Get the result of a task.
 
         Args:
             task_id: The task ID
             wait: If True, wait for completion
             timeout: Max seconds to wait
+            full_result: If True, return full untruncated result
 
         Returns:
             Task result or None if not complete
@@ -356,6 +388,14 @@ Be helpful and thorough.""",
                     break
                 await asyncio.sleep(0.5)
 
+        if full_result:
+            # Return dict with full untruncated result
+            return {
+                "id": task.id,
+                "status": task.status.value,
+                "result": task.result,  # Full result, not truncated
+                "error": task.error,
+            }
         return task.to_dict()
 
     async def cancel_task(self, task_id: str) -> bool:
@@ -439,3 +479,9 @@ async def spawn_planner(goal: str, context: str = "") -> str:
     """Spawn a planner agent."""
     pool = get_agent_pool()
     return await pool.spawn_agent(goal, AgentType.PLANNER, context)
+
+
+async def spawn_designer(goal: str, context: str = "") -> str:
+    """Spawn a designer agent for web design and HTML/CSS tasks."""
+    pool = get_agent_pool()
+    return await pool.spawn_agent(goal, AgentType.DESIGNER, context)

@@ -7,8 +7,8 @@ from core.tools.registry import tool
 
 @tool(
     name="check_email",
-    description="Check inbox for recent emails. Returns subject, sender, and snippet.",
-    parameters={"max_results": "int (default 5)", "query": "string - Gmail search query (optional)"},
+    description="Check emails from Mike's Google Workspace account (mjohnson@groundrushinc.com). Supports Gmail search syntax. EXAMPLES: 'in:sent' for sent messages, 'in:sent to:@coca-cola.com' for sent emails to coca-cola, 'from:someone@example.com' for emails from specific sender, 'subject:meeting' for subject search.",
+    parameters={"max_results": "int (default 5)", "query": "string - Gmail search query (e.g., 'in:sent to:@coca-cola.com' to search sent emails)"},
 )
 def check_email(max_results: int = 5, query: str = "") -> list[dict]:
     from integrations.gmail.client import get_inbox
@@ -59,7 +59,7 @@ def email_list_accounts() -> dict:
 
 @tool(
     name="email_inbox",
-    description="Get recent emails from a specific account's inbox. Accounts: groundrush, rucktalk, loovacast, lumabot, support, groundrush info.",
+    description="Get recent emails from a specific IMAP account's inbox. For mjohnson@groundrushinc.com, use the check_email tool instead (Google OAuth). Accounts: groundrush (mjohnson@groundrushlabs.com), rucktalk, loovacast, lumabot, support, groundrush info.",
     parameters={
         "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
         "limit": {"type": "integer", "description": "Max emails to return (default 10)"},
@@ -100,7 +100,7 @@ def email_send(account: str, to: str, subject: str, body: str) -> dict:
 
 @tool(
     name="email_search",
-    description="Search emails in a specific account by keyword.",
+    description="Search emails in a specific IMAP account by keyword. For mjohnson@groundrushinc.com, use check_email with Gmail query syntax instead.",
     parameters={
         "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
         "query": {"type": "string", "description": "Search keyword", "required": True},
@@ -110,6 +110,33 @@ def email_send(account: str, to: str, subject: str, body: str) -> dict:
 def email_search(account: str, query: str, limit: int = 10) -> dict:
     from integrations.email.client import email_client
     return email_client.search_emails(account, query, limit)
+
+
+@tool(
+    name="email_sent",
+    description="Get recent SENT emails from an IMAP account. For mjohnson@groundrushinc.com (Google), use check_email with query='in:sent' instead. IMAP accounts: groundrush (mjohnson@groundrushlabs.com), rucktalk, loovacast, lumabot, support.",
+    parameters={
+        "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support", "required": True},
+        "limit": {"type": "integer", "description": "Max emails to return (default 10)"},
+    },
+)
+def email_sent(account: str, limit: int = 10) -> dict:
+    from integrations.email.client import email_client
+    return email_client.get_sent(account, limit)
+
+
+@tool(
+    name="email_search_sent",
+    description="Search SENT emails by recipient address or keyword from IMAP accounts. For mjohnson@groundrushinc.com, use check_email with query='in:sent to:recipient@domain.com'. IMAP accounts: groundrush, rucktalk, loovacast.",
+    parameters={
+        "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support", "required": True},
+        "query": {"type": "string", "description": "Search term - can be recipient email/domain or subject keyword", "required": True},
+        "limit": {"type": "integer", "description": "Max results (default 10)"},
+    },
+)
+def email_search_sent(account: str, query: str, limit: int = 10) -> dict:
+    from integrations.email.client import email_client
+    return email_client.search_sent(account, query, limit)
 
 
 @tool(
@@ -810,7 +837,7 @@ def crm_get_person(person_id: str) -> dict:
 
 @tool(
     name="crm_create_person",
-    description="Add a new contact/person to the CRM.",
+    description="Add a new contact/person to the CRM. Can optionally link to a company.",
     parameters={
         "first_name": "string",
         "last_name": "string",
@@ -818,12 +845,14 @@ def crm_get_person(person_id: str) -> dict:
         "phone": "string (optional)",
         "job_title": "string (optional)",
         "city": "string (optional)",
+        "company_id": "string - UUID of company to link this person to (optional)",
     },
 )
 def crm_create_person(first_name: str, last_name: str, email: str = "",
-                       phone: str = "", job_title: str = "", city: str = "") -> dict:
+                       phone: str = "", job_title: str = "", city: str = "",
+                       company_id: str = "") -> dict:
     from integrations.base_crm.client import create_person
-    return create_person(first_name, last_name, email, phone, job_title, city)
+    return create_person(first_name, last_name, email, phone, job_title, city, company_id)
 
 
 @tool(
@@ -837,12 +866,14 @@ def crm_create_person(first_name: str, last_name: str, email: str = "",
         "phone": "string (optional)",
         "job_title": "string (optional)",
         "city": "string (optional)",
+        "company_id": "string - UUID of company to link this person to (optional)",
     },
 )
 def crm_update_person(person_id: str, first_name: str = "", last_name: str = "",
-                       email: str = "", phone: str = "", job_title: str = "", city: str = "") -> dict:
+                       email: str = "", phone: str = "", job_title: str = "", city: str = "",
+                       company_id: str = "") -> dict:
     from integrations.base_crm.client import update_person
-    return update_person(person_id, first_name, last_name, email, phone, job_title, city)
+    return update_person(person_id, first_name, last_name, email, phone, job_title, city, company_id)
 
 
 @tool(
@@ -1141,6 +1172,176 @@ def crm_add_task_to_company(title: str, company_id: str, status: str = "TODO", d
 def crm_add_task_to_deal(title: str, opportunity_id: str, status: str = "TODO", due_date: str = "") -> dict:
     from integrations.base_crm.client import create_task_for_opportunity
     return create_task_for_opportunity(title, opportunity_id, status, due_date)
+
+
+# ==================== CRM WORKFLOW TOOLS ====================
+
+@tool(
+    name="crm_list_workflows",
+    description="List all workflows in the CRM. Workflows automate actions based on triggers.",
+    parameters={"limit": "int - max results (default 20)"},
+)
+def crm_list_workflows(limit: int = 20) -> list[dict]:
+    from integrations.base_crm.client import list_workflows
+    return list_workflows(limit)
+
+
+@tool(
+    name="crm_get_workflow",
+    description="Get details of a specific workflow by ID.",
+    parameters={"workflow_id": "string - UUID of the workflow"},
+)
+def crm_get_workflow(workflow_id: str) -> dict:
+    from integrations.base_crm.client import get_workflow
+    return get_workflow(workflow_id)
+
+
+@tool(
+    name="crm_create_workflow",
+    description="Create a new workflow in the CRM. Only pass the name - statuses are managed automatically.",
+    parameters={
+        "name": "string - workflow name (required)",
+    },
+)
+def crm_create_workflow(name: str) -> dict:
+    from integrations.base_crm.client import create_workflow
+    return create_workflow(name)
+
+
+@tool(
+    name="crm_update_workflow",
+    description="Update an existing workflow.",
+    parameters={
+        "workflow_id": "string - UUID of the workflow",
+        "name": "string - new name (optional)",
+        "statuses": "list - new status options (optional)",
+    },
+)
+def crm_update_workflow(workflow_id: str, name: str = None, statuses: list = None) -> dict:
+    from integrations.base_crm.client import update_workflow
+    return update_workflow(workflow_id, name, statuses)
+
+
+@tool(
+    name="crm_delete_workflow",
+    description="Delete a workflow from the CRM.",
+    parameters={"workflow_id": "string - UUID of the workflow"},
+)
+def crm_delete_workflow(workflow_id: str) -> dict:
+    from integrations.base_crm.client import delete_workflow
+    return delete_workflow(workflow_id)
+
+
+@tool(
+    name="crm_list_workflow_versions",
+    description="List versions of a workflow. Each version has different triggers and steps.",
+    parameters={
+        "workflow_id": "string - filter by workflow ID (optional)",
+        "limit": "int - max results (default 20)",
+    },
+)
+def crm_list_workflow_versions(workflow_id: str = None, limit: int = 20) -> list[dict]:
+    from integrations.base_crm.client import list_workflow_versions
+    return list_workflow_versions(workflow_id, limit)
+
+
+@tool(
+    name="crm_get_workflow_version",
+    description="Get details of a specific workflow version including its trigger and steps.",
+    parameters={"version_id": "string - UUID of the workflow version"},
+)
+def crm_get_workflow_version(version_id: str) -> dict:
+    from integrations.base_crm.client import get_workflow_version
+    return get_workflow_version(version_id)
+
+
+@tool(
+    name="crm_create_workflow_version",
+    description="Create a new version of a workflow with trigger and steps.",
+    parameters={
+        "workflow_id": "string - parent workflow ID",
+        "name": "string - version name",
+        "trigger": "dict - trigger config e.g. {'type': 'MANUAL'} or {'type': 'RECORD_CREATED', 'settings': {...}}",
+        "steps": "dict - workflow steps configuration",
+        "status": "string - DRAFT or ACTIVE (default DRAFT)",
+    },
+)
+def crm_create_workflow_version(
+    workflow_id: str, name: str, trigger: dict = None, steps: dict = None, status: str = "DRAFT"
+) -> dict:
+    from integrations.base_crm.client import create_workflow_version
+    return create_workflow_version(workflow_id, name, trigger, steps, status)
+
+
+@tool(
+    name="crm_activate_workflow",
+    description="Activate a workflow version so it starts running.",
+    parameters={"version_id": "string - UUID of the workflow version to activate"},
+)
+def crm_activate_workflow(version_id: str) -> dict:
+    from integrations.base_crm.client import activate_workflow_version
+    return activate_workflow_version(version_id)
+
+
+@tool(
+    name="crm_deactivate_workflow",
+    description="Deactivate a workflow version (set to DRAFT).",
+    parameters={"version_id": "string - UUID of the workflow version to deactivate"},
+)
+def crm_deactivate_workflow(version_id: str) -> dict:
+    from integrations.base_crm.client import deactivate_workflow_version
+    return deactivate_workflow_version(version_id)
+
+
+@tool(
+    name="crm_set_workflow_trigger",
+    description="Set a trigger on a workflow. The workflow must have a draft version. Use this to make workflows fire automatically.",
+    parameters={
+        "workflow_id": "string - UUID of the workflow",
+        "trigger_type": "string - MANUAL, RECORD_CREATED, RECORD_UPDATED, or RECORD_DELETED",
+        "entity": "string - for record triggers: 'person', 'company', or 'opportunity' (required for RECORD_* triggers)",
+    },
+)
+def crm_set_workflow_trigger(workflow_id: str, trigger_type: str, entity: str = None) -> dict:
+    from integrations.base_crm.client import set_workflow_trigger
+    return set_workflow_trigger(workflow_id, trigger_type, entity)
+
+
+@tool(
+    name="crm_list_workflow_runs",
+    description="List workflow execution runs. Shows history of when workflows ran.",
+    parameters={
+        "workflow_id": "string - filter by workflow (optional)",
+        "status": "string - filter by PENDING, RUNNING, COMPLETED, FAILED (optional)",
+        "limit": "int - max results (default 20)",
+    },
+)
+def crm_list_workflow_runs(workflow_id: str = None, status: str = None, limit: int = 20) -> list[dict]:
+    from integrations.base_crm.client import list_workflow_runs
+    return list_workflow_runs(workflow_id, status, limit)
+
+
+@tool(
+    name="crm_get_workflow_run",
+    description="Get details of a specific workflow run.",
+    parameters={"run_id": "string - UUID of the workflow run"},
+)
+def crm_get_workflow_run(run_id: str) -> dict:
+    from integrations.base_crm.client import get_workflow_run
+    return get_workflow_run(run_id)
+
+
+@tool(
+    name="crm_trigger_workflow",
+    description="Manually trigger a workflow to run now.",
+    parameters={
+        "workflow_id": "string - UUID of the workflow to trigger",
+        "name": "string - optional name for this run",
+    },
+)
+def crm_trigger_workflow(workflow_id: str, name: str = None) -> dict:
+    from integrations.base_crm.client import trigger_workflow
+    return trigger_workflow(workflow_id, name)
 
 
 # ==================== MEMORY TOOLS ====================
@@ -1721,15 +1922,29 @@ def n8n_delete_workflow(workflow_id: str) -> dict:
 
 @tool(
     name="n8n_execute_workflow",
-    description="Execute/run a workflow manually, optionally with input data.",
+    description="Execute a workflow by triggering its webhook. Only works for workflows with a webhook trigger node. Workflows with schedule or form triggers can only run from the n8n UI.",
     parameters={
         "workflow_id": "string - the workflow ID to execute",
-        "data": "dict - optional input data to pass to the workflow",
+        "data": "dict - optional input data to pass to the webhook (optional)",
     },
 )
 def n8n_execute_workflow(workflow_id: str, data: dict = None) -> dict:
     from integrations.n8n.client import execute_workflow
     return execute_workflow(workflow_id, data)
+
+
+@tool(
+    name="n8n_duplicate_workflow",
+    description="Duplicate/copy an existing workflow with all its nodes and connections. The copy is created inactive.",
+    parameters={
+        "workflow_id": "string - the workflow ID to duplicate",
+        "new_name": "string - name for the copy (optional, defaults to 'Original Name (Copy)')",
+    },
+)
+def n8n_duplicate_workflow(workflow_id: str, new_name: str = "") -> dict:
+    from integrations.n8n.client import duplicate_workflow
+    result = duplicate_workflow(workflow_id, new_name if new_name else None)
+    return {"success": True, "workflow": result, "message": f"Workflow duplicated as '{result.get('name', new_name)}'"}
 
 
 @tool(
@@ -1743,6 +1958,20 @@ def n8n_execute_workflow(workflow_id: str, data: dict = None) -> dict:
 def n8n_get_executions(workflow_id: str = "", limit: int = 20) -> list[dict]:
     from integrations.n8n.client import get_executions
     return get_executions(workflow_id if workflow_id else None, limit)
+
+
+@tool(
+    name="n8n_convert_newsletter_to_webhook",
+    description="Convert a newsletter signup workflow from n8n form trigger to webhook trigger. Duplicates the workflow, replaces form triggers with webhooks (for WordPress/Elementor forms), adds Twenty CRM integration, and updates field references. Returns the webhook URL to configure in WordPress.",
+    parameters={
+        "workflow_id": "string - the source workflow ID to duplicate and convert",
+        "site_name": "string - site identifier (e.g., 'rucktalk', 'loovacast', 'lumabot')",
+        "webhook_path": "string - custom webhook path (optional, defaults to '{site_name}-subscribe')",
+    },
+)
+def n8n_convert_newsletter(workflow_id: str, site_name: str, webhook_path: str = "") -> dict:
+    from integrations.n8n.client import convert_newsletter_to_webhook
+    return convert_newsletter_to_webhook(workflow_id, site_name, webhook_path)
 
 
 # ==================== NEXTCLOUD ====================
@@ -3410,6 +3639,113 @@ def meta_ads_update_campaign_budget(campaign_id: str, daily_budget: float = None
     return update_campaign_budget(campaign_id, daily_budget, lifetime_budget)
 
 
+# ==================== GOOGLE ADS ====================
+
+@tool(
+    name="gads_list_accounts",
+    description="List all configured Google Ads accounts/customer IDs.",
+    parameters={},
+)
+def gads_list_accounts() -> dict:
+    from integrations.google_ads.client import list_accounts
+    return list_accounts()
+
+
+@tool(
+    name="gads_account_info",
+    description="Get Google Ads account information (name, currency, timezone, status). Supports multiple accounts.",
+    parameters={
+        "customer_id": "string - Customer ID (format: XXX-XXX-XXXX). Optional - uses default if not provided.",
+    },
+)
+def gads_account_info(customer_id: str = None) -> dict:
+    from integrations.google_ads.client import get_account_info
+    return get_account_info(customer_id=customer_id)
+
+
+@tool(
+    name="gads_campaigns",
+    description="List all Google Ads campaigns. Can filter by status (ENABLED, PAUSED). Supports multiple accounts.",
+    parameters={
+        "customer_id": "string - Customer ID (optional - uses default)",
+        "status": "string - Filter by status: ENABLED, PAUSED (optional)",
+    },
+)
+def gads_campaigns(customer_id: str = None, status: str = None) -> dict:
+    from integrations.google_ads.client import get_campaigns
+    return get_campaigns(customer_id=customer_id, status=status)
+
+
+@tool(
+    name="gads_campaign_performance",
+    description="Get Google Ads campaign performance metrics (impressions, clicks, cost, conversions, CTR, CPC). Supports multiple accounts.",
+    parameters={
+        "customer_id": "string - Customer ID (optional - uses default)",
+        "campaign_id": "string - Specific campaign ID (optional, all campaigns if not provided)",
+        "days": "int - Number of days to look back (default 30)",
+    },
+)
+def gads_campaign_performance(customer_id: str = None, campaign_id: str = None, days: int = 30) -> dict:
+    from integrations.google_ads.client import get_campaign_performance
+    return get_campaign_performance(customer_id=customer_id, campaign_id=campaign_id, days=days)
+
+
+@tool(
+    name="gads_ad_groups",
+    description="Get ad groups from Google Ads, optionally filtered by campaign. Supports multiple accounts.",
+    parameters={
+        "customer_id": "string - Customer ID (optional - uses default)",
+        "campaign_id": "string - Filter by campaign ID (optional)",
+    },
+)
+def gads_ad_groups(customer_id: str = None, campaign_id: str = None) -> dict:
+    from integrations.google_ads.client import get_ad_groups
+    return get_ad_groups(customer_id=customer_id, campaign_id=campaign_id)
+
+
+@tool(
+    name="gads_keywords",
+    description="Get keyword performance metrics from Google Ads. Supports multiple accounts.",
+    parameters={
+        "customer_id": "string - Customer ID (optional - uses default)",
+        "campaign_id": "string - Filter by campaign ID (optional)",
+        "ad_group_id": "string - Filter by ad group ID (optional)",
+        "days": "int - Number of days to look back (default 30)",
+    },
+)
+def gads_keywords(customer_id: str = None, campaign_id: str = None, ad_group_id: str = None, days: int = 30) -> dict:
+    from integrations.google_ads.client import get_keywords
+    return get_keywords(customer_id=customer_id, campaign_id=campaign_id, ad_group_id=ad_group_id, days=days)
+
+
+@tool(
+    name="gads_spend",
+    description="Get Google Ads account spend summary. Shows total cost, clicks, conversions over a period. Supports multiple accounts.",
+    parameters={
+        "customer_id": "string - Customer ID (optional - uses default)",
+        "days": "int - Number of days to look back (default 30)",
+        "by_day": "bool - If true, return daily breakdown (default false)",
+    },
+)
+def gads_spend(customer_id: str = None, days: int = 30, by_day: bool = False) -> dict:
+    from integrations.google_ads.client import get_account_spend
+    return get_account_spend(customer_id=customer_id, days=days, by_day=by_day)
+
+
+@tool(
+    name="gads_set_campaign_status",
+    description="Enable or pause a Google Ads campaign. Supports multiple accounts.",
+    parameters={
+        "customer_id": "string - Customer ID (optional - uses default)",
+        "campaign_id": "string - The campaign ID to update",
+        "status": "string - New status: ENABLED or PAUSED",
+    },
+)
+def gads_set_campaign_status(campaign_id: str, status: str, customer_id: str = None) -> dict:
+    from integrations.google_ads.client import set_campaign_status
+    return set_campaign_status(campaign_id, status, customer_id=customer_id)
+
+
 # ==================== GOOGLE ANALYTICS ====================
 
 @tool(
@@ -3957,6 +4293,114 @@ def wp_create_page(site: str, title: str, content: str, status: str = "draft") -
 
 
 @tool(
+    name="wp_update_page",
+    description="Update an existing page on a WordPress site.",
+    parameters={
+        "site": "string - site name",
+        "page_id": "int - page ID to update",
+        "title": "string - new title (optional)",
+        "content": "string - new content (optional)",
+        "status": "string - new status (optional)",
+    },
+)
+def wp_update_page(site: str, page_id: int, title: str = None, content: str = None, status: str = None) -> dict:
+    from integrations.wordpress.client import update_page
+    return update_page(site, page_id, title, content, status)
+
+
+@tool(
+    name="wp_design_premium_page",
+    description="Create a premium, award-winning designed page for WordPress. USE THIS for any request involving elegant, chic, premium, or styled page design. This spawns a designer agent to create the HTML/CSS and then publishes the page.",
+    parameters={
+        "site": "string - site name (e.g., 'nightlife', 'groundrush')",
+        "title": "string - page title",
+        "description": "string - describe what the page should contain and look like",
+    },
+)
+async def wp_design_premium_page(site: str, title: str, description: str) -> dict:
+    """Create a premium designed page using a designer agent."""
+    import asyncio
+    import logging
+    from integrations.wordpress.client import get_pages, create_page
+    from core.orchestration.agents import get_agent_pool, AgentType
+
+    logger = logging.getLogger(__name__)
+
+    # Site-specific brand guidelines
+    brand_guidelines = {
+        "nightlife": "NightLife Functions: Dark backgrounds (#000, #030308), gold accents (#c9a962), Cinzel headings, Raleway body, animated nebula effects, glass-morphism, premium nightclub vibe",
+        "groundrush": "GroundRush Labs: Modern tech aesthetic, clean professional design, brand colors",
+        "lumabot": "LumaBot: AI/tech focused, contemporary design, futuristic feel",
+    }
+
+    brand = brand_guidelines.get(site, "Premium, modern, professional design")
+
+    # Build the designer agent goal
+    goal = f"""Create a complete HTML page for WordPress with embedded CSS.
+
+PAGE TITLE: {title}
+REQUIREMENTS: {description}
+BRAND: {brand}
+
+YOU MUST OUTPUT:
+1. Full <!DOCTYPE html> document
+2. <style> block with CSS variables, animations, hover effects
+3. Google Fonts (Cinzel, Raleway for nightlife)
+4. Dark background for nightlife sites
+5. Mobile responsive with @media queries
+6. All JavaScript for any animations
+
+DO NOT output explanations - ONLY the complete HTML code."""
+
+    # Spawn designer agent
+    pool = get_agent_pool()
+    task_id = await pool.spawn_agent(goal, AgentType.DESIGNER, f"Brand: {brand}")
+    logger.info(f"[wp_design_premium_page] Spawned designer agent: {task_id}")
+
+    # Wait for agent to complete (max 120 seconds)
+    # Use full_result=True to get untruncated HTML content
+    result = await pool.get_task_result(task_id, wait=True, timeout=120, full_result=True)
+    logger.info(f"[wp_design_premium_page] Agent result status: {result.get('status') if result else 'None'}")
+
+    if result and result.get("status") == "completed" and result.get("result"):
+        html_content = result["result"]
+        logger.info(f"[wp_design_premium_page] Raw result length: {len(html_content) if html_content else 0}")
+
+        # Extract just the HTML if there's extra text
+        if "<!DOCTYPE" in html_content:
+            start = html_content.find("<!DOCTYPE")
+            end = html_content.rfind("</html>") + 7
+            if end > start:
+                html_content = html_content[start:end]
+                logger.info(f"[wp_design_premium_page] Extracted HTML length: {len(html_content)}")
+        else:
+            logger.warning(f"[wp_design_premium_page] No <!DOCTYPE found in result. First 200 chars: {html_content[:200]}")
+
+        # Create the page
+        page_result = create_page(site, title, html_content, "publish")
+
+        if page_result.get("id"):
+            logger.info(f"[wp_design_premium_page] Page created: ID {page_result['id']}")
+            return {
+                "success": True,
+                "page_id": page_result["id"],
+                "url": page_result.get("link", f"Page created with ID {page_result['id']}"),
+                "message": f"Created premium designed page '{title}' on {site}",
+                "html_length": len(html_content),
+            }
+        else:
+            logger.error(f"[wp_design_premium_page] Failed to create page: {page_result}")
+            return {"success": False, "error": "Failed to create page", "details": page_result}
+    else:
+        logger.error(f"[wp_design_premium_page] Agent failed or timed out. Result: {result}")
+        return {
+            "success": False,
+            "error": "Designer agent failed or timed out",
+            "task_status": result,
+        }
+
+
+@tool(
     name="wp_get_seo",
     description="Get RankMath SEO metadata for a post or page.",
     parameters={
@@ -4164,6 +4608,130 @@ def wp_add_tracking_code(site: str, name: str, code: str, location: str = "heade
 def wp_get_snippets(site: str) -> list[dict]:
     from integrations.wordpress.client import get_wpcode_snippets
     return get_wpcode_snippets(site)
+
+
+# ============ Newsletter Popup ============
+
+
+@tool(
+    name="wp_create_newsletter_popup",
+    description="Create a newsletter signup popup on a WordPress site using Elementor. The popup has a styled form that POSTs subscriber data to an n8n webhook URL. Supports all sites: rucktalk, loovacast, lumabot, nightlife, groundrush, myhandscarwash.",
+    parameters={
+        "site": "string - site name (rucktalk, loovacast, lumabot, etc.)",
+        "webhook_url": "string - n8n webhook URL to POST form data to",
+        "title": "string - popup title (optional, defaults to 'Newsletter Signup')",
+        "headline": "string - popup headline text (optional)",
+        "description": "string - popup description text (optional)",
+        "trigger": "string - when to show: page_load, scroll, exit_intent, click (optional, default: page_load)",
+        "trigger_delay": "string - delay in seconds for page_load trigger (optional, default: 5)",
+        "brand_color": "string - primary brand color hex (optional, default: #fed315)",
+    },
+)
+def wp_create_newsletter_popup(
+    site: str,
+    webhook_url: str,
+    title: str = "Newsletter Signup",
+    headline: str = "",
+    description: str = "",
+    trigger: str = "page_load",
+    trigger_delay: str = "5",
+    brand_color: str = "#fed315",
+) -> dict:
+    from integrations.wordpress.elementor import (
+        create_section, create_column, widget_heading, widget_text,
+        widget_webhook_form, _generate_id, background_color as bg_color,
+    )
+    from integrations.wordpress.client import create_elementor_popup
+
+    # Site-specific defaults
+    site_defaults = {
+        "rucktalk": {
+            "headline": "Join The Daily Ruck",
+            "description": "Get weekly insights on health, wealth, and wisdom delivered every Monday at 6 AM.",
+            "brand_color": "#fed315",
+        },
+        "loovacast": {
+            "headline": "Subscribe to LoovaCast",
+            "description": "Daily entertainment and culture news delivered fresh every morning.",
+            "brand_color": "#e86e2c",
+        },
+        "lumabot": {
+            "headline": "Subscribe to LumaBot Weekly",
+            "description": "AI insights, automation tips, and the future of business — every week.",
+            "brand_color": "#60a5fa",
+        },
+    }
+
+    defaults = site_defaults.get(site.lower(), {})
+    headline = headline or defaults.get("headline", "Subscribe to Our Newsletter")
+    description = description or defaults.get("description", "Stay in the loop with the latest updates.")
+    brand_color = brand_color if brand_color != "#fed315" else defaults.get("brand_color", "#fed315")
+
+    # Build the form fields
+    form_fields = [
+        {"type": "text", "label": "First Name", "required": True, "placeholder": "First Name", "width": "50", "custom_id": "first_name"},
+        {"type": "text", "label": "Last Name", "required": True, "placeholder": "Last Name", "width": "50", "custom_id": "last_name"},
+        {"type": "email", "label": "Email", "required": True, "placeholder": "your@email.com", "width": "100", "custom_id": "email"},
+        {"type": "tel", "label": "Phone", "required": False, "placeholder": "Phone (optional)", "width": "50", "custom_id": "phone"},
+        {"type": "text", "label": "Zipcode", "required": False, "placeholder": "Zipcode (optional)", "width": "50", "custom_id": "zipcode"},
+    ]
+
+    # Build the popup layout
+    form_widget = widget_webhook_form(
+        fields=form_fields,
+        webhook_url=webhook_url,
+        form_name=f"{site} Newsletter Signup",
+        submit_text="Subscribe Now",
+        button_color=brand_color,
+        button_text_color="#1a1a0a" if brand_color in ["#fed315", "#f0c800", "#4ade80"] else "#ffffff",
+        success_message="You're in! Check your inbox for a welcome email.",
+    )
+
+    heading_widget = widget_heading(
+        text=headline,
+        tag="h3",
+        align="center",
+        size="24px",
+        color="#ffffff",
+    )
+
+    desc_widget = widget_text(
+        content=f'<p style="text-align: center; color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.6;">{description}</p>',
+    )
+
+    # Build the popup section with dark background
+    popup_section = create_section(
+        columns=[
+            create_column(
+                widgets=[heading_widget, desc_widget, form_widget],
+                width=100,
+            ),
+        ],
+        background=bg_color("#1a1a2e"),
+        padding={"top": "40", "right": "30", "bottom": "40", "left": "30", "unit": "px"},
+    )
+
+    # Create the popup on the site
+    delay = int(trigger_delay) if trigger_delay.isdigit() else 5
+    result = create_elementor_popup(
+        site_name=site,
+        title=title,
+        elementor_data=[popup_section],
+        trigger=trigger,
+        trigger_delay=delay,
+        status="draft",
+    )
+
+    if result.get("success"):
+        result["webhook_url"] = webhook_url
+        result["site"] = site
+        result["message"] = (
+            f"Newsletter popup created on {site} (draft). "
+            f"Open the edit link in Elementor to preview and set display conditions, then publish. "
+            f"Form will POST to: {webhook_url}"
+        )
+
+    return result
 
 
 # ============ Elementor Page Design ============

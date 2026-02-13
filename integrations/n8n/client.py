@@ -98,17 +98,27 @@ def get_workflow_summary(workflow_id: str) -> dict:
 
 
 def create_workflow(name: str, nodes: list[dict], connections: dict, active: bool = False) -> dict:
-    """Create a new workflow with nodes and connections."""
+    """Create a new workflow with nodes and connections.
+
+    Note: n8n's public API treats 'active' as read-only on creation.
+    Workflows are always created inactive. Use activate_workflow() after.
+    """
     body = {
         "name": name,
         "nodes": nodes,
         "connections": connections,
-        "active": active,
         "settings": {
             "executionOrder": "v1"
         },
     }
     data = _post("/workflows", body)
+    # Activate separately if requested (API doesn't allow it on creation)
+    if active and data.get("id"):
+        try:
+            activate_workflow(data["id"])
+            data["active"] = True
+        except Exception:
+            pass
     return _format_workflow(data)
 
 
@@ -149,14 +159,74 @@ def deactivate_workflow(workflow_id: str) -> dict:
 # ==================== Executions ====================
 
 def execute_workflow(workflow_id: str, data: dict = None) -> dict:
-    """Execute a workflow manually with optional input data."""
-    body = {"data": data} if data else {}
-    result = _post(f"/workflows/{workflow_id}/run", body)
+    """Execute a workflow by triggering its webhook (if it has one).
+
+    n8n's public API does not support direct workflow execution.
+    This finds the workflow's webhook trigger and POSTs to it instead.
+    """
+    # Get workflow to find webhook path
+    workflow = get_workflow(workflow_id)
+    nodes = workflow.get("nodes", [])
+    webhook_node = None
+    for node in nodes:
+        node_type = node.get("type", "")
+        if "webhook" in node_type.lower():
+            webhook_node = node
+            break
+
+    if not webhook_node:
+        return {
+            "success": False,
+            "error": "Workflow has no webhook trigger. It can only be executed from the n8n UI or via its own trigger (schedule, form, etc.).",
+        }
+
+    # Build webhook URL
+    path = webhook_node.get("parameters", {}).get("path", "")
+    if not path:
+        return {"success": False, "error": "Webhook node has no path configured."}
+
+    is_active = workflow.get("active", False)
+    if is_active:
+        webhook_url = f"{BASE_URL}/webhook/{path}"
+    else:
+        webhook_url = f"{BASE_URL}/webhook-test/{path}"
+
+    # Trigger the webhook
+    resp = requests.post(webhook_url, json=data or {}, timeout=30)
     return {
-        "execution_id": result.get("executionId"),
-        "success": result.get("finished", False),
-        "data": result.get("data"),
+        "success": resp.status_code < 400,
+        "status_code": resp.status_code,
+        "webhook_url": webhook_url,
+        "response": resp.text[:500] if resp.text else "",
     }
+
+
+def duplicate_workflow(workflow_id: str, new_name: str = None) -> dict:
+    """Duplicate an existing workflow with all its nodes and connections.
+
+    Fetches the full workflow and creates a new copy with a new name.
+    The copy is created in inactive state.
+    """
+    source = get_workflow(workflow_id)
+    name = new_name or f"{source.get('name', 'Workflow')} (Copy)"
+
+    # Strip IDs from nodes so n8n assigns new ones
+    nodes = []
+    for node in source.get("nodes", []):
+        clean_node = {k: v for k, v in node.items() if k != "id"}
+        nodes.append(clean_node)
+
+    body = {
+        "name": name,
+        "nodes": nodes,
+        "connections": source.get("connections", {}),
+        "settings": source.get("settings", {}),
+    }
+    # staticData can be large; only include if present
+    if source.get("staticData"):
+        body["staticData"] = source["staticData"]
+    data = _post("/workflows", body)
+    return _format_workflow(data)
 
 
 def get_executions(workflow_id: str = None, limit: int = 20) -> list[dict]:
@@ -404,3 +474,219 @@ def create_workflow_from_description(name: str, description: str) -> dict:
         "description": description,
         "ready_to_create": True,
     }
+
+
+# ==================== Newsletter Conversion ====================
+
+def convert_newsletter_to_webhook(
+    workflow_id: str,
+    site_name: str,
+    webhook_path: str = "",
+    crm_api_key: str = "",
+    crm_url: str = "https://crm.groundrushlabs.com",
+) -> dict:
+    """Duplicate a newsletter workflow and convert form triggers to webhook triggers.
+
+    This takes an existing newsletter workflow (form trigger → save → email → mark sent)
+    and creates a new copy where:
+    1. Form triggers are replaced with webhook triggers (for WordPress/Elementor forms)
+    2. A CRM integration node is added to push subscribers to Twenty CRM
+    3. Field references are updated to match webhook JSON format
+    4. Everything else (welcome email, data table, etc.) stays intact
+
+    Args:
+        workflow_id: Source workflow to duplicate and convert
+        site_name: Site identifier (e.g., 'rucktalk', 'loovacast', 'lumabot')
+        webhook_path: Custom webhook path (defaults to '{site_name}-subscribe')
+        crm_api_key: Twenty CRM API key (uses settings if empty)
+        crm_url: Twenty CRM base URL
+
+    Returns:
+        Dict with new workflow details and webhook URL
+    """
+    if not webhook_path:
+        webhook_path = f"{site_name.lower().replace(' ', '-')}-subscribe"
+
+    if not crm_api_key:
+        from config.settings import settings
+        crm_api_key = settings.base_crm_api_key
+
+    # Fetch the source workflow
+    source = get_workflow(workflow_id)
+    source_nodes = source.get("nodes", [])
+    source_connections = source.get("connections", {})
+
+    new_nodes = []
+    form_node_name = None
+    form_node_new_name = f"Webhook {site_name}"
+    crm_node_name = f"Push to CRM ({site_name})"
+
+    # Track the node that the form trigger connects to (first downstream node)
+    form_downstream_node = None
+
+    for node in source_nodes:
+        node_type = node.get("type", "")
+        node_name = node.get("name", "")
+
+        if "formTrigger" in node_type:
+            # Replace form trigger with webhook trigger
+            form_node_name = node_name
+            webhook_node = {
+                "name": form_node_new_name,
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": node.get("position", [250, 300]),
+                "parameters": {
+                    "path": webhook_path,
+                    "httpMethod": "POST",
+                    "responseMode": "onReceived",
+                    "responseData": "allEntries",
+                    "options": {},
+                },
+            }
+            new_nodes.append(webhook_node)
+
+            # Find what the form trigger connected to
+            if node_name in source_connections:
+                conns = source_connections[node_name].get("main", [[]])
+                if conns and conns[0]:
+                    form_downstream_node = conns[0][0].get("node")
+        else:
+            # Keep the node, but update field references from form format to webhook JSON
+            node_copy = _update_field_references(node, form_node_name or "Newsletter Signup Form")
+            # Strip node ID so n8n assigns new ones
+            node_copy = {k: v for k, v in node_copy.items() if k != "id"}
+            new_nodes.append(node_copy)
+
+    # Add CRM integration node (HTTP Request to Twenty CRM GraphQL API)
+    crm_node_position = new_nodes[0].get("position", [250, 300]).copy()
+    crm_node_position[0] += 200  # Offset right
+    crm_node_position[1] -= 200  # Offset up (parallel branch)
+
+    crm_node = {
+        "name": crm_node_name,
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": crm_node_position,
+        "parameters": {
+            "method": "POST",
+            "url": f"{crm_url}/api",
+            "sendHeaders": True,
+            "headerParameters": {
+                "parameters": [
+                    {"name": "Authorization", "value": f"Bearer {crm_api_key}"},
+                    {"name": "Content-Type", "value": "application/json"},
+                ]
+            },
+            "sendBody": True,
+            "specifyBody": "json",
+            "jsonBody": '={\n'
+                '  "query": "mutation { createPerson(data: { '
+                'name: { firstName: \\"{{$json.first_name || $json[\'First Name\']}}\\",'
+                ' lastName: \\"{{$json.last_name || $json[\'Last Name\']}}\\" },'
+                ' emails: { primaryEmail: \\"{{$json.email || $json.Email}}\\" },'
+                ' phones: { primaryPhone: \\"{{$json.phone || $json[\'Phone Number\'] || \'\'}}\\" },'
+                ' city: \\"' + site_name + '\\"'
+                ' }) { id } }"\n}',
+            "options": {},
+        },
+    }
+    new_nodes.append(crm_node)
+
+    # Rebuild connections
+    new_connections = {}
+
+    # Webhook connects to both the original downstream node AND the CRM node
+    webhook_targets = []
+    if form_downstream_node:
+        webhook_targets.append({"node": form_downstream_node, "type": "main", "index": 0})
+    new_connections[form_node_new_name] = {
+        "main": [webhook_targets]
+    }
+
+    # CRM node connects from the webhook too (parallel branch)
+    # Add it as a second output from the webhook
+    if webhook_targets:
+        new_connections[form_node_new_name]["main"].append(
+            [{"node": crm_node_name, "type": "main", "index": 0}]
+        )
+    else:
+        new_connections[form_node_new_name] = {
+            "main": [[{"node": crm_node_name, "type": "main", "index": 0}]]
+        }
+
+    # Copy all other connections, updating the form trigger name
+    for src_name, conn_data in source_connections.items():
+        if src_name == form_node_name:
+            continue  # Already handled above
+        # Update any references to the old form node name in connections
+        new_conn = json.loads(json.dumps(conn_data).replace(
+            f'"{form_node_name}"', f'"{form_node_new_name}"'
+        )) if form_node_name else conn_data
+        new_connections[src_name] = new_conn
+
+    # Create the new workflow
+    new_name = f"{source.get('name', 'Newsletter')} - {site_name} Webhook"
+    body = {
+        "name": new_name,
+        "nodes": new_nodes,
+        "connections": new_connections,
+        "settings": source.get("settings", {}),
+    }
+    result = _post("/workflows", body)
+
+    return {
+        **_format_workflow(result),
+        "webhook_url": f"{BASE_URL}/webhook/{webhook_path}",
+        "webhook_test_url": f"{BASE_URL}/webhook-test/{webhook_path}",
+        "site": site_name,
+        "crm_integrated": True,
+        "payload_format": {
+            "first_name": "string",
+            "last_name": "string",
+            "email": "string (required)",
+            "phone": "string (optional)",
+            "birthday": "string (optional, YYYY-MM-DD)",
+            "gender": "string (optional)",
+            "zipcode": "string (optional)",
+        },
+    }
+
+
+def _update_field_references(node: dict, form_node_name: str) -> dict:
+    """Update n8n expression references from form trigger format to webhook JSON format.
+
+    Form triggers output: $json['First Name'], $json.Email, etc.
+    Webhooks output: $json.body.first_name, $json.body.email, etc.
+
+    Also updates references like $('Newsletter Signup Form').item.json.Email
+    to use the webhook node's output format.
+    """
+    node_str = json.dumps(node)
+
+    # Replace form-specific field references with webhook-compatible ones
+    # The webhook will receive JSON body fields directly
+    replacements = [
+        (f"$(\'{form_node_name}\').item.json[\'First Name\']", "$json['first_name']"),
+        (f"$(\'{form_node_name}\').item.json[\'Last Name\']", "$json['last_name']"),
+        (f"$(\'{form_node_name}\').item.json.Email", "$json['email']"),
+        (f"$(\'{form_node_name}\').item.json[\'Phone Number\']", "$json['phone']"),
+        (f"$(\'{form_node_name}\').item.json.Birthday", "$json['birthday']"),
+        (f"$(\'{form_node_name}\').item.json.Zipcode", "$json['zipcode']"),
+        (f"$(\'{form_node_name}\').item.json.Gender", "$json['gender']"),
+        (f"$(\'{form_node_name}\').item.json.formMode", "'webhook'"),
+        # Also handle the form1 variant
+        (f"$(\'{form_node_name}1\').item.json[\'First Name\']", "$json['first_name']"),
+        (f"$(\'{form_node_name}1\').item.json[\'Last Name\']", "$json['last_name']"),
+        (f"$(\'{form_node_name}1\').item.json.Email", "$json['email']"),
+        (f"$(\'{form_node_name}1\').item.json[\'Phone Number\']", "$json['phone']"),
+        (f"$(\'{form_node_name}1\').item.json.Birthday", "$json['birthday']"),
+        (f"$(\'{form_node_name}1\').item.json.Zipcode", "$json['zipcode']"),
+        (f"$(\'{form_node_name}1\').item.json.Gender", "$json['gender']"),
+        (f"$(\'{form_node_name}1\').item.json.formMode", "'webhook'"),
+    ]
+
+    for old, new in replacements:
+        node_str = node_str.replace(old, new)
+
+    return json.loads(node_str)

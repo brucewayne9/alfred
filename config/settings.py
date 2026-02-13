@@ -20,11 +20,15 @@ class Settings(BaseSettings):
 
     # Ollama (local LLM)
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "gpt-oss:120b-cloud"
+    ollama_model: str = "qwen3-coder-next:cloud"
 
     # Anthropic (cloud LLM)
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-20250514"
+
+    # OpenAI (ChatGPT)
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
 
     # Google OAuth
     google_client_id: str = ""
@@ -72,6 +76,16 @@ class Settings(BaseSettings):
     meta_app_secret: str = ""
     meta_access_token: str = ""
     meta_ad_account_id: str = ""
+
+    # Long Processing Notifications
+    long_processing_threshold_seconds: int = 60
+    long_processing_email_to: str = ""
+    long_processing_email_from_account: str = "lumabot"
+
+    # Web Push (VAPID)
+    vapid_private_key: str = ""
+    vapid_public_key: str = ""
+    vapid_contact_email: str = ""
 
     @property
     def database_url(self) -> str:

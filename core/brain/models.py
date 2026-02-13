@@ -122,12 +122,21 @@ MODELS = {
         description="Fast with vision support"
     ),
     "cloud:qwen3-coder": ModelConfig(
-        name="qwen3-coder",
+        name="qwen3-coder:480b-cloud",
         provider=ModelProvider.OLLAMA_CLOUD,
         context_window=32768,
         supports_tools=True,
         cost_tier=2, speed_tier=2, quality_tier=3,
         description="Code specialist"
+    ),
+    "cloud:qwen3-coder-next": ModelConfig(
+        name="qwen3-coder-next:cloud",
+        provider=ModelProvider.OLLAMA_CLOUD,
+        context_window=262144,
+        supports_tools=True,
+        supports_thinking=True,
+        cost_tier=2, speed_tier=1, quality_tier=3,
+        description="Qwen3-Coder-Next - 80B MoE (3B active), top-tier code agent"
     ),
     "cloud:devstral-24b": ModelConfig(
         name="devstral-small-2:24b",
@@ -261,28 +270,27 @@ TASK_ROUTING: dict[TaskType, list[str]] = {
     TaskType.CLASSIFICATION: ["local:mistral:7b", "cloud:ministral-3b"],
     TaskType.SIMPLE_CHAT: ["local:llama3.2:3b", "cloud:ministral-3b", "local:mistral:7b"],
 
-    # Code tasks - use code specialists
-    TaskType.CODE_GENERATION: ["cloud:devstral-24b", "cloud:qwen3-coder", "local:qwen2.5-coder:7b"],
-    TaskType.CODE_REVIEW: ["cloud:devstral-24b", "cloud:qwen3-coder", "claude:sonnet"],
-    TaskType.CODE_EXPLANATION: ["cloud:devstral-24b", "local:qwen2.5-coder:7b"],
+    # Code tasks - use code specialists (qwen3-coder-next primary)
+    TaskType.CODE_GENERATION: ["cloud:qwen3-coder-next", "cloud:devstral-24b", "cloud:qwen3-coder", "local:qwen2.5-coder:7b"],
+    TaskType.CODE_REVIEW: ["cloud:qwen3-coder-next", "cloud:devstral-24b", "cloud:qwen3-coder", "claude:sonnet"],
+    TaskType.CODE_EXPLANATION: ["cloud:qwen3-coder-next", "cloud:devstral-24b", "local:qwen2.5-coder:7b"],
 
-    # Reasoning tasks - use thinking models
-    TaskType.COMPLEX_REASONING: ["cloud:deepseek-v3.1", "cloud:deepseek-v3.2", "claude:sonnet"],
-    TaskType.ANALYSIS: ["cloud:deepseek-v3.2", "cloud:nemotron-30b", "claude:sonnet"],
-    TaskType.RESEARCH: ["cloud:deepseek-v3.1", "cloud:gpt-oss-120b", "claude:sonnet"],
-    TaskType.PLANNING: ["claude:sonnet", "cloud:deepseek-v3.1", "cloud:nemotron-30b"],
+    # Reasoning tasks - use thinking models (qwen3-coder-next has thinking mode)
+    TaskType.COMPLEX_REASONING: ["cloud:qwen3-coder-next", "cloud:deepseek-v3.1", "cloud:deepseek-v3.2", "claude:sonnet"],
+    TaskType.ANALYSIS: ["cloud:qwen3-coder-next", "cloud:deepseek-v3.2", "cloud:nemotron-30b", "claude:sonnet"],
+    TaskType.RESEARCH: ["cloud:qwen3-coder-next", "cloud:deepseek-v3.1", "cloud:gpt-oss-120b", "claude:sonnet"],
+    TaskType.PLANNING: ["cloud:qwen3-coder-next", "claude:sonnet", "cloud:deepseek-v3.1", "cloud:nemotron-30b"],
 
     # Tool/Integration tasks - prefer Ollama, Claude API as fallback
-    TaskType.TOOL_CALLING: ["local:mistral:7b", "cloud:nemotron-30b", "cloud:devstral-24b", "claude:sonnet"],
-    TaskType.INTEGRATION: ["cloud:nemotron-30b", "local:mistral:7b", "claude:sonnet"],
-    # Smart home - use Claude API for reliable native tool calling
-    # Claude Code CLI doesn't have access to Alfred's HA tools (runs as separate process)
-    TaskType.SMART_HOME: ["claude:sonnet", "local:mistral:7b"],
+    TaskType.TOOL_CALLING: ["cloud:qwen3-coder-next", "local:mistral:7b", "cloud:nemotron-30b", "cloud:devstral-24b", "claude:sonnet"],
+    TaskType.INTEGRATION: ["cloud:qwen3-coder-next", "cloud:nemotron-30b", "local:mistral:7b", "claude:sonnet"],
+    # Smart home - qwen3-coder-next first, Claude Code as fallback
+    TaskType.SMART_HOME: ["cloud:qwen3-coder-next", "local:mistral:7b", "claude:sonnet"],
 
-    # Agentic tasks - orchestration models
-    TaskType.ORCHESTRATION: ["claude:sonnet", "cloud:kimi-k2.5", "cloud:nemotron-30b"],
-    TaskType.MULTI_STEP: ["claude:sonnet", "cloud:deepseek-v3.1", "cloud:nemotron-30b"],
-    TaskType.AGENT_SPAWN: ["claude:sonnet"],  # Only Claude spawns agents
+    # Agentic tasks - qwen3-coder-next primary, Claude Code picks up slack
+    TaskType.ORCHESTRATION: ["cloud:qwen3-coder-next", "claude:sonnet", "cloud:kimi-k2.5", "cloud:nemotron-30b"],
+    TaskType.MULTI_STEP: ["cloud:qwen3-coder-next", "claude:sonnet", "cloud:deepseek-v3.1", "cloud:nemotron-30b"],
+    TaskType.AGENT_SPAWN: ["cloud:qwen3-coder-next", "claude:sonnet"],
 
     # Multimodal
     TaskType.VISION: ["cloud:qwen3-vl", "cloud:kimi-k2.5", "claude:sonnet"],

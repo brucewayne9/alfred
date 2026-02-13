@@ -913,6 +913,93 @@ def create_elementor_page(
         return {"success": False, "error": str(e)}
 
 
+def create_elementor_popup(
+    site_name: str,
+    title: str,
+    elementor_data: list | str,
+    trigger: str = "page_load",
+    trigger_delay: int = 5,
+    status: str = "publish",
+) -> dict:
+    """Create an Elementor Pro popup.
+
+    Creates the popup as an elementor_library post type with popup template type.
+
+    Args:
+        site_name: Site identifier
+        title: Popup title
+        elementor_data: Elementor JSON data (list of sections)
+        trigger: Popup trigger type (page_load, scroll, click, exit_intent)
+        trigger_delay: Delay in seconds before showing (for page_load trigger)
+        status: 'draft' or 'publish'
+
+    Returns:
+        Dict with popup details including edit link
+    """
+    import json
+
+    try:
+        if isinstance(elementor_data, list):
+            elementor_json = json.dumps(elementor_data)
+        else:
+            elementor_json = elementor_data
+
+        site = _get_site(site_name)
+
+        # Build display conditions and triggers
+        popup_settings = {
+            "a11y_navigation": "yes",
+            "timing": {},
+        }
+
+        if trigger == "page_load":
+            popup_settings["timing"]["page_load"] = "yes"
+            popup_settings["timing"]["page_load_delay"] = trigger_delay
+        elif trigger == "scroll":
+            popup_settings["timing"]["scrolling"] = "yes"
+            popup_settings["timing"]["scrolling_direction"] = "down"
+            popup_settings["timing"]["scrolling_offset"] = 30
+        elif trigger == "exit_intent":
+            popup_settings["timing"]["on_exit_intent"] = "yes"
+        elif trigger == "click":
+            popup_settings["open_selector"] = ".newsletter-popup-trigger"
+
+        # Create as elementor_library custom post type
+        data = {
+            "title": title,
+            "content": "",
+            "status": status,
+            "meta": {
+                "_elementor_data": elementor_json,
+                "_elementor_edit_mode": "builder",
+                "_elementor_template_type": "popup",
+                "_elementor_page_settings": popup_settings,
+            }
+        }
+
+        # Try elementor_library endpoint first (registered by Elementor Pro)
+        try:
+            popup = _api_request(site_name, "elementor_library", method="POST", data=data)
+        except Exception:
+            # Fallback: create as a page with popup meta (less ideal but works)
+            data["template"] = "elementor_canvas"
+            popup = _api_request(site_name, "pages", method="POST", data=data)
+
+        popup_id = popup["id"]
+        return {
+            "success": True,
+            "id": popup_id,
+            "title": popup.get("title", {}).get("rendered", title),
+            "status": popup.get("status", status),
+            "trigger": trigger,
+            "edit_link": f"{site['url']}/wp-admin/post.php?post={popup_id}&action=elementor",
+            "message": f"Popup '{title}' created. Open the edit link in Elementor to set display conditions and preview.",
+        }
+    except Exception as e:
+        logger.error(f"Failed to create Elementor popup: {e}")
+        return {"success": False, "error": str(e)}
+
+
 def get_elementor_templates(site_name: str) -> list[dict]:
     """Get saved Elementor templates from a site."""
     try:

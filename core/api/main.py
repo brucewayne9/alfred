@@ -118,7 +118,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://aialfred.groundrushcloud.com"],
+    allow_origins=["https://aialfred.groundrushcloud.com", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
@@ -129,9 +129,19 @@ _static_dir = Path(__file__).parent.parent.parent / "static"
 if _static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
+# Serve React frontend build if available
+_frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
 
 @app.get("/manifest.json")
+@app.get("/manifest.webmanifest")
 async def pwa_manifest():
+    # Serve Vite-generated manifest if available
+    for name in ("manifest.webmanifest", "manifest.json"):
+        vite_manifest = _frontend_dist / name
+        if vite_manifest.exists():
+            return Response(content=vite_manifest.read_text(), media_type="application/manifest+json",
+                           headers={"Cache-Control": "public, max-age=86400"})
     return JSONResponse({
         "name": "Alfred",
         "short_name": "Alfred",
@@ -150,8 +160,55 @@ async def pwa_manifest():
 
 @app.get("/sw.js")
 async def service_worker():
+    # Serve Vite-generated service worker if available
+    vite_sw = _frontend_dist / "sw.js"
+    if vite_sw.exists():
+        return Response(content=vite_sw.read_text(), media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
     return Response(content=SERVICE_WORKER_JS, media_type="application/javascript",
                     headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
+@app.get("/registerSW.js")
+async def register_service_worker():
+    """Serve Vite PWA registration script."""
+    vite_reg = _frontend_dist / "registerSW.js"
+    if vite_reg.exists():
+        return Response(content=vite_reg.read_text(), media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache"})
+    return Response(content="", media_type="application/javascript")
+
+
+@app.get("/{filename}.png")
+async def serve_root_png(filename: str):
+    """Serve PNG files from frontend build root (PWA icons)."""
+    for base in (_frontend_dist, _static_dir):
+        f = base / f"{filename}.png"
+        if f.exists():
+            return Response(content=f.read_bytes(), media_type="image/png",
+                           headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404)
+
+
+@app.get("/{filename}.jpg")
+async def serve_root_jpg(filename: str):
+    """Serve JPG files from frontend build root."""
+    for base in (_frontend_dist, _static_dir):
+        f = base / f"{filename}.jpg"
+        if f.exists():
+            return Response(content=f.read_bytes(), media_type="image/jpeg",
+                           headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404)
+
+
+@app.get("/workbox-{filename}")
+async def serve_workbox(filename: str):
+    """Serve Workbox runtime files from frontend build."""
+    workbox_file = _frontend_dist / f"workbox-{filename}"
+    if workbox_file.exists():
+        return Response(content=workbox_file.read_bytes(), media_type="application/javascript",
+                        headers={"Cache-Control": "public, max-age=31536000"})
+    raise HTTPException(status_code=404)
 
 
 # ==================== Models ====================
@@ -256,9 +313,9 @@ class ConversationProjectRequest(BaseModel):
 _sessions: dict[str, list[dict]] = {}
 
 
-def get_session_messages(session_id: str) -> list[dict]:
+async def get_session_messages(session_id: str) -> list[dict]:
     if session_id not in _sessions:
-        msgs = [{"role": "system", "content": get_system_prompt()}]
+        msgs = [{"role": "system", "content": await get_system_prompt()}]
         # Try to restore from SQLite
         conv = get_conversation(session_id)
         if conv:
@@ -312,6 +369,55 @@ async def me(user: dict = Depends(get_current_user)):
     if user is None:
         return {"authenticated": False}
     return {"authenticated": True, "username": user.get("sub", user.get("username")), "role": user.get("role")}
+
+
+@app.get("/auth/auto")
+async def auto_login(request: Request):
+    """Auto-login for trusted local network clients.
+
+    Checks client IP against private subnets. If trusted, issues a JWT cookie
+    for the admin user. If not, returns {auto_login: false}.
+    """
+    import ipaddress
+    client_ip = request.client.host if request.client else ""
+    # Check X-Forwarded-For for proxied requests
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+
+    trusted = False
+    try:
+        addr = ipaddress.ip_address(client_ip)
+        private_nets = [
+            ipaddress.ip_network("10.0.0.0/8"),
+            ipaddress.ip_network("172.16.0.0/12"),
+            ipaddress.ip_network("192.168.0.0/16"),
+            ipaddress.ip_network("127.0.0.0/8"),
+            ipaddress.ip_network("::1/128"),
+        ]
+        trusted = any(addr in net for net in private_nets)
+    except ValueError:
+        trusted = False
+
+    if not trusted:
+        return JSONResponse({"auto_login": False})
+
+    # Find admin user
+    from core.security.auth import _load_users
+    users = _load_users()
+    admin_user = None
+    for username, user_data in users.items():
+        if user_data.get("role") == "admin":
+            admin_user = username
+            break
+
+    if not admin_user:
+        return JSONResponse({"auto_login": False})
+
+    token = create_access_token({"sub": admin_user, "role": "admin"})
+    response = JSONResponse({"auto_login": True, "username": admin_user})
+    response.set_cookie("alfred_token", token, httponly=True, secure=False, samesite="lax", max_age=86400)
+    return response
 
 
 @app.post("/auth/logout")
@@ -2045,6 +2151,11 @@ async def references_download(ref_id: int, user: dict = Depends(require_auth)):
 
 @app.get("/")
 async def root():
+    # Serve React frontend if build exists
+    index_html = _frontend_dist / "index.html"
+    if index_html.exists():
+        return HTMLResponse(content=index_html.read_text(), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    # Fallback to embedded UI
     return HTMLResponse(content=CHAT_HTML, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
@@ -2064,7 +2175,7 @@ async def health():
 @limiter.limit("30/minute")
 async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_auth)):
     """Send a message to Alfred."""
-    messages = get_session_messages(req.session_id)
+    messages = await get_session_messages(req.session_id)
     messages.append({"role": "user", "content": req.message})
 
     # Handle image - check if user wants to upload vs analyze
@@ -2082,9 +2193,9 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
             messages[-1]["content"] = augmented_msg
             # Continue to normal tool flow below (don't return here)
         else:
-            # User wants image analysis - use vision
-            from core.brain.router import query_claude_vision
-            response = await query_claude_vision(
+            # User wants image analysis - use OpenAI vision (gpt-4o-mini supports images)
+            from core.brain.router import query_openai_vision
+            response = await query_openai_vision(
                 req.message or "Describe this image in detail.",
                 req.image_base64,
                 req.image_media_type
@@ -2092,11 +2203,11 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
             messages.append({"role": "assistant", "content": response})
             store_conversation(req.message, response, req.session_id)
             try:
-                add_message(req.session_id, "user", req.message, "cloud")
-                add_message(req.session_id, "assistant", response, "cloud")
+                add_message(req.session_id, "user", req.message, "openai")
+                add_message(req.session_id, "assistant", response, "openai")
             except Exception as e:
                 logger.warning(f"Failed to persist vision message: {e}")
-            return ChatResponse(response=response, tier="cloud", timestamp=datetime.now().isoformat())
+            return ChatResponse(response=response, tier="openai", timestamp=datetime.now().isoformat())
 
     # Handle document analysis request
     if req.document_path:
@@ -2132,7 +2243,15 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
                 messages.insert(0, {"role": "system", "content": f"[Project Context]\n{project_context}"})
 
     tier = ModelTier(req.tier) if req.tier else classify_query(req.message, session_id=req.session_id)
-    result = await ask(req.message, messages=messages, tier=tier)
+
+    # Start long processing watcher — fires notifications if ask() takes too long
+    from core.notifications.watcher import LongProcessingWatcher
+    watcher = LongProcessingWatcher(query=req.message)
+    watcher.start()
+    try:
+        result = await ask(req.message, messages=messages, tier=tier)
+    finally:
+        watcher.cancel()
 
     # Handle both old string return and new dict return
     if isinstance(result, dict):
@@ -2171,17 +2290,31 @@ async def chat(request: Request, req: ChatRequest, user: dict = Depends(require_
 @limiter.limit("30/minute")
 async def chat_stream(request: Request, req: ChatRequest, user: dict = Depends(require_auth)):
     """Stream a response from Alfred."""
-    messages = get_session_messages(req.session_id)
+    messages = await get_session_messages(req.session_id)
     messages.append({"role": "user", "content": req.message})
 
     tier = ModelTier(req.tier) if req.tier else classify_query(req.message, session_id=req.session_id)
 
     async def generate():
         full_response = []
-        stream = await ask(req.message, messages=messages, tier=tier, stream=True)
-        async for chunk in stream:
-            full_response.append(chunk)
-            yield chunk
+        result = await ask(req.message, messages=messages, tier=tier, stream=True)
+
+        # Handle both streaming and non-streaming responses
+        if isinstance(result, str):
+            # Claude Code returns a plain string
+            full_response.append(result)
+            yield result
+        elif isinstance(result, dict):
+            # Dict response (from Claude Code or non-streaming path)
+            text = result.get("response", "")
+            full_response.append(text)
+            yield text
+        else:
+            # Actual stream (from Ollama)
+            async for chunk in result:
+                full_response.append(chunk)
+                yield chunk
+
         response_text = "".join(full_response)
         messages.append({"role": "assistant", "content": response_text})
         store_conversation(req.message, response_text, req.session_id)
@@ -2296,7 +2429,7 @@ async def fast_voice_chat(request: Request, req: ChatRequest, user: dict = Depen
     if conv_id:
         conv = get_conversation(conv_id)
         if conv:
-            messages = [{"role": "system", "content": get_system_prompt(query)}]
+            messages = [{"role": "system", "content": await get_system_prompt(query)}]
             for msg in conv["messages"][-10:]:  # Last 10 messages for context
                 messages.append({"role": msg["role"], "content": msg["content"]})
             messages.append({"role": "user", "content": query})
@@ -2419,7 +2552,7 @@ async def hybrid_voice_chat(request: Request, req: ChatRequest, user: dict = Dep
         if conv_id:
             conv = get_conversation(conv_id)
             if conv:
-                messages = [{"role": "system", "content": get_system_prompt(query)}]
+                messages = [{"role": "system", "content": await get_system_prompt(query)}]
                 for msg in conv["messages"][-10:]:
                     messages.append({"role": msg["role"], "content": msg["content"]})
                 messages.append({"role": "user", "content": query})
@@ -2430,7 +2563,7 @@ async def hybrid_voice_chat(request: Request, req: ChatRequest, user: dict = Dep
 
         if messages is None:
             messages = [
-                {"role": "system", "content": get_system_prompt(query)},
+                {"role": "system", "content": await get_system_prompt(query)},
                 {"role": "user", "content": query},
             ]
 
@@ -2591,7 +2724,7 @@ async def websocket_chat(ws: WebSocket):
     try:
         while True:
             data = await ws.receive_text()
-            messages = get_session_messages(session_id)
+            messages = await get_session_messages(session_id)
             messages.append({"role": "user", "content": data})
 
             tier = classify_query(data, session_id=session_id)
@@ -2667,8 +2800,47 @@ async def notification_status(user: dict = Depends(require_auth)):
     manager = get_notification_manager()
     return {
         "connected_clients": manager.connection_count,
+        "push_subscriptions": manager.push_subscription_count,
         "websocket_url": "/ws/notifications",
     }
+
+
+# ==================== Web Push (VAPID) Endpoints ====================
+
+@app.get("/push/vapid-key")
+async def get_vapid_key(user: dict = Depends(require_auth)):
+    """Return the VAPID public key for browser push subscription."""
+    return {"publicKey": settings.vapid_public_key}
+
+
+class PushSubscriptionRequest(BaseModel):
+    endpoint: str
+    keys: dict  # {p256dh, auth}
+
+
+@app.post("/push/subscribe")
+async def push_subscribe(req: PushSubscriptionRequest, user: dict = Depends(require_auth)):
+    """Register a browser push subscription."""
+    from core.notifications import get_notification_manager
+    manager = get_notification_manager()
+    manager.add_push_subscription({
+        "endpoint": req.endpoint,
+        "keys": req.keys,
+    })
+    return {"status": "subscribed"}
+
+
+class PushUnsubscribeRequest(BaseModel):
+    endpoint: str
+
+
+@app.post("/push/unsubscribe")
+async def push_unsubscribe(req: PushUnsubscribeRequest, user: dict = Depends(require_auth)):
+    """Remove a browser push subscription."""
+    from core.notifications import get_notification_manager
+    manager = get_notification_manager()
+    manager.remove_push_subscription(req.endpoint)
+    return {"status": "unsubscribed"}
 
 
 # ==================== Wake Word WebSocket ====================
@@ -2806,7 +2978,9 @@ CHAT_HTML = """<!DOCTYPE html>
             display: flex; align-items: center; gap: 12px;
             background: #0a0a0a;
         }
-        header h1 { font-size: 16px; font-weight: 500; color: #e0e0e0; }
+        header h1 { font-size: 16px; font-weight: 500; color: #e0e0e0; display: flex; align-items: center; }
+        header h1 img { height: 28px; border-radius: 4px; }
+        .inline-icon { height: 18px; border-radius: 3px; vertical-align: middle; margin-right: 2px; }
         header .status { display: none; }
         .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .header-btn {
@@ -3000,9 +3174,9 @@ CHAT_HTML = """<!DOCTYPE html>
             padding: 0; overflow: hidden; border: none; transition: all 0.2s;
             color: #8e8e8e; font-size: 18px;
         }
-        #mic-btn img { width: 28px; height: 28px; object-fit: cover; border-radius: 50%; }
+        #mic-btn img, #welcome-mic-btn img { width: 28px; height: 28px; object-fit: cover; border-radius: 50%; transition: opacity 0.2s; }
         #mic-btn:hover { background: #424242; color: #e0e0e0; }
-        #mic-btn.recording { background: #dc2626; color: #fff; animation: pulse 1s infinite; }
+        #mic-btn.recording, #welcome-mic-btn.recording { background: transparent; color: #fff; animation: pulse 1s infinite; }
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
         @keyframes glow-listen { 0%,100% { box-shadow: 0 0 8px rgba(74,222,128,0.4); } 50% { box-shadow: 0 0 16px rgba(74,222,128,0.7); } }
         @keyframes glow-hear { 0%,100% { box-shadow: 0 0 10px rgba(232,110,44,0.5); } 50% { box-shadow: 0 0 20px rgba(232,110,44,0.9); } }
@@ -3765,7 +3939,7 @@ CHAT_HTML = """<!DOCTYPE html>
 
     <header>
         <button id="hamburger-btn" onclick="toggleHistory()" title="Conversation history">&#9776;</button>
-        <h1>Alfred</h1>
+        <h1><img src="/static/alfred-icon.jpg" alt="Alfred"></h1>
         <span class="status" id="header-status">Online</span>
         <div class="header-right">
             <button id="wakeword-btn" class="mode-toggle" onclick="toggleWakeWord()" title="'Hey Alfred' wake word detection"><span class="dot"></span>Hey Alfred</button>
@@ -3789,7 +3963,7 @@ CHAT_HTML = """<!DOCTYPE html>
                         <button class="welcome-btn upload-btn" onclick="document.getElementById('file-input').click()" title="Attach">&#43;</button>
                     </div>
                     <div id="welcome-input-right">
-                        <button class="welcome-btn mic-logo-btn" id="welcome-mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/gr-logo.jpeg" alt="Mic"></button>
+                        <button class="welcome-btn mic-logo-btn" id="welcome-mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/logo-white.png" alt="Mic"></button>
                         <button id="welcome-send-btn" onclick="sendFromWelcome()" title="Send" disabled>&#9650;</button>
                     </div>
                 </div>
@@ -3801,7 +3975,7 @@ CHAT_HTML = """<!DOCTYPE html>
     <div id="chat" class="welcome-state">
         <div id="thinking">
             <div class="morph-shape"></div>
-            <div class="label">Alfred is thinking...</div>
+            <div class="label"><img src="/static/alfred-icon.jpg" alt="Alfred" class="inline-icon"> is thinking...</div>
         </div>
     </div>
 
@@ -3826,7 +4000,7 @@ CHAT_HTML = """<!DOCTYPE html>
                     <button class="welcome-btn upload-btn" onclick="document.getElementById('file-input').click()" title="Attach">&#43;</button>
                 </div>
                 <div id="input-right">
-                    <button class="welcome-btn mic-logo-btn" id="mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/gr-logo.jpeg" alt="Mic"></button>
+                    <button class="welcome-btn mic-logo-btn" id="mic-btn" onclick="toggleMic()" title="Voice input"><img src="/static/logo-white.png" alt="Mic"></button>
                     <button id="send-btn" onclick="send()" title="Send">&#9650;</button>
                 </div>
             </div>
@@ -4068,7 +4242,7 @@ CHAT_HTML = """<!DOCTYPE html>
         }
 
         function clearChat() {
-            chat.innerHTML = '<div id="thinking"><div class="morph-shape"></div><div class="label">Alfred is thinking...</div></div>';
+            chat.innerHTML = '<div id="thinking"><div class="morph-shape"></div><div class="label"><img src="/static/alfred-icon.jpg" alt="Alfred" class="inline-icon"> is thinking...</div></div>';
             msgTexts = {};
             msgCounter = 0;
             showWelcomeState();
@@ -5525,10 +5699,14 @@ CHAT_HTML = """<!DOCTYPE html>
             }
             const mainBtn = document.getElementById('mic-btn');
             const welcomeBtn = document.getElementById('welcome-mic-btn');
+            const mainImg = mainBtn?.querySelector('img');
+            const welcomeImg = welcomeBtn?.querySelector('img');
             if (isRecording) {
                 mediaRecorder.stop();
                 mainBtn?.classList.remove('recording');
                 welcomeBtn?.classList.remove('recording');
+                if (mainImg) mainImg.src = '/static/logo-white.png';
+                if (welcomeImg) welcomeImg.src = '/static/logo-white.png';
                 isRecording = false;
             } else {
                 const stream = await navigator.mediaDevices.getUserMedia({audio: true});
@@ -5558,6 +5736,8 @@ CHAT_HTML = """<!DOCTYPE html>
                 mediaRecorder.start();
                 mainBtn?.classList.add('recording');
                 welcomeBtn?.classList.add('recording');
+                if (mainImg) mainImg.src = '/static/glabs.jpeg';
+                if (welcomeImg) welcomeImg.src = '/static/glabs.jpeg';
                 isRecording = true;
             }
         }
@@ -5805,8 +5985,8 @@ CHAT_HTML = """<!DOCTYPE html>
             }
             statusEl.classList.add('visible', 'state-' + state);
             micBtn.classList.add('vad-' + state);
-            const labels = {listen:'Listening...', hear:'Hearing you...', process:'Processing...', speak:'Alfred speaking...'};
-            textEl.textContent = labels[state] || '';
+            const labels = {listen:'Listening...', hear:'Hearing you...', process:'Processing...', speak:'<img src="/static/alfred-icon.jpg" alt="Alfred" class="inline-icon"> speaking...'};
+            textEl.innerHTML = labels[state] || '';
         }
 
         function float32ToWav(samples, sampleRate) {
@@ -5916,7 +6096,7 @@ CHAT_HTML = """<!DOCTYPE html>
                     console.log('Dismissal phrase detected, ending hands-free mode');
                     addMsg(text, 'user');
                     const farewellMsg = "Very good, sir. I'm here if you need me.";
-                    addMsg(farewellMsg, 'alfred', 'local');
+                    addMsg(farewellMsg, 'alfred', 'local', true);  // noAutoSpeak - we play it explicitly below
                     vadProcessing = false;
 
                     // Function to disable hands-free
@@ -6319,6 +6499,9 @@ CHAT_HTML = """<!DOCTYPE html>
                     // Optional: show subtle indicator
                     console.log(`Agent started: ${data.data.agent_type} - ${data.data.goal}`);
                     break;
+                case 'long_processing':
+                    showLongProcessingNotification(data.data);
+                    break;
                 case 'connected':
                     console.log('Notification channel ready');
                     break;
@@ -6398,9 +6581,143 @@ CHAT_HTML = """<!DOCTYPE html>
             }, 15000);
         }
 
+        function showLongProcessingNotification(data) {
+            // In-page toast notification (blue theme)
+            const toast = document.createElement('div');
+            toast.className = 'long-processing-notification';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #1a2744;
+                border: 1px solid #2d4a6f;
+                border-radius: 12px;
+                padding: 16px 20px;
+                max-width: 400px;
+                z-index: 10000;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                animation: slideIn 0.3s ease-out;
+            `;
+
+            const elapsed = Math.round(data.elapsed_seconds || 60);
+            toast.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <span style="font-size: 24px; color: #60a5fa;">&#9202;</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #60a5fa; margin-bottom: 4px;">Still Working...</div>
+                        <div style="font-size: 13px; color: #9ca3af; margin-bottom: 8px;">
+                            Alfred has been processing for ${elapsed}s
+                        </div>
+                        <div style="font-size: 14px; color: #e0e0e0; line-height: 1.4;">
+                            ${data.query_preview || 'Your request is still being processed.'}
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" style="
+                        background: none; border: none; color: #9ca3af; cursor: pointer;
+                        font-size: 18px; padding: 0; line-height: 1;
+                    ">&times;</button>
+                </div>
+            `;
+
+            // Add animation keyframes if not already added
+            if (!document.getElementById('notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            document.body.appendChild(toast);
+
+            // Also fire a native Notification if tab is hidden (and push not available)
+            if (document.hidden && Notification.permission === 'granted') {
+                try {
+                    new Notification('Alfred is still working...', {
+                        body: data.query_preview || 'Your request is taking longer than usual.',
+                        icon: '/static/icon-192.png',
+                        tag: 'alfred-long-processing',
+                    });
+                } catch (e) { /* Native notifications not supported */ }
+            }
+
+            // Auto-remove after 30 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 30000);
+        }
+
+        // ==================== Push Notification Subscription ====================
+        async function subscribeToPush() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.log('Push notifications not supported');
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                console.log('Push notification permission denied');
+                return;
+            }
+
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                const token = localStorage.getItem('alfred_token');
+
+                // Get VAPID public key from server
+                const keyResp = await fetch('/push/vapid-key', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const { publicKey } = await keyResp.json();
+                if (!publicKey) {
+                    console.log('No VAPID key configured on server');
+                    return;
+                }
+
+                // Convert URL-safe base64 to Uint8Array
+                const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+                const base64 = (publicKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const rawKey = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+
+                // Subscribe to push
+                const subscription = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: rawKey,
+                });
+
+                // Send subscription to server
+                const subJson = subscription.toJSON();
+                await fetch('/push/subscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token,
+                    },
+                    body: JSON.stringify({
+                        endpoint: subJson.endpoint,
+                        keys: subJson.keys,
+                    }),
+                });
+
+                console.log('Push notifications subscribed successfully');
+            } catch (err) {
+                console.error('Push subscription failed:', err);
+            }
+        }
+
         // Connect to notifications when page loads (if authenticated)
         if (localStorage.getItem('alfred_token')) {
             connectNotifications();
+            subscribeToPush();
         }
     </script>
 </body>
@@ -6415,7 +6732,7 @@ def _get_service_worker_js():
     """Generate service worker with dynamic cache version."""
     return f"""
 const CACHE_NAME = 'alfred-v030-{_BUILD_TIMESTAMP}';
-const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png'];
+const PRECACHE_URLS = ['/', '/manifest.json', '/static/icon-192.png', '/static/icon-512.png', '/static/logo-white.png', '/static/glabs.jpeg', '/static/alfred-icon.jpg'];
 
 // Force install new service worker immediately
 self.addEventListener('install', event => {{
@@ -6470,6 +6787,7 @@ self.addEventListener('fetch', event => {{
         url.pathname.startsWith('/integrations') || url.pathname.startsWith('/memory') ||
         url.pathname.startsWith('/projects') || url.pathname.startsWith('/references') ||
         url.pathname.startsWith('/health') || url.pathname.startsWith('/settings') ||
+        url.pathname.startsWith('/push') || url.pathname.startsWith('/notifications') ||
         url.pathname.startsWith('/api')) {{
         event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
     }}
@@ -6498,9 +6816,57 @@ self.addEventListener('fetch', event => {{
         );
     }}
 }});
+
+// ==================== Web Push Handlers ====================
+
+self.addEventListener('push', event => {{
+    let data = {{}};
+    try {{
+        data = event.data ? event.data.json() : {{}};
+    }} catch (e) {{
+        data = {{ title: 'Alfred', body: event.data ? event.data.text() : 'New notification' }};
+    }}
+
+    const title = data.title || 'Alfred';
+    const options = {{
+        body: data.body || 'Alfred has a notification for you.',
+        icon: '/static/icon-192.png',
+        badge: '/static/icon-192.png',
+        tag: 'alfred-long-processing',
+        renotify: false,
+        data: {{ url: data.url || '/' }},
+    }};
+
+    event.waitUntil(self.registration.showNotification(title, options));
+}});
+
+self.addEventListener('notificationclick', event => {{
+    event.notification.close();
+    const url = event.notification.data?.url || '/';
+
+    event.waitUntil(
+        clients.matchAll({{ type: 'window', includeUncontrolled: true }}).then(windowClients => {{
+            // Focus existing Alfred tab if open
+            for (const client of windowClients) {{
+                if (client.url.includes(self.location.origin) && 'focus' in client) {{
+                    return client.focus();
+                }}
+            }}
+            // Otherwise open a new tab
+            return clients.openWindow(url);
+        }})
+    );
+}});
 """.strip()
 
 SERVICE_WORKER_JS = _get_service_worker_js()
+
+
+# Mount frontend build assets (must be after all API routes)
+if _frontend_dist.exists():
+    _frontend_assets = _frontend_dist / "assets"
+    if _frontend_assets.exists():
+        app.mount("/assets", StaticFiles(directory=str(_frontend_assets)), name="frontend_assets")
 
 
 if __name__ == "__main__":

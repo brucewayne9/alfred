@@ -29,6 +29,8 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     # Slides
     "https://www.googleapis.com/auth/presentations",
+    # Google Ads
+    "https://www.googleapis.com/auth/adwords",
 ]
 
 TOKEN_FILE = Path(settings.base_dir) / "config" / "google_token.json"

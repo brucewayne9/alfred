@@ -1248,6 +1248,90 @@ def widget_form(
     }
 
 
+def widget_webhook_form(
+    fields: list[dict],
+    webhook_url: str,
+    form_name: str = "Newsletter Signup",
+    submit_text: str = "Subscribe",
+    button_size: str = "md",
+    button_width: str = "100",
+    button_align: str = "stretch",
+    success_message: str = "You're in! Check your inbox for a welcome email.",
+    error_message: str = "Something went wrong. Please try again.",
+    required_mark: bool = True,
+    button_color: str = "#fed315",
+    button_text_color: str = "#1a1a0a",
+    css_classes: str = "",
+) -> dict:
+    """Create form widget that submits to a webhook URL (requires Elementor Pro).
+
+    This is specifically designed for newsletter signups that POST to an n8n webhook.
+
+    Args:
+        fields: List of form fields with type, label, required, placeholder, width
+        webhook_url: Full webhook URL to POST form data to
+        form_name: Form name for admin reference
+        submit_text: Submit button text
+        button_size: Submit button size (sm, md, lg, xl)
+        button_width: Submit button width percentage ("100" for full width)
+        button_align: Submit button alignment
+        success_message: Message shown after successful submission
+        error_message: Message shown on error
+        required_mark: Show asterisk for required fields
+        button_color: Submit button background color
+        button_text_color: Submit button text color
+        css_classes: Additional CSS classes
+
+    Returns:
+        Elementor form widget dict
+    """
+    form_fields = []
+    for field in fields:
+        field_id = f"field_{_generate_id()[:5]}"
+        form_field = {
+            "_id": field_id,
+            "field_type": field.get("type", "text"),
+            "field_label": field.get("label", ""),
+            "required": "yes" if field.get("required", False) else "",
+            "placeholder": field.get("placeholder", ""),
+            "width": field.get("width", "100"),
+            "custom_id": field.get("custom_id", field.get("label", "").lower().replace(" ", "_")),
+        }
+
+        if field.get("type") == "select" and field.get("options"):
+            form_field["field_options"] = "\n".join(field["options"])
+
+        form_fields.append(form_field)
+
+    settings = {
+        "form_name": form_name,
+        "form_fields": form_fields,
+        "button_text": submit_text,
+        "button_size": button_size,
+        "button_align": button_align,
+        "button_width": button_width,
+        "success_message": success_message,
+        "error_message": error_message,
+        "show_required_mark": "yes" if required_mark else "",
+        "submit_actions": ["webhook"],
+        "webhooks": webhook_url,
+        "button_background_color": button_color,
+        "button_color": button_text_color,
+        "button_border_radius": {"unit": "px", "top": "8", "right": "8", "bottom": "8", "left": "8"},
+    }
+
+    if css_classes:
+        settings["css_classes"] = css_classes
+
+    return {
+        "id": _generate_id(),
+        "elType": "widget",
+        "widgetType": "form",
+        "settings": settings,
+        "elements": [],
+    }
+
+
 def widget_html(
     code: str,
     css_classes: str = "",

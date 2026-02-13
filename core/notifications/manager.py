@@ -1,6 +1,7 @@
 """Notification Manager - WebSocket push notifications for Alfred.
 
 Handles broadcasting events (agent completion, system alerts, etc.) to connected clients.
+Includes Web Push (VAPID) support for background notifications.
 """
 
 import asyncio
@@ -10,7 +11,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Set
-from weakref import WeakSet
 
 from fastapi import WebSocket
 
@@ -25,6 +25,7 @@ class NotificationType(str, Enum):
     AGENT_CANCELLED = "agent_cancelled"
     SYSTEM_ALERT = "system_alert"
     TASK_UPDATE = "task_update"
+    LONG_PROCESSING = "long_processing"
 
 
 @dataclass
@@ -62,6 +63,8 @@ class NotificationManager:
         self._connections: dict[str, Set[WebSocket]] = {}  # user_id -> websockets
         self._all_connections: Set[WebSocket] = set()
         self._lock = asyncio.Lock()
+        # Push subscription storage: endpoint_url -> subscription_info dict
+        self._push_subscriptions: dict[str, dict] = {}
 
     async def connect(self, websocket: WebSocket, user_id: str = "anonymous"):
         """Register a new WebSocket connection."""
@@ -158,10 +161,89 @@ class NotificationManager:
             }
         ))
 
+    async def send_long_processing(self, message: str, query_preview: str, elapsed_seconds: float):
+        """Convenience method for long processing notification (WebSocket toast)."""
+        await self.broadcast(Notification(
+            type=NotificationType.LONG_PROCESSING,
+            data={
+                "message": message,
+                "query_preview": query_preview[:200],
+                "elapsed_seconds": elapsed_seconds,
+            }
+        ))
+
+    def add_push_subscription(self, subscription_info: dict):
+        """Store a Web Push subscription."""
+        endpoint = subscription_info.get("endpoint", "")
+        if endpoint:
+            self._push_subscriptions[endpoint] = subscription_info
+            logger.info(f"Push subscription added (total: {len(self._push_subscriptions)})")
+
+    def remove_push_subscription(self, endpoint: str):
+        """Remove a Web Push subscription."""
+        removed = self._push_subscriptions.pop(endpoint, None)
+        if removed:
+            logger.info(f"Push subscription removed (total: {len(self._push_subscriptions)})")
+
+    async def send_push_notification(self, title: str, body: str, url: str = "/"):
+        """Send Web Push notification to all subscribed clients."""
+        from config.settings import settings
+
+        if not settings.vapid_private_key or not self._push_subscriptions:
+            logger.debug("Push notifications skipped: no VAPID key or no subscriptions")
+            return
+
+        payload = json.dumps({
+            "title": title,
+            "body": body,
+            "url": url,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+        # Run in executor to avoid blocking the event loop (pywebpush is sync)
+        loop = asyncio.get_event_loop()
+        dead_endpoints = []
+
+        for endpoint, sub_info in self._push_subscriptions.items():
+            try:
+                await loop.run_in_executor(None, self._send_single_push, sub_info, payload)
+            except Exception as e:
+                logger.warning(f"Push notification failed for {endpoint[:50]}...: {e}")
+                # 410 Gone means subscription expired
+                if "410" in str(e) or "404" in str(e):
+                    dead_endpoints.append(endpoint)
+
+        for ep in dead_endpoints:
+            self._push_subscriptions.pop(ep, None)
+
+        sent = len(self._push_subscriptions) - len(dead_endpoints)
+        if sent > 0:
+            logger.info(f"Push notification sent to {sent} subscribers")
+
+    @staticmethod
+    def _send_single_push(subscription_info: dict, payload: str):
+        """Send a single push notification (blocking, run in executor)."""
+        from pywebpush import webpush
+        from config.settings import settings
+
+        vapid_claims = {"sub": f"mailto:{settings.vapid_contact_email}"}
+
+        webpush(
+            subscription_info=subscription_info,
+            data=payload,
+            vapid_private_key=settings.vapid_private_key,
+            vapid_claims=vapid_claims,
+        )
+
     @property
     def connection_count(self) -> int:
         """Number of connected clients."""
         return len(self._all_connections)
+
+    @property
+    def push_subscription_count(self) -> int:
+        """Number of push subscriptions."""
+        return len(self._push_subscriptions)
 
 
 # Global singleton

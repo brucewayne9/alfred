@@ -416,6 +416,134 @@ class EmailClient:
                 results.append(result)
         return {"accounts": results}
 
+    def get_sent(self, account: str, limit: int = 10) -> dict:
+        """Get recent sent emails from an account."""
+        # Try common sent folder names
+        sent_folders = ["Sent", "INBOX.Sent", "[Gmail]/Sent Mail", "Sent Messages", "Sent Items"]
+
+        try:
+            config = self._resolve_account(account)
+            password = self._get_password(config)
+
+            if not password:
+                return {"error": f"Email password not configured. Set {config.get('password_env')} in .env"}
+
+            if config["use_ssl"]:
+                imap = imaplib.IMAP4_SSL(config["imap_server"], config["imap_port"])
+            else:
+                imap = imaplib.IMAP4(config["imap_server"], config["imap_port"])
+                imap.starttls()
+
+            imap.login(config["email"], password)
+
+            # Find the sent folder
+            sent_folder = None
+            status, folders = imap.list()
+            if status == "OK":
+                for f in folders:
+                    f_decoded = f.decode() if isinstance(f, bytes) else f
+                    for sf in sent_folders:
+                        if sf.lower() in f_decoded.lower():
+                            # Extract folder name from IMAP list response
+                            parts = f_decoded.split('"')
+                            if len(parts) >= 2:
+                                sent_folder = parts[-2]
+                            break
+                    if sent_folder:
+                        break
+
+            if not sent_folder:
+                imap.logout()
+                return {"error": "Could not find Sent folder"}
+
+            # Use get_inbox with the sent folder
+            imap.logout()
+            return self.get_inbox(account, limit, folder=sent_folder)
+        except Exception as e:
+            logger.error(f"Get sent error for {account}: {e}")
+            return {"error": str(e)}
+
+    def search_sent(self, account: str, query: str, limit: int = 10) -> dict:
+        """Search sent emails for a specific recipient or keyword."""
+        # Try common sent folder names
+        sent_folders = ["Sent", "INBOX.Sent", "[Gmail]/Sent Mail", "Sent Messages", "Sent Items"]
+
+        try:
+            config = self._resolve_account(account)
+            password = self._get_password(config)
+
+            if not password:
+                return {"error": f"Email password not configured. Set {config.get('password_env')} in .env"}
+
+            if config["use_ssl"]:
+                imap = imaplib.IMAP4_SSL(config["imap_server"], config["imap_port"])
+            else:
+                imap = imaplib.IMAP4(config["imap_server"], config["imap_port"])
+                imap.starttls()
+
+            imap.login(config["email"], password)
+
+            # Find the sent folder
+            sent_folder = None
+            status, folders = imap.list()
+            if status == "OK":
+                for f in folders:
+                    f_decoded = f.decode() if isinstance(f, bytes) else f
+                    for sf in sent_folders:
+                        if sf.lower() in f_decoded.lower():
+                            parts = f_decoded.split('"')
+                            if len(parts) >= 2:
+                                sent_folder = parts[-2]
+                            break
+                    if sent_folder:
+                        break
+
+            if not sent_folder:
+                imap.logout()
+                return {"error": "Could not find Sent folder"}
+
+            imap.select(sent_folder)
+
+            # Build IMAP search criteria for sent messages
+            # Search TO field (who it was sent to) and SUBJECT
+            search_criteria = f'(OR TO "{query}" SUBJECT "{query}")'
+
+            status, messages = imap.search(None, search_criteria)
+            if status != "OK":
+                imap.logout()
+                return {"error": "Search failed"}
+
+            msg_ids = messages[0].split()
+            msg_ids = msg_ids[-limit:] if len(msg_ids) > limit else msg_ids
+            msg_ids.reverse()
+
+            emails = []
+            for msg_id in msg_ids:
+                status, data = imap.fetch(msg_id, "(RFC822)")
+                if status == "OK":
+                    msg = email.message_from_bytes(data[0][1])
+                    parsed = self._parse_email(msg, msg_id.decode())
+                    emails.append({
+                        "id": parsed["id"],
+                        "to": parsed["to"],
+                        "subject": parsed["subject"],
+                        "date": parsed["date"],
+                        "snippet": parsed["snippet"],
+                    })
+
+            imap.logout()
+
+            return {
+                "account": config["name"],
+                "folder": sent_folder,
+                "query": query,
+                "messages": emails,
+                "count": len(emails),
+            }
+        except Exception as e:
+            logger.error(f"Search sent error for {account}: {e}")
+            return {"error": str(e)}
+
     def trash_email(self, account: str, message_id: str, folder: str = "INBOX") -> dict:
         """Move an email to trash."""
         try:
