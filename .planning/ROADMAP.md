@@ -46,12 +46,14 @@ Plans:
   4. USER.md and HEARTBEAT.md are within their respective character limits and load without truncation warnings
   5. The QUEUE.md escalation bridge grep command correctly matches multiple patterns using the -E flag
   6. Claw log rotation produces a new daily file at midnight (or on-demand test) and the stale gateway service is gone from systemctl
-**Plans**: 3 plans
+**Plans**: 5 plans
 
 Plans:
 - [x] 02-01-PLAN.md — Trim USER.md and HEARTBEAT.md to fit OpenClaw char limits
 - [x] 02-02-PLAN.md — Fix Telegram dedup, QUEUE.md grep, and tool argument errors
 - [x] 02-03-PLAN.md — Switch embeddings to Ollama nomic-embed-text, log cleanup, gateway restart + verify
+- [ ] 02-04-PLAN.md — (gap closure) Further trim USER.md and HEARTBEAT.md to actual runtime limits
+- [ ] 02-05-PLAN.md — (gap closure) Diagnose and fix embedding batch silent failure loop
 
 ### Phase 3: CRM Reliability
 **Goal**: CRM note and task creation never leaves orphaned records, and contact search returns results from the full contact database rather than the first 100 records
@@ -91,7 +93,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Repairs | 2/2 | Complete   | 2026-02-20 |
-| 2. Alfred Claw Config Fixes | 3/3 | Complete   | 2026-02-20 |
+| 2. Alfred Claw Config Fixes | 3/5 | Gap closure | 2026-02-20 |
 | 3. CRM Reliability | 0/TBD | Not started | - |
 | 4. Google Ads Budget Control | 0/TBD | Not started | - |
 | 5. Ad Workflow Validation & Hardening | 0/TBD | Not started | - |
