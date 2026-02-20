@@ -12,8 +12,8 @@ This roadmap repairs a mature dual-server AI assistant platform so it becomes a 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Infrastructure Repairs** - Restore LightRAG, sync GA4, add circuit breaker reset, clean up Labs maintenance debt
-- [ ] **Phase 2: Alfred Claw Config Fixes** - Batch all SSH-only changes to Server 101 (Telegram dedup, tool args, size limits, log rotation)
+- [ ] **Phase 1: Infrastructure Repairs** - Restore LightRAG, sync GA4, add circuit breaker reset, clean up Labs git repo (Labs-only)
+- [ ] **Phase 2: Alfred Claw Config Fixes** - Batch all SSH-only changes to Server 101 (Telegram dedup, tool args, size limits, log rotation, stale gateway cleanup)
 - [ ] **Phase 3: CRM Reliability** - Fix note/task linking rollback and contact search on Labs-side CRM client
 - [ ] **Phase 4: Google Ads Budget Control** - Install SDK and add budget + ad group mutation tools to complete Google Ads write parity
 - [ ] **Phase 5: Ad Workflow Validation & Hardening** - Upgrade Meta API version, verify token, add read-after-write, validate end-to-end conversational ad workflow
@@ -23,25 +23,25 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### Phase 1: Infrastructure Repairs
 **Goal**: All shared services and Labs maintenance issues are resolved so downstream phases can validate against a stable environment
 **Depends on**: Nothing (first phase)
-**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06
+**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-06
 **Success Criteria** (what must be TRUE):
   1. A test query to Alfred on Labs returns context from LightRAG without empty-context fallback
   2. Calling the circuit breaker reset endpoint clears the open breaker without restarting any process
   3. Alfred on Labs can answer a GA4 analytics question using the correct property IDs
   4. Labs git repo shows no unreachable loose object warnings after gc
-  5. Claw log rotation produces a new daily file at midnight (or on-demand test) and the stale gateway service is gone from systemctl
 **Plans**: TBD
 
 ### Phase 2: Alfred Claw Config Fixes
-**Goal**: Alfred Claw on Server 101 sends one response per message, all tool calls succeed, context files are within size limits, and the escalation bridge grep works correctly
+**Goal**: Alfred Claw on Server 101 sends one response per message, all tool calls succeed, context files are within size limits, the escalation bridge grep works correctly, and infrastructure maintenance (log rotation, stale services) is resolved
 **Depends on**: Phase 1
-**Requirements**: CLAW-01, CLAW-02, CLAW-03, CLAW-04, CLAW-05, CLAW-06
+**Requirements**: CLAW-01, CLAW-02, CLAW-03, CLAW-04, CLAW-05, CLAW-06, INFRA-04, INFRA-05
 **Success Criteria** (what must be TRUE):
   1. Sending a message via Telegram results in exactly one response from Alfred Claw (no duplicates)
   2. Creating a CRM note or task via Telegram chat completes without argument errors
   3. OpenClaw memory embeddings complete successfully (either via restored OpenAI project or Ollama nomic-embed-text fallback)
   4. USER.md and HEARTBEAT.md are within their respective character limits and load without truncation warnings
   5. The QUEUE.md escalation bridge grep command correctly matches multiple patterns using the -E flag
+  6. Claw log rotation produces a new daily file at midnight (or on-demand test) and the stale gateway service is gone from systemctl
 **Plans**: TBD
 
 ### Phase 3: CRM Reliability
