@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 2 of 5 (Alfred Claw Config Fixes)
-Plan: 3 of 3 in current phase (02-01, 02-02, 02-03 complete) — Phase 2 COMPLETE
-Status: Phase 2 complete, ready for Phase 3
-Last activity: 2026-02-20 — Plan 02-03 complete (nomic-embed-text embeddings, log cleanup cron, gateway restart, Phase 2 verified)
+Plan: 4 of 5 in current phase (02-01, 02-02, 02-03, 02-04 complete — gap closure plans)
+Status: Phase 2 gap closure in progress (02-05 remaining: embedding batches fix)
+Last activity: 2026-02-20 — Plan 02-04 complete (USER.md trimmed to 1,798 chars, HEARTBEAT.md to 140 chars, zero truncation WARNs)
 
-Progress: [██████░░░░] 60%
+Progress: [██████░░░░] 62%
 
 ## Performance Metrics
 
@@ -35,6 +35,8 @@ Progress: [██████░░░░] 60%
 - Trend: fast (remote file edits + human verify checkpoint)
 
 *Updated after each plan completion*
+
+| Phase 02-alfred-claw-config-fixes P04 | 8 min | 1 task | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +62,8 @@ Recent decisions affecting current work:
 - [02-03]: Use provider: openai with Ollama baseUrl (11434/v1/) — Ollama exposes OpenAI-compatible embeddings endpoint
 - [02-03]: Configure fallback: openai per locked user decision despite HTTP 401 key — architecture correct, key fix is separate concern
 - [02-03]: cron.daily script preferred over logrotate for /tmp/ date-based log cleanup
+- [Phase 02-04]: USER.md trimmed to 1,798 chars (720-char margin below 2,520 injection limit) — removed Decision Making, Key Dates, verbose family/infra detail
+- [Phase 02-04]: HEARTBEAT.md rewritten to 140 chars (4-line ultra-compact format) — inbox check, grep QUEUE.md, birthdays within 7d, HEARTBEAT_OK instruction
 
 ### Pending Todos
 
@@ -75,5 +79,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 02-03-PLAN.md (nomic-embed-text embeddings + log cleanup cron + gateway restart + Phase 2 verified end-to-end)
+Stopped at: Completed 02-04-PLAN.md (USER.md trimmed to 1,798 chars, HEARTBEAT.md to 140 chars, zero truncation WARNs post-restart — CLAW-02 + CLAW-03 gap closure complete)
 Resume file: None
