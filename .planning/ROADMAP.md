@@ -12,7 +12,7 @@ This roadmap repairs a mature dual-server AI assistant platform so it becomes a 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Infrastructure Repairs** - Restore LightRAG, sync GA4, add circuit breaker reset, clean up Labs git repo (Labs-only)
+- [x] **Phase 1: Infrastructure Repairs** - Restore LightRAG, sync GA4, add circuit breaker reset, clean up Labs git repo (Labs-only) (completed 2026-02-20)
 - [ ] **Phase 2: Alfred Claw Config Fixes** - Batch all SSH-only changes to Server 101 (Telegram dedup, tool args, size limits, log rotation, stale gateway cleanup)
 - [ ] **Phase 3: CRM Reliability** - Fix note/task linking rollback and contact search on Labs-side CRM client
 - [ ] **Phase 4: Google Ads Budget Control** - Install SDK and add budget + ad group mutation tools to complete Google Ads write parity
@@ -85,7 +85,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Repairs | 1/2 | In progress | - |
+| 1. Infrastructure Repairs | 2/2 | Complete   | 2026-02-20 |
 | 2. Alfred Claw Config Fixes | 0/TBD | Not started | - |
 | 3. CRM Reliability | 0/TBD | Not started | - |
 | 4. Google Ads Budget Control | 0/TBD | Not started | - |

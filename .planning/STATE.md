@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 1 of 5 (Infrastructure Repairs)
-Plan: 2 of 2 in current phase (01-02 complete)
-Status: In progress
-Last activity: 2026-02-20 — Plan 01-02 complete (GA4 verified, git gc ran)
+Plan: 2 of 2 in current phase (01-01 + 01-02 complete)
+Status: Phase 1 complete
+Last activity: 2026-02-20 — Plan 01-01 complete (LightRAG restored, circuit breaker endpoints added); Plan 01-02 complete (GA4 verified, git gc ran)
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5 min
-- Total execution time: 5 min
+- Total plans completed: 2
+- Average duration: 4 min
+- Total execution time: ~8 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Infrastructure Repairs | 1 | 5 min | 5 min |
+| 1. Infrastructure Repairs | 2 | ~8 min | ~4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (5 min)
+- Last 5 plans: 01-01 (3 min), 01-02 (5 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -45,6 +45,9 @@ Recent decisions affecting current work:
 - [Pre-planning]: Fix via SSH from 105 — single Claude Code session manages both servers
 - [Pre-planning]: Full ads API integration — Mike needs conversational campaign control for active campaigns
 - [Pre-planning]: Fix CRM before building new — reliability of existing tools before new features
+- [01-01]: Targeted sed edit of rules.v4 (not iptables-save) to preserve Docker dynamic rules on 117
+- [01-01]: Circuit breaker admin endpoints placed in Knowledge Management section of main.py for co-location with LightRAG routes
+- [01-01]: Admin role check done inline (not shared dependency) to match existing codebase pattern
 - [01-02]: INFRA-03 was already complete — GA4 was already fully working, no code changes needed
 - [01-02]: git gc --prune=now used (immediate prune) — safe because all work is committed to main branch
 
@@ -61,5 +64,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 01-02-PLAN.md (GA4 verification + git gc)
+Stopped at: Completed 01-01-PLAN.md (LightRAG + circuit breaker) and 01-02-PLAN.md (GA4 + git gc) — Phase 1 complete
 Resume file: None
