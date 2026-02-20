@@ -46,7 +46,12 @@ Plans:
   4. USER.md and HEARTBEAT.md are within their respective character limits and load without truncation warnings
   5. The QUEUE.md escalation bridge grep command correctly matches multiple patterns using the -E flag
   6. Claw log rotation produces a new daily file at midnight (or on-demand test) and the stale gateway service is gone from systemctl
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Trim USER.md and HEARTBEAT.md to fit OpenClaw char limits
+- [ ] 02-02-PLAN.md — Fix Telegram dedup, QUEUE.md grep, and tool argument errors
+- [ ] 02-03-PLAN.md — Switch embeddings to Ollama nomic-embed-text, log cleanup, gateway restart + verify
 
 ### Phase 3: CRM Reliability
 **Goal**: CRM note and task creation never leaves orphaned records, and contact search returns results from the full contact database rather than the first 100 records
