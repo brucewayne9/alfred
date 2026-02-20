@@ -1,5 +1,6 @@
 """Alfred API Server - Main FastAPI application with auth, integrations, and tool calling."""
 
+import json
 import logging
 import os
 import re
@@ -22,7 +23,8 @@ from slowapi.middleware import SlowAPIMiddleware
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.brain.router import ask, classify_query, ModelTier, get_system_prompt
+from core.brain.router import ask, classify_query, ModelTier, get_system_prompt, _strip_tool_json
+from core.tools.registry import parse_tool_call, execute_tool
 from core.memory.store import store_memory, recall, store_conversation
 from core.memory.conversations import (
     init_db as init_conversations_db,
@@ -1413,6 +1415,26 @@ async def delete_knowledge_document(doc_id: str, user: dict = Depends(require_au
     raise HTTPException(status_code=500, detail=result.get("error", "Delete failed"))
 
 
+# ==================== Admin: Circuit Breaker Management ====================
+
+@app.post("/api/admin/circuit-breaker/reset")
+async def reset_circuit_breaker_endpoint(user: dict = Depends(require_auth)):
+    """Reset the LightRAG circuit breaker. Admin only. Safe to call anytime."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+    from integrations.lightrag.client import reset_circuit_breaker
+    return reset_circuit_breaker()
+
+
+@app.get("/api/admin/circuit-breaker/status")
+async def circuit_breaker_status_endpoint(user: dict = Depends(require_auth)):
+    """Get LightRAG circuit breaker status. Admin only."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+    from integrations.lightrag.client import get_circuit_breaker_status
+    return get_circuit_breaker_status()
+
+
 # ==================== Agent Orchestration ====================
 
 class SpawnAgentRequest(BaseModel):
@@ -2316,6 +2338,39 @@ async def chat_stream(request: Request, req: ChatRequest, user: dict = Depends(r
                 yield chunk
 
         response_text = "".join(full_response)
+
+        # Check if the streamed response contains a tool call
+        tool_call = parse_tool_call(response_text)
+        if tool_call:
+            tool_name, tool_args = tool_call
+            logger.info(f"Stream detected tool call: {tool_name}")
+            # Send a thinking indicator while tool executes
+            yield "\n\n"
+            tool_result = await execute_tool(tool_name, tool_args)
+
+            # Feed tool result back to LLM for natural language response
+            messages.append({"role": "assistant", "content": response_text})
+            messages.append({
+                "role": "user",
+                "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result, indent=2, default=str)}\n```\nProvide a natural language response based on this data. Be specific with numbers and details.",
+            })
+            followup_result = await ask(req.message, messages=messages, tier=tier, stream=True)
+            followup_parts = []
+            if isinstance(followup_result, str):
+                followup_parts.append(followup_result)
+                yield followup_result
+            elif isinstance(followup_result, dict):
+                text = followup_result.get("response", "")
+                followup_parts.append(text)
+                yield text
+            else:
+                async for chunk in followup_result:
+                    followup_parts.append(chunk)
+                    yield chunk
+            response_text = "".join(followup_parts)
+            # Strip any remaining tool JSON from the follow-up
+            response_text = _strip_tool_json(response_text)
+
         messages.append({"role": "assistant", "content": response_text})
         store_conversation(req.message, response_text, req.session_id)
         # Persist to SQLite conversation history
@@ -2558,7 +2613,7 @@ async def hybrid_voice_chat(request: Request, req: ChatRequest, user: dict = Dep
                 messages.append({"role": "user", "content": query})
 
         # Use configured model from settings
-        import ollama as ollama_client
+        from ollama import AsyncClient as OllamaAsyncClient
         smart_model = settings.ollama_model
 
         if messages is None:
@@ -2567,8 +2622,9 @@ async def hybrid_voice_chat(request: Request, req: ChatRequest, user: dict = Dep
                 {"role": "user", "content": query},
             ]
 
-        # Get response from smart model
-        response = ollama_client.chat(model=smart_model, messages=messages)
+        # Get response from smart model (async to avoid blocking event loop)
+        _ollama = OllamaAsyncClient()
+        response = await _ollama.chat(model=smart_model, messages=messages)
         response_text = response["message"]["content"]
 
         # Save to conversation
