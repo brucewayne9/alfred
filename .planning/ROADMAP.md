@@ -49,7 +49,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Trim USER.md and HEARTBEAT.md to fit OpenClaw char limits
+- [x] 02-01-PLAN.md — Trim USER.md and HEARTBEAT.md to fit OpenClaw char limits
 - [ ] 02-02-PLAN.md — Fix Telegram dedup, QUEUE.md grep, and tool argument errors
 - [ ] 02-03-PLAN.md — Switch embeddings to Ollama nomic-embed-text, log cleanup, gateway restart + verify
 
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Repairs | 2/2 | Complete   | 2026-02-20 |
-| 2. Alfred Claw Config Fixes | 0/TBD | Not started | - |
+| 2. Alfred Claw Config Fixes | 1/3 | In progress | - |
 | 3. CRM Reliability | 0/TBD | Not started | - |
 | 4. Google Ads Budget Control | 0/TBD | Not started | - |
 | 5. Ad Workflow Validation & Hardening | 0/TBD | Not started | - |
