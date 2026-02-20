@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 2 of 5 (Alfred Claw Config Fixes)
-Plan: 1 of 3 in current phase (02-01 complete)
+Plan: 2 of 3 in current phase (02-01, 02-02 complete)
 Status: Phase 2 in progress
-Last activity: 2026-02-20 — Plan 02-01 complete (USER.md trimmed 9,199→3,798 chars; HEARTBEAT.md rebuilt 1,961→231 chars)
+Last activity: 2026-02-20 — Plan 02-02 complete (AGENTS.md heartbeat protocol, SOUL.md Telegram target, email_client.py mark-read dispatch, TOOLS.md Telegram section)
 
-Progress: [████░░░░░░] 37%
+Progress: [█████░░░░░] 47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 3.3 min
-- Total execution time: ~10 min
+- Total plans completed: 4
+- Average duration: 3.5 min
+- Total execution time: ~14 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Infrastructure Repairs | 2 | ~8 min | ~4 min |
-| 2. Alfred Claw Config Fixes | 1 (of 3) | ~2 min | ~2 min |
+| 2. Alfred Claw Config Fixes | 2 (of 3) | ~6 min | ~3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (5 min), 02-01 (2 min)
+- Last 5 plans: 01-01 (3 min), 01-02 (5 min), 02-01 (2 min), 02-02 (4 min)
 - Trend: fast (remote file edits)
 
 *Updated after each plan completion*
@@ -54,6 +54,9 @@ Recent decisions affecting current work:
 - [02-01]: USER.md: kept both family AND business context, trimmed equally — cut narrative prose, "how we met" story, grandchildren detail, sibling locations
 - [02-01]: HEARTBEAT.md: rebuilt as 5-line micro-checklist (was 37-line protocol doc) — protocol detail belongs in SOUL.md/AGENTS.md
 - [02-01]: grep -E flag embedded in HEARTBEAT.md checklist to fix CLAW-04 alternation issue with absolute path
+- [02-02]: Behavioral fix for Telegram dedup — instruct agent via AGENTS.md + SOUL.md rather than modifying OpenClaw gateway config
+- [02-02]: TOOLS.md Telegram section added as section 18 (built-in tool, not Python script) to document correct target format
+- [02-02]: email_client.py mark-read: added dispatch branch only (function already existed); use scp for complex multi-line writes to Server 101
 
 ### Pending Todos
 
@@ -68,5 +71,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 02-01-PLAN.md (USER.md + HEARTBEAT.md trimmed)
+Stopped at: Completed 02-02-PLAN.md (AGENTS.md heartbeat protocol + SOUL.md Telegram target + email_client.py mark-read + TOOLS.md Telegram section)
 Resume file: None

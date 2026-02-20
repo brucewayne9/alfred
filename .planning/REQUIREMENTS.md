@@ -18,11 +18,11 @@ Requirements for milestone v1.0 Ops Ready. Each maps to roadmap phases.
 
 ### Claw Config
 
-- [ ] **CLAW-01**: Telegram duplicate message bug resolved
+- [x] **CLAW-01**: Telegram duplicate message bug resolved
 - [x] **CLAW-02**: USER.md trimmed to fit 3,955 char limit
 - [x] **CLAW-03**: HEARTBEAT.md trimmed to fit 293 char limit
-- [ ] **CLAW-04**: QUEUE.md grep fixed with `-E` flag for alternation
-- [ ] **CLAW-05**: Tool argument errors fixed (python33→python3, CRM commands, email args, HEARTBEAT_OK)
+- [x] **CLAW-04**: QUEUE.md grep fixed with `-E` flag for alternation
+- [x] **CLAW-05**: Tool argument errors fixed (python33→python3, CRM commands, email args, HEARTBEAT_OK)
 - [ ] **CLAW-06**: OpenAI project unarchived or switched to local embeddings
 
 ### CRM
@@ -77,11 +77,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-04 | Phase 1 | Pending |
 | INFRA-05 | Phase 1 | Pending |
 | INFRA-06 | Phase 1 | Complete |
-| CLAW-01 | Phase 2 | Pending |
+| CLAW-01 | Phase 2 | Complete |
 | CLAW-02 | Phase 2 | Complete |
 | CLAW-03 | Phase 2 | Complete |
-| CLAW-04 | Phase 2 | Pending |
-| CLAW-05 | Phase 2 | Pending |
+| CLAW-04 | Phase 2 | Complete |
+| CLAW-05 | Phase 2 | Complete |
 | CLAW-06 | Phase 2 | Pending |
 | CRM-01 | Phase 3 | Pending |
 | CRM-02 | Phase 3 | Pending |
