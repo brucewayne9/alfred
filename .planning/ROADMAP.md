@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [ ] 01-01-PLAN.md — Restore LightRAG network access and add circuit breaker reset endpoints
-- [ ] 01-02-PLAN.md — Verify GA4 and run git gc
+- [x] 01-02-PLAN.md — Verify GA4 and run git gc
 
 ### Phase 2: Alfred Claw Config Fixes
 **Goal**: Alfred Claw on Server 101 sends one response per message, all tool calls succeed, context files are within size limits, the escalation bridge grep works correctly, and infrastructure maintenance (log rotation, stale services) is resolved
@@ -85,7 +85,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Repairs | 0/TBD | Not started | - |
+| 1. Infrastructure Repairs | 1/2 | In progress | - |
 | 2. Alfred Claw Config Fixes | 0/TBD | Not started | - |
 | 3. CRM Reliability | 0/TBD | Not started | - |
 | 4. Google Ads Budget Control | 0/TBD | Not started | - |

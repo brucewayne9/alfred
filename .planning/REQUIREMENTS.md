@@ -11,10 +11,10 @@ Requirements for milestone v1.0 Ops Ready. Each maps to roadmap phases.
 
 - [ ] **INFRA-01**: LightRAG server restored and accessible from Labs (105)
 - [ ] **INFRA-02**: LightRAG circuit breaker reset endpoint added (clearable without process restart)
-- [ ] **INFRA-03**: GA4 property IDs synced to Labs settings
+- [x] **INFRA-03**: GA4 property IDs synced to Labs settings
 - [ ] **INFRA-04**: Log rotation producing daily log files correctly on Claw (101)
 - [ ] **INFRA-05**: Stale openclaw-gateway.service cleaned up on Claw (101)
-- [ ] **INFRA-06**: Labs git repo gc — unreachable loose objects cleaned
+- [x] **INFRA-06**: Labs git repo gc — unreachable loose objects cleaned
 
 ### Claw Config
 
@@ -73,10 +73,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Pending |
 | INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Pending |
 | INFRA-05 | Phase 1 | Pending |
-| INFRA-06 | Phase 1 | Pending |
+| INFRA-06 | Phase 1 | Complete |
 | CLAW-01 | Phase 2 | Pending |
 | CLAW-02 | Phase 2 | Pending |
 | CLAW-03 | Phase 2 | Pending |
