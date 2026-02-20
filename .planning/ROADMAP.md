@@ -29,7 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Calling the circuit breaker reset endpoint clears the open breaker without restarting any process
   3. Alfred on Labs can answer a GA4 analytics question using the correct property IDs
   4. Labs git repo shows no unreachable loose object warnings after gc
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Restore LightRAG network access and add circuit breaker reset endpoints
+- [ ] 01-02-PLAN.md — Verify GA4 and run git gc
 
 ### Phase 2: Alfred Claw Config Fixes
 **Goal**: Alfred Claw on Server 101 sends one response per message, all tool calls succeed, context files are within size limits, the escalation bridge grep works correctly, and infrastructure maintenance (log rotation, stale services) is resolved
