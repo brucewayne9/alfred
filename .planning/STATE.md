@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 2 of 5 (Alfred Claw Config Fixes)
-Plan: 2 of 3 in current phase (02-01, 02-02 complete)
-Status: Phase 2 in progress
-Last activity: 2026-02-20 — Plan 02-02 complete (AGENTS.md heartbeat protocol, SOUL.md Telegram target, email_client.py mark-read dispatch, TOOLS.md Telegram section)
+Plan: 3 of 3 in current phase (02-01, 02-02, 02-03 complete) — Phase 2 COMPLETE
+Status: Phase 2 complete, ready for Phase 3
+Last activity: 2026-02-20 — Plan 02-03 complete (nomic-embed-text embeddings, log cleanup cron, gateway restart, Phase 2 verified)
 
-Progress: [█████░░░░░] 47%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 3.5 min
-- Total execution time: ~14 min
+- Total plans completed: 5
+- Average duration: 4 min
+- Total execution time: ~24 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Infrastructure Repairs | 2 | ~8 min | ~4 min |
-| 2. Alfred Claw Config Fixes | 2 (of 3) | ~6 min | ~3 min |
+| 2. Alfred Claw Config Fixes | 3 (of 3) | ~16 min | ~5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (5 min), 02-01 (2 min), 02-02 (4 min)
-- Trend: fast (remote file edits)
+- Last 5 plans: 01-01 (3 min), 01-02 (5 min), 02-01 (2 min), 02-02 (4 min), 02-03 (10 min)
+- Trend: fast (remote file edits + human verify checkpoint)
 
 *Updated after each plan completion*
 
@@ -57,6 +57,9 @@ Recent decisions affecting current work:
 - [02-02]: Behavioral fix for Telegram dedup — instruct agent via AGENTS.md + SOUL.md rather than modifying OpenClaw gateway config
 - [02-02]: TOOLS.md Telegram section added as section 18 (built-in tool, not Python script) to document correct target format
 - [02-02]: email_client.py mark-read: added dispatch branch only (function already existed); use scp for complex multi-line writes to Server 101
+- [02-03]: Use provider: openai with Ollama baseUrl (11434/v1/) — Ollama exposes OpenAI-compatible embeddings endpoint
+- [02-03]: Configure fallback: openai per locked user decision despite HTTP 401 key — architecture correct, key fix is separate concern
+- [02-03]: cron.daily script preferred over logrotate for /tmp/ date-based log cleanup
 
 ### Pending Todos
 
@@ -66,10 +69,11 @@ None yet.
 
 - [Phase 4 prerequisite]: Verify Google Ads developer token approval level before writing budget mutations — sandbox-only token will silently fail against production accounts
 - [Phase 5 prerequisite]: Confirm whether current Meta access token in .env is System User (non-expiring) or personal user token before Phase 5
-- [Phase 2 decision RESOLVED]: Switched Claw to Ollama nomic-embed-text for embeddings (Plan 02-03 will execute the config change)
+- [Phase 2 COMPLETE]: All 6 Claw bugs + 3 infra issues fixed (CLAW-01 through CLAW-06, INFRA-03 through INFRA-05)
+- [Phase 3 prerequisite]: OpenAI API key on Server 101 needs replacement for cloud embedding fallback to work
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 02-02-PLAN.md (AGENTS.md heartbeat protocol + SOUL.md Telegram target + email_client.py mark-read + TOOLS.md Telegram section)
+Stopped at: Completed 02-03-PLAN.md (nomic-embed-text embeddings + log cleanup cron + gateway restart + Phase 2 verified end-to-end)
 Resume file: None

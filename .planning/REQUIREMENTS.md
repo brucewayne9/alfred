@@ -12,8 +12,8 @@ Requirements for milestone v1.0 Ops Ready. Each maps to roadmap phases.
 - [x] **INFRA-01**: LightRAG server restored and accessible from Labs (105)
 - [x] **INFRA-02**: LightRAG circuit breaker reset endpoint added (clearable without process restart)
 - [x] **INFRA-03**: GA4 property IDs synced to Labs settings
-- [ ] **INFRA-04**: Log rotation producing daily log files correctly on Claw (101)
-- [ ] **INFRA-05**: Stale openclaw-gateway.service cleaned up on Claw (101)
+- [x] **INFRA-04**: Log rotation producing daily log files correctly on Claw (101)
+- [x] **INFRA-05**: Stale openclaw-gateway.service cleaned up on Claw (101)
 - [x] **INFRA-06**: Labs git repo gc — unreachable loose objects cleaned
 
 ### Claw Config
@@ -23,7 +23,7 @@ Requirements for milestone v1.0 Ops Ready. Each maps to roadmap phases.
 - [x] **CLAW-03**: HEARTBEAT.md trimmed to fit 293 char limit
 - [x] **CLAW-04**: QUEUE.md grep fixed with `-E` flag for alternation
 - [x] **CLAW-05**: Tool argument errors fixed (python33→python3, CRM commands, email args, HEARTBEAT_OK)
-- [ ] **CLAW-06**: OpenAI project unarchived or switched to local embeddings
+- [x] **CLAW-06**: OpenAI project unarchived or switched to local embeddings
 
 ### CRM
 
@@ -74,15 +74,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
-| INFRA-04 | Phase 1 | Pending |
-| INFRA-05 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Complete |
+| INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Complete |
 | CLAW-01 | Phase 2 | Complete |
 | CLAW-02 | Phase 2 | Complete |
 | CLAW-03 | Phase 2 | Complete |
 | CLAW-04 | Phase 2 | Complete |
 | CLAW-05 | Phase 2 | Complete |
-| CLAW-06 | Phase 2 | Pending |
+| CLAW-06 | Phase 2 | Complete |
 | CRM-01 | Phase 3 | Pending |
 | CRM-02 | Phase 3 | Pending |
 | GADS-01 | Phase 4 | Pending |
