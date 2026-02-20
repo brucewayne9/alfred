@@ -46,6 +46,19 @@ Alfred must be a reliable daily operations tool — every integration works corr
 - Migration off Twenty CRM — fix integration, don't replace
 - OpenClaw version upgrade — fix within current 2026.2.14
 
+## Current Milestone: v1.0 Ops Ready
+
+**Goal:** Make Alfred a reliable daily operations tool — fix all infrastructure issues, stabilize integrations, and enable conversational ad campaign management.
+
+**Target features:**
+- Infrastructure repairs (LightRAG, log rotation, gateway cleanup, git gc)
+- Claw config fixes (USER.md, HEARTBEAT.md, grep, tool args, OpenAI 401)
+- Twenty CRM integration reliability
+- GA4 property sync to Labs
+- Telegram duplicate message fix
+- Meta Ads full campaign control
+- Google Ads full campaign control
+
 ## Context
 
 - **Two-server architecture:** Labs on 105 (FastAPI+React), Claw on 101 (OpenClaw/Telegram). Claude Code runs on 105, can SSH to 101 via `ssh -p 2222 brucewayne9@75.43.156.101`.
@@ -72,4 +85,4 @@ Alfred must be a reliable daily operations tool — every integration works corr
 | Fix CRM before building new | Reliability of existing tools before new features | — Pending |
 
 ---
-*Last updated: 2026-02-20 after initialization*
+*Last updated: 2026-02-20 after milestone v1.0 started*
