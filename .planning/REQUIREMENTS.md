@@ -71,33 +71,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| INFRA-06 | — | Pending |
-| CLAW-01 | — | Pending |
-| CLAW-02 | — | Pending |
-| CLAW-03 | — | Pending |
-| CLAW-04 | — | Pending |
-| CLAW-05 | — | Pending |
-| CLAW-06 | — | Pending |
-| CRM-01 | — | Pending |
-| CRM-02 | — | Pending |
-| GADS-01 | — | Pending |
-| GADS-02 | — | Pending |
-| GADS-03 | — | Pending |
-| META-01 | — | Pending |
-| META-02 | — | Pending |
-| META-03 | — | Pending |
-| META-04 | — | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Pending |
+| INFRA-06 | Phase 1 | Pending |
+| CLAW-01 | Phase 2 | Pending |
+| CLAW-02 | Phase 2 | Pending |
+| CLAW-03 | Phase 2 | Pending |
+| CLAW-04 | Phase 2 | Pending |
+| CLAW-05 | Phase 2 | Pending |
+| CLAW-06 | Phase 2 | Pending |
+| CRM-01 | Phase 3 | Pending |
+| CRM-02 | Phase 3 | Pending |
+| GADS-01 | Phase 4 | Pending |
+| GADS-02 | Phase 4 | Pending |
+| GADS-03 | Phase 4 | Pending |
+| META-01 | Phase 5 | Pending |
+| META-02 | Phase 5 | Pending |
+| META-03 | Phase 5 | Pending |
+| META-04 | Phase 5 | Pending |
 
 **Coverage:**
 - v1.0 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21 (pending roadmap creation)
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after initial definition*
+*Last updated: 2026-02-20 — traceability complete after roadmap creation*
