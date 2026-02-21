@@ -634,7 +634,11 @@ def pause_ad(ad_id: str) -> dict:
     """Pause a specific ad."""
     try:
         result = _post(ad_id, {"status": "PAUSED"})
-        return {"success": True, "ad_id": ad_id, "status": "PAUSED", "message": f"Ad {ad_id} has been paused."}
+        verified_status, warning = _verify_status(ad_id, "PAUSED", "pause_ad")
+        response = {"success": True, "ad_id": ad_id, "status": "PAUSED", "verified_status": verified_status, "message": f"Ad {ad_id} has been paused."}
+        if warning:
+            response["warning"] = warning
+        return response
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -643,7 +647,11 @@ def enable_ad(ad_id: str) -> dict:
     """Enable (unpause) a specific ad."""
     try:
         result = _post(ad_id, {"status": "ACTIVE"})
-        return {"success": True, "ad_id": ad_id, "status": "ACTIVE", "message": f"Ad {ad_id} has been enabled."}
+        verified_status, warning = _verify_status(ad_id, "ACTIVE", "enable_ad")
+        response = {"success": True, "ad_id": ad_id, "status": "ACTIVE", "verified_status": verified_status, "message": f"Ad {ad_id} has been enabled."}
+        if warning:
+            response["warning"] = warning
+        return response
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -652,7 +660,11 @@ def pause_ad_set(ad_set_id: str) -> dict:
     """Pause a specific ad set."""
     try:
         result = _post(ad_set_id, {"status": "PAUSED"})
-        return {"success": True, "ad_set_id": ad_set_id, "status": "PAUSED", "message": f"Ad set {ad_set_id} has been paused."}
+        verified_status, warning = _verify_status(ad_set_id, "PAUSED", "pause_ad_set")
+        response = {"success": True, "ad_set_id": ad_set_id, "status": "PAUSED", "verified_status": verified_status, "message": f"Ad set {ad_set_id} has been paused."}
+        if warning:
+            response["warning"] = warning
+        return response
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -661,7 +673,11 @@ def enable_ad_set(ad_set_id: str) -> dict:
     """Enable (unpause) a specific ad set."""
     try:
         result = _post(ad_set_id, {"status": "ACTIVE"})
-        return {"success": True, "ad_set_id": ad_set_id, "status": "ACTIVE", "message": f"Ad set {ad_set_id} has been enabled."}
+        verified_status, warning = _verify_status(ad_set_id, "ACTIVE", "enable_ad_set")
+        response = {"success": True, "ad_set_id": ad_set_id, "status": "ACTIVE", "verified_status": verified_status, "message": f"Ad set {ad_set_id} has been enabled."}
+        if warning:
+            response["warning"] = warning
+        return response
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -670,7 +686,11 @@ def pause_campaign(campaign_id: str) -> dict:
     """Pause a specific campaign."""
     try:
         result = _post(campaign_id, {"status": "PAUSED"})
-        return {"success": True, "campaign_id": campaign_id, "status": "PAUSED", "message": f"Campaign {campaign_id} has been paused."}
+        verified_status, warning = _verify_status(campaign_id, "PAUSED", "pause_campaign")
+        response = {"success": True, "campaign_id": campaign_id, "status": "PAUSED", "verified_status": verified_status, "message": f"Campaign {campaign_id} has been paused."}
+        if warning:
+            response["warning"] = warning
+        return response
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -679,7 +699,11 @@ def enable_campaign(campaign_id: str) -> dict:
     """Enable (unpause) a specific campaign."""
     try:
         result = _post(campaign_id, {"status": "ACTIVE"})
-        return {"success": True, "campaign_id": campaign_id, "status": "ACTIVE", "message": f"Campaign {campaign_id} has been enabled."}
+        verified_status, warning = _verify_status(campaign_id, "ACTIVE", "enable_campaign")
+        response = {"success": True, "campaign_id": campaign_id, "status": "ACTIVE", "verified_status": verified_status, "message": f"Campaign {campaign_id} has been enabled."}
+        if warning:
+            response["warning"] = warning
+        return response
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -697,13 +721,19 @@ def update_ad_set_budget(ad_set_id: str, daily_budget: float = None, lifetime_bu
             return {"success": False, "error": "Must provide daily_budget or lifetime_budget"}
 
         result = _post(ad_set_id, data)
-        return {
+        response = {
             "success": True,
             "ad_set_id": ad_set_id,
             "daily_budget": f"${daily_budget:.2f}" if daily_budget else None,
             "lifetime_budget": f"${lifetime_budget:.2f}" if lifetime_budget else None,
             "message": f"Budget updated for ad set {ad_set_id}."
         }
+        if daily_budget is not None:
+            verified_budget, warning = _verify_budget(ad_set_id, daily_budget, "daily")
+            response["verified_budget"] = verified_budget
+            if warning:
+                response["warning"] = warning
+        return response
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -721,12 +751,18 @@ def update_campaign_budget(campaign_id: str, daily_budget: float = None, lifetim
             return {"success": False, "error": "Must provide daily_budget or lifetime_budget"}
 
         result = _post(campaign_id, data)
-        return {
+        response = {
             "success": True,
             "campaign_id": campaign_id,
             "daily_budget": f"${daily_budget:.2f}" if daily_budget else None,
             "lifetime_budget": f"${lifetime_budget:.2f}" if lifetime_budget else None,
             "message": f"Budget updated for campaign {campaign_id}."
         }
+        if daily_budget is not None:
+            verified_budget, warning = _verify_budget(campaign_id, daily_budget, "daily")
+            response["verified_budget"] = verified_budget
+            if warning:
+                response["warning"] = warning
+        return response
     except Exception as e:
         return {"success": False, "error": str(e)}
