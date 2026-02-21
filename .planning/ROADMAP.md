@@ -62,7 +62,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. When the second step of note/task linking fails, the first-step record is deleted and Alfred reports a clean failure (no orphaned notes or tasks in Twenty CRM)
   2. A contact search by name returns the correct contact even when it would have been outside the first 100 records in the old pagination approach
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md — Add atomic linked note/task creation with rollback, fix search cap, update TOOLS.md
 
 ### Phase 4: Google Ads Budget Control
 **Goal**: Mike can update Google Ads campaign budgets and pause/enable ad groups conversationally with the same capability that already exists for Meta Ads
@@ -94,6 +97,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Repairs | 2/2 | Complete   | 2026-02-20 |
 | 2. Alfred Claw Config Fixes | 5/5 | Complete   | 2026-02-20 |
-| 3. CRM Reliability | 0/TBD | Not started | - |
+| 3. CRM Reliability | 0/1 | Not started | - |
 | 4. Google Ads Budget Control | 0/TBD | Not started | - |
 | 5. Ad Workflow Validation & Hardening | 0/TBD | Not started | - |
