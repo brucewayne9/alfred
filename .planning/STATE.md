@@ -2,100 +2,43 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-20)
+See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Phase 5 — Ad Workflow Validation & Hardening (IN PROGRESS)
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 5 of 5 (Ad Workflow Validation & Hardening)
-Plan: 3 of 3 in current phase (05-03 complete — all 22 Meta Ads tools validated)
-Status: Phase 5 COMPLETE — all plans done
-Last activity: 2026-02-21 — Plan 05-03 complete (19/22 Meta Ads tools PASS, 0 FAIL, 3 SKIP; META-04 satisfied)
+Phase: v1.0 COMPLETE (all 5 phases shipped)
+Status: Milestone v1.0 Ops Ready archived
+Last activity: 2026-02-21 — Milestone v1.0 complete
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 5
-- Average duration: 4 min
-- Total execution time: ~24 min
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. Infrastructure Repairs | 2 | ~8 min | ~4 min |
-| 2. Alfred Claw Config Fixes | 3 (of 3) | ~16 min | ~5 min |
-
-**Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (5 min), 02-01 (2 min), 02-02 (4 min), 02-03 (10 min)
-- Trend: fast (remote file edits + human verify checkpoint)
-
-*Updated after each plan completion*
-
-| Phase 02-alfred-claw-config-fixes P04 | 8 min | 1 task | 2 files |
-| Phase 02-alfred-claw-config-fixes P05 | 15 min | 1 task | 0 files |
-| Phase 03-crm-reliability P01 | 25 | 3 tasks | 2 files |
-| Phase 04-google-ads-budget-control P01 | 2 | 2 tasks | 2 files |
-| Phase 04-google-ads-budget-control P02 | 2 | 2 tasks | 3 files |
-| Phase 05-ad-workflow-validation-hardening P01 | 5 min | 1 task | 2 files |
-| Phase 05 P02 | 2 | 2 tasks | 1 files |
-| Phase 05-ad-workflow-validation-hardening P03 | 10 | 2 tasks | 2 files |
+**v1.0 Summary:**
+- 5 phases, 13 plans, 40 commits
+- 45 files changed (+7,136 / -94)
+- 24 days (2026-01-28 → 2026-02-21)
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [Pre-planning]: Fix via SSH from 105 — single Claude Code session manages both servers
-- [Pre-planning]: Full ads API integration — Mike needs conversational campaign control for active campaigns
-- [Pre-planning]: Fix CRM before building new — reliability of existing tools before new features
-- [01-01]: Targeted sed edit of rules.v4 (not iptables-save) to preserve Docker dynamic rules on 117
-- [01-01]: Circuit breaker admin endpoints placed in Knowledge Management section of main.py for co-location with LightRAG routes
-- [01-01]: Admin role check done inline (not shared dependency) to match existing codebase pattern
-- [01-02]: INFRA-03 was already complete — GA4 was already fully working, no code changes needed
-- [01-02]: git gc --prune=now used (immediate prune) — safe because all work is committed to main branch
-- [02-01]: USER.md: kept both family AND business context, trimmed equally — cut narrative prose, "how we met" story, grandchildren detail, sibling locations
-- [02-01]: HEARTBEAT.md: rebuilt as 5-line micro-checklist (was 37-line protocol doc) — protocol detail belongs in SOUL.md/AGENTS.md
-- [02-01]: grep -E flag embedded in HEARTBEAT.md checklist to fix CLAW-04 alternation issue with absolute path
-- [02-02]: Behavioral fix for Telegram dedup — instruct agent via AGENTS.md + SOUL.md rather than modifying OpenClaw gateway config
-- [02-02]: TOOLS.md Telegram section added as section 18 (built-in tool, not Python script) to document correct target format
-- [02-02]: email_client.py mark-read: added dispatch branch only (function already existed); use scp for complex multi-line writes to Server 101
-- [02-03]: Use provider: openai with Ollama baseUrl (11434/v1/) — Ollama exposes OpenAI-compatible embeddings endpoint
-- [02-03]: Configure fallback: openai per locked user decision despite HTTP 401 key — architecture correct, key fix is separate concern
-- [02-03]: cron.daily script preferred over logrotate for /tmp/ date-based log cleanup
-- [Phase 02-04]: USER.md trimmed to 1,798 chars (720-char margin below 2,520 injection limit) — removed Decision Making, Key Dates, verbose family/infra detail
-- [Phase 02-04]: HEARTBEAT.md rewritten to 140 chars (4-line ultra-compact format) — inbox check, grep QUEUE.md, birthdays within 7d, HEARTBEAT_OK instruction
-- [Phase 02-05]: No config changes — embeddings confirmed working (355 nomic-embed-text @ 768 dims); "batch complete" log does not exist in OpenClaw source; sqlite-vec unavailable due to Node.js built-in sqlite API requiring extensions at creation time (not fixable via config)
-- [Phase 03-crm-reliability]: Immediate rollback (no retry) on step-2 failure in create_linked_note/task — HTTP errors are deterministic
-- [Phase 03-crm-reliability]: search_people cap set to first:500 (not unlimited); truncated flag added when count==500
-- [Phase 03-crm-reliability]: Numbered list disambiguation lives in CLI output layer (_print_search_results), not in function return value
-- [Phase 04-google-ads-budget-control]: Shared budget warning returned as data in shared_campaigns list so LLM can warn Mike, not hardcoded in client layer
-- [Phase 04-google-ads-budget-control]: _audit_log() wrapped in try/except so JSONL file failures never block mutations that already succeeded
-- [Phase 04-google-ads-budget-control]: Confirmation threshold in tool description: LLM reads >100/day and >2x rule as natural language — no code logic needed in tool layer
-- [Phase 05-01]: Meta token confirmed as SYSTEM_USER (expires_at=0) — no replacement needed; verify_token_type() added to client.py for future token health checks
-- [Phase 05]: Warning field only appears in Meta Ads response when verification fails — normal success path stays conversationally clean
-- [Phase 05]: _verify_budget receives dollar value (not cents) — cents conversion handled internally in helper
-- [Phase 05]: 19/22 PASS is complete success — 3 SKIPs expected (no active ad-level entities; one ad set uses campaign-level budget)
+All v1.0 decisions resolved — see PROJECT.md for outcomes.
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-- [Phase 4 prerequisite]: Verify Google Ads developer token approval level before writing budget mutations — sandbox-only token will silently fail against production accounts
-- [Phase 5 prerequisite RESOLVED]: Meta token confirmed as SYSTEM_USER (non-expiring) — no action needed
-- [Phase 2 COMPLETE]: All 6 Claw bugs + 3 infra issues fixed (CLAW-01 through CLAW-06, INFRA-03 through INFRA-05)
-- [Phase 3 prerequisite]: OpenAI API key on Server 101 needs replacement for cloud embedding fallback to work
+None active. All v1.0 blockers resolved.
 
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 05-03-PLAN.md (all 22 Meta Ads tools validated: 19 PASS, 0 FAIL, 3 SKIP; META-04 complete; Phase 5 complete)
+Stopped at: Milestone v1.0 Ops Ready archived
 Resume file: None
