@@ -3734,7 +3734,7 @@ def gads_spend(customer_id: str = None, days: int = 30, by_day: bool = False) ->
 
 @tool(
     name="gads_set_campaign_status",
-    description="Enable or pause a Google Ads campaign. Supports multiple accounts.",
+    description="Enable or pause a Google Ads campaign. Always show before/after status. For significant changes, confirm with Mike first. Supports multiple accounts.",
     parameters={
         "customer_id": "string - Customer ID (optional - uses default)",
         "campaign_id": "string - The campaign ID to update",
@@ -3744,6 +3744,46 @@ def gads_spend(customer_id: str = None, days: int = 30, by_day: bool = False) ->
 def gads_set_campaign_status(campaign_id: str, status: str, customer_id: str = None) -> dict:
     from integrations.google_ads.client import set_campaign_status
     return set_campaign_status(campaign_id, status, customer_id=customer_id)
+
+
+@tool(
+    name="gads_update_campaign_budget",
+    description="Update a Google Ads campaign's daily budget. CONFIRMATION RULES: If the new budget exceeds $100/day OR is more than 2x the current budget, ask Mike to confirm before calling this tool. Always show before/after comparison after the update. If the budget is shared across campaigns, list all affected campaigns and confirm before applying.",
+    parameters={
+        "campaign_id": {"type": "string", "description": "The campaign ID to update", "required": True},
+        "new_daily_budget": {"type": "number", "description": "New daily budget in dollars, e.g. 50.00", "required": True},
+        "customer_id": {"type": "string", "description": "Customer ID (optional - uses default)"},
+    },
+)
+def gads_update_campaign_budget(campaign_id: str, new_daily_budget: float, customer_id: str = None) -> dict:
+    from integrations.google_ads.client import update_campaign_budget
+    return update_campaign_budget(campaign_id, new_daily_budget, customer_id=customer_id)
+
+
+@tool(
+    name="gads_pause_ad_group",
+    description="Pause a Google Ads ad group. For bulk operations (pausing all ad groups in a campaign), list affected ad groups and confirm with Mike before calling. Warn if this is the last active ad group in the campaign. Always verify the status change after applying.",
+    parameters={
+        "ad_group_id": {"type": "string", "description": "The ad group ID to pause", "required": True},
+        "customer_id": {"type": "string", "description": "Customer ID (optional - uses default)"},
+    },
+)
+def gads_pause_ad_group(ad_group_id: str, customer_id: str = None) -> dict:
+    from integrations.google_ads.client import set_ad_group_status
+    return set_ad_group_status(ad_group_id, status="PAUSED", customer_id=customer_id)
+
+
+@tool(
+    name="gads_enable_ad_group",
+    description="Enable (unpause) a Google Ads ad group. Always verify the status change after applying.",
+    parameters={
+        "ad_group_id": {"type": "string", "description": "The ad group ID to enable", "required": True},
+        "customer_id": {"type": "string", "description": "Customer ID (optional - uses default)"},
+    },
+)
+def gads_enable_ad_group(ad_group_id: str, customer_id: str = None) -> dict:
+    from integrations.google_ads.client import set_ad_group_status
+    return set_ad_group_status(ad_group_id, status="ENABLED", customer_id=customer_id)
 
 
 # ==================== GOOGLE ANALYTICS ====================
@@ -5500,6 +5540,72 @@ def alfred_read_own_code(file: str, section: str = None) -> dict:
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+# ==================== BRIDGE TOOLS (Cross-System) ====================
+
+@tool(
+    name="call_alfred_claw",
+    description="Send a task to Alfred Claw (OpenClaw on server 101). Use for: sending Telegram messages to Mike, triggering Claw-specific integrations, or executing tasks on the remote server. Claw has persistent Telegram sessions and can message Mike directly.",
+    parameters={
+        "message": {"type": "string", "description": "The task or message to send to Claw", "required": True},
+        "deliver_telegram": {"type": "boolean", "description": "If true, delivers response to Mike via Telegram", "default": False},
+    },
+)
+def call_alfred_claw(message: str, deliver_telegram: bool = False) -> dict:
+    import subprocess
+    import json as _json
+
+    # Build the openclaw command
+    openclaw_cmd = f'openclaw agent --agent main --message "{message}" --json'
+    if deliver_telegram:
+        openclaw_cmd += " --channel telegram --to 7582976864 --deliver"
+
+    # Full SSH command to server 101
+    ssh_cmd = [
+        "ssh", "-p", "2222",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "ConnectTimeout=10",
+        "brucewayne9@75.43.156.101",
+        openclaw_cmd,
+    ]
+
+    try:
+        result = subprocess.run(
+            ssh_cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        if result.returncode != 0:
+            return {
+                "error": f"Claw command failed (exit {result.returncode})",
+                "stderr": result.stderr.strip() if result.stderr else None,
+                "stdout": result.stdout.strip() if result.stdout else None,
+            }
+
+        # Try to parse JSON output from openclaw
+        output = result.stdout.strip()
+        try:
+            parsed = _json.loads(output)
+            return {
+                "status": "success",
+                "claw_response": parsed,
+                "delivered_telegram": deliver_telegram,
+            }
+        except _json.JSONDecodeError:
+            # Return raw output if not valid JSON
+            return {
+                "status": "success",
+                "claw_response": output,
+                "delivered_telegram": deliver_telegram,
+            }
+
+    except subprocess.TimeoutExpired:
+        return {"error": "Claw command timed out after 60 seconds"}
+    except Exception as e:
+        return {"error": f"Failed to reach Claw: {str(e)}"}
 
 
 def register_all():

@@ -177,12 +177,16 @@ TOOL_CATEGORIES = {
         "gads_list_accounts", "gads_account_info", "gads_campaigns",
         "gads_campaign_performance", "gads_ad_groups", "gads_keywords",
         "gads_spend", "gads_set_campaign_status",
+        "gads_update_campaign_budget", "gads_pause_ad_group", "gads_enable_ad_group",
     ],
     "agents": [
         "spawn_agent", "check_agent_task", "list_agent_tasks", "cancel_agent_task",
     ],
     "briefing": [
         "daily_briefing", "quick_briefing",
+    ],
+    "bridge": [
+        "call_alfred_claw",
     ],
 }
 
@@ -257,11 +261,14 @@ CATEGORY_KEYWORDS = {
                   "rodwave", "rod wave", "rucktalk", "ag entertainment"],
     "google_ads": ["google ads", "gads", "adwords", "ad words", "google campaign", "search campaign",
                    "display campaign", "ppc", "pay per click", "ad spend", "google ad", "ad account",
-                   "keyword performance", "quality score", "ad group", "google advertising"],
+                   "keyword performance", "quality score", "ad group", "google advertising",
+                   "budget", "daily budget", "pause ad group", "enable ad group", "unpause"],
     "agents": ["spawn agent", "agent", "delegate", "specialist", "coder agent", "research agent",
                "analyst agent", "writer agent", "parallel", "background task", "multi-step"],
     "briefing": ["briefing", "morning", "daily summary", "what's on my", "my day", "today's schedule",
                  "good morning", "start my day", "catch me up", "status update", "overview"],
+    "bridge": ["claw", "alfred claw", "openclaw", "telegram", "send telegram", "message mike",
+               "tell mike", "telegram mike", "server 101", "remote task", "claw task"],
     "core": [],  # Always included
 }
 
