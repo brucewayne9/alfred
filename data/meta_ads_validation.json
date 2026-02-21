@@ -1,0 +1,190 @@
+{
+  "date": "2026-02-21",
+  "api_version": "v22.0",
+  "account_id": "act_1323671906234016",
+  "summary": {
+    "total": 22,
+    "pass": 19,
+    "fail": 0,
+    "skip": 3
+  },
+  "tools": [
+    {
+      "tool": "meta_ads_account",
+      "status": "PASS",
+      "notes": "Account: My Hands Car Wash",
+      "details": {
+        "account": {
+          "id": "act_1323671906234016",
+          "name": "My Hands Car Wash",
+          "status": "Active",
+          "currency": "USD",
+          "timezone": "America/New_York",
+          "total_spent": "$488.47",
+          "balance": "$6.71",
+          "spend_cap": "$0.00"
+        }
+      }
+    },
+    {
+      "tool": "meta_ads_summary",
+      "status": "PASS",
+      "notes": "Active campaigns: 2",
+      "details": {
+        "summary": {
+          "connected": true,
+          "account": "My Hands Car Wash",
+          "status": "Active",
+          "active_campaigns": 2,
+          "last_7_days": {
+            "spend": "$206.67",
+            "impressions": "11,463",
+            "clicks": "507",
+            "ctr": "4.42%"
+          }
+        }
+      }
+    },
+    {
+      "tool": "meta_ads_performance",
+      "status": "PASS",
+      "notes": "Spend last 7d: $206.67",
+      "details": {
+        "insights": {
+          "period": "last_7d",
+          "impressions": "11,463",
+          "reach": "5,694",
+          "clicks": "507",
+          "ctr": "4.42%",
+          "cpc": "$0.41",
+          "cpm": "$18.03",
+          "spend": "$206.67",
+          "frequency": "2.01",
+          "conversions": {
+            "purchases": 0,
+            "leads": 0,
+            "page_views": 161,
+            "add_to_cart": 0,
+            "link_clicks": 242
+          },
+          "cost_per_result": {
+            "cost_per_purchase": "$0.00",
+            "cost_per_lead": "$0.00",
+            "cost_per_link_click": "$0.85"
+          }
+        }
+      }
+    },
+    {
+      "tool": "meta_ads_campaigns",
+      "status": "PASS",
+      "notes": "Found 2 campaigns"
+    },
+    {
+      "tool": "meta_ads_campaign_insights",
+      "status": "PASS",
+      "notes": "Got insights for campaign 120247770238250339"
+    },
+    {
+      "tool": "meta_ads_ad_sets",
+      "status": "PASS",
+      "notes": "Found 3 ad sets"
+    },
+    {
+      "tool": "meta_ads_ad_set_insights",
+      "status": "PASS",
+      "notes": "Got ad set insights for campaign 120247770238250339"
+    },
+    {
+      "tool": "meta_ads_ads",
+      "status": "PASS",
+      "notes": "Found 0 ads"
+    },
+    {
+      "tool": "meta_ads_ad_insights",
+      "status": "PASS",
+      "notes": "Got ad-level insights"
+    },
+    {
+      "tool": "meta_ads_insights",
+      "status": "PASS",
+      "notes": "Got account-level ad insights (4 rows)"
+    },
+    {
+      "tool": "meta_ads_audience",
+      "status": "PASS",
+      "notes": "Got audience breakdown (3 platforms)"
+    },
+    {
+      "tool": "meta_ads_placements",
+      "status": "PASS",
+      "notes": "Got placement insights (8 placements)"
+    },
+    {
+      "tool": "meta_ads_issues",
+      "status": "PASS",
+      "notes": "No issues found"
+    },
+    {
+      "tool": "meta_ads_daily_spend",
+      "status": "PASS",
+      "notes": "Got 8 days of spend data"
+    },
+    {
+      "tool": "meta_ads_pause_campaign",
+      "status": "PASS",
+      "notes": "Paused OK, verified_status=PAUSED",
+      "details": {
+        "verified_status": "PAUSED"
+      }
+    },
+    {
+      "tool": "meta_ads_enable_campaign",
+      "status": "PASS",
+      "notes": "Re-enabled OK, verified_status=ACTIVE",
+      "details": {
+        "verified_status": "ACTIVE"
+      }
+    },
+    {
+      "tool": "meta_ads_pause_ad_set",
+      "status": "PASS",
+      "notes": "Paused OK, verified_status=PAUSED",
+      "details": {
+        "verified_status": "PAUSED"
+      }
+    },
+    {
+      "tool": "meta_ads_enable_ad_set",
+      "status": "PASS",
+      "notes": "Re-enabled OK, verified_status=ACTIVE",
+      "details": {
+        "verified_status": "ACTIVE"
+      }
+    },
+    {
+      "tool": "meta_ads_pause_ad",
+      "status": "SKIP",
+      "notes": "No active/paused ad found in discovered ad set"
+    },
+    {
+      "tool": "meta_ads_enable_ad",
+      "status": "SKIP",
+      "notes": "No active/paused ad found in discovered ad set"
+    },
+    {
+      "tool": "meta_ads_update_campaign_budget",
+      "status": "PASS",
+      "notes": "$32.00 -> $33.00 (verified=$33.00) -> reverted (verified=$32.00)",
+      "details": {
+        "verified_budget_after_increase": 33.0,
+        "verified_budget_after_revert": 32.0
+      }
+    },
+    {
+      "tool": "meta_ads_update_ad_set_budget",
+      "status": "SKIP",
+      "notes": "Ad set has no daily_budget (may use campaign-level budget or lifetime budget)"
+    }
+  ]
+}
