@@ -11,7 +11,7 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 # API Configuration
-BASE_URL = "https://graph.facebook.com/v21.0"
+BASE_URL = "https://graph.facebook.com/v22.0"
 ACCESS_TOKEN = getattr(settings, 'meta_access_token', '')
 AD_ACCOUNT_ID = getattr(settings, 'meta_ad_account_id', '')
 
@@ -74,6 +74,32 @@ def _normalize_period(period: str) -> str:
         "this_month": "this_month",
     }
     return replacements.get(period, period)
+
+
+# ==================== Token Verification ====================
+
+def verify_token_type() -> dict:
+    """Verify the Meta access token type and expiration via debug_token endpoint."""
+    app_id = getattr(settings, 'meta_app_id', None) or "2139661656770472"
+    app_secret = getattr(settings, 'meta_app_secret', None) or ""
+    access_token = settings.meta_access_token
+    app_token = f"{app_id}|{app_secret}"
+    resp = requests.get(
+        "https://graph.facebook.com/v22.0/debug_token",
+        params={"input_token": access_token, "access_token": app_token},
+        timeout=10
+    )
+    resp.raise_for_status()
+    data = resp.json().get("data", {})
+    return {
+        "type": data.get("type"),
+        "is_valid": data.get("is_valid"),
+        "expires_at": data.get("expires_at"),
+        "is_system_user": data.get("type") == "SYSTEM_USER",
+        "never_expires": data.get("expires_at") == 0,
+        "app_id": data.get("app_id"),
+        "scopes": data.get("scopes", []),
+    }
 
 
 # ==================== Account Info ====================
