@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Phase 2 — Alfred Claw Config Fixes
+**Current focus:** Phase 3 — CRM Reliability
 
 ## Current Position
 
-Phase: 2 of 5 (Alfred Claw Config Fixes)
-Plan: 5 of 5 in current phase (02-01, 02-02, 02-03, 02-04, 02-05 all complete — Phase 2 COMPLETE)
-Status: Phase 2 complete, ready for Phase 3
-Last activity: 2026-02-20 — Plan 02-05 complete (embedding batch diagnosis: embeddings confirmed working, no config changes needed, sqlite-vec Node API compatibility issue documented)
+Phase: 3 of 5 (CRM Reliability)
+Plan: 1 of 1 in current phase (03-01 complete — Phase 3 COMPLETE)
+Status: Phase 3 complete, ready for Phase 4
+Last activity: 2026-02-21 — Plan 03-01 complete (CRM reliability: create-linked-note/task with rollback, search cap 50->500, numbered-list disambiguation, TOOLS.md updated)
 
-Progress: [██████░░░░] 64%
+Progress: [███████░░░] 75%
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [██████░░░░] 64%
 
 | Phase 02-alfred-claw-config-fixes P04 | 8 min | 1 task | 2 files |
 | Phase 02-alfred-claw-config-fixes P05 | 15 min | 1 task | 0 files |
+| Phase 03-crm-reliability P01 | 25 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,9 @@ Recent decisions affecting current work:
 - [Phase 02-04]: USER.md trimmed to 1,798 chars (720-char margin below 2,520 injection limit) — removed Decision Making, Key Dates, verbose family/infra detail
 - [Phase 02-04]: HEARTBEAT.md rewritten to 140 chars (4-line ultra-compact format) — inbox check, grep QUEUE.md, birthdays within 7d, HEARTBEAT_OK instruction
 - [Phase 02-05]: No config changes — embeddings confirmed working (355 nomic-embed-text @ 768 dims); "batch complete" log does not exist in OpenClaw source; sqlite-vec unavailable due to Node.js built-in sqlite API requiring extensions at creation time (not fixable via config)
+- [Phase 03-crm-reliability]: Immediate rollback (no retry) on step-2 failure in create_linked_note/task — HTTP errors are deterministic
+- [Phase 03-crm-reliability]: search_people cap set to first:500 (not unlimited); truncated flag added when count==500
+- [Phase 03-crm-reliability]: Numbered list disambiguation lives in CLI output layer (_print_search_results), not in function return value
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: Completed 02-05-PLAN.md (embedding batch diagnosis — confirmed working, no changes needed, CLAW-06 satisfied, Phase 2 fully complete)
+Last session: 2026-02-21
+Stopped at: Completed 03-01-PLAN.md (CRM reliability — create-linked-note/task with rollback, search cap 50->500, numbered-list disambiguation, TOOLS.md updated, Phase 3 fully complete)
 Resume file: None

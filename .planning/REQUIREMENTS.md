@@ -27,8 +27,8 @@ Requirements for milestone v1.0 Ops Ready. Each maps to roadmap phases.
 
 ### CRM
 
-- [ ] **CRM-01**: Note/task linking uses rollback on second-step failure (no orphaned records)
-- [ ] **CRM-02**: Contact search uses server-side filter instead of 100-record Python fuzzy match
+- [x] **CRM-01**: Note/task linking uses rollback on second-step failure (no orphaned records)
+- [x] **CRM-02**: Contact search uses server-side filter instead of 100-record Python fuzzy match
 
 ### Google Ads
 
@@ -83,8 +83,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLAW-04 | Phase 2 | Complete |
 | CLAW-05 | Phase 2 | Complete |
 | CLAW-06 | Phase 2 | Complete |
-| CRM-01 | Phase 3 | Pending |
-| CRM-02 | Phase 3 | Pending |
+| CRM-01 | Phase 3 | Complete |
+| CRM-02 | Phase 3 | Complete |
 | GADS-01 | Phase 4 | Pending |
 | GADS-02 | Phase 4 | Pending |
 | GADS-03 | Phase 4 | Pending |
