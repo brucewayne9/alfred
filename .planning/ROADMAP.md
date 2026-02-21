@@ -75,7 +75,11 @@ Plans:
   1. Asking Alfred to update a Google Ads campaign budget results in the confirmed new budget visible in the Google Ads console
   2. Asking Alfred to pause or enable a Google Ads ad group changes its status as confirmed by a read-back of the ad group state
   3. The google-ads SDK is installed on Labs (105) and the new tools appear in the registered tool list
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Install google-ads SDK, add audit log, implement budget/ad group mutation functions
+- [ ] 04-02-PLAN.md — Wire tools into LLM tool system and update TOOLS.md
 
 ### Phase 5: Ad Workflow Validation & Hardening
 **Goal**: The complete conversational ad management workflow is validated against live campaigns, all budget mutations include read-after-write verification, and the Meta Ads integration is upgraded and confirmed reliable
