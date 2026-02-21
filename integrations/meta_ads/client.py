@@ -1,6 +1,8 @@
 """Meta (Facebook/Instagram) Ads API client. Campaign insights, reporting, and analysis."""
 
 import logging
+import subprocess
+import time
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -32,6 +34,73 @@ def _post(endpoint: str, data: dict = None) -> Any:
     resp = requests.post(f"{BASE_URL}/{endpoint}", data=data, timeout=30)
     resp.raise_for_status()
     return resp.json()
+
+
+def _send_mismatch_alert(operation: str, entity_id: str, expected: str, actual: str) -> None:
+    """Send Telegram alert to Mike when read-after-write verification fails."""
+    msg = (
+        f"Meta Ads mismatch after retry:\n"
+        f"Operation: {operation}\n"
+        f"Entity: {entity_id}\n"
+        f"Expected: {expected}\n"
+        f"Got: {actual}"
+    )
+    try:
+        subprocess.run(
+            ["openclaw", "message", "send", "--channel", "telegram", "--target", "7582976864", msg],
+            timeout=10, check=False, capture_output=True
+        )
+    except Exception:
+        pass  # Alert failure must never block the primary response
+
+
+def _verify_status(entity_id: str, expected_status: str, operation: str) -> tuple:
+    """Read back status after write. Retry once on mismatch. Returns (verified_status, warning)."""
+    time.sleep(1)
+    readback = _get(entity_id, {"fields": "id,status"})
+    verified = readback.get("status")
+
+    if verified == expected_status:
+        return verified, None
+
+    # Retry the mutation once
+    time.sleep(1)
+    _post(entity_id, {"status": expected_status})
+    time.sleep(1)
+    readback2 = _get(entity_id, {"fields": "id,status"})
+    verified = readback2.get("status")
+
+    if verified != expected_status:
+        _send_mismatch_alert(operation, entity_id, expected_status, verified)
+        return verified, f"Status mismatch after retry: expected {expected_status}, got {verified}. Mike has been alerted."
+
+    return verified, None
+
+
+def _verify_budget(entity_id: str, expected_dollars: float, budget_type: str = "daily") -> tuple:
+    """Read back budget after write. Retry once on mismatch. Returns (verified_dollars, warning)."""
+    field = "daily_budget" if budget_type == "daily" else "lifetime_budget"
+
+    time.sleep(1)
+    readback = _get(entity_id, {"fields": f"id,{field}"})
+    verified_cents = int(readback.get(field, 0))
+    verified_dollars = verified_cents / 100
+
+    if abs(verified_dollars - expected_dollars) < 0.02:
+        return verified_dollars, None
+
+    # Retry
+    time.sleep(1)
+    _post(entity_id, {field: str(int(expected_dollars * 100))})
+    time.sleep(1)
+    readback2 = _get(entity_id, {"fields": f"id,{field}"})
+    verified_dollars = int(readback2.get(field, 0)) / 100
+
+    if abs(verified_dollars - expected_dollars) >= 0.02:
+        _send_mismatch_alert(f"update_{budget_type}_budget", entity_id, f"${expected_dollars}", f"${verified_dollars}")
+        return verified_dollars, f"Budget mismatch after retry: expected ${expected_dollars}, got ${verified_dollars}. Mike has been alerted."
+
+    return verified_dollars, None
 
 
 def _format_currency(amount_cents: int) -> str:
