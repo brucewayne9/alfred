@@ -38,8 +38,8 @@ Requirements for milestone v1.0 Ops Ready. Each maps to roadmap phases.
 
 ### Meta Ads
 
-- [ ] **META-01**: Meta Ads API updated from v21.0 to v22.0
-- [ ] **META-02**: Meta access token verified as System User (non-expiring) type
+- [x] **META-01**: Meta Ads API updated from v21.0 to v22.0
+- [x] **META-02**: Meta access token verified as System User (non-expiring) type
 - [ ] **META-03**: Budget mutations include read-after-write verification
 - [ ] **META-04**: All 18 existing Meta Ads tools validated against live campaigns
 
@@ -88,8 +88,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GADS-01 | Phase 4 | Complete |
 | GADS-02 | Phase 4 | Complete |
 | GADS-03 | Phase 4 | Complete |
-| META-01 | Phase 5 | Pending |
-| META-02 | Phase 5 | Pending |
+| META-01 | Phase 5 | Complete |
+| META-02 | Phase 5 | Complete |
 | META-03 | Phase 5 | Pending |
 | META-04 | Phase 5 | Pending |
 

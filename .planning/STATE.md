@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Phase 4 — Google Ads Budget Control (COMPLETE)
+**Current focus:** Phase 5 — Ad Workflow Validation & Hardening (IN PROGRESS)
 
 ## Current Position
 
-Phase: 4 of 5 (Google Ads Budget Control)
-Plan: 2 of 2 in current phase (04-02 complete — Phase 4 COMPLETE)
-Status: Phase 4 complete, ready for Phase 5
-Last activity: 2026-02-21 — Plan 04-02 complete (Google Ads write tools registered: gads_update_campaign_budget, gads_pause_ad_group, gads_enable_ad_group; TOOLS.md updated)
+Phase: 5 of 5 (Ad Workflow Validation & Hardening)
+Plan: 1 of N in current phase (05-01 complete — Meta API v22.0 upgrade + token verification)
+Status: Phase 5 in progress
+Last activity: 2026-02-21 — Plan 05-01 complete (Meta Graph API upgraded to v22.0, token verified as SYSTEM_USER never-expiring)
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ Progress: [████████░░] 80%
 | Phase 03-crm-reliability P01 | 25 | 3 tasks | 2 files |
 | Phase 04-google-ads-budget-control P01 | 2 | 2 tasks | 2 files |
 | Phase 04-google-ads-budget-control P02 | 2 | 2 tasks | 3 files |
+| Phase 05-ad-workflow-validation-hardening P01 | 5 min | 1 task | 2 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,7 @@ Recent decisions affecting current work:
 - [Phase 04-google-ads-budget-control]: Shared budget warning returned as data in shared_campaigns list so LLM can warn Mike, not hardcoded in client layer
 - [Phase 04-google-ads-budget-control]: _audit_log() wrapped in try/except so JSONL file failures never block mutations that already succeeded
 - [Phase 04-google-ads-budget-control]: Confirmation threshold in tool description: LLM reads >100/day and >2x rule as natural language — no code logic needed in tool layer
+- [Phase 05-01]: Meta token confirmed as SYSTEM_USER (expires_at=0) — no replacement needed; verify_token_type() added to client.py for future token health checks
 
 ### Pending Todos
 
@@ -83,12 +85,12 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 4 prerequisite]: Verify Google Ads developer token approval level before writing budget mutations — sandbox-only token will silently fail against production accounts
-- [Phase 5 prerequisite]: Confirm whether current Meta access token in .env is System User (non-expiring) or personal user token before Phase 5
+- [Phase 5 prerequisite RESOLVED]: Meta token confirmed as SYSTEM_USER (non-expiring) — no action needed
 - [Phase 2 COMPLETE]: All 6 Claw bugs + 3 infra issues fixed (CLAW-01 through CLAW-06, INFRA-03 through INFRA-05)
 - [Phase 3 prerequisite]: OpenAI API key on Server 101 needs replacement for cloud embedding fallback to work
 
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 04-02-PLAN.md (Google Ads write tools registered: gads_update_campaign_budget with $100/2x threshold, gads_pause_ad_group, gads_enable_ad_group; TOOLS.md updated, Phase 4 fully complete)
+Stopped at: Completed 05-01-PLAN.md (Meta Graph API upgraded from v21.0 to v22.0; token verified as SYSTEM_USER never-expiring via debug_token endpoint)
 Resume file: None
