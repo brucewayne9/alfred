@@ -3,7 +3,7 @@
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from pathlib import Path
 
@@ -70,6 +70,31 @@ def _get_client() -> GoogleAdsClient:
 def _format_micros(micros: int) -> float:
     """Convert micros to standard currency value."""
     return micros / 1_000_000 if micros else 0.0
+
+
+# Audit log path
+AUDIT_LOG_PATH = Path("/home/aialfred/alfred/data/ads_audit.jsonl")
+
+
+def _audit_log(platform: str, operation: str, entity_id: str, entity_name: str,
+               old_value: dict, new_value: dict, customer_id: str = None) -> None:
+    """Append one line to the ads audit log (append-only JSONL)."""
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "platform": platform,
+        "operation": operation,
+        "entity_id": entity_id,
+        "entity_name": entity_name,
+        "customer_id": customer_id,
+        "old_value": old_value,
+        "new_value": new_value,
+        "requester": "alfred",
+    }
+    try:
+        with open(AUDIT_LOG_PATH, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception as e:
+        logger.warning(f"Failed to write audit log: {e}")
 
 
 def get_account_info(customer_id: str = None) -> dict:
