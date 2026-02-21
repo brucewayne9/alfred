@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Phase 3 — CRM Reliability
+**Current focus:** Phase 4 — Google Ads Budget Control (COMPLETE)
 
 ## Current Position
 
-Phase: 3 of 5 (CRM Reliability)
-Plan: 1 of 1 in current phase (03-01 complete — Phase 3 COMPLETE)
-Status: Phase 3 complete, ready for Phase 4
-Last activity: 2026-02-21 — Plan 03-01 complete (CRM reliability: create-linked-note/task with rollback, search cap 50->500, numbered-list disambiguation, TOOLS.md updated)
+Phase: 4 of 5 (Google Ads Budget Control)
+Plan: 2 of 2 in current phase (04-02 complete — Phase 4 COMPLETE)
+Status: Phase 4 complete, ready for Phase 5
+Last activity: 2026-02-21 — Plan 04-02 complete (Google Ads write tools registered: gads_update_campaign_budget, gads_pause_ad_group, gads_enable_ad_group; TOOLS.md updated)
 
-Progress: [███████░░░] 75%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ Progress: [███████░░░] 75%
 | Phase 02-alfred-claw-config-fixes P05 | 15 min | 1 task | 0 files |
 | Phase 03-crm-reliability P01 | 25 | 3 tasks | 2 files |
 | Phase 04-google-ads-budget-control P01 | 2 | 2 tasks | 2 files |
+| Phase 04-google-ads-budget-control P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,7 @@ Recent decisions affecting current work:
 - [Phase 03-crm-reliability]: Numbered list disambiguation lives in CLI output layer (_print_search_results), not in function return value
 - [Phase 04-google-ads-budget-control]: Shared budget warning returned as data in shared_campaigns list so LLM can warn Mike, not hardcoded in client layer
 - [Phase 04-google-ads-budget-control]: _audit_log() wrapped in try/except so JSONL file failures never block mutations that already succeeded
+- [Phase 04-google-ads-budget-control]: Confirmation threshold in tool description: LLM reads >100/day and >2x rule as natural language — no code logic needed in tool layer
 
 ### Pending Todos
 
@@ -88,5 +90,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 03-01-PLAN.md (CRM reliability — create-linked-note/task with rollback, search cap 50->500, numbered-list disambiguation, TOOLS.md updated, Phase 3 fully complete)
+Stopped at: Completed 04-02-PLAN.md (Google Ads write tools registered: gads_update_campaign_budget with $100/2x threshold, gads_pause_ad_group, gads_enable_ad_group; TOOLS.md updated, Phase 4 fully complete)
 Resume file: None
