@@ -90,7 +90,12 @@ Plans:
   2. A Meta Ads budget mutation returns the confirmed budget value read back from the API (not just the request parameters)
   3. The Meta access token is confirmed as a non-expiring System User token and this is documented in config
   4. Meta Graph API version is v22.0 across all client calls and no deprecation warnings appear in responses
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Upgrade Meta API version to v22.0 and verify token type
+- [ ] 05-02-PLAN.md — Add read-after-write verification to all 8 Meta Ads write functions
+- [ ] 05-03-PLAN.md — Validate all 22 Meta Ads tools against live campaigns
 
 ## Progress
 
@@ -103,4 +108,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Alfred Claw Config Fixes | 5/5 | Complete   | 2026-02-20 |
 | 3. CRM Reliability | 1/1 | Complete   | 2026-02-21 |
 | 4. Google Ads Budget Control | 2/2 | Complete   | 2026-02-21 |
-| 5. Ad Workflow Validation & Hardening | 0/TBD | Not started | - |
+| 5. Ad Workflow Validation & Hardening | 0/3 | Not started | - |
