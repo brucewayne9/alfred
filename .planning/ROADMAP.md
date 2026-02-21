@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Alfred Claw Config Fixes** - Batch all SSH-only changes to Server 101 (Telegram dedup, tool args, size limits, log rotation, stale gateway cleanup) (completed 2026-02-20)
 - [x] **Phase 3: CRM Reliability** - Fix note/task linking rollback and contact search on Labs-side CRM client (completed 2026-02-21)
 - [x] **Phase 4: Google Ads Budget Control** - Install SDK and add budget + ad group mutation tools to complete Google Ads write parity (completed 2026-02-21)
-- [ ] **Phase 5: Ad Workflow Validation & Hardening** - Upgrade Meta API version, verify token, add read-after-write, validate end-to-end conversational ad workflow
+- [x] **Phase 5: Ad Workflow Validation & Hardening** - Upgrade Meta API version, verify token, add read-after-write, validate end-to-end conversational ad workflow (completed 2026-02-21)
 
 ## Phase Details
 
@@ -108,4 +108,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Alfred Claw Config Fixes | 5/5 | Complete   | 2026-02-20 |
 | 3. CRM Reliability | 1/1 | Complete   | 2026-02-21 |
 | 4. Google Ads Budget Control | 2/2 | Complete   | 2026-02-21 |
-| 5. Ad Workflow Validation & Hardening | 2/3 | In Progress|  |
+| 5. Ad Workflow Validation & Hardening | 3/3 | Complete   | 2026-02-21 |
