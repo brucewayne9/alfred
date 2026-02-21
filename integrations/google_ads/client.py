@@ -505,12 +505,29 @@ def set_campaign_status(campaign_id: str, status: str, customer_id: str = None) 
         client = _get_client()
         customer_id = (customer_id or DEFAULT_CUSTOMER_ID).replace("-", "")
 
+        ga_service = client.get_service("GoogleAdsService")
         campaign_service = client.get_service("CampaignService")
 
+        # Validate status before any API calls
+        if status.upper() not in ("ENABLED", "PAUSED"):
+            return {"error": f"Invalid status: {status}. Use ENABLED or PAUSED"}
+
+        # Before mutation: query current campaign name and status
+        pre_query = f"""
+            SELECT campaign.id, campaign.name, campaign.status
+            FROM campaign
+            WHERE campaign.id = {campaign_id}
+        """
+        pre_response = ga_service.search(customer_id=customer_id, query=pre_query)
+        pre_row = next(iter(pre_response), None)
+        if not pre_row:
+            return {"error": f"Campaign {campaign_id} not found"}
+
+        campaign_name = pre_row.campaign.name
+        old_status = pre_row.campaign.status.name
+
         # Build the campaign resource name
-        resource_name = client.get_service("GoogleAdsService").campaign_path(
-            customer_id, campaign_id
-        )
+        resource_name = ga_service.campaign_path(customer_id, campaign_id)
 
         # Create the operation
         campaign_operation = client.get_type("CampaignOperation")
@@ -520,10 +537,8 @@ def set_campaign_status(campaign_id: str, status: str, customer_id: str = None) 
         # Set status
         if status.upper() == "ENABLED":
             campaign.status = client.enums.CampaignStatusEnum.ENABLED
-        elif status.upper() == "PAUSED":
-            campaign.status = client.enums.CampaignStatusEnum.PAUSED
         else:
-            return {"error": f"Invalid status: {status}. Use ENABLED or PAUSED"}
+            campaign.status = client.enums.CampaignStatusEnum.PAUSED
 
         # Set the field mask
         client.copy_from(
@@ -537,15 +552,263 @@ def set_campaign_status(campaign_id: str, status: str, customer_id: str = None) 
             operations=[campaign_operation]
         )
 
+        # Verification read-back: re-query campaign status
+        verify_query = f"""
+            SELECT campaign.id, campaign.status
+            FROM campaign
+            WHERE campaign.id = {campaign_id}
+        """
+        verify_response = ga_service.search(customer_id=customer_id, query=verify_query)
+        verify_row = next(iter(verify_response), None)
+        verified_status = verify_row.campaign.status.name if verify_row else status.upper()
+
+        # Audit log
+        _audit_log(
+            platform="google_ads",
+            operation="set_campaign_status",
+            entity_id=campaign_id,
+            entity_name=campaign_name,
+            old_value={"status": old_status},
+            new_value={"status": status.upper()},
+            customer_id=customer_id,
+        )
+
         return {
             "success": True,
             "campaign_id": campaign_id,
+            "campaign_name": campaign_name,
+            "old_status": old_status,
             "new_status": status.upper(),
+            "verified_status": verified_status,
             "resource_name": response.results[0].resource_name,
         }
     except GoogleAdsException as e:
         logger.error(f"Google Ads API error: {e}")
-        return {"error": str(e.failure.errors[0].message if e.failure.errors else e)}
+        err = e.failure.errors[0] if e.failure.errors else None
+        if err and err.error_code.HasField("authorization_error"):
+            return {"error": "Google Ads API access denied. The developer token may need upgraded access level."}
+        return {"error": "Google Ads operation failed. Please try again."}
+    except Exception as e:
+        logger.error(f"Google Ads error: {e}")
+        return {"error": str(e)}
+
+
+def update_campaign_budget(campaign_id: str, new_daily_budget: float, customer_id: str = None) -> dict:
+    """Update the daily budget for a campaign.
+
+    Two-step: first query the campaign to get its budget resource name,
+    then mutate the campaign_budget resource directly.
+
+    Args:
+        campaign_id: The campaign ID to update
+        new_daily_budget: New daily budget in dollars
+        customer_id: Optional customer ID
+    """
+    try:
+        client = _get_client()
+        customer_id = (customer_id or DEFAULT_CUSTOMER_ID).replace("-", "")
+
+        ga_service = client.get_service("GoogleAdsService")
+
+        # Step 1: Query campaign to get budget resource name, current amount, and shared status
+        query = f"""
+            SELECT
+                campaign.id,
+                campaign.name,
+                campaign_budget.resource_name,
+                campaign_budget.amount_micros,
+                campaign_budget.explicitly_shared,
+                campaign_budget.reference_count
+            FROM campaign
+            WHERE campaign.id = {campaign_id}
+              AND campaign.status != 'REMOVED'
+        """
+        response = ga_service.search(customer_id=customer_id, query=query)
+        row = next(iter(response), None)
+        if not row:
+            return {"error": f"Campaign {campaign_id} not found"}
+
+        campaign_name = row.campaign.name
+        old_budget = _format_micros(row.campaign_budget.amount_micros)
+        budget_resource_name = row.campaign_budget.resource_name
+        is_shared = row.campaign_budget.explicitly_shared
+        reference_count = row.campaign_budget.reference_count
+
+        # If budget is shared with multiple campaigns, list them so LLM can warn Mike
+        shared_campaigns = []
+        if is_shared and reference_count > 1:
+            shared_query = f"""
+                SELECT campaign.id, campaign.name
+                FROM campaign
+                WHERE campaign_budget.resource_name = '{budget_resource_name}'
+                  AND campaign.status != 'REMOVED'
+            """
+            shared_response = ga_service.search(customer_id=customer_id, query=shared_query)
+            for shared_row in shared_response:
+                shared_campaigns.append({
+                    "id": str(shared_row.campaign.id),
+                    "name": shared_row.campaign.name,
+                })
+
+        # Step 2: Mutate the campaign_budget resource
+        campaign_budget_service = client.get_service("CampaignBudgetService")
+        budget_operation = client.get_type("CampaignBudgetOperation")
+        budget = budget_operation.update
+        budget.resource_name = budget_resource_name
+        budget.amount_micros = int(new_daily_budget * 1_000_000)
+
+        client.copy_from(
+            budget_operation.update_mask,
+            client.get_type("FieldMask")(paths=["amount_micros"])
+        )
+
+        campaign_budget_service.mutate_campaign_budgets(
+            customer_id=customer_id,
+            operations=[budget_operation]
+        )
+
+        # Verification read-back: re-query the budget amount
+        verify_query = f"""
+            SELECT campaign_budget.amount_micros
+            FROM campaign_budget
+            WHERE campaign_budget.resource_name = '{budget_resource_name}'
+        """
+        verify_response = ga_service.search(customer_id=customer_id, query=verify_query)
+        verify_row = next(iter(verify_response), None)
+        verified_daily_budget = (
+            _format_micros(verify_row.campaign_budget.amount_micros)
+            if verify_row else new_daily_budget
+        )
+
+        # Audit log
+        _audit_log(
+            platform="google_ads",
+            operation="update_campaign_budget",
+            entity_id=campaign_id,
+            entity_name=campaign_name,
+            old_value={"daily_budget": old_budget},
+            new_value={"daily_budget": new_daily_budget},
+            customer_id=customer_id,
+        )
+
+        return {
+            "success": True,
+            "campaign_id": campaign_id,
+            "campaign_name": campaign_name,
+            "old_daily_budget": old_budget,
+            "new_daily_budget": new_daily_budget,
+            "verified_daily_budget": verified_daily_budget,
+            "is_shared": is_shared,
+            "shared_campaigns": shared_campaigns,
+        }
+    except GoogleAdsException as e:
+        logger.error(f"Google Ads API error: {e}")
+        err = e.failure.errors[0] if e.failure.errors else None
+        if err and err.error_code.HasField("authorization_error"):
+            return {"error": "Google Ads API access denied. The developer token may need upgraded access level."}
+        return {"error": "Google Ads operation failed. Please try again."}
+    except Exception as e:
+        logger.error(f"Google Ads error: {e}")
+        return {"error": str(e)}
+
+
+def set_ad_group_status(ad_group_id: str, status: str, customer_id: str = None) -> dict:
+    """Pause or enable an ad group.
+
+    Args:
+        ad_group_id: The ad group ID to update
+        status: New status (ENABLED or PAUSED)
+        customer_id: Optional customer ID
+    """
+    try:
+        client = _get_client()
+        customer_id = (customer_id or DEFAULT_CUSTOMER_ID).replace("-", "")
+
+        ga_service = client.get_service("GoogleAdsService")
+
+        # Validate status
+        if status.upper() not in ("ENABLED", "PAUSED"):
+            return {"error": f"Invalid status: {status}. Use ENABLED or PAUSED"}
+
+        # Step 1: Query current ad group status and name
+        pre_query = f"""
+            SELECT
+                ad_group.id,
+                ad_group.name,
+                ad_group.status,
+                campaign.id,
+                campaign.name
+            FROM ad_group
+            WHERE ad_group.id = {ad_group_id}
+        """
+        pre_response = ga_service.search(customer_id=customer_id, query=pre_query)
+        pre_row = next(iter(pre_response), None)
+        if not pre_row:
+            return {"error": f"Ad group {ad_group_id} not found"}
+
+        ad_group_name = pre_row.ad_group.name
+        old_status = pre_row.ad_group.status.name
+        campaign_id = str(pre_row.campaign.id)
+        campaign_name = pre_row.campaign.name
+
+        # Step 2: Mutate using AdGroupService
+        ad_group_service = client.get_service("AdGroupService")
+        ad_group_operation = client.get_type("AdGroupOperation")
+        ad_group = ad_group_operation.update
+        ad_group.resource_name = ad_group_service.ad_group_path(customer_id, ad_group_id)
+
+        if status.upper() == "PAUSED":
+            ad_group.status = client.enums.AdGroupStatusEnum.PAUSED
+        else:
+            ad_group.status = client.enums.AdGroupStatusEnum.ENABLED
+
+        client.copy_from(
+            ad_group_operation.update_mask,
+            client.get_type("FieldMask")(paths=["status"])
+        )
+
+        ad_group_service.mutate_ad_groups(
+            customer_id=customer_id,
+            operations=[ad_group_operation]
+        )
+
+        # Verification read-back: re-query ad group status
+        verify_query = f"""
+            SELECT ad_group.id, ad_group.status
+            FROM ad_group
+            WHERE ad_group.id = {ad_group_id}
+        """
+        verify_response = ga_service.search(customer_id=customer_id, query=verify_query)
+        verify_row = next(iter(verify_response), None)
+        verified_status = verify_row.ad_group.status.name if verify_row else status.upper()
+
+        # Audit log
+        _audit_log(
+            platform="google_ads",
+            operation="set_ad_group_status",
+            entity_id=ad_group_id,
+            entity_name=ad_group_name,
+            old_value={"status": old_status},
+            new_value={"status": status.upper()},
+            customer_id=customer_id,
+        )
+
+        return {
+            "success": True,
+            "ad_group_id": ad_group_id,
+            "ad_group_name": ad_group_name,
+            "campaign_id": campaign_id,
+            "campaign_name": campaign_name,
+            "old_status": old_status,
+            "new_status": status.upper(),
+            "verified_status": verified_status,
+        }
+    except GoogleAdsException as e:
+        logger.error(f"Google Ads API error: {e}")
+        err = e.failure.errors[0] if e.failure.errors else None
+        if err and err.error_code.HasField("authorization_error"):
+            return {"error": "Google Ads API access denied. The developer token may need upgraded access level."}
+        return {"error": "Google Ads operation failed. Please try again."}
     except Exception as e:
         logger.error(f"Google Ads error: {e}")
         return {"error": str(e)}
