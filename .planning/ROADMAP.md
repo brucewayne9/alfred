@@ -108,4 +108,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Alfred Claw Config Fixes | 5/5 | Complete   | 2026-02-20 |
 | 3. CRM Reliability | 1/1 | Complete   | 2026-02-21 |
 | 4. Google Ads Budget Control | 2/2 | Complete   | 2026-02-21 |
-| 5. Ad Workflow Validation & Hardening | 1/3 | In Progress|  |
+| 5. Ad Workflow Validation & Hardening | 2/3 | In Progress|  |

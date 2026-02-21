@@ -42,6 +42,7 @@ Progress: [█████████░] 90%
 | Phase 04-google-ads-budget-control P01 | 2 | 2 tasks | 2 files |
 | Phase 04-google-ads-budget-control P02 | 2 | 2 tasks | 3 files |
 | Phase 05-ad-workflow-validation-hardening P01 | 5 min | 1 task | 2 files |
+| Phase 05 P02 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [Phase 04-google-ads-budget-control]: _audit_log() wrapped in try/except so JSONL file failures never block mutations that already succeeded
 - [Phase 04-google-ads-budget-control]: Confirmation threshold in tool description: LLM reads >100/day and >2x rule as natural language — no code logic needed in tool layer
 - [Phase 05-01]: Meta token confirmed as SYSTEM_USER (expires_at=0) — no replacement needed; verify_token_type() added to client.py for future token health checks
+- [Phase 05]: Warning field only appears in Meta Ads response when verification fails — normal success path stays conversationally clean
+- [Phase 05]: _verify_budget receives dollar value (not cents) — cents conversion handled internally in helper
 
 ### Pending Todos
 
