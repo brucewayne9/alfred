@@ -39,6 +39,7 @@ Progress: [███████░░░] 75%
 | Phase 02-alfred-claw-config-fixes P04 | 8 min | 1 task | 2 files |
 | Phase 02-alfred-claw-config-fixes P05 | 15 min | 1 task | 0 files |
 | Phase 03-crm-reliability P01 | 25 | 3 tasks | 2 files |
+| Phase 04-google-ads-budget-control P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Recent decisions affecting current work:
 - [Phase 03-crm-reliability]: Immediate rollback (no retry) on step-2 failure in create_linked_note/task — HTTP errors are deterministic
 - [Phase 03-crm-reliability]: search_people cap set to first:500 (not unlimited); truncated flag added when count==500
 - [Phase 03-crm-reliability]: Numbered list disambiguation lives in CLI output layer (_print_search_results), not in function return value
+- [Phase 04-google-ads-budget-control]: Shared budget warning returned as data in shared_campaigns list so LLM can warn Mike, not hardcoded in client layer
+- [Phase 04-google-ads-budget-control]: _audit_log() wrapped in try/except so JSONL file failures never block mutations that already succeeded
 
 ### Pending Todos
 

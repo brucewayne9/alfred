@@ -32,9 +32,9 @@ Requirements for milestone v1.0 Ops Ready. Each maps to roadmap phases.
 
 ### Google Ads
 
-- [ ] **GADS-01**: User can update Google Ads campaign budget conversationally
-- [ ] **GADS-02**: User can pause/enable Google Ads ad groups conversationally
-- [ ] **GADS-03**: `google-ads` SDK installed on Labs (105)
+- [x] **GADS-01**: User can update Google Ads campaign budget conversationally
+- [x] **GADS-02**: User can pause/enable Google Ads ad groups conversationally
+- [x] **GADS-03**: `google-ads` SDK installed on Labs (105)
 
 ### Meta Ads
 
@@ -85,9 +85,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLAW-06 | Phase 2 | Complete |
 | CRM-01 | Phase 3 | Complete |
 | CRM-02 | Phase 3 | Complete |
-| GADS-01 | Phase 4 | Pending |
-| GADS-02 | Phase 4 | Pending |
-| GADS-03 | Phase 4 | Pending |
+| GADS-01 | Phase 4 | Complete |
+| GADS-02 | Phase 4 | Complete |
+| GADS-03 | Phase 4 | Complete |
 | META-01 | Phase 5 | Pending |
 | META-02 | Phase 5 | Pending |
 | META-03 | Phase 5 | Pending |
