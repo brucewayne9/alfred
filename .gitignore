@@ -57,5 +57,6 @@ logs/
 *.backup
 .env*
 
-# Infrastructure inventory (generated in Phase 6)
-data/infrastructure/
+# Infrastructure inventory (generated files — contain IPs and service info)
+data/infrastructure/inventory.json
+data/infrastructure/inventory.md
