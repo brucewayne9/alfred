@@ -94,5 +94,5 @@ Plans:
 | 5. Ad Workflow Validation & Hardening | v1.0 | 3/3 | Complete | 2026-02-21 |
 | 6. SSH Access & Server Audit | 2/2 | Complete   | 2026-02-26 | — |
 | 7. Backup System | 3/3 | Complete    | 2026-02-26 | — |
-| 8. Recovery & Alerting | 1/3 | In Progress|  | — |
+| 8. Recovery & Alerting | 2/3 | In Progress|  | — |
 | 9. Ad Intelligence | v1.1 | 0/? | Not started | — |

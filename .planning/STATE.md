@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 8 — Recovery Alerting
-Plan: 01 complete (1 of 1 plans) — PHASE COMPLETE
-Status: Phase 8 complete — Telegram backup failure alerts + Drive integrity validator + backup_status.json
+Plan: 02 complete (2 of 2 plans) — PHASE COMPLETE
+Status: Phase 8 complete — Telegram alerts + Drive integrity validator + per-server restore procedures
 Progress: [###-------] 37% (2/4 phases complete... estimated)
 
-Last activity: 2026-02-26 — Phase 8 Plan 01 complete (backup_alerting.py + validate_backups.py + cron 5 AM)
+Last activity: 2026-02-26 — Phase 8 Plan 02 complete (restore-procedures.md — 1089-line per-server rebuild guide from Drive backups)
 
 ## Performance Metrics
 
@@ -65,12 +65,17 @@ Last activity: 2026-02-26 — Phase 8 Plan 01 complete (backup_alerting.py + val
 - [Phase 08-01]: Validation cron at 5 AM (3h after 2 AM backup window) — sufficient time for all uploads
 - [Phase 08-01]: backup_status.json written atomically via tmp+rename — prevents partial reads by API
 
+- [Phase 08-02]: Restore document derives from backup_utils.py DAILY_TARGETS/WEEKLY_EXTRAS — single source of truth, stays accurate as backup config evolves
+- [Phase 08-02]: labsliveserver volume restore priority follows allowlist patterns (_db_, _data_, postgres, mysql, redis, mongo)
+- [Phase 08-02]: alfred-claw SSH port 2222 prominently documented — most common failure point during restore
+- [Phase 08-02]: cloud-mail SMTP auth via lumabot@ only — alfred@ has no password set
+
 ### Blockers/Concerns
 
-- None — Phase 8 Plan 01 complete.
+- None — Phase 8 all plans complete.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 08-01-PLAN.md — backup alerting (backup_alerting.py + daily/weekly wired) + validation (validate_backups.py + cron 5 AM) complete
+Stopped at: Completed 08-02-PLAN.md — per-server restore procedures (restore-procedures.md, 1089 lines, all 7 servers)
 Resume at: Run `/gsd:execute-phase 9` to execute Phase 9 (Ad Intelligence) or next phase
