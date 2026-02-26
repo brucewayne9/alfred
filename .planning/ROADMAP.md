@@ -37,7 +37,10 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   1. Running `ssh` from 105 to each of 98, 100, 101, 104, 117, 121 succeeds without a password prompt
   2. A server inventory document exists listing services, Docker containers, databases, and disk usage per server
   3. Alfred Claw on 101 is reachable via SSH from 105 using port 2222 (existing confirmed access validated in new key setup)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 06-01-PLAN.md — SSH key generation, config, and deployment to all 6 servers
+- [ ] 06-02-PLAN.md — Server audit script and dual-format inventory generation
 
 ### Phase 7: Backup System
 **Goal**: Automated daily and weekly backups run on cron, collect artifacts from all servers, and land in Google Drive with 30-day retention
@@ -81,7 +84,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 3. CRM Reliability | v1.0 | 1/1 | Complete | 2026-02-21 |
 | 4. Google Ads Budget Control | v1.0 | 2/2 | Complete | 2026-02-21 |
 | 5. Ad Workflow Validation & Hardening | v1.0 | 3/3 | Complete | 2026-02-21 |
-| 6. SSH Access & Server Audit | v1.1 | 0/? | Not started | — |
+| 6. SSH Access & Server Audit | v1.1 | 0/2 | Planning | — |
 | 7. Backup System | v1.1 | 0/? | Not started | — |
 | 8. Recovery & Alerting | v1.1 | 0/? | Not started | — |
 | 9. Ad Intelligence | v1.1 | 0/? | Not started | — |
