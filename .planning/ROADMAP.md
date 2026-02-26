@@ -67,7 +67,11 @@ Plans:
   2. A per-server restore document exists that describes how to rebuild that server from scratch using the Drive backups
   3. A validation script runs against the latest backup set and reports whether each server's backup is present and non-empty
   4. Mike can ask Alfred "did last night's backup succeed?" and get a meaningful answer
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 08-01-PLAN.md — Backup failure alerting (Telegram) + validation script with Drive checks
+- [ ] 08-02-PLAN.md — Per-server restore procedures documentation
+- [ ] 08-03-PLAN.md — Backup status API endpoint for Alfred queries
 
 ### Phase 9: Ad Intelligence
 **Goal**: Alfred can suggest ad optimizations, show a combined Meta + Google view, and require confirmation before any financial mutation
