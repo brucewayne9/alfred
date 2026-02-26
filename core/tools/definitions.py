@@ -3870,6 +3870,18 @@ def ads_cross_platform_summary(days: int = 7) -> dict:
     return get_cross_platform_summary(days)
 
 
+@tool(
+    name="ads_optimization_suggestions",
+    description="Analyze current ad campaign data and generate specific, actionable optimization suggestions. Returns prioritized recommendations based on live Meta and Google Ads metrics — including which campaigns to pause, where to increase budget, and what to investigate. Use this when Mike asks 'what should I do with my ads?', 'any optimization ideas?', 'where should I spend my budget?', or similar.",
+    parameters={
+        "days": "int (optional) - Number of days of data to analyze (default: 7). Use 14 or 30 for trend detection.",
+    },
+)
+def ads_optimization_suggestions(days: int = 7) -> dict:
+    from integrations.ad_intelligence.suggestions import generate_suggestions
+    return generate_suggestions(days)
+
+
 # ==================== GOOGLE ANALYTICS ====================
 
 @tool(

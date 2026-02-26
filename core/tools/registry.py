@@ -168,6 +168,7 @@ TOOL_CATEGORIES = {
         "meta_ads_pause_campaign", "meta_ads_enable_campaign",
         "meta_ads_update_ad_set_budget", "meta_ads_update_campaign_budget",
         "ads_cross_platform_summary",
+        "ads_optimization_suggestions",
     ],
     "analytics": [
         "ga_list_properties", "ga_traffic_summary", "ga_realtime",
@@ -180,9 +181,11 @@ TOOL_CATEGORIES = {
         "gads_spend", "gads_set_campaign_status",
         "gads_update_campaign_budget", "gads_pause_ad_group", "gads_enable_ad_group",
         "ads_cross_platform_summary",
+        "ads_optimization_suggestions",
     ],
     "ad_intelligence": [
         "ads_cross_platform_summary",
+        "ads_optimization_suggestions",
     ],
     "agents": [
         "spawn_agent", "check_agent_task", "list_agent_tasks", "cancel_agent_task",
@@ -270,7 +273,11 @@ CATEGORY_KEYWORDS = {
                    "budget", "daily budget", "pause ad group", "enable ad group", "unpause"],
     "ad_intelligence": ["how are my ads", "ad performance", "campaign performance", "ads doing",
                         "ad summary", "cross platform", "all ads", "both platforms",
-                        "meta and google", "google and meta", "advertising summary", "ad report"],
+                        "meta and google", "google and meta", "advertising summary", "ad report",
+                        "optimize", "optimization", "suggestions", "recommend", "what should i do",
+                        "budget advice", "ad advice", "improve ads", "ad tips", "underperform",
+                        "waste", "wasting money", "cut spending", "reduce spend",
+                        "increase budget", "scale ads"],
     "agents": ["spawn agent", "agent", "delegate", "specialist", "coder agent", "research agent",
                "analyst agent", "writer agent", "parallel", "background task", "multi-step"],
     "briefing": ["briefing", "morning", "daily summary", "what's on my", "my day", "today's schedule",
