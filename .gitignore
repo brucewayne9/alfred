@@ -56,3 +56,6 @@ logs/
 *.pth
 *.backup
 .env*
+
+# Infrastructure inventory (generated in Phase 6)
+data/infrastructure/
