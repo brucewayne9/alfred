@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 7 — Backup System
-Plan: 02 complete (2 of 3 plans)
-Status: Phase 7 in progress — daily backup script + cron installed
-Progress: [----------] 0% (0/4 phases complete)
+Plan: 03 complete (3 of 3 plans) — PHASE COMPLETE
+Status: Phase 7 complete — backup infrastructure + daily script + weekly script all done
+Progress: [##--------] 25% (1/4 phases complete)
 
-Last activity: 2026-02-26 — Phase 7 Plan 02 complete (daily_backup.py — SSHes all 7 servers, collects configs/dumps, uploads to Drive, cron at 2 AM)
+Last activity: 2026-02-26 — Phase 7 Plan 03 complete (weekly_backup.py — Docker volume exports, 30-day retention pruning, cron Sunday 2 AM)
 
 ## Performance Metrics
 
@@ -49,14 +49,23 @@ Last activity: 2026-02-26 — Phase 7 Plan 02 complete (daily_backup.py — SSHe
 
 ### Pending Todos
 
-- Phase 7: Write weekly backup script (plan 03) — unblocked, daily script complete
+- Phase 8: Alert system (next phase after backup system complete)
+
+### Decisions
+
+- [Phase 07-03]: Docker volumes discovered live (docker volume ls -q) at backup time — no dependency on audit.py inventory
+- [Phase 07-03]: Per-volume 300s timeout prevents one large volume blocking others; volume failures are non-fatal
+- [Phase 07-03]: labsliveserver uses allowlist patterns (_db_, _data_, postgres, mysql, redis, mongo) for volume export — 55 containers needs safe default
+- [Phase 07-03]: Weekly collects DAILY_TARGETS inline (not importing daily_backup.py) — decoupled design
+- [Phase 07-03]: Retention cleanup runs after all uploads — never prune before backup confirmed
+- [Phase 07-03]: Cron daily changed to 1-6 (Mon-Sat), weekly is 0 (Sunday) — mutually exclusive
 
 ### Blockers/Concerns
 
-- None — server inventory complete. labsliveserver (104) has 55 containers (highest density), will need careful backup design.
+- None — Phase 7 complete, all 3 plans executed.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 07-02-PLAN.md — daily backup script (daily_backup.py + cron at 2 AM) complete
-Resume at: Run `/gsd:execute-phase 7` to execute Phase 7 Plan 03 (weekly backup script)
+Stopped at: Completed 07-03-PLAN.md — weekly backup script (weekly_backup.py + cron Sunday 2 AM + 30-day retention) complete
+Resume at: Run `/gsd:execute-phase 8` to execute Phase 8 (next milestone phase)
