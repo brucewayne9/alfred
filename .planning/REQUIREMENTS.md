@@ -28,8 +28,8 @@ Requirements for Infrastructure Resilience milestone. Each maps to roadmap phase
 ### Ad Management (carried from v1.0)
 
 - [ ] **ADS-01**: AI-generated performance suggestions for ad campaigns
-- [ ] **ADS-02**: Cross-platform ad performance summary — Meta + Google combined
-- [ ] **ADS-03**: Confirmation guardrail pattern for financial mutations
+- [x] **ADS-02**: Cross-platform ad performance summary — Meta + Google combined
+- [x] **ADS-03**: Confirmation guardrail pattern for financial mutations
 
 ## v1.2 Requirements
 
@@ -65,8 +65,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RECOV-02 | Phase 8 | Complete |
 | RECOV-03 | Phase 8 | Complete |
 | ADS-01 | Phase 9 | Pending |
-| ADS-02 | Phase 9 | Pending |
-| ADS-03 | Phase 9 | Pending |
+| ADS-02 | Phase 9 | Complete |
+| ADS-03 | Phase 9 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 12 total

@@ -98,4 +98,4 @@ Plans:
 | 6. SSH Access & Server Audit | 2/2 | Complete   | 2026-02-26 | — |
 | 7. Backup System | 3/3 | Complete    | 2026-02-26 | — |
 | 8. Recovery & Alerting | 3/3 | Complete   | 2026-02-26 | — |
-| 9. Ad Intelligence | v1.1 | 0/2 | Not started | — |
+| 9. Ad Intelligence | 1/2 | In Progress|  | — |

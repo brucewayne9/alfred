@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Milestone v1.1 Infrastructure Resilience — Phase 8: Recovery Alerting
+**Current focus:** Milestone v1.1 Ad Intelligence — Phase 9: Ad Intelligence
 
 ## Current Position
 
-Phase: 8 — Recovery Alerting
-Plan: 03 complete (3 of 3 plans) — PHASE COMPLETE
-Status: Phase 8 complete — Telegram alerts + Drive integrity validator + per-server restore procedures + backup status API endpoint
-Progress: [###-------] 37% (2/4 phases complete... estimated)
+Phase: 9 — Ad Intelligence
+Plan: 01 complete (1 of 2 plans) — IN PROGRESS
+Status: Phase 9 Plan 01 complete — cross-platform ad summary tool + confirmation guardrails for all 12 financial mutation tools
+Progress: [####------] 50% (estimated, v1.1 in progress)
 
-Last activity: 2026-02-26 — Phase 8 Plan 03 complete (GET /api/backup/status endpoint in Alfred Labs API with human_summary field for Alfred Claw relay)
+Last activity: 2026-02-26 — Phase 9 Plan 01 complete (ads_cross_platform_summary tool + guardrails on 12 mutation tools)
 
 ## Performance Metrics
 
@@ -46,6 +46,9 @@ Last activity: 2026-02-26 — Phase 8 Plan 03 complete (GET /api/backup/status e
 - [Phase 07-02]: DB dump command failures are non-fatal — placeholder error file written to tarball so artifact is visible without blocking config collection
 - [Phase 07-02]: Drive upload failure is fatal for that server — no local tarball retention without cloud copy
 - [Phase 07-02]: Cron uses venv Python matching alfred_claw_monitor pattern; date_str computed once and passed to all backup_server() calls
+- [Phase 09-ad-intelligence]: Guardrail enforcement is programmatic (code-level) — tool body refuses to execute without confirmed=True regardless of LLM description hints
+- [Phase 09-ad-intelligence]: Cross-platform summary handles partial failures — if Meta fails, Google data is still returned; combined metrics only include successful platforms
+- [Phase 09-ad-intelligence]: ads_cross_platform_summary added to ad_intelligence, meta_ads, and google_ads TOOL_CATEGORIES for maximum discoverability
 
 ### Pending Todos
 
@@ -82,5 +85,5 @@ Last activity: 2026-02-26 — Phase 8 Plan 03 complete (GET /api/backup/status e
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 08-03-PLAN.md — GET /api/backup/status endpoint in core/api/main.py with human_summary field
-Resume at: Run `/gsd:execute-phase 9` to execute Phase 9 (Ad Intelligence) or next phase
+Stopped at: Completed 09-01-PLAN.md — cross-platform ad summary tool and confirmation guardrails for all 12 financial mutation tools
+Resume at: Run `/gsd:execute-phase 9` to execute Phase 9 Plan 02 (if defined)
