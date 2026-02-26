@@ -55,24 +55,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| BACKUP-01 | — | Pending |
-| BACKUP-02 | — | Pending |
-| BACKUP-03 | — | Pending |
-| BACKUP-04 | — | Pending |
-| RECOV-01 | — | Pending |
-| RECOV-02 | — | Pending |
-| RECOV-03 | — | Pending |
-| ADS-01 | — | Pending |
-| ADS-02 | — | Pending |
-| ADS-03 | — | Pending |
+| INFRA-01 | Phase 6 | Pending |
+| INFRA-02 | Phase 6 | Pending |
+| BACKUP-01 | Phase 7 | Pending |
+| BACKUP-02 | Phase 7 | Pending |
+| BACKUP-03 | Phase 7 | Pending |
+| BACKUP-04 | Phase 7 | Pending |
+| RECOV-01 | Phase 8 | Pending |
+| RECOV-02 | Phase 8 | Pending |
+| RECOV-03 | Phase 8 | Pending |
+| ADS-01 | Phase 9 | Pending |
+| ADS-02 | Phase 9 | Pending |
+| ADS-03 | Phase 9 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after initial definition*
+*Last updated: 2026-02-26 after roadmap creation*
