@@ -81,7 +81,10 @@ Plans:
   1. Asking Alfred "how are my campaigns performing?" returns a single response covering both Meta and Google campaigns with key metrics
   2. Asking Alfred "what should I do with my ad budget?" returns specific, actionable suggestions based on current campaign data
   3. Any tool call that would change a budget, bid, or campaign status presents a confirmation step — Alfred does not execute the mutation until Mike explicitly approves
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 09-01-PLAN.md — Cross-platform ad summary tool and confirmation guardrails for financial mutations
+- [ ] 09-02-PLAN.md — AI-powered ad optimization suggestions engine
 
 ## Progress
 
@@ -95,4 +98,4 @@ Plans:
 | 6. SSH Access & Server Audit | 2/2 | Complete   | 2026-02-26 | — |
 | 7. Backup System | 3/3 | Complete    | 2026-02-26 | — |
 | 8. Recovery & Alerting | 3/3 | Complete   | 2026-02-26 | — |
-| 9. Ad Intelligence | v1.1 | 0/? | Not started | — |
+| 9. Ad Intelligence | v1.1 | 0/2 | Not started | — |
