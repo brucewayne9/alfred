@@ -4,6 +4,22 @@
 
 A stabilization and feature project for the Alfred dual-system AI assistant platform. Alfred Labs (Server 105, FastAPI + React, 353+ tools) and Alfred Claw (Server 101, OpenClaw/Node.js, Telegram bot) are now infrastructure-stable with reliable integrations. Full conversational ad campaign management for both Meta Ads and Google Ads is operational for active Rod Wave tour and One Music Festival campaigns.
 
+## Current Milestone: v1.1 Infrastructure Resilience
+
+**Goal:** Establish automated multi-server backups to Google Drive with full disaster recovery capability, set up SSH access from Labs (105) to all servers, and complete carried-forward ad management features.
+
+**Target features:**
+- SSH key distribution from 105 to all 7 servers
+- Server auditing (what's running on each — Docker, bare metal, databases)
+- Automated daily config backups (2 AM) + weekly full backups (Sunday 2 AM)
+- Google Drive upload via existing Workspace integration
+- 30-day retention with automatic cleanup
+- Telegram failure alerts to Mike
+- Full restore capability (package lists, Docker configs, systemd, crontabs)
+- AI ad performance suggestions (carried from v1.0)
+- Cross-platform ad summary (carried from v1.0)
+- Confirmation guardrails for financial mutations (carried from v1.0)
+
 ## Core Value
 
 Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
@@ -33,6 +49,15 @@ Alfred must be a reliable daily operations tool — every integration works corr
 
 ### Active
 
+- [ ] SSH key access from 105 to all 7 servers (INFRA-01)
+- [ ] Server audit — catalog services, Docker, databases per server (INFRA-02)
+- [ ] Daily config backup script (configs, databases, env files, crontabs) (BACKUP-01)
+- [ ] Weekly full backup script (Docker volumes, app data, media, package lists) (BACKUP-02)
+- [ ] Google Drive upload via Workspace integration (BACKUP-03)
+- [ ] 30-day retention with automatic cleanup (BACKUP-04)
+- [ ] Telegram failure alerts on backup errors (BACKUP-05)
+- [ ] Cron scheduling on 105 (daily 2 AM, weekly Sunday 2 AM) (BACKUP-06)
+- [ ] Full restore documentation per server (RECOVERY-01)
 - [ ] AI-generated performance suggestions for ad campaigns (ADS-01)
 - [ ] Cross-platform ad performance summary — Meta + Google combined (ADS-02)
 - [ ] Confirmation guardrail pattern for financial mutations (ADS-03)
@@ -48,9 +73,11 @@ Alfred must be a reliable daily operations tool — every integration works corr
 
 Shipped v1.0 Ops Ready with 45 files changed (+7,136 lines) across 40 commits in 24 days.
 Tech stack: FastAPI + React (Labs/105), OpenClaw/Node.js (Claw/101), Twenty CRM (117).
-Two-server architecture: Labs on 105, Claw on 101 (SSH via port 2222), CRM on 117 (Dokploy).
+Seven-server infrastructure: 101 (Claw, SSH:2222), 104 (Prod), 105 (Labs, orchestrator), 98 (Loovacast Dev), 100 (Loovacast Prod), 117 (Dokploy/CRM, SSH:22), 121 (Mailcow). SSH access needs auditing — confirmed on 101 and 117, others unknown.
 Ad campaigns are for Rod Wave tours and One Music Festival — real-time budget/performance decisions needed.
 All ad management tools now include verification, alerting, and audit trails.
+Google Workspace integration exists (`google_workspace.py`) with Drive API access — will use for backup uploads.
+Backup orchestrator will run on 105 with cron, SSH into each server, collect backups, upload to Drive.
 
 ## Constraints
 
@@ -74,5 +101,9 @@ All ad management tools now include verification, alerting, and audit trails.
 | Shared budget warning in data layer | LLM reads warning naturally, no hardcoded logic | ✓ Good — conversational budget safety |
 | Read-after-write on all Meta write ops | Trust but verify for financial mutations | ✓ Good — 19/22 tools validated with verification |
 
+| 105 as backup orchestrator | Central point, SSH into all servers, upload to Drive | — Pending |
+| Google Workspace for Drive uploads | Reuse existing integration, no new auth setup | — Pending |
+| Daily configs + weekly full schedule | Balance safety vs storage, 30-day retention | — Pending |
+
 ---
-*Last updated: 2026-02-21 after v1.0 milestone*
+*Last updated: 2026-02-26 after v1.1 milestone start*

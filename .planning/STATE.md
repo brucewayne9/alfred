@@ -2,18 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-21)
+See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Planning next milestone
+**Current focus:** Milestone v1.1 Infrastructure Resilience
 
 ## Current Position
 
-Phase: v1.0 COMPLETE (all 5 phases shipped)
-Status: Milestone v1.0 Ops Ready archived
-Last activity: 2026-02-21 — Milestone v1.0 complete
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-26 — Milestone v1.1 started
 
 ## Performance Metrics
 
@@ -35,10 +34,11 @@ None.
 
 ### Blockers/Concerns
 
-None active. All v1.0 blockers resolved.
+- SSH access to servers 98, 100, 104, 121 needs verification
+- Server contents (Docker vs bare metal) need auditing before backup scripts can be written
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Milestone v1.0 Ops Ready archived
+Last session: 2026-02-26
+Stopped at: Defining v1.1 requirements
 Resume file: None
