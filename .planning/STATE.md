@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 7 — Backup System
-Plan: 01 complete (1 of 3 plans)
-Status: Phase 7 in progress — shared backup infrastructure complete
+Plan: 02 complete (2 of 3 plans)
+Status: Phase 7 in progress — daily backup script + cron installed
 Progress: [----------] 0% (0/4 phases complete)
 
-Last activity: 2026-02-26 — Phase 7 Plan 01 complete (backup infrastructure — Drive folder manager + SSH utilities for 7 servers)
+Last activity: 2026-02-26 — Phase 7 Plan 02 complete (daily_backup.py — SSHes all 7 servers, collects configs/dumps, uploads to Drive, cron at 2 AM)
 
 ## Performance Metrics
 
@@ -43,11 +43,13 @@ Last activity: 2026-02-26 — Phase 7 Plan 01 complete (backup infrastructure �
 - [Phase 07-01]: Drive folder hierarchy: Alfred Backups/{server_name}/{backup_type}/YYYY-MM-DD/ — date-folder-per-run enables simple retention pruning
 - [Phase 07-01]: Module-level folder ID cache in drive_manager.py avoids repeated list_files() API calls within a single backup run
 - [Phase 07-01]: labsliveserver daily target excludes Docker volume exports (55 containers too heavy) — weekly only
+- [Phase 07-02]: DB dump command failures are non-fatal — placeholder error file written to tarball so artifact is visible without blocking config collection
+- [Phase 07-02]: Drive upload failure is fatal for that server — no local tarball retention without cloud copy
+- [Phase 07-02]: Cron uses venv Python matching alfred_claw_monitor pattern; date_str computed once and passed to all backup_server() calls
 
 ### Pending Todos
 
-- Phase 7: Write daily backup script (plan 02) — unblocked, infrastructure complete
-- Phase 7: Write weekly backup script (plan 03) — unblocked, infrastructure complete
+- Phase 7: Write weekly backup script (plan 03) — unblocked, daily script complete
 
 ### Blockers/Concerns
 
@@ -56,5 +58,5 @@ Last activity: 2026-02-26 — Phase 7 Plan 01 complete (backup infrastructure �
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 07-01-PLAN.md — shared backup infrastructure (drive_manager.py + backup_utils.py) created
-Resume at: Run `/gsd:execute-phase 7` to execute Phase 7 Plan 02 (daily backup script)
+Stopped at: Completed 07-02-PLAN.md — daily backup script (daily_backup.py + cron at 2 AM) complete
+Resume at: Run `/gsd:execute-phase 7` to execute Phase 7 Plan 03 (weekly backup script)
