@@ -84,7 +84,7 @@ Plans:
 | 3. CRM Reliability | v1.0 | 1/1 | Complete | 2026-02-21 |
 | 4. Google Ads Budget Control | v1.0 | 2/2 | Complete | 2026-02-21 |
 | 5. Ad Workflow Validation & Hardening | v1.0 | 3/3 | Complete | 2026-02-21 |
-| 6. SSH Access & Server Audit | v1.1 | 0/2 | Planning | — |
+| 6. SSH Access & Server Audit | 1/2 | In Progress|  | — |
 | 7. Backup System | v1.1 | 0/? | Not started | — |
 | 8. Recovery & Alerting | v1.1 | 0/? | Not started | — |
 | 9. Ad Intelligence | v1.1 | 0/? | Not started | — |

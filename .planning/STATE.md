@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 6 — SSH Access & Server Audit
-Plan: — (not started)
-Status: Roadmap defined, ready to plan Phase 6
+Plan: 01 complete, 02 pending
+Status: In progress — Plan 01 (SSH setup) complete
 Progress: [----------] 0% (0/4 phases complete)
 
-Last activity: 2026-02-26 — v1.1 roadmap created (Phases 6-9)
+Last activity: 2026-02-26 — Phase 6 Plan 01 complete (SSH keys + passwordless access to all 6 servers)
 
 ## Performance Metrics
 
@@ -35,19 +35,20 @@ Last activity: 2026-02-26 — v1.1 roadmap created (Phases 6-9)
 - Google Workspace for Drive uploads — reuse existing google_workspace.py, no new auth setup
 - Daily configs + weekly full schedule — balance safety vs storage, 30-day retention
 - Phase 9 (Ad Intelligence) is independent — can run in parallel with or after infra phases
+- Per-server dedicated key pattern: each server gets its own alfred_{suffix} key pair for fine-grained revocation
+- Named SSH aliases used in all scripts: server-98, server-100, claw, server-104, lonewolf, server-121
+- Bootstrap deployment via existing default key — all 6 servers were already accessible, no manual user steps needed
 
 ### Pending Todos
 
-- Verify SSH access status for servers 98, 100, 104, 121 (Phase 6 will establish this)
-- Audit what each server is running before writing backup scripts (Phase 6 deliverable)
+- Audit what each server is running before writing backup scripts (Phase 6 Plan 02 deliverable)
 
 ### Blockers/Concerns
 
-- SSH access to servers 98, 100, 104, 121 not yet confirmed — Phase 6 resolves this
-- Server contents (Docker vs bare metal) unknown — must be cataloged in Phase 6 before backup scripts can be tailored per server
+- Server contents (Docker vs bare metal) unknown — must be cataloged in Phase 6 Plan 02 before backup scripts can be tailored per server
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Roadmap created for v1.1 — ready to plan Phase 6
-Resume at: Run `/gsd:plan-phase 6` to begin SSH Access & Server Audit planning
+Stopped at: Completed 06-01-PLAN.md — SSH keys generated, passwordless access verified to all 6 servers
+Resume at: Run `/gsd:execute-phase 6` to execute Plan 02 (server audit/inventory)
