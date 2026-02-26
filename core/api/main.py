@@ -1435,6 +1435,75 @@ async def circuit_breaker_status_endpoint(user: dict = Depends(require_auth)):
     return get_circuit_breaker_status()
 
 
+@app.get("/api/backup/status")
+async def get_backup_status(user: dict = Depends(require_auth)):
+    """Return the latest backup validation status from data/backup_status.json.
+
+    Includes a human_summary field suitable for Alfred Claw to relay conversationally
+    when Mike asks 'did last night's backup succeed?'
+    """
+    import json as _json
+    from datetime import datetime as _dt
+
+    status_file = Path(__file__).parent.parent.parent / "data" / "backup_status.json"
+
+    if not status_file.exists():
+        return {
+            "error": "No backup status available. Validation has not run yet.",
+            "status": "unknown",
+            "human_summary": "No backup status available yet — the validation script hasn't run. It runs daily at 5 AM.",
+        }
+
+    try:
+        with open(status_file) as f:
+            data = _json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to read backup_status.json: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read backup status: {e}")
+
+    # Build human_summary from the data
+    summary = data.get("summary", {})
+    total = summary.get("total_checks", 0)
+    ok_count = summary.get("ok", 0)
+    issues = []
+
+    servers = data.get("servers", {})
+    for server_name, server_data in servers.items():
+        for check_type in ("daily", "weekly"):
+            check = server_data.get(check_type, {})
+            status = check.get("status", "missing")
+            if status != "ok":
+                age_hours = check.get("age_hours")
+                file_count = check.get("file_count", 0)
+                if status == "stale" and age_hours is not None:
+                    issues.append(f"{server_name} {check_type} backup is stale ({age_hours:.0f}h old)")
+                elif status == "empty":
+                    issues.append(f"{server_name} {check_type} backup is empty ({file_count} files)")
+                elif status == "missing":
+                    issues.append(f"{server_name} {check_type} backup is missing")
+                else:
+                    issues.append(f"{server_name} {check_type} backup has status '{status}'")
+
+    timestamp = data.get("timestamp", "")
+    try:
+        check_dt = _dt.fromisoformat(timestamp.replace("Z", "+00:00"))
+        time_str = check_dt.strftime("%Y-%m-%d %H:%M UTC")
+    except Exception:
+        time_str = timestamp or "unknown time"
+
+    if not issues:
+        human_summary = f"All {ok_count} backup checks passed successfully (last check: {time_str})."
+    else:
+        issue_count = len(issues)
+        issue_list = ", ".join(issues[:3])
+        if len(issues) > 3:
+            issue_list += f" and {len(issues) - 3} more"
+        human_summary = f"{issue_count} issue{'s' if issue_count != 1 else ''} found: {issue_list} (last check: {time_str})."
+
+    data["human_summary"] = human_summary
+    return data
+
+
 # ==================== Agent Orchestration ====================
 
 class SpawnAgentRequest(BaseModel):
