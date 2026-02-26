@@ -3786,6 +3786,20 @@ def gads_enable_ad_group(ad_group_id: str, customer_id: str = None) -> dict:
     return set_ad_group_status(ad_group_id, status="ENABLED", customer_id=customer_id)
 
 
+# ==================== AD INTELLIGENCE ====================
+
+@tool(
+    name="ads_cross_platform_summary",
+    description="Get a combined Meta + Google Ads performance summary. Returns total spend, impressions, clicks, conversions, CTR, CPC across both platforms plus per-campaign breakdown. Use this when Mike asks about overall ad performance, 'how are my ads doing', or wants to compare platforms.",
+    parameters={
+        "days": "int (optional) - Number of days to analyze (default: 7). Common values: 7, 14, 30.",
+    },
+)
+def ads_cross_platform_summary(days: int = 7) -> dict:
+    from integrations.ad_intelligence.cross_platform import get_cross_platform_summary
+    return get_cross_platform_summary(days)
+
+
 # ==================== GOOGLE ANALYTICS ====================
 
 @tool(
