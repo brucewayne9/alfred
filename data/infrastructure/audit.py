@@ -101,7 +101,8 @@ def audit_server(alias: str | None, ip: str, description: str) -> dict:
     disk_lines = []
     for line in disk_raw.splitlines():
         parts = line.split()
-        if len(parts) >= 6:
+        # Skip header line
+        if len(parts) >= 6 and parts[0] != "Filesystem" and parts[0] != "Source":
             disk_lines.append({
                 "filesystem": parts[0],
                 "size": parts[1],
