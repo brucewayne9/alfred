@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 # Resolve project root so imports work when run from any directory
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
+from scripts.backup.backup_alerting import send_backup_alert
 from scripts.backup.backup_utils import (
     DAILY_TARGETS,
     SERVERS,
@@ -569,6 +570,9 @@ def main() -> int:
         for r in failed:
             logger.warning("  %s — %s", r["server"], r.get("error", "unknown"))
     logger.info("=" * 60)
+
+    if failed:
+        send_backup_alert("weekly", results)
 
     return 1 if failed else 0
 
