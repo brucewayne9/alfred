@@ -10,7 +10,7 @@ Requirements for Infrastructure Resilience milestone. Each maps to roadmap phase
 ### Infrastructure
 
 - [x] **INFRA-01**: SSH key access established from 105 to all 7 servers (98, 100, 101, 104, 117, 121)
-- [ ] **INFRA-02**: Server audit completed — services, Docker containers, databases, disk usage cataloged per server
+- [x] **INFRA-02**: Server audit completed — services, Docker containers, databases, disk usage cataloged per server
 
 ### Backup
 
@@ -56,7 +56,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 6 | Complete |
-| INFRA-02 | Phase 6 | Pending |
+| INFRA-02 | Phase 6 | Complete |
 | BACKUP-01 | Phase 7 | Pending |
 | BACKUP-02 | Phase 7 | Pending |
 | BACKUP-03 | Phase 7 | Pending |

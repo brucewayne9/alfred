@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 6 — SSH Access & Server Audit
-Plan: 01 complete, 02 pending
-Status: In progress — Plan 01 (SSH setup) complete
+Plan: 02 complete, phase done (2 of 2 plans)
+Status: Phase 6 complete — SSH setup + server audit done
 Progress: [----------] 0% (0/4 phases complete)
 
-Last activity: 2026-02-26 — Phase 6 Plan 01 complete (SSH keys + passwordless access to all 6 servers)
+Last activity: 2026-02-26 — Phase 6 Plan 02 complete (server audit — 7 servers inventoried in JSON + markdown)
 
 ## Performance Metrics
 
@@ -38,17 +38,19 @@ Last activity: 2026-02-26 — Phase 6 Plan 01 complete (SSH keys + passwordless 
 - Per-server dedicated key pattern: each server gets its own alfred_{suffix} key pair for fine-grained revocation
 - Named SSH aliases used in all scripts: server-98, server-100, claw, server-104, lonewolf, server-121
 - Bootstrap deployment via existing default key — all 6 servers were already accessible, no manual user steps needed
+- [Phase 06]: Gitignore changed from directory to file-level patterns so audit.py is git-tracked while inventory JSON/MD stay private
+- [Phase 06]: Database detection uses exact 'active' string match (not substring) to avoid 'inactive' false positives
 
 ### Pending Todos
 
-- Audit what each server is running before writing backup scripts (Phase 6 Plan 02 deliverable)
+- Phase 7: Write per-server backup scripts (now unblocked — inventory complete)
 
 ### Blockers/Concerns
 
-- Server contents (Docker vs bare metal) unknown — must be cataloged in Phase 6 Plan 02 before backup scripts can be tailored per server
+- None — server inventory complete. labsliveserver (104) has 55 containers (highest density), will need careful backup design.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 06-01-PLAN.md — SSH keys generated, passwordless access verified to all 6 servers
-Resume at: Run `/gsd:execute-phase 6` to execute Plan 02 (server audit/inventory)
+Stopped at: Completed 06-02-PLAN.md — server audit complete, inventory.json + inventory.md generated for all 7 servers
+Resume at: Run `/gsd:execute-phase 7` to execute Phase 7 (backup automation)
