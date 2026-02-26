@@ -21,9 +21,9 @@ Requirements for Infrastructure Resilience milestone. Each maps to roadmap phase
 
 ### Recovery & Alerting
 
-- [ ] **RECOV-01**: Telegram failure alert sent to Mike when any backup fails or server is unreachable
+- [x] **RECOV-01**: Telegram failure alert sent to Mike when any backup fails or server is unreachable
 - [ ] **RECOV-02**: Per-server restore documentation — how to rebuild from backup on a fresh server
-- [ ] **RECOV-03**: Restore validation script — verifies backup integrity and restorability
+- [x] **RECOV-03**: Restore validation script — verifies backup integrity and restorability
 
 ### Ad Management (carried from v1.0)
 
@@ -61,9 +61,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BACKUP-02 | Phase 7 | Complete |
 | BACKUP-03 | Phase 7 | Complete |
 | BACKUP-04 | Phase 7 | Complete |
-| RECOV-01 | Phase 8 | Pending |
+| RECOV-01 | Phase 8 | Complete |
 | RECOV-02 | Phase 8 | Pending |
-| RECOV-03 | Phase 8 | Pending |
+| RECOV-03 | Phase 8 | Complete |
 | ADS-01 | Phase 9 | Pending |
 | ADS-02 | Phase 9 | Pending |
 | ADS-03 | Phase 9 | Pending |

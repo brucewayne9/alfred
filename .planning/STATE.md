@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Milestone v1.1 Infrastructure Resilience — Phase 7: Backup System
+**Current focus:** Milestone v1.1 Infrastructure Resilience — Phase 8: Recovery Alerting
 
 ## Current Position
 
-Phase: 7 — Backup System
-Plan: 03 complete (3 of 3 plans) — PHASE COMPLETE
-Status: Phase 7 complete — backup infrastructure + daily script + weekly script all done
-Progress: [##--------] 25% (1/4 phases complete)
+Phase: 8 — Recovery Alerting
+Plan: 01 complete (1 of 1 plans) — PHASE COMPLETE
+Status: Phase 8 complete — Telegram backup failure alerts + Drive integrity validator + backup_status.json
+Progress: [###-------] 37% (2/4 phases complete... estimated)
 
-Last activity: 2026-02-26 — Phase 7 Plan 03 complete (weekly_backup.py — Docker volume exports, 30-day retention pruning, cron Sunday 2 AM)
+Last activity: 2026-02-26 — Phase 8 Plan 01 complete (backup_alerting.py + validate_backups.py + cron 5 AM)
 
 ## Performance Metrics
 
@@ -49,7 +49,7 @@ Last activity: 2026-02-26 — Phase 7 Plan 03 complete (weekly_backup.py — Doc
 
 ### Pending Todos
 
-- Phase 8: Alert system (next phase after backup system complete)
+- None — Phase 8 complete.
 
 ### Decisions
 
@@ -59,13 +59,18 @@ Last activity: 2026-02-26 — Phase 7 Plan 03 complete (weekly_backup.py — Doc
 - [Phase 07-03]: Weekly collects DAILY_TARGETS inline (not importing daily_backup.py) — decoupled design
 - [Phase 07-03]: Retention cleanup runs after all uploads — never prune before backup confirmed
 - [Phase 07-03]: Cron daily changed to 1-6 (Mon-Sat), weekly is 0 (Sunday) — mutually exclusive
+- [Phase 08-01]: Telegram alert uses SSH to claw alias + openclaw message send CLI — reuses Phase 6 SSH config, no new bot auth on Labs
+- [Phase 08-01]: Alert failure wrapped in try/except — Telegram or SSH outage must never crash backup scripts
+- [Phase 08-01]: validate_server() status thresholds: daily=26h (timezone drift buffer), weekly=170h (~7d+2h)
+- [Phase 08-01]: Validation cron at 5 AM (3h after 2 AM backup window) — sufficient time for all uploads
+- [Phase 08-01]: backup_status.json written atomically via tmp+rename — prevents partial reads by API
 
 ### Blockers/Concerns
 
-- None — Phase 7 complete, all 3 plans executed.
+- None — Phase 8 Plan 01 complete.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 07-03-PLAN.md — weekly backup script (weekly_backup.py + cron Sunday 2 AM + 30-day retention) complete
-Resume at: Run `/gsd:execute-phase 8` to execute Phase 8 (next milestone phase)
+Stopped at: Completed 08-01-PLAN.md — backup alerting (backup_alerting.py + daily/weekly wired) + validation (validate_backups.py + cron 5 AM) complete
+Resume at: Run `/gsd:execute-phase 9` to execute Phase 9 (Ad Intelligence) or next phase
