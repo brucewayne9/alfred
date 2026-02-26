@@ -16,7 +16,7 @@ Requirements for Infrastructure Resilience milestone. Each maps to roadmap phase
 
 - [ ] **BACKUP-01**: Daily config backup script runs at 2 AM — captures configs, databases, env files, crontabs, systemd units
 - [ ] **BACKUP-02**: Weekly full backup script runs Sunday 2 AM — captures Docker volumes, app data, media, package lists
-- [ ] **BACKUP-03**: Backups uploaded to organized Google Drive folder structure via Workspace integration
+- [x] **BACKUP-03**: Backups uploaded to organized Google Drive folder structure via Workspace integration
 - [ ] **BACKUP-04**: 30-day retention with automatic cleanup of old backups from Drive
 
 ### Recovery & Alerting
@@ -59,7 +59,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-02 | Phase 6 | Complete |
 | BACKUP-01 | Phase 7 | Pending |
 | BACKUP-02 | Phase 7 | Pending |
-| BACKUP-03 | Phase 7 | Pending |
+| BACKUP-03 | Phase 7 | Complete |
 | BACKUP-04 | Phase 7 | Pending |
 | RECOV-01 | Phase 8 | Pending |
 | RECOV-02 | Phase 8 | Pending |

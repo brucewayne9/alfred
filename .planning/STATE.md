@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Milestone v1.1 Infrastructure Resilience — Phase 6: SSH Access & Server Audit
+**Current focus:** Milestone v1.1 Infrastructure Resilience — Phase 7: Backup System
 
 ## Current Position
 
-Phase: 6 — SSH Access & Server Audit
-Plan: 02 complete, phase done (2 of 2 plans)
-Status: Phase 6 complete — SSH setup + server audit done
+Phase: 7 — Backup System
+Plan: 01 complete (1 of 3 plans)
+Status: Phase 7 in progress — shared backup infrastructure complete
 Progress: [----------] 0% (0/4 phases complete)
 
-Last activity: 2026-02-26 — Phase 6 Plan 02 complete (server audit — 7 servers inventoried in JSON + markdown)
+Last activity: 2026-02-26 — Phase 7 Plan 01 complete (backup infrastructure — Drive folder manager + SSH utilities for 7 servers)
 
 ## Performance Metrics
 
@@ -40,10 +40,14 @@ Last activity: 2026-02-26 — Phase 6 Plan 02 complete (server audit — 7 serve
 - Bootstrap deployment via existing default key — all 6 servers were already accessible, no manual user steps needed
 - [Phase 06]: Gitignore changed from directory to file-level patterns so audit.py is git-tracked while inventory JSON/MD stay private
 - [Phase 06]: Database detection uses exact 'active' string match (not substring) to avoid 'inactive' false positives
+- [Phase 07-01]: Drive folder hierarchy: Alfred Backups/{server_name}/{backup_type}/YYYY-MM-DD/ — date-folder-per-run enables simple retention pruning
+- [Phase 07-01]: Module-level folder ID cache in drive_manager.py avoids repeated list_files() API calls within a single backup run
+- [Phase 07-01]: labsliveserver daily target excludes Docker volume exports (55 containers too heavy) — weekly only
 
 ### Pending Todos
 
-- Phase 7: Write per-server backup scripts (now unblocked — inventory complete)
+- Phase 7: Write daily backup script (plan 02) — unblocked, infrastructure complete
+- Phase 7: Write weekly backup script (plan 03) — unblocked, infrastructure complete
 
 ### Blockers/Concerns
 
@@ -52,5 +56,5 @@ Last activity: 2026-02-26 — Phase 6 Plan 02 complete (server audit — 7 serve
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 06-02-PLAN.md — server audit complete, inventory.json + inventory.md generated for all 7 servers
-Resume at: Run `/gsd:execute-phase 7` to execute Phase 7 (backup automation)
+Stopped at: Completed 07-01-PLAN.md — shared backup infrastructure (drive_manager.py + backup_utils.py) created
+Resume at: Run `/gsd:execute-phase 7` to execute Phase 7 Plan 02 (daily backup script)
