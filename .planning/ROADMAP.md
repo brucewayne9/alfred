@@ -52,7 +52,11 @@ Plans:
   3. Both scripts upload collected artifacts to an organized Google Drive folder structure via the existing Workspace integration
   4. Drive folders older than 30 days are automatically pruned so storage does not grow unbounded
   5. Running either script manually produces a backup that appears in Drive within 5 minutes
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 07-01-PLAN.md — Google Drive folder manager and shared backup utilities
+- [ ] 07-02-PLAN.md — Daily config backup script with SSH collection and cron
+- [ ] 07-03-PLAN.md — Weekly full backup script with Docker volumes and 30-day retention
 
 ### Phase 8: Recovery & Alerting
 **Goal**: Mike is alerted on any backup failure, and every server has documented + validated restore procedures
@@ -85,6 +89,6 @@ Plans:
 | 4. Google Ads Budget Control | v1.0 | 2/2 | Complete | 2026-02-21 |
 | 5. Ad Workflow Validation & Hardening | v1.0 | 3/3 | Complete | 2026-02-21 |
 | 6. SSH Access & Server Audit | 2/2 | Complete   | 2026-02-26 | — |
-| 7. Backup System | v1.1 | 0/? | Not started | — |
+| 7. Backup System | v1.1 | 0/3 | Not started | — |
 | 8. Recovery & Alerting | v1.1 | 0/? | Not started | — |
 | 9. Ad Intelligence | v1.1 | 0/? | Not started | — |
