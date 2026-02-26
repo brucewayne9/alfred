@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 8 — Recovery Alerting
-Plan: 02 complete (2 of 2 plans) — PHASE COMPLETE
-Status: Phase 8 complete — Telegram alerts + Drive integrity validator + per-server restore procedures
+Plan: 03 complete (3 of 3 plans) — PHASE COMPLETE
+Status: Phase 8 complete — Telegram alerts + Drive integrity validator + per-server restore procedures + backup status API endpoint
 Progress: [###-------] 37% (2/4 phases complete... estimated)
 
-Last activity: 2026-02-26 — Phase 8 Plan 02 complete (restore-procedures.md — 1089-line per-server rebuild guide from Drive backups)
+Last activity: 2026-02-26 — Phase 8 Plan 03 complete (GET /api/backup/status endpoint in Alfred Labs API with human_summary field for Alfred Claw relay)
 
 ## Performance Metrics
 
@@ -49,7 +49,7 @@ Last activity: 2026-02-26 — Phase 8 Plan 02 complete (restore-procedures.md �
 
 ### Pending Todos
 
-- None — Phase 8 complete.
+- None — Phase 8 complete (3 plans: alerting + validation, restore procedures, backup status API).
 
 ### Decisions
 
@@ -70,6 +70,11 @@ Last activity: 2026-02-26 — Phase 8 Plan 02 complete (restore-procedures.md �
 - [Phase 08-02]: alfred-claw SSH port 2222 prominently documented — most common failure point during restore
 - [Phase 08-02]: cloud-mail SMTP auth via lumabot@ only — alfred@ has no password set
 
+- [Phase 08-03]: GET /api/backup/status placed after circuit-breaker endpoints — logical system health grouping
+- [Phase 08-03]: Endpoint auth required but not admin-only — backup status is operational info any authenticated user should see
+- [Phase 08-03]: human_summary truncates to first 3 issues + count — readable in Telegram without truncation
+- [Phase 08-03]: Missing backup_status.json returns 200 with status=unknown — avoids special-case error handling in consumers
+
 ### Blockers/Concerns
 
 - None — Phase 8 all plans complete.
@@ -77,5 +82,5 @@ Last activity: 2026-02-26 — Phase 8 Plan 02 complete (restore-procedures.md �
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 08-02-PLAN.md — per-server restore procedures (restore-procedures.md, 1089 lines, all 7 servers)
+Stopped at: Completed 08-03-PLAN.md — GET /api/backup/status endpoint in core/api/main.py with human_summary field
 Resume at: Run `/gsd:execute-phase 9` to execute Phase 9 (Ad Intelligence) or next phase

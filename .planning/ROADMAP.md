@@ -24,7 +24,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 6: SSH Access & Server Audit** — 105 can reach all 7 servers; each server's services cataloged (completed 2026-02-26)
 - [x] **Phase 7: Backup System** — Daily + weekly backups running on cron, uploaded to Google Drive with retention (completed 2026-02-26)
-- [ ] **Phase 8: Recovery & Alerting** — Failure alerts active, restore docs written, backup integrity verified
+- [x] **Phase 8: Recovery & Alerting** — Failure alerts active, restore docs written, backup integrity verified (completed 2026-02-26)
 - [ ] **Phase 9: Ad Intelligence** — AI suggestions, cross-platform summary, and confirmation guardrails for ad mutations
 
 ## Phase Details
@@ -94,5 +94,5 @@ Plans:
 | 5. Ad Workflow Validation & Hardening | v1.0 | 3/3 | Complete | 2026-02-21 |
 | 6. SSH Access & Server Audit | 2/2 | Complete   | 2026-02-26 | — |
 | 7. Backup System | 3/3 | Complete    | 2026-02-26 | — |
-| 8. Recovery & Alerting | 2/3 | In Progress|  | — |
+| 8. Recovery & Alerting | 3/3 | Complete   | 2026-02-26 | — |
 | 9. Ad Intelligence | v1.1 | 0/? | Not started | — |
