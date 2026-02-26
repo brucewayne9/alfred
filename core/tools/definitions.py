@@ -3541,100 +3541,142 @@ def meta_ads_daily_spend(days: int = 7) -> list[dict]:
 
 @tool(
     name="meta_ads_pause_ad",
-    description="Pause a specific ad. Use this to stop an underperforming ad.",
+    description="Pause a specific ad. Use this to stop an underperforming ad. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "ad_id": {"type": "string", "description": "The ad ID to pause", "required": True},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def meta_ads_pause_ad(ad_id: str) -> dict:
+def meta_ads_pause_ad(ad_id: str, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(f"pause ad {ad_id}", {"ad_id": ad_id})
     from integrations.meta_ads.client import pause_ad
     return pause_ad(ad_id)
 
 
 @tool(
     name="meta_ads_enable_ad",
-    description="Enable (unpause) a specific ad.",
+    description="Enable (unpause) a specific ad. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "ad_id": {"type": "string", "description": "The ad ID to enable", "required": True},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def meta_ads_enable_ad(ad_id: str) -> dict:
+def meta_ads_enable_ad(ad_id: str, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(f"enable ad {ad_id}", {"ad_id": ad_id})
     from integrations.meta_ads.client import enable_ad
     return enable_ad(ad_id)
 
 
 @tool(
     name="meta_ads_pause_ad_set",
-    description="Pause a specific ad set.",
+    description="Pause a specific ad set. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "ad_set_id": {"type": "string", "description": "The ad set ID to pause", "required": True},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def meta_ads_pause_ad_set(ad_set_id: str) -> dict:
+def meta_ads_pause_ad_set(ad_set_id: str, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(f"pause ad set {ad_set_id}", {"ad_set_id": ad_set_id})
     from integrations.meta_ads.client import pause_ad_set
     return pause_ad_set(ad_set_id)
 
 
 @tool(
     name="meta_ads_enable_ad_set",
-    description="Enable (unpause) a specific ad set.",
+    description="Enable (unpause) a specific ad set. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "ad_set_id": {"type": "string", "description": "The ad set ID to enable", "required": True},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def meta_ads_enable_ad_set(ad_set_id: str) -> dict:
+def meta_ads_enable_ad_set(ad_set_id: str, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(f"enable ad set {ad_set_id}", {"ad_set_id": ad_set_id})
     from integrations.meta_ads.client import enable_ad_set
     return enable_ad_set(ad_set_id)
 
 
 @tool(
     name="meta_ads_pause_campaign",
-    description="Pause a specific campaign.",
+    description="Pause a specific campaign. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "campaign_id": {"type": "string", "description": "The campaign ID to pause", "required": True},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def meta_ads_pause_campaign(campaign_id: str) -> dict:
+def meta_ads_pause_campaign(campaign_id: str, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(f"pause campaign {campaign_id}", {"campaign_id": campaign_id})
     from integrations.meta_ads.client import pause_campaign
     return pause_campaign(campaign_id)
 
 
 @tool(
     name="meta_ads_enable_campaign",
-    description="Enable (unpause) a specific campaign.",
+    description="Enable (unpause) a specific campaign. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "campaign_id": {"type": "string", "description": "The campaign ID to enable", "required": True},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def meta_ads_enable_campaign(campaign_id: str) -> dict:
+def meta_ads_enable_campaign(campaign_id: str, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(f"enable campaign {campaign_id}", {"campaign_id": campaign_id})
     from integrations.meta_ads.client import enable_campaign
     return enable_campaign(campaign_id)
 
 
 @tool(
     name="meta_ads_update_ad_set_budget",
-    description="Update an ad set's daily or lifetime budget. Amounts in dollars.",
+    description="Update an ad set's daily or lifetime budget. Amounts in dollars. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "ad_set_id": {"type": "string", "description": "The ad set ID", "required": True},
         "daily_budget": {"type": "number", "description": "New daily budget in dollars (e.g., 25.00)"},
         "lifetime_budget": {"type": "number", "description": "New lifetime budget in dollars"},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def meta_ads_update_ad_set_budget(ad_set_id: str, daily_budget: float = None, lifetime_budget: float = None) -> dict:
+def meta_ads_update_ad_set_budget(ad_set_id: str, daily_budget: float = None, lifetime_budget: float = None, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        details = {"ad_set_id": ad_set_id}
+        if daily_budget is not None:
+            details["new_daily_budget"] = f"${daily_budget:.2f}"
+        if lifetime_budget is not None:
+            details["new_lifetime_budget"] = f"${lifetime_budget:.2f}"
+        return guardrail_response(f"update ad set {ad_set_id} budget", details)
     from integrations.meta_ads.client import update_ad_set_budget
     return update_ad_set_budget(ad_set_id, daily_budget, lifetime_budget)
 
 
 @tool(
     name="meta_ads_update_campaign_budget",
-    description="Update a campaign's daily or lifetime budget. Amounts in dollars.",
+    description="Update a campaign's daily or lifetime budget. Amounts in dollars. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "campaign_id": {"type": "string", "description": "The campaign ID", "required": True},
         "daily_budget": {"type": "number", "description": "New daily budget in dollars (e.g., 50.00)"},
         "lifetime_budget": {"type": "number", "description": "New lifetime budget in dollars"},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def meta_ads_update_campaign_budget(campaign_id: str, daily_budget: float = None, lifetime_budget: float = None) -> dict:
+def meta_ads_update_campaign_budget(campaign_id: str, daily_budget: float = None, lifetime_budget: float = None, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        details = {"campaign_id": campaign_id}
+        if daily_budget is not None:
+            details["new_daily_budget"] = f"${daily_budget:.2f}"
+        if lifetime_budget is not None:
+            details["new_lifetime_budget"] = f"${lifetime_budget:.2f}"
+        return guardrail_response(f"update campaign {campaign_id} budget", details)
     from integrations.meta_ads.client import update_campaign_budget
     return update_campaign_budget(campaign_id, daily_budget, lifetime_budget)
 
@@ -3734,54 +3776,82 @@ def gads_spend(customer_id: str = None, days: int = 30, by_day: bool = False) ->
 
 @tool(
     name="gads_set_campaign_status",
-    description="Enable or pause a Google Ads campaign. Always show before/after status. For significant changes, confirm with Mike first. Supports multiple accounts.",
+    description="Enable or pause a Google Ads campaign. Always show before/after status. Supports multiple accounts. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "customer_id": "string - Customer ID (optional - uses default)",
         "campaign_id": "string - The campaign ID to update",
         "status": "string - New status: ENABLED or PAUSED",
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def gads_set_campaign_status(campaign_id: str, status: str, customer_id: str = None) -> dict:
+def gads_set_campaign_status(campaign_id: str, status: str, customer_id: str = None, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(
+            f"set campaign {campaign_id} status to {status}",
+            {"campaign_id": campaign_id, "new_status": status, "customer_id": customer_id}
+        )
     from integrations.google_ads.client import set_campaign_status
     return set_campaign_status(campaign_id, status, customer_id=customer_id)
 
 
 @tool(
     name="gads_update_campaign_budget",
-    description="Update a Google Ads campaign's daily budget. CONFIRMATION RULES: If the new budget exceeds $100/day OR is more than 2x the current budget, ask Mike to confirm before calling this tool. Always show before/after comparison after the update. If the budget is shared across campaigns, list all affected campaigns and confirm before applying.",
+    description="Update a Google Ads campaign's daily budget. Always show before/after comparison after the update. If the budget is shared across campaigns, list all affected campaigns. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "campaign_id": {"type": "string", "description": "The campaign ID to update", "required": True},
         "new_daily_budget": {"type": "number", "description": "New daily budget in dollars, e.g. 50.00", "required": True},
         "customer_id": {"type": "string", "description": "Customer ID (optional - uses default)"},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def gads_update_campaign_budget(campaign_id: str, new_daily_budget: float, customer_id: str = None) -> dict:
+def gads_update_campaign_budget(campaign_id: str, new_daily_budget: float, customer_id: str = None, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(
+            f"update campaign {campaign_id} budget to ${new_daily_budget:.2f}/day",
+            {"campaign_id": campaign_id, "new_daily_budget": f"${new_daily_budget:.2f}", "customer_id": customer_id}
+        )
     from integrations.google_ads.client import update_campaign_budget
     return update_campaign_budget(campaign_id, new_daily_budget, customer_id=customer_id)
 
 
 @tool(
     name="gads_pause_ad_group",
-    description="Pause a Google Ads ad group. For bulk operations (pausing all ad groups in a campaign), list affected ad groups and confirm with Mike before calling. Warn if this is the last active ad group in the campaign. Always verify the status change after applying.",
+    description="Pause a Google Ads ad group. For bulk operations (pausing all ad groups in a campaign), list affected ad groups first. Warn if this is the last active ad group. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "ad_group_id": {"type": "string", "description": "The ad group ID to pause", "required": True},
         "customer_id": {"type": "string", "description": "Customer ID (optional - uses default)"},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def gads_pause_ad_group(ad_group_id: str, customer_id: str = None) -> dict:
+def gads_pause_ad_group(ad_group_id: str, customer_id: str = None, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(
+            f"pause ad group {ad_group_id}",
+            {"ad_group_id": ad_group_id, "customer_id": customer_id}
+        )
     from integrations.google_ads.client import set_ad_group_status
     return set_ad_group_status(ad_group_id, status="PAUSED", customer_id=customer_id)
 
 
 @tool(
     name="gads_enable_ad_group",
-    description="Enable (unpause) a Google Ads ad group. Always verify the status change after applying.",
+    description="Enable (unpause) a Google Ads ad group. Always verify the status change after applying. Returns a confirmation preview by default — call with confirmed=True after Mike approves.",
     parameters={
         "ad_group_id": {"type": "string", "description": "The ad group ID to enable", "required": True},
         "customer_id": {"type": "string", "description": "Customer ID (optional - uses default)"},
+        "confirmed": {"type": "boolean", "description": "Set to true after Mike confirms the change. Default false — returns preview first.", "required": False},
     },
 )
-def gads_enable_ad_group(ad_group_id: str, customer_id: str = None) -> dict:
+def gads_enable_ad_group(ad_group_id: str, customer_id: str = None, confirmed: bool = False) -> dict:
+    if not confirmed:
+        from integrations.ad_intelligence.guardrails import guardrail_response
+        return guardrail_response(
+            f"enable ad group {ad_group_id}",
+            {"ad_group_id": ad_group_id, "customer_id": customer_id}
+        )
     from integrations.google_ads.client import set_ad_group_status
     return set_ad_group_status(ad_group_id, status="ENABLED", customer_id=customer_id)
 
