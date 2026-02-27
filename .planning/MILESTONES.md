@@ -18,3 +18,21 @@
 
 ---
 
+
+## v1.1 Infrastructure Resilience (Shipped: 2026-02-26)
+
+**Phases completed:** 4 phases, 10 plans
+**Commits:** 41
+**Files changed:** 17 (+4,709 / -28)
+**Timeline:** 1 day (2026-02-26)
+
+**Key accomplishments:**
+- SSH key access deployed from Labs (105) to all 6 infrastructure servers with per-server dedicated ed25519 keys and named aliases
+- Complete server inventory — Docker containers, systemd services, databases, disk usage cataloged across all 7 servers
+- Automated daily config + weekly full backups with Google Drive upload and 30-day retention pruning
+- Backup failure alerting via Telegram + Drive integrity validation at 5 AM + backup status API endpoint
+- Per-server disaster recovery documentation with step-by-step restore procedures for all 7 servers
+- Cross-platform ad intelligence — combined Meta + Google summary, 7-rule optimization suggestions engine, and confirmation guardrails on all 12 financial mutation tools
+
+---
+
