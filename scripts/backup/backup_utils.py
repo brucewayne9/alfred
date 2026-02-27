@@ -105,78 +105,130 @@ DAILY_TARGETS: dict[str, dict] = {
             "/home/aialfred/alfred/config/settings.py",
             "/home/aialfred/alfred/config/users.json",
             "/home/aialfred/alfred/config/google_token.json",
+            "/home/aialfred/alfred/data/conversations.db",
+            "/home/aialfred/alfred/data/learning.db",
+            "/home/aialfred/alfred/data/chromadb/chroma.sqlite3",
             "/var/lib/redis/dump.rdb",
         ],
         "commands": _COMMON_COMMANDS + [
-            ("postgresql-dump.sql", "pg_dumpall -U postgres 2>/dev/null"),
+            ("postgresql-dump.sql",
+             "sudo -u postgres pg_dumpall 2>&1 "
+             "|| echo '(pg_dumpall failed — check sudo/postgres access)'"),
         ],
     },
     "groundrush-radio": {
+        # AzuraCast is fully Docker — MariaDB inside the 'azuracast' container
         "files": _COMMON_FILES,
         "commands": _COMMON_COMMANDS + [
+            ("azuracast-mariadb-dump.sql",
+             "docker exec azuracast sh -c "
+             "'mariadb-dump --all-databases -u root -p\"$MYSQL_ROOT_PASSWORD\" 2>/dev/null "
+             "|| mysqldump --all-databases -u root -p\"$MYSQL_ROOT_PASSWORD\" 2>&1' "
+             "2>/dev/null || echo '(azuracast db dump failed)'"),
             ("dotenv-files.txt",
              "find /opt /var/www /home -maxdepth 4 -name '.env' 2>/dev/null "
-             "| head -20"),
+             "| head -20 | while read f; do echo \"=== $f ===\"; cat \"$f\" 2>/dev/null; echo; done"),
             ("azuracast-config.txt",
              "find /var/azuracast /opt/azuracast /home/azuracast -maxdepth 3 "
-             "-name '*.conf' -o -name '*.env' 2>/dev/null | head -20"),
+             "\\( -name '*.conf' -o -name '*.env' \\) 2>/dev/null "
+             "| head -20 | while read f; do echo \"=== $f ===\"; cat \"$f\" 2>/dev/null; echo; done"),
         ],
     },
     "labs-edge": {
         "files": _COMMON_FILES,
         "commands": _COMMON_COMMANDS + [
-            ("mysql-dump.sql",
-             "mysqldump --all-databases 2>/dev/null "
-             "|| mysqldump --all-databases --no-tablespaces 2>/dev/null "
-             "|| echo '(mysql dump failed)'"),
+            ("docker-mysql-dumps.sql",
+             "docker ps --format '{{.Names}}' 2>/dev/null | grep -i mysql "
+             "| while read c; do echo \"-- === $c ===\"; "
+             "docker exec \"$c\" sh -c "
+             "'mysqldump --all-databases -u root -p\"$MYSQL_ROOT_PASSWORD\" 2>/dev/null "
+             "|| mysqldump --all-databases -u root 2>&1' 2>/dev/null; echo; done "
+             "|| echo '(no mysql containers found)'"),
             ("dotenv-files.txt",
-             "find /opt -maxdepth 4 -name '.env' 2>/dev/null | head -20"),
+             "find /opt -maxdepth 4 -name '.env' 2>/dev/null "
+             "| head -20 | while read f; do echo \"=== $f ===\"; cat \"$f\" 2>/dev/null; echo; done"),
         ],
     },
     "alfred-claw": {
         "files": _COMMON_FILES + [
-            "/root/.openclaw/openclaw.json",
-            "/root/.openclaw/workspace/USER.md",
-            "/root/.openclaw/workspace/SOUL.md",
-            "/root/.openclaw/workspace/AGENTS.md",
-            "/root/.openclaw/workspace/TOOLS.md",
-            "/root/.openclaw/workspace/HEARTBEAT.md",
-            "/root/.openclaw/workspace/QUEUE.md",
+            "/home/brucewayne9/.openclaw/openclaw.json",
+            "/home/brucewayne9/.openclaw/workspace/USER.md",
+            "/home/brucewayne9/.openclaw/workspace/SOUL.md",
+            "/home/brucewayne9/.openclaw/workspace/AGENTS.md",
+            "/home/brucewayne9/.openclaw/workspace/TOOLS.md",
+            "/home/brucewayne9/.openclaw/workspace/HEARTBEAT.md",
+            "/home/brucewayne9/.openclaw/workspace/QUEUE.md",
         ],
-        "commands": _COMMON_COMMANDS,
+        "commands": _COMMON_COMMANDS + [
+            # Tar the entire workspace (scripts, integrations, automations,
+            # command-center, skills, memory) — ~94 MB uncompressed
+            ("workspace.tar.gz",
+             "tar czf - -C /home/brucewayne9/.openclaw workspace 2>/dev/null "
+             "|| echo '(workspace tar failed)'"),
+            # Tar agent session data (~33 MB)
+            ("agents-sessions.tar.gz",
+             "tar czf - -C /home/brucewayne9/.openclaw agents 2>/dev/null "
+             "|| echo '(agents tar failed)'"),
+        ],
     },
     "labsliveserver": {
-        # 55 containers — do NOT export all volumes daily (too heavy)
+        # 55 containers — databases are ALL in Docker, not on host
         "files": _COMMON_FILES,
         "commands": _COMMON_COMMANDS + [
-            ("mysql-dump.sql",
-             "mysqldump --all-databases 2>/dev/null "
-             "|| mysqldump --all-databases --no-tablespaces 2>/dev/null "
-             "|| echo '(mysql dump failed)'"),
+            ("docker-mysql-dumps.sql",
+             "docker ps --format '{{.Names}}' 2>/dev/null | grep -i mysql "
+             "| while read c; do echo \"-- === $c ===\"; "
+             "docker exec \"$c\" sh -c "
+             "'mysqldump --all-databases -u root -p\"$MYSQL_ROOT_PASSWORD\" 2>/dev/null "
+             "|| mysqldump --all-databases -u root 2>&1' 2>/dev/null; echo; done "
+             "|| echo '(no mysql containers found)'"),
+            ("docker-postgres-dumps.sql",
+             "docker ps --format '{{.Names}}' 2>/dev/null | grep -i postgres "
+             "| while read c; do echo \"-- === $c ===\"; "
+             "docker exec \"$c\" sh -c "
+             "'pg_dumpall -U postgres 2>&1 "
+             "|| pg_dumpall -U \"$POSTGRES_USER\" 2>&1' 2>/dev/null; echo; done "
+             "|| echo '(no postgres containers found)'"),
             ("dotenv-files.txt",
-             "find /opt -maxdepth 4 -name '.env' 2>/dev/null | head -40"),
+             "find /opt -maxdepth 4 -name '.env' 2>/dev/null "
+             "| head -40 | while read f; do echo \"=== $f ===\"; cat \"$f\" 2>/dev/null; echo; done"),
         ],
     },
     "lonewolf": {
+        # Dokploy-managed — real data is in Docker containers
         "files": _COMMON_FILES,
         "commands": _COMMON_COMMANDS + [
-            ("dokploy-config.txt",
-             "find /opt/dokploy /var/lib/dokploy 2>/dev/null "
-             "-name '*.json' -o -name '*.yml' | head -20"),
-            ("traefik-config.txt",
-             "find /etc/traefik /opt/traefik 2>/dev/null "
-             "-name '*.yml' -o -name '*.yaml' -o -name '*.toml' | head -20"),
+            ("dokploy-traefik-config.txt",
+             "find /var/lib/dokploy 2>/dev/null "
+             "\\( -name '*.json' -o -name '*.yml' -o -name '*.yaml' -o -name '*.toml' \\) "
+             "-readable "
+             "| head -20 | while read f; do echo \"=== $f ===\"; cat \"$f\" 2>/dev/null; echo; done"),
+            ("docker-postgres-dumps.sql",
+             "docker ps --format '{{.Names}}' 2>/dev/null | grep -i postgres "
+             "| while read c; do echo \"-- === $c ===\"; "
+             "docker exec \"$c\" sh -c "
+             "'pg_dumpall -U postgres 2>&1 "
+             "|| pg_dumpall -U \"$POSTGRES_USER\" 2>&1' 2>/dev/null; echo; done "
+             "|| echo '(no postgres containers found)'"),
         ],
     },
     "cloud-mail": {
+        # Mailcow is fully Docker-based — configs are in /opt/mailcow-dockerized/
         "files": _COMMON_FILES,
         "commands": _COMMON_COMMANDS + [
-            ("mail-config.txt",
-             "find /etc/postfix /etc/dovecot /etc/exim4 /opt/mail 2>/dev/null "
-             "-name '*.conf' -o -name '*.cf' | head -30"),
-            ("dotenv-files.txt",
-             "find /opt /var/www /home -maxdepth 4 -name '.env' 2>/dev/null "
-             "| head -20"),
+            ("mailcow-env.txt",
+             "cat /opt/mailcow-dockerized/.env 2>/dev/null "
+             "|| echo '(mailcow .env not readable — check permissions)'"),
+            ("mailcow-docker-config.txt",
+             "find /opt/mailcow-dockerized -maxdepth 2 "
+             "\\( -name '*.conf' -o -name '*.yml' -o -name '*.yaml' \\) "
+             "2>/dev/null | head -20 "
+             "| while read f; do echo \"=== $f ===\"; cat \"$f\" 2>/dev/null; echo; done"),
+            ("docker-mysql-dump.sql",
+             "docker exec mailcowdockerized-mysql-mailcow-1 sh -c "
+             "'mysqldump --all-databases -u root -p\"$MYSQL_ROOT_PASSWORD\" 2>/dev/null "
+             "|| mysqldump --all-databases -u root 2>&1' 2>/dev/null "
+             "|| echo '(mailcow mysql dump failed)'"),
         ],
     },
 }
@@ -258,7 +310,7 @@ CONNECT_TIMEOUT = 10
 DEFAULT_TIMEOUT = 60
 
 
-def run_cmd(alias: str | None, cmd: str, timeout: int = DEFAULT_TIMEOUT) -> str:
+def run_cmd(alias: str | None, cmd: str, timeout: int = DEFAULT_TIMEOUT) -> str | bytes:
     """Execute a shell command locally or via SSH.
 
     Args:
@@ -267,7 +319,8 @@ def run_cmd(alias: str | None, cmd: str, timeout: int = DEFAULT_TIMEOUT) -> str:
         timeout: Seconds before raising TimeoutError. Default 60.
 
     Returns:
-        Command stdout as a string (stripped).
+        Command stdout as a string (stripped).  If the output contains
+        non-UTF-8 bytes (e.g. binary database dumps) returns raw bytes instead.
 
     Raises:
         RuntimeError: On timeout or non-zero exit with stderr output.
@@ -279,12 +332,14 @@ def run_cmd(alias: str | None, cmd: str, timeout: int = DEFAULT_TIMEOUT) -> str:
                 cmd,
                 shell=True,
                 capture_output=True,
-                text=True,
                 timeout=timeout,
             )
             if result.returncode != 0 and result.stderr:
-                logger.debug("local cmd stderr: %s", result.stderr.strip())
-            return result.stdout.strip()
+                logger.debug("local cmd stderr: %s", result.stderr[:500])
+            try:
+                return result.stdout.decode("utf-8").strip()
+            except UnicodeDecodeError:
+                return result.stdout  # return raw bytes
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"Local command timed out after {timeout}s: {cmd!r}")
         except Exception as exc:
@@ -302,12 +357,14 @@ def run_cmd(alias: str | None, cmd: str, timeout: int = DEFAULT_TIMEOUT) -> str:
                     cmd,
                 ],
                 capture_output=True,
-                text=True,
                 timeout=timeout,
             )
             if result.returncode != 0 and result.stderr:
-                logger.debug("ssh %s stderr: %s", alias, result.stderr.strip())
-            return result.stdout.strip()
+                logger.debug("ssh %s stderr: %s", alias, result.stderr[:500])
+            try:
+                return result.stdout.decode("utf-8").strip()
+            except UnicodeDecodeError:
+                return result.stdout  # return raw bytes
         except subprocess.TimeoutExpired:
             raise RuntimeError(
                 f"SSH command timed out after {timeout}s — alias={alias!r}, cmd={cmd!r}"

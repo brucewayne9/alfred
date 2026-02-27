@@ -132,10 +132,14 @@ def backup_server(server: dict, date_str: str) -> dict:
         dest_path = os.path.join(staging_server_dir, output_filename)
         try:
             output = run_cmd(alias, cmd, timeout=120)
-            with open(dest_path, "w", encoding="utf-8") as fh:
-                fh.write(output)
-                if output and not output.endswith("\n"):
-                    fh.write("\n")
+            if isinstance(output, bytes):
+                with open(dest_path, "wb") as fh:
+                    fh.write(output)
+            else:
+                with open(dest_path, "w", encoding="utf-8") as fh:
+                    fh.write(output)
+                    if output and not output.endswith("\n"):
+                        fh.write("\n")
             result["files_collected"] += 1
             logger.debug("[%s] Captured: %s (%d bytes)", server_name, output_filename, len(output))
         except Exception as exc:

@@ -143,6 +143,18 @@ def upload_backup(local_path: str, server_name: str, backup_type: str) -> dict:
     date_folder_id = _find_or_create_folder(today, parent_id=type_folder_id)
 
     file_name = os.path.basename(local_path)
+
+    # Delete any existing file with the same name to avoid duplicates
+    # (Google Drive allows duplicate filenames in the same folder)
+    try:
+        existing = list_files(folder_id=date_folder_id, query=file_name)
+        for old_file in existing:
+            if old_file["name"] == file_name:
+                logger.info("Replacing existing file: %s (id=%s)", file_name, old_file["id"])
+                delete_file(old_file["id"])
+    except Exception as exc:
+        logger.debug("Could not check for existing files: %s", exc)
+
     logger.info(
         "Uploading %s -> Alfred Backups/%s/%s/%s/%s",
         local_path, server_name, backup_type, today, file_name,

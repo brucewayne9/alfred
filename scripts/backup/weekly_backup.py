@@ -153,7 +153,8 @@ def _export_docker_volume(
 
     try:
         result = run_cmd(alias, export_cmd, timeout=VOLUME_EXPORT_TIMEOUT)
-        if "OK" not in result:
+        result_str = result.decode("utf-8", errors="replace") if isinstance(result, bytes) else result
+        if "OK" not in result_str:
             logger.warning(
                 "[%s] Volume export did not confirm OK for '%s'",
                 server_name, volume_name,
@@ -375,10 +376,14 @@ def backup_server(server: dict, date_str: str) -> dict:
         dest_path = os.path.join(staging_server_dir, output_filename)
         try:
             output = run_cmd(alias, cmd, timeout=120)
-            with open(dest_path, "w", encoding="utf-8") as fh:
-                fh.write(output)
-                if output and not output.endswith("\n"):
-                    fh.write("\n")
+            if isinstance(output, bytes):
+                with open(dest_path, "wb") as fh:
+                    fh.write(output)
+            else:
+                with open(dest_path, "w", encoding="utf-8") as fh:
+                    fh.write(output)
+                    if output and not output.endswith("\n"):
+                        fh.write("\n")
             result["files_collected"] += 1
             logger.debug("[%s] Captured: %s", server_name, output_filename)
         except Exception as exc:
@@ -410,10 +415,14 @@ def backup_server(server: dict, date_str: str) -> dict:
         dest_path = os.path.join(staging_server_dir, output_filename)
         try:
             output = run_cmd(alias, cmd, timeout=120)
-            with open(dest_path, "w", encoding="utf-8") as fh:
-                fh.write(output)
-                if output and not output.endswith("\n"):
-                    fh.write("\n")
+            if isinstance(output, bytes):
+                with open(dest_path, "wb") as fh:
+                    fh.write(output)
+            else:
+                with open(dest_path, "w", encoding="utf-8") as fh:
+                    fh.write(output)
+                    if output and not output.endswith("\n"):
+                        fh.write("\n")
             result["files_collected"] += 1
             logger.debug("[%s] Weekly extra captured: %s", server_name, output_filename)
         except Exception as exc:

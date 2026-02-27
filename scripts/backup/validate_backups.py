@@ -209,6 +209,15 @@ def validate_all_servers() -> dict:
     servers_result: dict = {}
     summary = {"total_checks": 0, "ok": 0, "stale": 0, "empty": 0, "missing": 0}
 
+    # Determine the day of week (0=Monday, 6=Sunday) to know if a weekly
+    # backup has had a chance to run.  Weekly cron fires Sunday 2 AM UTC.
+    now_utc = datetime.now(timezone.utc)
+    # Consider weekly expected only if today is Monday or later in the week
+    # following a Sunday, i.e. at least one Sunday has passed since system
+    # setup.  We detect this by checking if any weekly folder exists for
+    # *any* server; if none do, we skip weekly validation entirely.
+    any_weekly_exists = False
+
     for server in SERVERS:
         server_name = server["name"]
         servers_result[server_name] = {}
@@ -220,9 +229,26 @@ def validate_all_servers() -> dict:
             check = validate_server(server_name, backup_type, max_hours)
             servers_result[server_name][backup_type] = check
             summary["total_checks"] += 1
+
+            if backup_type == "weekly" and check["status"] != "missing":
+                any_weekly_exists = True
+
             status = check["status"]
             if status in summary:
                 summary[status] += 1
+
+    # If NO weekly backups exist for ANY server, the weekly cron hasn't
+    # fired yet.  Downgrade all weekly "missing" to "ok" so we don't send
+    # a false-alarm alert before the first Sunday run.
+    if not any_weekly_exists:
+        logger.info("No weekly backups found for any server — first Sunday "
+                     "run has not occurred yet, suppressing weekly alerts")
+        for server_name in servers_result:
+            wk = servers_result[server_name].get("weekly", {})
+            if wk.get("status") == "missing":
+                wk["status"] = "pending_first_run"
+                summary["missing"] -= 1
+                summary["ok"] += 1
 
     return {
         "timestamp": timestamp,
@@ -287,7 +313,7 @@ def main() -> int:
         alert_results = []
         for server_name, btypes in validation["servers"].items():
             for btype, check in btypes.items():
-                if check["status"] != "ok":
+                if check["status"] not in ("ok", "pending_first_run"):
                     age_info = ""
                     if check.get("age_hours") is not None:
                         age_info = f" ({check['age_hours']:.0f}h old)"
