@@ -27,12 +27,13 @@ def read_email(message_id: str) -> dict:
 
 @tool(
     name="send_email",
-    description="Send an email to someone.",
-    parameters={"to": "string - recipient email", "subject": "string", "body": "string"},
+    description="Send an email via Mike's Gmail. ALWAYS use HTML for the body with inline CSS styling. Mike prefers well-designed, visually formatted emails.",
+    parameters={"to": "string - recipient email", "subject": "string", "body": "string - HTML body with inline CSS styling"},
 )
 def send_email(to: str, subject: str, body: str) -> dict:
     from integrations.gmail.client import send_email as _send
-    return _send(to, subject, body)
+    is_html = "<html" in body.lower() or "<div" in body.lower() or "<table" in body.lower() or "<p>" in body.lower()
+    return _send(to, subject, body, html=is_html)
 
 
 @tool(
@@ -59,9 +60,9 @@ def email_list_accounts() -> dict:
 
 @tool(
     name="email_inbox",
-    description="Get recent emails from a specific IMAP account's inbox. For mjohnson@groundrushinc.com, use the check_email tool instead (Google OAuth). Accounts: groundrush (mjohnson@groundrushlabs.com), rucktalk, loovacast, lumabot, support, groundrush info.",
+    description="Get recent emails from a specific IMAP account's inbox. Accounts: groundrushinc (mjohnson@groundrushinc.com — Mike's personal), groundrush (mjohnson@groundrushlabs.com), rucktalk, loovacast, lumabot, support, groundrush info.",
     parameters={
-        "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
+        "account": {"type": "string", "description": "Account name: groundrushinc, groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
         "limit": {"type": "integer", "description": "Max emails to return (default 10)"},
     },
 )
@@ -85,24 +86,26 @@ def email_read(account: str, message_id: str) -> dict:
 
 @tool(
     name="email_send",
-    description="Send an email from a specific account. Accounts: groundrush (mjohnson@), rucktalk (info@rucktalk), loovacast (info@loovacast), lumabot, support (support@loovacast), groundrush info (info@groundrushlabs).",
+    description="Send an email from a specific account. ALWAYS use HTML for the body — include proper <html><body> tags with inline CSS styling. Mike prefers well-designed, visually formatted emails. Accounts: groundrushinc (mjohnson@groundrushinc.com — sends AS Mike), groundrush (mjohnson@groundrushlabs.com), rucktalk, loovacast, lumabot, support, groundrush info.",
     parameters={
-        "account": {"type": "string", "description": "Account to send from: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
+        "account": {"type": "string", "description": "Account to send from: groundrushinc, groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
         "to": {"type": "string", "description": "Recipient email address", "required": True},
         "subject": {"type": "string", "description": "Email subject", "required": True},
-        "body": {"type": "string", "description": "Email body text", "required": True},
+        "body": {"type": "string", "description": "Email body as HTML with inline CSS styling. Always use <html><body> wrapper with styled content.", "required": True},
     },
 )
 def email_send(account: str, to: str, subject: str, body: str) -> dict:
     from integrations.email.client import email_client
-    return email_client.send_email(account, to, subject, body)
+    # Auto-detect HTML content
+    is_html = "<html" in body.lower() or "<div" in body.lower() or "<table" in body.lower() or "<p>" in body.lower()
+    return email_client.send_email(account, to, subject, body, html=is_html)
 
 
 @tool(
     name="email_search",
-    description="Search emails in a specific IMAP account by keyword. For mjohnson@groundrushinc.com, use check_email with Gmail query syntax instead.",
+    description="Search emails in a specific IMAP account by keyword. Accounts: groundrushinc (Mike's personal), groundrush, rucktalk, loovacast, lumabot, support, groundrush info.",
     parameters={
-        "account": {"type": "string", "description": "Account name: groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
+        "account": {"type": "string", "description": "Account name: groundrushinc, groundrush, rucktalk, loovacast, lumabot, support, or 'groundrush info'", "required": True},
         "query": {"type": "string", "description": "Search keyword", "required": True},
         "limit": {"type": "integer", "description": "Max results (default 10)"},
     },
@@ -1405,28 +1408,191 @@ def create_document_tool(content: str, filename: str, format: str = "txt") -> di
 
 @tool(
     name="generate_image",
-    description="Generate an image from a text description using AI (SDXL Turbo). Creates high-quality images in seconds.",
+    description=(
+        "Generate an image from a text description using AI. "
+        "Two models available: model='juggernaut' (default, SDXL, great photorealism) or "
+        "model='flux' (FLUX.1 dev, superior prompt following and text rendering). "
+        "IMPORTANT prompt guidelines: Be specific about the subject — describe exactly what you want "
+        "(e.g., 'a single golden retriever sitting on a park bench' not just 'a dog'). "
+        "Specify 'single person' or 'solo' if only one person is desired. "
+        "Describe the scene, lighting, and camera angle for best results. "
+        "For Juggernaut: use mode='fast' for quick drafts, mode='quality' for hi-res fix. "
+        "For FLUX: mode is ignored (always high quality, ~60-80s generation time)."
+    ),
     parameters={
-        "prompt": "string - detailed description of the image to generate",
-        "width": "int - image width in pixels (default 1024, max 1536)",
-        "height": "int - image height in pixels (default 1024, max 1536)",
+        "prompt": "string - detailed description of the image to generate. Be specific about subject count, scene, lighting, and style.",
+        "width": "int - image width in pixels (default 1024)",
+        "height": "int - image height in pixels (default 1024)",
+        "mode": "string - 'quality' (default, hi-res fix) or 'fast' (quick draft). Ignored for FLUX.",
+        "upscale": "bool - apply 4x upscaling for ultra-high resolution (default false)",
+        "model": "string - 'juggernaut' (default, SDXL) or 'flux' (FLUX.1 dev, better prompt adherence)",
     },
 )
-async def generate_image_tool(prompt: str, width: int = 1024, height: int = 1024) -> dict:
+async def generate_image_tool(
+    prompt: str,
+    width: int = 1024,
+    height: int = 1024,
+    mode: str = "quality",
+    upscale: bool = False,
+    model: str = "juggernaut",
+) -> dict:
     from integrations.comfyui.client import generate_image
 
     # Clamp dimensions
     width = min(max(width, 512), 1536)
     height = min(max(height, 512), 1536)
 
-    result = await generate_image(prompt, width, height)
+    result = await generate_image(prompt, width, height, mode=mode, upscale=upscale, model=model)
 
     if not result["success"]:
         return {"success": False, "error": result["error"]}
 
     return {
         "success": True,
-        "message": f"Image generated successfully",
+        "message": f"Image generated successfully ({result.get('model', 'unknown')})",
+        "filename": result["filename"],
+        "download_url": result["download_url"],
+        "base64": result["base64"],
+    }
+
+
+@tool(
+    name="generate_product_video",
+    description=(
+        "Generate a product showcase video from a product photo. Uses local AI models: "
+        "Juggernaut XL enhances the photo to studio quality, then SVD-XT generates "
+        "smooth video clips with camera motion (rotation, zoom, pan). Multiple clips "
+        "are stitched into one final mp4. Takes 3-18 minutes depending on settings. "
+        "Requires SVD-XT model in ComfyUI checkpoints."
+    ),
+    parameters={
+        "image_path": "string (REQUIRED) - path to the product photo to animate",
+        "prompt": "string - custom prompt for image enhancement (default: professional product photography)",
+        "clips": "int - number of video clips 1-3 with different motion intensities (default 3)",
+        "enhance": "bool - enhance product photo before video generation (default true)",
+        "denoise_strength": "float - enhancement intensity 0.3 (subtle) to 0.6 (dramatic), default 0.45",
+    },
+)
+async def generate_product_video_tool(
+    image_path: str,
+    prompt: str = None,
+    clips: int = 3,
+    enhance: bool = True,
+    denoise_strength: float = 0.45,
+) -> dict:
+    from integrations.comfyui.client import generate_product_video
+
+    # Validate clips
+    clips = max(1, min(3, int(clips) if isinstance(clips, (int, float, str)) else 3))
+    denoise_strength = max(0.3, min(0.6, float(denoise_strength)))
+
+    result = await generate_product_video(
+        image_path, prompt=prompt, clips=clips,
+        enhance=enhance, denoise_strength=denoise_strength,
+    )
+
+    if not result["success"]:
+        return {"success": False, "error": result["error"]}
+
+    return {
+        "success": True,
+        "message": (
+            f"Product video generated ({result['clips_generated']} clips, "
+            f"enhanced={result['enhanced']}, model={result.get('svd_model', 'unknown')})"
+        ),
+        "video_path": result["video_path"],
+        "download_url": result["download_url"],
+        "clips_generated": result["clips_generated"],
+        "enhanced": result["enhanced"],
+    }
+
+
+@tool(
+    name="generate_controlnet_image",
+    description=(
+        "Generate an image guided by a reference image using ControlNet. "
+        "Give it a photo, sketch, or outline and it will use its edges or depth "
+        "as a structural guide while applying your text prompt. "
+        "Use control_type='canny' for edge-guided (sketches, outlines, photos) "
+        "or control_type='depth' for depth-guided composition."
+    ),
+    parameters={
+        "prompt": "string - description of the desired output image",
+        "image_path": "string (REQUIRED) - path to the guide/reference image",
+        "control_type": "string - 'canny' (edge detection, default) or 'depth' (depth map)",
+        "strength": "float - how strongly the guide influences output 0.0-1.0 (default 0.8)",
+        "width": "int - output width (default 1024, snapped to SDXL bucket)",
+        "height": "int - output height (default 1024, snapped to SDXL bucket)",
+    },
+)
+async def generate_controlnet_image_tool(
+    prompt: str,
+    image_path: str,
+    control_type: str = "canny",
+    strength: float = 0.8,
+    width: int = 1024,
+    height: int = 1024,
+) -> dict:
+    from integrations.comfyui.client import generate_with_controlnet
+
+    width = min(max(width, 512), 1536)
+    height = min(max(height, 512), 1536)
+
+    result = await generate_with_controlnet(
+        prompt, image_path, control_type=control_type,
+        strength=strength, width=width, height=height,
+    )
+
+    if not result["success"]:
+        return {"success": False, "error": result["error"]}
+
+    return {
+        "success": True,
+        "message": f"ControlNet image generated (type={result.get('control_type')})",
+        "filename": result["filename"],
+        "download_url": result["download_url"],
+        "base64": result["base64"],
+    }
+
+
+@tool(
+    name="generate_style_image",
+    description=(
+        "Generate an image using a reference photo for style and subject guidance (IP-Adapter). "
+        "Give it a reference image and a prompt — the output will match the style, colors, "
+        "and visual feel of the reference while following the prompt's content. "
+        "Great for brand consistency, character consistency, or style transfer."
+    ),
+    parameters={
+        "prompt": "string - description of the desired output image content",
+        "reference_image_path": "string (REQUIRED) - path to the style reference image",
+        "weight": "float - how strongly the reference influences style 0.0-1.0 (default 0.8)",
+        "width": "int - output width (default 1024, snapped to SDXL bucket)",
+        "height": "int - output height (default 1024, snapped to SDXL bucket)",
+    },
+)
+async def generate_style_image_tool(
+    prompt: str,
+    reference_image_path: str,
+    weight: float = 0.8,
+    width: int = 1024,
+    height: int = 1024,
+) -> dict:
+    from integrations.comfyui.client import generate_with_style_reference
+
+    width = min(max(width, 512), 1536)
+    height = min(max(height, 512), 1536)
+
+    result = await generate_with_style_reference(
+        prompt, reference_image_path, weight=weight, width=width, height=height,
+    )
+
+    if not result["success"]:
+        return {"success": False, "error": result["error"]}
+
+    return {
+        "success": True,
+        "message": "Style reference image generated (IP-Adapter)",
         "filename": result["filename"],
         "download_url": result["download_url"],
         "base64": result["base64"],

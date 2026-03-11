@@ -50,15 +50,25 @@ EMAIL_ACCOUNTS = {
         "use_ssl": True,
         "password_env": "EMAIL_PASS_LOOVACAST",
     },
-    "lumabot": {
-        "email": "lumabot@groundrushlabs.com",
-        "name": "Luma Bot",
+    "alfred": {
+        "email": "alfred@groundrushlabs.com",
+        "name": "Alfred",
         "imap_server": "mail.doowoprnb.com",
         "imap_port": 993,
         "smtp_server": "mail.doowoprnb.com",
         "smtp_port": 465,
         "use_ssl": True,
-        "password_env": "EMAIL_PASS_LUMABOT",
+        "password_env": "EMAIL_PASS_ALFRED",
+    },
+    "oracle": {
+        "email": "oracle@groundrushlabs.com",
+        "name": "Oracle",
+        "imap_server": "mail.doowoprnb.com",
+        "imap_port": 993,
+        "smtp_server": "mail.doowoprnb.com",
+        "smtp_port": 465,
+        "use_ssl": True,
+        "password_env": "EMAIL_PASS_ORACLE",
     },
     "support": {
         "email": "support@loovacast.com",
@@ -79,6 +89,16 @@ EMAIL_ACCOUNTS = {
         "smtp_port": 465,
         "use_ssl": True,
         "password_env": "EMAIL_PASS_INFO_GROUNDRUSH",
+    },
+    "groundrushinc": {
+        "email": "mjohnson@groundrushinc.com",
+        "name": "Mike Johnson",
+        "imap_server": "imap.gmail.com",
+        "imap_port": 993,
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 465,
+        "use_ssl": True,
+        "password_env": "EMAIL_PASS_GROUNDRUSHINC",
     },
 }
 
@@ -147,16 +167,44 @@ class EmailClient:
         except:
             date_formatted = date_str
 
-        # Extract body
+        # Extract body and attachments
         body = ""
+        attachments = []
         if msg.is_multipart():
             for part in msg.walk():
                 content_type = part.get_content_type()
-                if content_type == "text/plain":
+                content_disp = str(part.get("Content-Disposition", ""))
+                filename = part.get_filename()
+
+                # Collect image attachments and inline images
+                if content_type.startswith("image/"):
+                    try:
+                        img_data = part.get_payload(decode=True)
+                        if img_data and len(img_data) < 10_000_000:  # Max 10MB
+                            import base64
+                            attachments.append({
+                                "filename": filename or f"image.{content_type.split('/')[-1]}",
+                                "mimetype": content_type,
+                                "data_b64": base64.b64encode(img_data).decode("utf-8"),
+                                "size": len(img_data),
+                            })
+                    except Exception:
+                        pass
+                elif content_type == "text/plain" and not body and "attachment" not in content_disp:
                     try:
                         body = part.get_payload(decode=True).decode("utf-8", errors="replace")
-                        break
                     except:
+                        pass
+                elif filename and "attachment" in content_disp:
+                    # Non-image attachment — just note it
+                    try:
+                        att_data = part.get_payload(decode=True)
+                        attachments.append({
+                            "filename": filename,
+                            "mimetype": content_type,
+                            "size": len(att_data) if att_data else 0,
+                        })
+                    except Exception:
                         pass
         else:
             try:
@@ -164,7 +212,7 @@ class EmailClient:
             except:
                 body = str(msg.get_payload())
 
-        return {
+        result = {
             "id": msg_id,
             "from": from_addr,
             "to": to_addr,
@@ -173,6 +221,9 @@ class EmailClient:
             "body": body[:5000],  # Limit body size
             "snippet": body[:200].replace("\n", " ").strip(),
         }
+        if attachments:
+            result["attachments"] = attachments
+        return result
 
     def list_accounts(self) -> dict:
         """List all configured email accounts."""
