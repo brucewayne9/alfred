@@ -153,7 +153,7 @@ TOOL_CATEGORIES = {
     "sheets": ["sheets_create", "sheets_read", "sheets_write", "sheets_append_row",
                "sheets_list", "sheets_get"],
     "slides": ["slides_create", "slides_get", "slides_add_slide", "slides_add_text", "slides_list"],
-    "core": ["generate_image", "toggle_auto_speak", "toggle_hands_free"],
+    "core": ["generate_image", "generate_product_video", "generate_controlnet_image", "generate_style_image", "toggle_auto_speak", "toggle_hands_free"],
     "ui_control": ["toggle_auto_speak", "toggle_hands_free"],
     "meta_ads": [
         "meta_ads_account", "meta_ads_summary", "meta_ads_performance",
@@ -284,7 +284,8 @@ CATEGORY_KEYWORDS = {
                  "good morning", "start my day", "catch me up", "status update", "overview"],
     "bridge": ["claw", "alfred claw", "openclaw", "telegram", "send telegram", "message mike",
                "tell mike", "telegram mike", "server 101", "remote task", "claw task"],
-    "core": [],  # Always included
+    "core": ["product video", "video", "showcase", "product demo", "img2vid",
+             "generate video", "animate product", "product animation"],
 }
 
 

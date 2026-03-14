@@ -24,7 +24,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/aialfred\.groundrushcloud\.com\/api\/.*/i,
@@ -68,6 +69,7 @@ export default defineConfig({
       '/notifications': { target: 'http://localhost:8400', changeOrigin: true },
       '/push': { target: 'http://localhost:8400', changeOrigin: true },
       '/settings': { target: 'http://localhost:8400', changeOrigin: true },
+      '/media': { target: 'http://localhost:8400', changeOrigin: true },
       '/static': { target: 'http://localhost:8400', changeOrigin: true },
       '/uploads': { target: 'http://localhost:8400', changeOrigin: true },
       '/ws': { target: 'http://localhost:8400', changeOrigin: true, ws: true },

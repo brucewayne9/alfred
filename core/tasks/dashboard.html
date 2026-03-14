@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Alfred — Tasks</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-2: #1c1c1c;
+    --surface-3: #242424;
+    --border: #2a2a2a;
+    --border-light: #333;
+    --text: #f0f0f0;
+    --text-secondary: #888;
+    --text-muted: #555;
+    --accent: #f97316;
+    --accent-dim: rgba(249, 115, 22, 0.15);
+    --accent-glow: rgba(249, 115, 22, 0.3);
+    --green: #22c55e;
+    --green-dim: rgba(34, 197, 94, 0.12);
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.12);
+    --yellow: #eab308;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { background: var(--bg); }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 100px;
+  }
+
+  /* ── Header ─────────────────────── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 12px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--accent), #fb923c);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: 0 2px 12px var(--accent-glow);
+  }
+
+  .brand-text {
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .date-display {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* ── Stats Bar ──────────────────── */
+  .stats-bar {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .stats-bar::-webkit-scrollbar { display: none; }
+
+  .stat-chip {
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .stat-chip .num {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .stat-chip.accent .num { color: var(--accent); }
+  .stat-chip.green .num { color: var(--green); }
+  .stat-chip.red .num { color: var(--red); }
+
+  /* ── Content ────────────────────── */
+  .content {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 20px 16px;
+  }
+
+  /* ── Section ────────────────────── */
+  .section {
+    margin-bottom: 28px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  .section-title.outstanding { color: var(--red); }
+  .section-title.completed { color: var(--green); }
+
+  .section-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+  }
+
+  .section-badge.red {
+    background: var(--red-dim);
+    color: var(--red);
+  }
+
+  /* ── Task Card ──────────────────── */
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .task-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .task-card:active {
+    transform: scale(0.985);
+  }
+
+  .task-card.completed-card {
+    opacity: 0.5;
+  }
+
+  .task-card.completed-card .task-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+  }
+
+  .task-card.slide-out {
+    animation: slideCheck 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes slideCheck {
+    0% { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(8px); opacity: 0.5; }
+  }
+
+  .task-card.slide-in {
+    animation: slideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes slideIn {
+    0% { transform: translateY(-8px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  .task-card.outstanding-card {
+    border-left: 3px solid var(--red);
+  }
+
+  /* Checkbox */
+  .checkbox {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    border: 2px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 1px;
+  }
+
+  .checkbox:hover {
+    border-color: var(--accent);
+  }
+
+  .checkbox.checked {
+    background: var(--green);
+    border-color: var(--green);
+  }
+
+  .checkbox.checked svg {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .checkbox svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .task-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .task-text {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--text);
+    word-break: break-word;
+    transition: all 0.25s ease;
+  }
+
+  .task-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .days-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--red-dim);
+    color: var(--red);
+  }
+
+  .source-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .task-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .task-card:hover .task-actions { opacity: 1; }
+  @media (hover: none) { .task-actions { opacity: 1; } }
+
+  .action-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+
+  .action-btn:hover {
+    background: var(--surface-3);
+    color: var(--text-secondary);
+  }
+
+  .action-btn.delete:hover {
+    background: var(--red-dim);
+    color: var(--red);
+  }
+
+  /* ── Add Task ───────────────────── */
+  .add-task-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(10, 10, 10, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+
+  .add-task-inner {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .add-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: 15px;
+    font-family: var(--font);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .add-input::placeholder { color: var(--text-muted); }
+  .add-input:focus { border-color: var(--accent); }
+
+  .add-btn {
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--accent), #fb923c);
+    color: #fff;
+    font-size: 22px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 12px var(--accent-glow);
+  }
+
+  .add-btn:active { transform: scale(0.92); }
+  .add-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* ── Completed Section Toggle ───── */
+  .toggle-completed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    margin-bottom: 8px;
+  }
+
+  .toggle-completed .chevron {
+    transition: transform 0.25s ease;
+    color: var(--text-muted);
+  }
+
+  .toggle-completed.open .chevron {
+    transform: rotate(90deg);
+  }
+
+  .toggle-completed span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .completed-list {
+    display: none;
+  }
+  .completed-list.show { display: flex; }
+
+  /* ── Empty State ────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-state .icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+  }
+
+  .empty-state p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── Progress Ring ──────────────── */
+  .progress-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 16px;
+  }
+
+  .progress-ring-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+  }
+
+  .progress-ring {
+    transform: rotate(-90deg);
+  }
+
+  .progress-ring-bg {
+    fill: none;
+    stroke: var(--surface-2);
+    stroke-width: 6;
+  }
+
+  .progress-ring-fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .progress-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  /* ── Loading / Auth ─────────────── */
+  .loading-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--surface-3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ──────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface-3);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+    pointer-events: none;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── Edit Modal ─────────────────── */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 300;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .modal-backdrop.show { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 24px 20px;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    width: 100%;
+    max-width: 640px;
+    animation: modalUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes modalUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .modal-input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    font-size: 15px;
+    font-family: var(--font);
+    color: var(--text);
+    outline: none;
+    margin-bottom: 16px;
+  }
+
+  .modal-input:focus { border-color: var(--accent); }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .modal-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .modal-btn.cancel {
+    background: var(--surface-3);
+    color: var(--text-secondary);
+  }
+
+  .modal-btn.save {
+    background: linear-gradient(135deg, var(--accent), #fb923c);
+    color: #fff;
+  }
+
+  .modal-btn:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+
+<!-- Loading State -->
+<div id="loading" class="loading-screen">
+  <div class="spinner"></div>
+  <span style="font-size:13px;color:var(--text-muted);">Loading tasks...</span>
+</div>
+
+<!-- Main App (hidden until loaded) -->
+<div id="app" style="display:none;">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div class="brand">
+        <div class="brand-icon">A</div>
+        <span class="brand-text">Tasks</span>
+      </div>
+      <div class="date-display" id="dateDisplay"></div>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-chip accent">
+        <span class="num" id="statTotal">0</span> today
+      </div>
+      <div class="stat-chip green">
+        <span class="num" id="statDone">0</span> done
+      </div>
+      <div class="stat-chip red">
+        <span class="num" id="statOutstanding">0</span> overdue
+      </div>
+      <div class="stat-chip">
+        <span class="num" id="statWeek">0</span> this week
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Progress Ring -->
+    <div class="progress-wrapper">
+      <div class="progress-ring-container">
+        <svg class="progress-ring" width="80" height="80">
+          <circle class="progress-ring-bg" cx="40" cy="40" r="34" />
+          <circle class="progress-ring-fill" id="progressRing" cx="40" cy="40" r="34"
+                  stroke-dasharray="213.6" stroke-dashoffset="213.6" />
+        </svg>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+    </div>
+
+    <!-- Outstanding Tasks -->
+    <div class="section" id="outstandingSection" style="display:none;">
+      <div class="section-header">
+        <span class="section-title outstanding">Overdue</span>
+        <span class="section-badge red" id="outstandingBadge">0</span>
+      </div>
+      <div class="task-list" id="outstandingList"></div>
+    </div>
+
+    <!-- Today's Tasks -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Today</span>
+      </div>
+      <div class="task-list" id="todayList"></div>
+      <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="icon">&#9745;</div>
+        <p>No tasks yet.<br>Add one below or wait for tomorrow's brief.</p>
+      </div>
+    </div>
+
+    <!-- Completed (Collapsible) -->
+    <div class="section" id="completedSection" style="display:none;">
+      <div class="toggle-completed" id="toggleCompleted" onclick="toggleCompletedList()">
+        <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M6 3l5 5-5 5V3z"/>
+        </svg>
+        <span id="completedLabel">Completed (0)</span>
+      </div>
+      <div class="completed-list task-list" id="completedList"></div>
+    </div>
+
+  </div>
+
+  <!-- Add Task Bar -->
+  <div class="add-task-bar">
+    <div class="add-task-inner">
+      <input type="text" class="add-input" id="addInput" placeholder="Add a task..." autocomplete="off">
+      <button class="add-btn" id="addBtn" onclick="addTask()">+</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Edit Modal -->
+<div class="modal-backdrop" id="editModal">
+  <div class="modal">
+    <h3>Edit Task</h3>
+    <input type="text" class="modal-input" id="editInput" autocomplete="off">
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeEdit()">Cancel</button>
+      <button class="modal-btn save" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let editingTaskId = null;
+let dashboard = { today: [], outstanding: [], stats: {} };
+
+// ── Auth & Init ──────────────────────
+async function init() {
+  try {
+    // Auto-login
+    await fetch(API + '/auth/auto', { credentials: 'include' });
+    await loadDashboard();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = '';
+  } catch (e) {
+    document.getElementById('loading').innerHTML =
+      '<span style="color:var(--red);font-size:14px;">Failed to connect. Please refresh.</span>';
+  }
+}
+
+// ── API Calls ────────────────────────
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    ...opts,
+  });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+async function loadDashboard() {
+  dashboard = await apiFetch('/api/tasks/dashboard');
+  render();
+}
+
+async function addTask() {
+  const input = document.getElementById('addInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ text }) });
+  toast('Task added');
+  await loadDashboard();
+}
+
+async function toggleTask(id) {
+  const card = document.querySelector(`[data-id="${id}"]`);
+  if (card) {
+    card.classList.add('slide-out');
+    await new Promise(r => setTimeout(r, 200));
+  }
+  await apiFetch(`/api/tasks/${id}/toggle`, { method: 'POST' });
+  await loadDashboard();
+}
+
+async function deleteTask(id, e) {
+  e.stopPropagation();
+  const card = document.querySelector(`[data-id="${id}"]`);
+  if (card) {
+    card.style.transition = 'all 0.3s ease';
+    card.style.transform = 'translateX(100%)';
+    card.style.opacity = '0';
+    await new Promise(r => setTimeout(r, 300));
+  }
+  await apiFetch(`/api/tasks/${id}`, { method: 'DELETE' });
+  toast('Task removed');
+  await loadDashboard();
+}
+
+function openEdit(id, text, e) {
+  e.stopPropagation();
+  editingTaskId = id;
+  document.getElementById('editInput').value = text;
+  document.getElementById('editModal').classList.add('show');
+  setTimeout(() => document.getElementById('editInput').focus(), 100);
+}
+
+function closeEdit() {
+  document.getElementById('editModal').classList.remove('show');
+  editingTaskId = null;
+}
+
+async function saveEdit() {
+  const text = document.getElementById('editInput').value.trim();
+  if (!text || !editingTaskId) return;
+  await apiFetch(`/api/tasks/${editingTaskId}`, { method: 'PUT', body: JSON.stringify({ text }) });
+  closeEdit();
+  toast('Task updated');
+  await loadDashboard();
+}
+
+// ── Render ───────────────────────────
+function render() {
+  const { today, outstanding, stats } = dashboard;
+  const todayPending = today.filter(t => !t.completed);
+  const todayDone = today.filter(t => t.completed);
+
+  // Date
+  const d = new Date();
+  const opts = { weekday: 'long', month: 'long', day: 'numeric' };
+  document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', opts);
+
+  // Stats
+  document.getElementById('statTotal').textContent = stats.total_today || 0;
+  document.getElementById('statDone').textContent = stats.done_today || 0;
+  document.getElementById('statOutstanding').textContent = stats.outstanding_count || 0;
+  document.getElementById('statWeek').textContent = stats.done_this_week || 0;
+
+  // Progress ring
+  const total = (stats.total_today || 0) + (stats.outstanding_count || 0);
+  const done = stats.done_today || 0;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const circumference = 213.6;
+  const offset = circumference - (pct / 100) * circumference;
+  const ring = document.getElementById('progressRing');
+  ring.style.strokeDashoffset = offset;
+  ring.style.stroke = pct === 100 ? 'var(--green)' : 'var(--accent)';
+  document.getElementById('progressText').textContent = pct + '%';
+
+  // Outstanding
+  const outSection = document.getElementById('outstandingSection');
+  const outList = document.getElementById('outstandingList');
+  if (outstanding.length > 0) {
+    outSection.style.display = '';
+    document.getElementById('outstandingBadge').textContent = outstanding.length;
+    outList.innerHTML = outstanding.map(t => taskCard(t, true)).join('');
+  } else {
+    outSection.style.display = 'none';
+  }
+
+  // Today pending
+  const todayList = document.getElementById('todayList');
+  const emptyState = document.getElementById('emptyState');
+  if (todayPending.length > 0) {
+    todayList.innerHTML = todayPending.map(t => taskCard(t, false)).join('');
+    emptyState.style.display = 'none';
+  } else {
+    todayList.innerHTML = '';
+    emptyState.style.display = todayDone.length > 0 ? 'none' : '';
+  }
+
+  // Completed
+  const compSection = document.getElementById('completedSection');
+  if (todayDone.length > 0) {
+    compSection.style.display = '';
+    document.getElementById('completedLabel').textContent = `Completed (${todayDone.length})`;
+    document.getElementById('completedList').innerHTML = todayDone.map(t => taskCard(t, false)).join('');
+  } else {
+    compSection.style.display = 'none';
+  }
+}
+
+function taskCard(task, isOutstanding) {
+  const checked = task.completed ? 'checked' : '';
+  const cardClass = task.completed ? 'completed-card' : (isOutstanding ? 'outstanding-card' : '');
+  const checkSvg = `<svg viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5L5.5 10.5L11.5 3.5"/></svg>`;
+
+  let metaHtml = '';
+  if (isOutstanding && task.days_outstanding > 0) {
+    const label = task.days_outstanding === 1 ? '1 day overdue' : `${task.days_outstanding} days overdue`;
+    metaHtml += `<span class="days-badge">${label}</span>`;
+  }
+  if (task.source && task.source !== 'manual') {
+    const labels = { morning_brief: 'Brief', evening_ping: 'Evening', claw: 'Claw', rollover: 'Rolled' };
+    metaHtml += `<span class="source-badge">${labels[task.source] || task.source}</span>`;
+  }
+  if (task.completed_at) {
+    const t = new Date(task.completed_at);
+    metaHtml += `<span>Done at ${t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>`;
+  }
+
+  const editSvg = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M12.15 2.85a1.2 1.2 0 011.7 1.7L5.9 12.5l-3.4.9.9-3.4 8.75-7.15z"/></svg>`;
+  const deleteSvg = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 2V1h5v1h4v1.5H1.5V2h4zM3 5h10l-.7 9.1a1 1 0 01-1 .9H4.7a1 1 0 01-1-.9L3 5z"/></svg>`;
+
+  return `
+    <div class="task-card ${cardClass} slide-in" data-id="${task.id}" onclick="toggleTask('${task.id}')">
+      <div class="checkbox ${checked}">${checkSvg}</div>
+      <div class="task-body">
+        <div class="task-text">${escHtml(task.text)}</div>
+        ${metaHtml ? `<div class="task-meta">${metaHtml}</div>` : ''}
+      </div>
+      <div class="task-actions">
+        <button class="action-btn" onclick="openEdit('${task.id}', ${escAttr(task.text)}, event)" title="Edit">${editSvg}</button>
+        <button class="action-btn delete" onclick="deleteTask('${task.id}', event)" title="Delete">${deleteSvg}</button>
+      </div>
+    </div>
+  `;
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escAttr(s) {
+  return JSON.stringify(s);
+}
+
+// ── UI Helpers ───────────────────────
+function toggleCompletedList() {
+  const btn = document.getElementById('toggleCompleted');
+  const list = document.getElementById('completedList');
+  btn.classList.toggle('open');
+  list.classList.toggle('show');
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── Keyboard ─────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement === document.getElementById('addInput')) {
+    addTask();
+  }
+  if (e.key === 'Enter' && document.activeElement === document.getElementById('editInput')) {
+    saveEdit();
+  }
+  if (e.key === 'Escape') {
+    closeEdit();
+  }
+});
+
+// Click outside modal to close
+document.getElementById('editModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeEdit();
+});
+
+// ── Start ────────────────────────────
+init();
+</script>
+
+</body>
+</html>

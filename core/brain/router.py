@@ -18,6 +18,7 @@ from typing import AsyncGenerator
 
 import anthropic
 import ollama as ollama_client
+from ollama import AsyncClient as OllamaAsyncClient
 
 from config.settings import settings
 from core.tools.registry import get_tools_prompt, parse_tool_call, execute_tool, get_tools, _tools
@@ -113,6 +114,7 @@ class ModelTier(str, Enum):
     LOCAL = "local"
     CLOUD = "cloud"  # Claude API with native tool calling
     OPENAI = "openai"  # OpenAI gpt-4o-mini with native tool calling
+    CODEX = "codex"  # OpenAI Codex GPT-5.3 via ChatGPT Plus OAuth
     CLAUDE_CODE = "claude-code"
 
 
@@ -298,15 +300,17 @@ async def get_system_prompt(query: str = None) -> str:
 async def query_local(messages: list[dict], model: str | None = None) -> str:
     model = model or settings.ollama_model
     logger.info(f"Querying local model: {model}")
-    response = ollama_client.chat(model=model, messages=messages)
+    client = OllamaAsyncClient()
+    response = await client.chat(model=model, messages=messages)
     return response["message"]["content"]
 
 
 async def stream_local(messages: list[dict], model: str | None = None) -> AsyncGenerator[str, None]:
     model = model or settings.ollama_model
     logger.info(f"Streaming local model: {model}")
-    stream = ollama_client.chat(model=model, messages=messages, stream=True)
-    for chunk in stream:
+    client = OllamaAsyncClient()
+    stream = await client.chat(model=model, messages=messages, stream=True)
+    async for chunk in stream:
         content = chunk["message"]["content"]
         if content:
             yield content
@@ -321,23 +325,104 @@ async def query_ollama_model(
 
     Ollama cloud models are accessed the same way as local - Ollama
     handles the routing transparently based on the model name.
+    Uses AsyncClient to avoid blocking the event loop.
     """
     model_name = model_config.name
     provider = model_config.provider
 
     logger.info(f"Querying {provider.value} model: {model_name}")
 
+    client = OllamaAsyncClient()
+
     if stream:
         async def _stream():
-            ollama_stream = ollama_client.chat(model=model_name, messages=messages, stream=True)
-            for chunk in ollama_stream:
+            ollama_stream = await client.chat(model=model_name, messages=messages, stream=True)
+            async for chunk in ollama_stream:
                 content = chunk["message"]["content"]
                 if content:
                     yield content
         return _stream()
 
-    response = ollama_client.chat(model=model_name, messages=messages)
+    response = await client.chat(model=model_name, messages=messages)
     return response["message"]["content"]
+
+
+def _get_codex_token() -> str:
+    """Read the current Codex OAuth token from OpenClaw's auth profiles.
+
+    OpenClaw auto-refreshes this token, so we always read the latest.
+    """
+    auth_path = os.path.expanduser("~/.openclaw/agents/main/agent/auth-profiles.json")
+    try:
+        with open(auth_path) as f:
+            profiles = json.load(f)
+        profile = profiles.get("profiles", {}).get("openai-codex:default", {})
+        token = profile.get("access")
+        if token:
+            return token
+    except Exception as e:
+        logger.warning(f"Failed to read Codex token: {e}")
+    return ""
+
+
+async def query_openai_codex(
+    messages: list[dict],
+    model_config: ModelConfig,
+    stream: bool = False,
+) -> str | AsyncGenerator[str, None]:
+    """Query OpenAI Codex model using the OAuth token from OpenClaw."""
+    import httpx
+
+    token = _get_codex_token()
+    if not token:
+        raise ValueError("No Codex OAuth token available. Check OpenClaw auth profiles.")
+
+    model_name = model_config.name
+    logger.info(f"Querying OpenAI Codex model: {model_name}")
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "model": model_name,
+        "messages": messages,
+        "stream": stream,
+    }
+
+    if stream:
+        async def _stream():
+            async with httpx.AsyncClient(timeout=120) as client:
+                async with client.stream(
+                    "POST",
+                    "https://api.openai.com/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                ) as resp:
+                    async for line in resp.aiter_lines():
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            if data == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data)
+                                content = chunk["choices"][0]["delta"].get("content", "")
+                                if content:
+                                    yield content
+                            except (json.JSONDecodeError, KeyError, IndexError):
+                                continue
+        return _stream()
+
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
 
 
 async def query_smart(
@@ -385,6 +470,25 @@ async def query_smart(
         result["model_used"] = model_config.name
         result["task_type"] = task_type.value
         return result
+
+    if model_config.provider == ModelProvider.OPENAI_CODEX:
+        try:
+            if stream:
+                return {
+                    "stream": await query_openai_codex(messages, model_config, stream=True),
+                    "model_used": model_config.name,
+                    "task_type": task_type.value,
+                }
+            response = await query_openai_codex(messages, model_config)
+            response = _strip_tool_json(response)
+            return {
+                "response": response,
+                "model_used": model_config.name,
+                "task_type": task_type.value,
+            }
+        except Exception as e:
+            logger.error(f"Codex query failed: {e}, falling back to Ollama")
+            # Fall through to Ollama on error
 
     if model_config.provider == ModelProvider.CLAUDE:
         # Use Claude API with tool calling
@@ -1028,6 +1132,23 @@ async def ask(
     if tier == ModelTier.CLOUD:
         return await query_claude_tools(query, messages)
 
+    # OpenAI Codex GPT-5.3 via ChatGPT Plus OAuth
+    if tier == ModelTier.CODEX:
+        codex_config = MODELS.get("codex:gpt-5.3")
+        if codex_config:
+            system_prompt = await get_system_prompt(query)
+            if messages is None:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query},
+                ]
+            elif messages and messages[0]["role"] == "system":
+                messages[0]["content"] = system_prompt
+            if stream:
+                return await query_openai_codex(messages, codex_config, stream=True)
+            response = await query_openai_codex(messages, codex_config)
+            return response
+
     # OpenAI gpt-4o-mini with native tool calling (fast + cheap)
     if tier == ModelTier.OPENAI:
         return await query_openai_tools(query, messages)
@@ -1049,12 +1170,38 @@ async def ask(
     # Ask Qwen first
     response = await query_local(messages)
 
-    # Check if Qwen tried to call a tool — if so, hand off to ChatGPT
-    # which has reliable native tool calling
+    # Check if Qwen tried to call a tool — execute it locally via Ollama
     tool_call = parse_tool_call(response)
     if tool_call:
-        logger.info(f"Qwen attempted tool call ({tool_call[0]}), escalating to OpenAI for reliable execution")
-        return await query_openai_tools(query, messages)
+        tool_name, tool_args = tool_call
+        logger.info(f"Qwen requested tool: {tool_name}")
+        tool_result = await execute_tool(tool_name, tool_args)
+
+        # Handle UI actions
+        ui_action = None
+        generated_images = []
+        if isinstance(tool_result, dict) and tool_result.get("ui_action"):
+            ui_action = {"action": tool_result["ui_action"], "value": tool_result.get("value")}
+            return {"response": tool_result.get("message", "Done."), "images": None, "ui_action": ui_action}
+
+        # Handle image generation
+        if tool_name == "generate_image" and isinstance(tool_result, dict) and tool_result.get("success") and tool_result.get("base64"):
+            generated_images.append({
+                "base64": tool_result["base64"],
+                "filename": tool_result.get("filename", "generated.png"),
+                "download_url": tool_result.get("download_url", ""),
+            })
+            tool_result = {k: v for k, v in tool_result.items() if k != "base64"}
+
+        # Feed tool result back to Qwen for final response
+        messages.append({"role": "assistant", "content": response})
+        messages.append({
+            "role": "user",
+            "content": f"[Tool result for {tool_name}]:\n```json\n{json.dumps(tool_result, indent=2, default=str)}\n```\nProvide a natural language response.",
+        })
+        response = await query_local(messages)
+        response = _strip_tool_json(response)
+        return {"response": response, "images": generated_images or None, "ui_action": None}
 
     # No tool call — Qwen handled it, return the response
     response = _strip_tool_json(response)

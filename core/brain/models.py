@@ -16,6 +16,7 @@ class ModelProvider(str, Enum):
     """Model hosting provider."""
     LOCAL = "local"           # Local Ollama (RTX 4070)
     OLLAMA_CLOUD = "ollama"   # Ollama cloud models
+    OPENAI_CODEX = "openai-codex"  # OpenAI Codex (ChatGPT Plus OAuth)
     CLAUDE = "claude"         # Anthropic Claude API
     CLAUDE_CODE = "claude-code"  # Claude Code CLI
 
@@ -191,6 +192,15 @@ MODELS = {
         cost_tier=2, speed_tier=2, quality_tier=3,
         description="Vision + language + thinking"
     ),
+    "cloud:minimax-m2": ModelConfig(
+        name="minimax-m2:cloud",
+        provider=ModelProvider.OLLAMA_CLOUD,
+        context_window=131072,
+        supports_tools=True,
+        supports_thinking=True,
+        cost_tier=1, speed_tier=1, quality_tier=3,
+        description="MiniMax M2 - fastest cloud model, excellent tool calling"
+    ),
     "cloud:kimi-k2.5": ModelConfig(
         name="kimi-k2.5",
         provider=ModelProvider.OLLAMA_CLOUD,
@@ -222,6 +232,20 @@ MODELS = {
         context_window=65536,
         cost_tier=3, speed_tier=2, quality_tier=3,
         description="Gemini Pro - strong reasoning"
+    ),
+
+    # OPENAI CODEX (ChatGPT Plus OAuth via OpenClaw)
+    "codex:gpt-5.3": ModelConfig(
+        name="gpt-5.3-codex",
+        provider=ModelProvider.OPENAI_CODEX,
+        context_window=192000,
+        supports_tools=True,
+        supports_vision=False,
+        supports_thinking=True,
+        cost_tier=1,  # Free with ChatGPT Plus
+        speed_tier=2,
+        quality_tier=3,
+        description="OpenAI Codex GPT-5.3 - strong reasoning, free with Plus"
     ),
 
     # CLAUDE MODELS
@@ -281,16 +305,15 @@ TASK_ROUTING: dict[TaskType, list[str]] = {
     TaskType.RESEARCH: ["cloud:qwen3-coder-next", "cloud:deepseek-v3.1", "cloud:gpt-oss-120b", "claude:sonnet"],
     TaskType.PLANNING: ["cloud:qwen3-coder-next", "claude:sonnet", "cloud:deepseek-v3.1", "cloud:nemotron-30b"],
 
-    # Tool/Integration tasks - prefer Ollama, Claude API as fallback
-    TaskType.TOOL_CALLING: ["cloud:qwen3-coder-next", "local:mistral:7b", "cloud:nemotron-30b", "cloud:devstral-24b", "claude:sonnet"],
-    TaskType.INTEGRATION: ["cloud:qwen3-coder-next", "cloud:nemotron-30b", "local:mistral:7b", "claude:sonnet"],
-    # Smart home - qwen3-coder-next first, Claude Code as fallback
-    TaskType.SMART_HOME: ["cloud:qwen3-coder-next", "local:mistral:7b", "claude:sonnet"],
+    # Tool/Integration tasks - MiniMax M2 primary (fastest), fallbacks match Claw
+    TaskType.TOOL_CALLING: ["cloud:minimax-m2", "cloud:nemotron-30b", "cloud:qwen3-coder-next", "claude:sonnet"],
+    TaskType.INTEGRATION: ["cloud:minimax-m2", "cloud:nemotron-30b", "cloud:qwen3-coder-next", "claude:sonnet"],
+    TaskType.SMART_HOME: ["cloud:minimax-m2", "cloud:nemotron-30b", "claude:sonnet"],
 
-    # Agentic tasks - qwen3-coder-next primary, Claude Code picks up slack
-    TaskType.ORCHESTRATION: ["cloud:qwen3-coder-next", "claude:sonnet", "cloud:kimi-k2.5", "cloud:nemotron-30b"],
-    TaskType.MULTI_STEP: ["cloud:qwen3-coder-next", "claude:sonnet", "cloud:deepseek-v3.1", "cloud:nemotron-30b"],
-    TaskType.AGENT_SPAWN: ["cloud:qwen3-coder-next", "claude:sonnet"],
+    # Agentic tasks - MiniMax M2 primary, qwen3-coder-next for complex
+    TaskType.ORCHESTRATION: ["cloud:minimax-m2", "cloud:qwen3-coder-next", "claude:sonnet", "cloud:nemotron-30b"],
+    TaskType.MULTI_STEP: ["cloud:minimax-m2", "cloud:qwen3-coder-next", "claude:sonnet", "cloud:nemotron-30b"],
+    TaskType.AGENT_SPAWN: ["cloud:minimax-m2", "cloud:qwen3-coder-next", "claude:sonnet"],
 
     # Multimodal
     TaskType.VISION: ["cloud:qwen3-vl", "cloud:kimi-k2.5", "claude:sonnet"],

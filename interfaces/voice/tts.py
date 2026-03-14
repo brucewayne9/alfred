@@ -101,30 +101,20 @@ class TTSEngine:
             return self._synthesize_kokoro(text, "bm_daniel")
 
     def _synthesize_kokoro(self, text: str, voice_id: str) -> bytes:
-        """Synthesize using Kokoro TTS."""
+        """Synthesize using Kokoro TTS API server (port 8880)."""
         try:
-            from kokoro import KPipeline
-            if self._model is None:
-                self._model = KPipeline(lang_code="b")
-                logger.info("Kokoro TTS model loaded")
-
-            audio_segments = []
-            for _, _, audio in self._model(text, voice=voice_id):
-                audio_segments.append(audio)
-
-            if not audio_segments:
-                return b""
-
-            import numpy as np
-            import soundfile as sf
-
-            combined = np.concatenate(audio_segments)
-            buf = io.BytesIO()
-            sf.write(buf, combined, 24000, format="WAV")
-            buf.seek(0)
-            return buf.read()
-        except ImportError:
-            logger.warning("Kokoro not installed, falling back to espeak")
+            response = requests.post(
+                "http://localhost:8880/v1/audio/speech",
+                json={"model": "kokoro", "input": text, "voice": voice_id, "response_format": "wav"},
+                timeout=120,
+            )
+            if response.status_code == 200:
+                return response.content
+            else:
+                logger.error(f"Kokoro API error: {response.status_code} - {response.text[:200]}")
+                return self._synthesize_espeak(text)
+        except Exception as e:
+            logger.error(f"Kokoro API connection failed: {e}, falling back to espeak")
             return self._synthesize_espeak(text)
 
     def _synthesize_piper(self, text: str) -> bytes:
@@ -160,12 +150,19 @@ def get_engine(backend: str = "kokoro") -> TTSEngine:
 
 
 def warmup():
-    """Pre-load the TTS model so first request is fast."""
+    """Verify TTS backend is reachable."""
     from config.settings import settings
     backend = settings.tts_model
-    voice = getattr(settings, 'tts_voice', None) or ("demo_speaker0" if backend == "qwen3" else "bm_daniel")
     engine = get_engine(backend)
-    engine.synthesize("warmup", voice)
+    if backend == "kokoro":
+        try:
+            resp = requests.get("http://localhost:8880/v1/models", timeout=5)
+            logger.info(f"Kokoro TTS server reachable (status {resp.status_code})")
+        except Exception as e:
+            logger.warning(f"Kokoro TTS server not reachable: {e}")
+    else:
+        voice = getattr(settings, 'tts_voice', None) or "demo_speaker0"
+        engine.synthesize("warmup", voice)
     logger.info("TTS engine warmed up")
 
 

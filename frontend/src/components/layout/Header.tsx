@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Menu, LogOut, Volume2, VolumeX, Headphones, AudioWaveform, Settings2 } from 'lucide-react'
+import { Menu, LogOut, Volume2, VolumeX, Headphones, AudioWaveform, Settings2, BookOpen } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useSidebarStore } from '../../stores/sidebarStore'
 import { useVoiceStore } from '../../stores/voiceStore'
@@ -75,7 +75,12 @@ function TtsPopover({ onClose }: { onClose: () => void }) {
   )
 }
 
-export function Header() {
+interface HeaderProps {
+  currentView?: 'chat' | 'knowledge'
+  onViewChange?: (view: 'chat' | 'knowledge') => void
+}
+
+export function Header({ currentView = 'chat', onViewChange }: HeaderProps) {
   const { logout, user } = useAuthStore()
   const toggleSidebar = useSidebarStore(s => s.toggle)
   const { autoSpeak, setAutoSpeak, handsFreeActive, setHandsFree, wakeWordActive, setWakeWord } = useVoiceStore()
@@ -128,6 +133,14 @@ export function Header() {
           title="Voice settings"
         >
           <Settings2 size={18} />
+        </button>
+
+        <button
+          onClick={() => onViewChange?.(currentView === 'knowledge' ? 'chat' : 'knowledge')}
+          className={`p-2 rounded-lg transition-colors ${currentView === 'knowledge' ? 'text-alfred-accent bg-alfred-accent/10' : 'text-alfred-muted hover:text-white hover:bg-alfred-hover'}`}
+          title="Knowledge Base"
+        >
+          <BookOpen size={18} />
         </button>
 
         {showTts && <TtsPopover onClose={() => setShowTts(false)} />}

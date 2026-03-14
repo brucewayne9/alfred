@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { ChatArea } from '../chat/ChatArea'
@@ -8,12 +8,14 @@ import { ToastContainer } from '../notifications/ToastContainer'
 import { VadStatus } from '../voice/VadStatus'
 import { useChatStore } from '../../stores/chatStore'
 import { useSidebarStore } from '../../stores/sidebarStore'
+import { KnowledgePage } from '../knowledge/KnowledgePage'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { useHandsFree } from '../../hooks/useHandsFree'
 import { useWakeWord } from '../../hooks/useWakeWord'
 
 export function AppLayout() {
+  const [currentView, setCurrentView] = useState<'chat' | 'knowledge'>('chat')
   const { messages, currentConversationId } = useChatStore()
   const { loadConversations, loadProjects } = useSidebarStore()
   const { subscribe } = usePushNotifications()
@@ -32,11 +34,13 @@ export function AppLayout() {
 
   return (
     <div className="h-full flex flex-col bg-alfred-bg safe-top">
-      <Header />
+      <Header currentView={currentView} onViewChange={setCurrentView} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 flex flex-col min-w-0">
-          {hasMessages ? (
+          {currentView === 'knowledge' ? (
+            <KnowledgePage />
+          ) : hasMessages ? (
             <>
               <ChatArea />
               <ChatInput />

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Paperclip, Loader2 } from 'lucide-react'
+import { Send, Paperclip, Loader2, ChevronDown } from 'lucide-react'
 import { useChatStore } from '../../stores/chatStore'
 import { useChat } from '../../hooks/useChat'
 import { useVoice } from '../../hooks/useVoice'
@@ -29,6 +29,8 @@ export function ChatInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isThinking = useChatStore(s => s.isThinking)
+  const selectedTier = useChatStore(s => s.selectedTier)
+  const setTier = useChatStore(s => s.setTier)
   const { send } = useChat()
   const voice = useVoice()
   const transcribedText = useVoiceStore(s => s.transcribedText)
@@ -127,12 +129,35 @@ export function ChatInput() {
     }
   }, [])
 
+  const MODEL_OPTIONS = [
+    { value: null, label: 'Auto' },
+    { value: 'codex', label: 'Codex' },
+    { value: 'local', label: 'Local' },
+    { value: 'cloud', label: 'Claude' },
+    { value: 'openai', label: 'GPT-4o' },
+  ]
+
   return (
     <div className="shrink-0 px-4 pb-4 safe-bottom">
       <div className="max-w-3xl mx-auto">
         {file && (
           <FilePreview name={file.name} onRemove={() => setFile(null)} />
         )}
+        <div className="flex items-center gap-1.5 mb-1.5 ml-1">
+          {MODEL_OPTIONS.map(opt => (
+            <button
+              key={opt.value ?? 'auto'}
+              onClick={() => setTier(opt.value)}
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
+                selectedTier === opt.value
+                  ? 'bg-alfred-accent text-white'
+                  : 'bg-alfred-hover text-alfred-muted hover:text-white'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         <div className="flex items-end gap-2 bg-alfred-input border border-alfred-border rounded-2xl px-3 py-2 focus-within:border-alfred-accent/50 transition-colors">
           <button
             onClick={() => fileInputRef.current?.click()}

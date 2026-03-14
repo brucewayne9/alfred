@@ -17,20 +17,29 @@ interface ChatState {
   currentConversationId: string | null
   isThinking: boolean
   error: string | null
+  selectedTier: string | null  // null = auto-route
 
   sendMessage: (text: string, imageBase64?: string, imageMediaType?: string, documentPath?: string) => Promise<void>
   loadConversation: (id: string) => Promise<void>
   newChat: () => void
   clearError: () => void
+  setTier: (tier: string | null) => void
 }
 
 let messageCounter = 0
+
+/** Strip tool call JSON from streamed responses */
+function stripToolJson(text: string): string {
+  // Remove {"tool": "...", "args": {...}} patterns
+  return text.replace(/\{"tool"\s*:\s*"[^"]+"\s*,\s*"args"\s*:\s*\{[^}]*\}\s*\}/g, '').trim()
+}
 
 export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   currentConversationId: null,
   isThinking: false,
   error: null,
+  selectedTier: null,
 
   sendMessage: async (text, imageBase64, imageMediaType, documentPath) => {
     const state = get()
@@ -69,6 +78,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }],
     }))
 
+    const tier = get().selectedTier || undefined
     try {
       // Try streaming first
       let fullText = ''
@@ -76,24 +86,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
         {
           message: text,
           session_id: convId!,
+          tier,
           image_base64: imageBase64,
           image_media_type: imageMediaType,
           document_path: documentPath,
         },
         (chunk) => {
           fullText += chunk
+          const displayText = stripToolJson(fullText)
           set(s => ({
             messages: s.messages.map(m =>
-              m.id === assistantId ? { ...m, content: fullText } : m,
+              m.id === assistantId ? { ...m, content: displayText } : m,
             ),
           }))
         },
       )
 
-      // Finalize
+      // Finalize — strip any remaining tool JSON from final text
+      const finalText = stripToolJson(fullText)
       set(s => ({
         messages: s.messages.map(m =>
-          m.id === assistantId ? { ...m, isStreaming: false } : m,
+          m.id === assistantId ? { ...m, content: finalText, isStreaming: false } : m,
         ),
         isThinking: false,
       }))
@@ -103,6 +116,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const res = await chatApi.send({
           message: text,
           session_id: convId!,
+          tier,
           image_base64: imageBase64,
           image_media_type: imageMediaType,
           document_path: documentPath,
@@ -145,4 +159,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   newChat: () => set({ currentConversationId: null, messages: [], error: null }),
 
   clearError: () => set({ error: null }),
+
+  setTier: (tier) => set({ selectedTier: tier }),
 }))

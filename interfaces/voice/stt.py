@@ -9,14 +9,15 @@ logger = logging.getLogger(__name__)
 _model = None
 
 
-def get_model(model_size: str = "small", device: str = "cuda") -> WhisperModel:
+def get_model(model_size: str = "small", device: str = "cpu") -> WhisperModel:
     global _model
     if _model is None:
         logger.info(f"Loading Whisper model: {model_size} on {device}")
         _model = WhisperModel(
             model_size,
             device=device,
-            compute_type="int8_float16" if device == "cuda" else "int8",
+            compute_type="int8",
+            cpu_threads=8,
         )
         logger.info("Whisper model loaded")
     return _model

@@ -118,6 +118,35 @@ def _should_skip_volume(volume_name: str, server_name: str) -> bool:
     return False
 
 
+def _cleanup_remote_tar(alias: str | None, tarball_path: str, server_name: str) -> None:
+    """Remove a Docker-created tar file from /tmp on a remote (or local) server.
+
+    Docker creates files as root, and /tmp has the sticky bit, so a normal
+    ``rm -f`` as the SSH user will fail.  We use a throwaway Alpine container
+    to perform the deletion as root instead.
+    """
+    try:
+        if alias is None:
+            # Local — the script runs as aialfred, so use docker too
+            subprocess.run(
+                ["docker", "run", "--rm", "-v", "/tmp:/tmp", "alpine",
+                 "rm", "-f", tarball_path],
+                capture_output=True, timeout=15,
+            )
+        else:
+            run_cmd(
+                alias,
+                f"docker run --rm -v /tmp:/tmp alpine rm -f {tarball_path}",
+                timeout=30,
+            )
+        logger.debug("[%s] Cleaned up remote temp file: %s", server_name, tarball_path)
+    except Exception as exc:
+        logger.warning(
+            "[%s] Failed to clean up remote temp file %s: %s",
+            server_name, tarball_path, exc,
+        )
+
+
 def _export_docker_volume(
     alias: str | None,
     volume_name: str,
@@ -159,6 +188,8 @@ def _export_docker_volume(
                 "[%s] Volume export did not confirm OK for '%s'",
                 server_name, volume_name,
             )
+            # Clean up the potentially created temp file
+            _cleanup_remote_tar(alias, remote_tarball, server_name)
             return False
 
         # Now scp/copy the tarball to staging
@@ -193,11 +224,8 @@ def _export_docker_volume(
                 text=True,
                 timeout=120,
             )
-            # Cleanup remote temp file (non-fatal if this fails)
-            try:
-                run_cmd(alias, f"rm -f {remote_tarball}", timeout=10)
-            except Exception:
-                pass
+            # Cleanup remote temp file after successful SCP
+            _cleanup_remote_tar(alias, remote_tarball, server_name)
 
             if scp_result.returncode == 0 and os.path.exists(local_tarball):
                 logger.debug(
@@ -211,6 +239,8 @@ def _export_docker_volume(
                     "[%s] SCP failed for volume export '%s': %s",
                     server_name, volume_name, scp_result.stderr.strip(),
                 )
+                # Ensure remote temp file is cleaned up on SCP failure
+                _cleanup_remote_tar(alias, remote_tarball, server_name)
                 return False
 
     except Exception as exc:

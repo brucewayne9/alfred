@@ -100,7 +100,20 @@ async def lifespan(app: FastAPI):
         logger.info("Agent pool initialized with 3 workers")
     except Exception as e:
         logger.warning(f"Agent pool initialization failed: {e}")
+    # Start GPU idle cleanup loop (stops GPU services after 5 min idle)
+    async def _gpu_idle_loop():
+        from integrations.gpu_manager import cleanup_idle
+        while True:
+            await asyncio.sleep(60)
+            try:
+                stopped = await cleanup_idle()
+                if stopped:
+                    logger.info(f"GPU idle cleanup stopped: {stopped}")
+            except Exception:
+                pass
+    gpu_cleanup_task = asyncio.create_task(_gpu_idle_loop())
     yield
+    gpu_cleanup_task.cancel()
     # Shutdown agent pool
     try:
         from core.orchestration.agents import get_agent_pool
@@ -129,7 +142,19 @@ app.add_middleware(
 # Static files for PWA icons
 _static_dir = Path(__file__).parent.parent.parent / "static"
 if _static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+    app.mount("/static", StaticFiles(directory=str(_static_dir), follow_symlink=True), name="static")
+
+# Serve Claw's draft pages for review
+_drafts_dir = Path.home() / ".openclaw" / "workspace" / "static" / "drafts"
+if _drafts_dir.exists():
+    app.mount("/drafts", StaticFiles(directory=str(_drafts_dir), html=True), name="drafts")
+
+
+@app.get("/static/drafts/{file_path:path}")
+async def static_drafts_redirect(file_path: str):
+    """Redirect /static/drafts/* to /drafts/* for Claw compatibility."""
+    return RedirectResponse(f"/drafts/{file_path}", status_code=301)
+
 
 # Serve React frontend build if available
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
@@ -309,6 +334,22 @@ class PasskeyLoginRequest(BaseModel):
 
 class ConversationProjectRequest(BaseModel):
     project_id: str | None = None
+
+
+class TaskCreateRequest(BaseModel):
+    text: str
+    target_date: str | None = None
+    source: str = "manual"
+
+
+class TaskUpdateRequest(BaseModel):
+    text: str
+
+
+class TaskBulkRequest(BaseModel):
+    texts: list[str]
+    target_date: str | None = None
+    source: str = "morning_brief"
 
 
 # Conversation history per session
@@ -783,6 +824,62 @@ def _check_claude_code_cli() -> bool:
     return False
 
 
+# ==================== Twilio Call Escalation ====================
+
+# Pending urgent call escalations: CallSid -> {from, speech, timestamp, status}
+# status: "pending" (waiting for Telegram reply), "connect", "decline"
+_pending_escalations: dict[str, dict] = {}
+
+MIKE_CELL = "+16788582241"
+MIKE_TELEGRAM_ID = "7582976864"
+ESCALATION_TIMEOUT = 60  # seconds to wait for Telegram reply
+
+URGENCY_KEYWORDS = [
+    "urgent", "emergency", "asap", "right away", "immediately",
+    "critical", "important", "need to speak", "talk to mike",
+    "talk to him", "speak to him", "reach mike", "reach him",
+    "get mike", "get him on the phone", "put me through",
+    "transfer me", "connect me", "it's an emergency",
+    "time sensitive", "can't wait", "need help now",
+    "speak with mike", "talk to the owner", "speak to the owner",
+    "need mike", "is mike there", "is mike available",
+]
+
+
+def _detect_urgency(speech: str) -> bool:
+    """Check if caller speech indicates urgency or wants to reach Mike."""
+    lower = speech.lower()
+    return any(kw in lower for kw in URGENCY_KEYWORDS)
+
+
+async def _notify_telegram_escalation(call_sid: str, from_number: str, speech: str):
+    """Send Telegram notification to Mike about urgent call with action links."""
+    import subprocess
+    from urllib.parse import quote
+    base = "https://aialfred.groundrushcloud.com/webhooks/twilio/voice/escalation-reply"
+    connect_url = f"{base}?sid={quote(call_sid)}&action=connect"
+    decline_url = f"{base}?sid={quote(call_sid)}&action=decline"
+    msg = (
+        f"URGENT CALL from {from_number}\n"
+        f"They said: \"{speech}\"\n\n"
+        f"CONNECT (tap to answer on your cell):\n{connect_url}\n\n"
+        f"DECLINE (tap to send to voicemail):\n{decline_url}"
+    )
+    try:
+        subprocess.Popen(
+            [
+                "ssh", "-p", "2222", "-o", "StrictHostKeyChecking=no",
+                "brucewayne9@75.43.156.101",
+                f"openclaw message send --channel telegram --target {MIKE_TELEGRAM_ID} -m '{msg.replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}'"
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        logger.info(f"Telegram escalation sent for call {call_sid}")
+    except Exception as e:
+        logger.error(f"Failed to send Telegram escalation: {e}")
+
+
 # ==================== Twilio Webhooks ====================
 
 @app.post("/webhooks/twilio/sms")
@@ -912,6 +1009,33 @@ async def twilio_voice_process(request: Request):
         response.play(f"{base_url}/audio/tts/{get_static_audio_id('error')}.wav")
         return Response(content=str(response), media_type="application/xml")
 
+    # Check for urgency — if caller wants to reach Mike, escalate
+    if _detect_urgency(speech_result):
+        form_data = await request.form()
+        params = dict(form_data)
+        call_sid = params.get("CallSid", "")
+        from_number = params.get("From", "unknown")
+
+        import time
+        _pending_escalations[call_sid] = {
+            "from": from_number,
+            "speech": speech_result,
+            "timestamp": time.time(),
+            "status": "pending",
+        }
+        logger.info(f"Urgent call detected from {from_number}, escalating: {speech_result[:80]}")
+
+        # Notify Mike on Telegram
+        await _notify_telegram_escalation(call_sid, from_number, speech_result)
+
+        # Tell caller we're reaching out, then put them in a hold loop
+        hold_msg = "I understand this is urgent. I'm reaching out to Mike now. Please hold for up to 60 seconds while I get him on the line."
+        hold_audio_id = generate_tts_audio(hold_msg)
+        response.play(f"{base_url}/audio/tts/{hold_audio_id}.wav")
+        response.redirect(f"{base_url}/webhooks/twilio/voice/hold?sid={call_sid}", method="POST")
+
+        return Response(content=str(response), media_type="application/xml")
+
     # Process speech through Alfred
     # Add phone-specific instructions to keep responses brief (Twilio has 15s timeout)
     phone_query = f"[PHONE CALL - Keep response under 3 sentences. Be concise and conversational. No lists or detailed breakdowns.] {speech_result}"
@@ -958,6 +1082,157 @@ async def twilio_voice_process(request: Request):
     response.play(f"{base_url}/audio/tts/{followup_audio_id}.wav")
 
     return Response(content=str(response), media_type="application/xml")
+
+
+@app.post("/webhooks/twilio/voice/hold")
+async def twilio_voice_hold(request: Request):
+    """Hold loop — checks every 10s if Mike replied CONNECT or DECLINE on Telegram.
+
+    Polls _pending_escalations for status changes. Times out after 60s.
+    """
+    from twilio.twiml.voice_response import VoiceResponse
+    import time
+
+    call_sid = request.query_params.get("sid", "")
+    base_url = "https://aialfred.groundrushcloud.com"
+    response = VoiceResponse()
+
+    escalation = _pending_escalations.get(call_sid)
+    if not escalation:
+        # No escalation found, go back to normal flow
+        msg = "I'm sorry, I wasn't able to reach anyone. Let me take a message instead. What would you like me to pass along?"
+        audio_id = generate_tts_audio(msg)
+        from twilio.twiml.voice_response import Gather
+        gather = Gather(
+            input="speech",
+            action=f"{base_url}/webhooks/twilio/voice/voicemail?sid={call_sid}",
+            method="POST",
+            speech_timeout="5",
+            timeout=10,
+            language="en-US",
+        )
+        gather.play(f"{base_url}/audio/tts/{audio_id}.wav")
+        response.append(gather)
+        return Response(content=str(response), media_type="application/xml")
+
+    elapsed = time.time() - escalation["timestamp"]
+
+    if escalation["status"] == "connect":
+        # Mike said CONNECT — bridge the call
+        connect_msg = "Mike is available. Connecting you now."
+        audio_id = generate_tts_audio(connect_msg)
+        response.play(f"{base_url}/audio/tts/{audio_id}.wav")
+        dial = response.dial(
+            caller_id="+14707050606",
+            action=f"{base_url}/webhooks/twilio/voice/status",
+            timeout=30,
+        )
+        dial.number(MIKE_CELL)
+        # Clean up
+        _pending_escalations.pop(call_sid, None)
+        return Response(content=str(response), media_type="application/xml")
+
+    elif escalation["status"] == "decline" or elapsed > ESCALATION_TIMEOUT:
+        # Mike declined or timed out — take a message
+        if elapsed > ESCALATION_TIMEOUT:
+            logger.info(f"Escalation timed out for call {call_sid}")
+        decline_msg = "I'm sorry, Mike isn't available right now. Let me take a message for you. What would you like me to pass along?"
+        audio_id = generate_tts_audio(decline_msg)
+        from twilio.twiml.voice_response import Gather
+        gather = Gather(
+            input="speech",
+            action=f"{base_url}/webhooks/twilio/voice/voicemail?sid={call_sid}",
+            method="POST",
+            speech_timeout="5",
+            timeout=10,
+            language="en-US",
+        )
+        gather.play(f"{base_url}/audio/tts/{audio_id}.wav")
+        response.append(gather)
+        _pending_escalations.pop(call_sid, None)
+        return Response(content=str(response), media_type="application/xml")
+
+    else:
+        # Still waiting — play hold music/message and check again in 10s
+        response.play(f"{base_url}/audio/tts/{generate_tts_audio('Still trying to reach Mike. Please continue to hold.')}.wav")
+        response.pause(length=8)
+        response.redirect(f"{base_url}/webhooks/twilio/voice/hold?sid={call_sid}", method="POST")
+        return Response(content=str(response), media_type="application/xml")
+
+
+@app.post("/webhooks/twilio/voice/voicemail")
+async def twilio_voice_voicemail(request: Request):
+    """Capture voicemail message from caller and notify Mike via Telegram."""
+    from twilio.twiml.voice_response import VoiceResponse
+    from urllib.parse import unquote
+
+    speech_result = request.query_params.get("speech", "")
+    if not speech_result:
+        form_data = await request.form()
+        params = dict(form_data)
+        speech_result = params.get("SpeechResult", "")
+        from_number = params.get("From", "unknown")
+    else:
+        speech_result = unquote(speech_result)
+        from_number = "unknown"
+
+    call_sid = request.query_params.get("sid", "")
+    base_url = "https://aialfred.groundrushcloud.com"
+    response = VoiceResponse()
+
+    if speech_result:
+        # Get caller info from escalation if available
+        escalation = _pending_escalations.pop(call_sid, {})
+        from_number = escalation.get("from", from_number)
+
+        # Notify Mike via Telegram with the voicemail
+        import subprocess
+        msg = f"VOICEMAIL from {from_number}:\n\"{speech_result}\""
+        try:
+            subprocess.Popen(
+                [
+                    "ssh", "-p", "2222", "-o", "StrictHostKeyChecking=no",
+                    "brucewayne9@75.43.156.101",
+                    f"openclaw message send --channel telegram --target {MIKE_TELEGRAM_ID} -m '{msg.replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}'"
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            logger.error(f"Failed to send voicemail notification: {e}")
+
+        confirm_msg = "Thank you. I've passed your message along to Mike. He'll get back to you as soon as possible. Goodbye."
+        audio_id = generate_tts_audio(confirm_msg)
+        response.play(f"{base_url}/audio/tts/{audio_id}.wav")
+    else:
+        sorry_msg = "I didn't catch that. Goodbye."
+        audio_id = generate_tts_audio(sorry_msg)
+        response.play(f"{base_url}/audio/tts/{audio_id}.wav")
+
+    response.hangup()
+    return Response(content=str(response), media_type="application/xml")
+
+
+@app.post("/webhooks/twilio/voice/escalation-reply")
+@app.get("/webhooks/twilio/voice/escalation-reply")
+async def twilio_escalation_reply(request: Request):
+    """API endpoint for Telegram to signal CONNECT or DECLINE.
+
+    Called via: GET /webhooks/twilio/voice/escalation-reply?sid=<CallSid>&action=connect|decline
+    """
+    call_sid = request.query_params.get("sid", "")
+    action = request.query_params.get("action", "").lower()
+
+    if not call_sid or action not in ("connect", "decline"):
+        return JSONResponse({"error": "Requires sid and action (connect|decline)"}, status_code=400)
+
+    if call_sid not in _pending_escalations:
+        return JSONResponse({"error": "No pending escalation for this call"}, status_code=404)
+
+    _pending_escalations[call_sid]["status"] = action
+    logger.info(f"Escalation reply for {call_sid}: {action}")
+
+    return JSONResponse({"success": True, "call_sid": call_sid, "action": action})
 
 
 @app.post("/webhooks/twilio/voice/status")
@@ -1975,6 +2250,53 @@ async def download_file(filename: str, user: dict = Depends(require_auth)):
     )
 
 
+@app.head("/media/{filename}")
+@app.get("/media/{filename}")
+async def media_file(filename: str):
+    """Serve generated images publicly (no auth) for social media APIs.
+
+    Instagram/Facebook Graph API requires publicly accessible direct image URLs.
+    Checks data/generated/ first, then ComfyUI output directory.
+    """
+    from pathlib import Path
+    # Security: only allow alphanumeric, dots, underscores, hyphens
+    safe_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+    if not all(c in safe_chars for c in filename):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    # Only serve image and video files
+    allowed_extensions = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4"}
+    ext = Path(filename).suffix.lower()
+    if ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Only image/video files are allowed")
+    # Check data/generated/ first, then ComfyUI output, then Claw's static video
+    from core.tools.files import GENERATED_DIR
+    comfyui_output = Path("/home/aialfred/ComfyUI/output")
+    claw_video = Path("/home/aialfred/.openclaw/workspace/static/video")
+    path = None
+    if (GENERATED_DIR / filename).exists():
+        path = GENERATED_DIR / filename
+    elif (comfyui_output / filename).exists():
+        path = comfyui_output / filename
+    elif (claw_video / filename).exists():
+        path = claw_video / filename
+    if not path or not path.is_file():
+        raise HTTPException(status_code=404, detail="Image not found")
+    content_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".mp4": "video/mp4",
+    }
+    ct = content_types.get(ext, "application/octet-stream")
+    return Response(
+        content=path.read_bytes(),
+        media_type=ct,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 # ==================== Conversation History Endpoints ====================
 
 @app.get("/conversations")
@@ -2236,6 +2558,88 @@ async def references_download(ref_id: int, user: dict = Depends(require_auth)):
         media_type=ref.get("file_type", "application/octet-stream"),
         headers={"Content-Disposition": f'attachment; filename="{ref["title"]}"'}
     )
+
+
+# ==================== Task Dashboard ====================
+
+_tasks_html_path = Path(__file__).parent.parent / "tasks" / "dashboard.html"
+
+
+@app.get("/tasks", response_class=HTMLResponse)
+async def tasks_page():
+    """Serve the interactive task dashboard."""
+    return HTMLResponse(
+        content=_tasks_html_path.read_text(),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.get("/api/tasks/dashboard")
+async def tasks_dashboard(user: dict = Depends(require_auth)):
+    """Get full dashboard view: today's tasks, outstanding, and stats."""
+    from core.tasks.manager import get_dashboard
+    return get_dashboard()
+
+
+@app.get("/api/tasks")
+async def list_tasks(date: str | None = None, user: dict = Depends(require_auth)):
+    """List tasks for a given date (defaults to today)."""
+    from core.tasks.manager import get_tasks_for_date
+    tasks = get_tasks_for_date(date)
+    return {"tasks": tasks}
+
+
+@app.post("/api/tasks")
+async def create_task(req: TaskCreateRequest, user: dict = Depends(require_auth)):
+    """Create a new task."""
+    from core.tasks.manager import add_task
+    task = add_task(req.text, target_date=req.target_date, source=req.source)
+    return task
+
+
+@app.post("/api/tasks/bulk")
+async def bulk_create_tasks(req: TaskBulkRequest, user: dict = Depends(require_auth)):
+    """Bulk-create tasks (used by morning brief / Claw)."""
+    from core.tasks.manager import bulk_add_tasks
+    tasks = bulk_add_tasks(req.texts, target_date=req.target_date, source=req.source)
+    return {"tasks": tasks, "count": len(tasks)}
+
+
+@app.post("/api/tasks/{task_id}/toggle")
+async def toggle_task_status(task_id: str, user: dict = Depends(require_auth)):
+    """Toggle a task's completed status."""
+    from core.tasks.manager import toggle_task
+    task = toggle_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@app.put("/api/tasks/{task_id}")
+async def update_task_text(task_id: str, req: TaskUpdateRequest, user: dict = Depends(require_auth)):
+    """Update a task's text."""
+    from core.tasks.manager import update_task
+    task = update_task(task_id, req.text)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@app.delete("/api/tasks/{task_id}")
+async def remove_task(task_id: str, user: dict = Depends(require_auth)):
+    """Delete a task."""
+    from core.tasks.manager import delete_task
+    if not delete_task(task_id):
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"deleted": True}
+
+
+@app.post("/api/tasks/reorder")
+async def reorder_task_list(task_ids: list[str], user: dict = Depends(require_auth)):
+    """Reorder tasks by providing ordered list of IDs."""
+    from core.tasks.manager import reorder_tasks
+    reorder_tasks(task_ids)
+    return {"reordered": True}
 
 
 # ==================== Core Endpoints ====================

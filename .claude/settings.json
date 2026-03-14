@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(/home/aialfred/alfred/config/.env)",
+      "Read(~/.openclaw/openclaw.json)",
+      "Read(**/*.key)",
+      "Read(**/*.pem)",
+      "Read(**/secrets/*)"
+    ]
+  }
+}
