@@ -1,0 +1,73 @@
+{
+  "preferences": {
+    "general": [
+      {
+        "feedback": "cinematic look, dark moody tones, high contrast",
+        "added": "2026-03-22T00:00:00",
+        "source": "seed"
+      },
+      {
+        "feedback": "text should never cover faces or key subjects",
+        "added": "2026-03-22T00:00:00",
+        "source": "seed"
+      },
+      {
+        "feedback": "prefer heavy gradient overlays on image backgrounds",
+        "added": "2026-03-22T00:00:00",
+        "source": "seed"
+      },
+      {
+        "feedback": "like breathing room, don't crowd the design",
+        "added": "2026-03-22T00:00:00",
+        "source": "seed"
+      },
+      {
+        "feedback": "Cinematic color grading: contrast 1.4x, saturation 0.8x, brightness 0.95x. Top vignette subtle, bottom gradient heavy (250 alpha)",
+        "added": "2026-03-22T19:10:00.882164",
+        "source": "mike"
+      },
+      {
+        "feedback": "Brand logo placement: top-left corner, not centered. Keeps it out of the way of the imagery.",
+        "added": "2026-03-22T19:10:00.977053",
+        "source": "mike"
+      }
+    ],
+    "nightclub": [
+      {
+        "feedback": "dark backgrounds, neon accent colors, bold condensed fonts",
+        "added": "2026-03-22T00:00:00",
+        "source": "seed"
+      },
+      {
+        "feedback": "When working with photos of people: subjects in top 50% of canvas, ALL text in bottom 45% with heavy gradient overlay starting at 35% from top. Never put text above the subjects midpoint.",
+        "added": "2026-03-22T19:10:00.592788",
+        "source": "mike"
+      },
+      {
+        "feedback": "Use multiple font families for visual interest: script font for edition/theme name, extra bold for main event, ultra bold for featured artist, condensed for subtitles",
+        "added": "2026-03-22T19:10:00.689338",
+        "source": "mike"
+      },
+      {
+        "feedback": "Bottom info bar: solid dark rectangle with thin accent color line at top. Date | venue on one line, address on next, RSVP/promo in accent color",
+        "added": "2026-03-22T19:10:00.786912",
+        "source": "mike"
+      }
+    ],
+    "fitness": [
+      {
+        "feedback": "dark and bold, aggressive typography, high energy",
+        "added": "2026-03-22T00:00:00",
+        "source": "seed"
+      }
+    ],
+    "faith": [
+      {
+        "feedback": "elegant but not soft, strong serif fonts, warm tones",
+        "added": "2026-03-22T00:00:00",
+        "source": "seed"
+      }
+    ]
+  },
+  "inspiration": []
+}

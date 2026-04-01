@@ -78,12 +78,22 @@ logger = logging.getLogger("weekly_backup")
 _ANON_VOLUME_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
 
 # Volume name patterns to SKIP (case-insensitive)
-_SKIP_PATTERNS = ("cache", "tmp", "log")
+_SKIP_PATTERNS = ("cache", "tmp", "log", "open-webui", "open_webui", "webui", "ollama")
+
+# Exact volume names to ALWAYS skip — too large to export via tar-to-/tmp.
+# These fill /tmp on remote servers and cause disk-full incidents.
+_SKIP_VOLUMES = {
+    "azuracast_station_data",   # 100s of GB of media files
+    "azuracast_backups",        # 100s of GB of AzuraCast internal backups
+}
 
 # Patterns to include for labsliveserver (55 containers — selective only)
 _LABSLIVE_INCLUDE_PATTERNS = (
     "_db_", "_data_", "postgres", "mysql", "redis", "mongo",
 )
+
+# Max volume size (in MB) to export — skip anything larger to avoid filling /tmp
+_MAX_VOLUME_SIZE_MB = 10_000  # 10 GB
 
 # Per-volume export timeout (seconds) — prevents hanging on huge volumes
 VOLUME_EXPORT_TIMEOUT = 300
@@ -105,6 +115,10 @@ def _should_skip_volume(volume_name: str, server_name: str) -> bool:
     if _is_anonymous_volume(volume_name):
         return True
 
+    # Exact-name blocklist (known huge volumes that fill /tmp)
+    if volume_name in _SKIP_VOLUMES:
+        return True
+
     name_lower = volume_name.lower()
     for pat in _SKIP_PATTERNS:
         if pat in name_lower:
@@ -123,28 +137,37 @@ def _cleanup_remote_tar(alias: str | None, tarball_path: str, server_name: str) 
 
     Docker creates files as root, and /tmp has the sticky bit, so a normal
     ``rm -f`` as the SSH user will fail.  We use a throwaway Alpine container
-    to perform the deletion as root instead.
+    to perform the deletion as root instead.  Retries once with a longer
+    timeout if the first attempt fails (large files can take time to unlink).
     """
-    try:
-        if alias is None:
-            # Local — the script runs as aialfred, so use docker too
-            subprocess.run(
-                ["docker", "run", "--rm", "-v", "/tmp:/tmp", "alpine",
-                 "rm", "-f", tarball_path],
-                capture_output=True, timeout=15,
-            )
-        else:
-            run_cmd(
-                alias,
-                f"docker run --rm -v /tmp:/tmp alpine rm -f {tarball_path}",
-                timeout=30,
-            )
-        logger.debug("[%s] Cleaned up remote temp file: %s", server_name, tarball_path)
-    except Exception as exc:
-        logger.warning(
-            "[%s] Failed to clean up remote temp file %s: %s",
-            server_name, tarball_path, exc,
-        )
+    for attempt, timeout in enumerate((60, 120), 1):
+        try:
+            if alias is None:
+                subprocess.run(
+                    ["docker", "run", "--rm", "-v", "/tmp:/tmp", "alpine",
+                     "rm", "-f", tarball_path],
+                    capture_output=True, timeout=timeout,
+                )
+            else:
+                run_cmd(
+                    alias,
+                    f"docker run --rm -v /tmp:/tmp alpine rm -f {tarball_path}",
+                    timeout=timeout,
+                )
+            logger.info("[%s] Cleaned up remote temp file: %s", server_name, tarball_path)
+            return
+        except Exception as exc:
+            if attempt == 1:
+                logger.warning(
+                    "[%s] Cleanup attempt %d failed for %s: %s — retrying with longer timeout",
+                    server_name, attempt, tarball_path, exc,
+                )
+            else:
+                logger.error(
+                    "[%s] CLEANUP FAILED for %s after %d attempts: %s — "
+                    "file may remain in /tmp on remote server!",
+                    server_name, tarball_path, attempt, exc,
+                )
 
 
 def _export_docker_volume(
@@ -171,6 +194,25 @@ def _export_docker_volume(
     safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", volume_name)
     remote_tarball = f"/tmp/{safe_name}.tar.gz"
     local_tarball = os.path.join(staging_dir, f"docker-vol-{safe_name}.tar.gz")
+
+    # --- Pre-flight size check: skip volumes larger than _MAX_VOLUME_SIZE_MB ---
+    size_cmd = (
+        f"docker run --rm -v {volume_name}:/data alpine "
+        f"du -sm /data 2>/dev/null | cut -f1"
+    )
+    try:
+        size_raw = run_cmd(alias, size_cmd, timeout=60)
+        size_str = size_raw.decode("utf-8", errors="replace").strip() if isinstance(size_raw, bytes) else size_raw.strip()
+        volume_mb = int(size_str) if size_str.isdigit() else 0
+        if volume_mb > _MAX_VOLUME_SIZE_MB:
+            logger.warning(
+                "[%s] Skipping volume '%s' — %d MB exceeds %d MB limit",
+                server_name, volume_name, volume_mb, _MAX_VOLUME_SIZE_MB,
+            )
+            return False
+    except Exception:
+        # If we can't measure size, proceed cautiously
+        pass
 
     export_cmd = (
         f"docker run --rm "
@@ -248,6 +290,8 @@ def _export_docker_volume(
             "[%s] Volume export failed for '%s': %s",
             server_name, volume_name, exc,
         )
+        # Always attempt cleanup — a partial tar may have been written to /tmp
+        _cleanup_remote_tar(alias, remote_tarball, server_name)
         return False
 
 

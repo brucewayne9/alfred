@@ -162,7 +162,11 @@ def send_telegram(message):
 
 
 def sync():
-    """Main sync loop - check Hunter leads, update CRM on status changes."""
+    """Sync Hunter leads to CRM silently — no Telegram alerts.
+
+    CRM stages still advance and notes are added, but no individual pings.
+    Use weekly_digest() for the Telegram summary.
+    """
     state = load_state()
     leads = get_hunter_leads()
     changes = 0
@@ -176,7 +180,6 @@ def sync():
         if status == prev_status:
             continue
 
-        # Status changed!
         domain = get_domain(email)
         opp_id = OPP_MAP.get(domain)
         company = COMPANY_MAP.get(domain, domain)
@@ -186,11 +189,9 @@ def sync():
         log.info(f"STATUS CHANGE: {email} ({company}) {prev_status} -> {status}")
         changes += 1
 
-        # Update CRM
+        # Update CRM stage (only advance, never go backwards)
         if opp_id:
             new_stage = STAGE_MAP.get(status, "NEW")
-            current_stage_priority = list(STAGE_MAP.values())
-            # Only advance stage, never go backwards
             try:
                 opp_resp = requests.get(
                     f"{CRM_BASE}/rest/opportunities/{opp_id}",
@@ -206,7 +207,7 @@ def sync():
             except Exception as e:
                 log.error(f"  CRM stage update failed: {e}")
 
-            # Add note
+            # Add CRM note
             try:
                 status_labels = {
                     "sent": "Email Sent",
@@ -228,25 +229,6 @@ def sync():
             except Exception as e:
                 log.error(f"  CRM note failed: {e}")
 
-        # Telegram alert for high-intent
-        if status in HIGH_INTENT:
-            emoji = {"clicked": "🔥", "replied": "🚨"}.get(status, "📧")
-            label = {"clicked": "LINK CLICKED", "replied": "EMAIL REPLIED"}.get(status, status.upper())
-            msg = (
-                f"{emoji} <b>ROD WAVE SPONSORSHIP - {label}</b>\n\n"
-                f"<b>Company:</b> {company}\n"
-                f"<b>Contact:</b> {name}\n"
-                f"<b>Title:</b> {title}\n"
-                f"<b>Email:</b> {email}\n"
-                f"<b>Time:</b> {now}\n\n"
-                f"{'🎯 They clicked your deck link - follow up NOW!' if status == 'clicked' else '💬 They replied - check Hunter.io and respond ASAP!'}"
-            )
-            send_telegram(msg)
-            log.info(f"  Telegram alert sent")
-        elif status == "sent":
-            # Quieter notification for sends
-            log.info(f"  Email sent to {name} at {company} - no alert needed")
-
         # Update state
         state[email] = {
             "status": status,
@@ -263,6 +245,89 @@ def sync():
         log.info("Sync complete: no changes")
 
     return changes
+
+
+def weekly_digest():
+    """Build and send a weekly Telegram digest of all Hunter.io campaign activity."""
+    leads = get_hunter_leads()
+    state = load_state()
+    now = datetime.now(timezone.utc)
+
+    # Bucket leads by status
+    by_status = {}
+    by_company = {}
+    for lead in leads:
+        email = lead.get("email", "").lower()
+        status = lead.get("sending_status", "pending")
+        domain = get_domain(email)
+        company = COMPANY_MAP.get(domain, domain)
+        name = f"{lead.get('first_name', '')} {lead.get('last_name', '')}".strip()
+
+        by_status.setdefault(status, []).append({"name": name, "company": company, "email": email})
+        by_company.setdefault(company, []).append({"name": name, "status": status})
+
+    # Count changes since last digest
+    last_digest = state.get("_last_digest", "")
+    changes_since = 0
+    for email, info in state.items():
+        if email.startswith("_"):
+            continue
+        updated = info.get("last_updated", "")
+        if updated > last_digest:
+            changes_since += 1
+
+    total = len(leads)
+    replied = by_status.get("replied", [])
+    clicked = by_status.get("clicked", [])
+    opened = by_status.get("opened", [])
+    sent = by_status.get("sent", [])
+    bounced = by_status.get("bounced", [])
+    pending = by_status.get("pending", [])
+
+    # Build message
+    msg = f"<b>HUNTER.IO WEEKLY DIGEST</b>\n"
+    msg += f"<i>Week of {now.strftime('%b %d, %Y')}</i>\n\n"
+
+    msg += f"<b>Pipeline:</b> {total} leads across {len(by_company)} companies\n"
+    if changes_since:
+        msg += f"<b>Changes this week:</b> {changes_since}\n"
+    msg += "\n"
+
+    # High intent first
+    if replied:
+        msg += f"<b>REPLIED ({len(replied)}):</b>\n"
+        for r in replied:
+            msg += f"  - {r['name']} ({r['company']})\n"
+        msg += "\n"
+
+    if clicked:
+        msg += f"<b>CLICKED ({len(clicked)}):</b>\n"
+        for c in clicked:
+            msg += f"  - {c['name']} ({c['company']})\n"
+        msg += "\n"
+
+    # Summary counts for the rest
+    msg += "<b>Status breakdown:</b>\n"
+    for status_name, emoji in [("replied", "✅"), ("clicked", "🔥"), ("opened", "👀"), ("sent", "📧"), ("pending", "⏳"), ("bounced", "❌")]:
+        count = len(by_status.get(status_name, []))
+        if count:
+            msg += f"  {emoji} {status_name}: {count}\n"
+
+    # Company summary
+    msg += f"\n<b>By company:</b>\n"
+    for company in sorted(by_company.keys()):
+        contacts = by_company[company]
+        best = max(contacts, key=lambda x: ["pending", "sent", "opened", "clicked", "replied"].index(x["status"]) if x["status"] in ["pending", "sent", "opened", "clicked", "replied"] else -1)
+        msg += f"  - {company}: {len(contacts)} leads, best: {best['status']}\n"
+
+    send_telegram(msg)
+    log.info("Weekly digest sent to Telegram")
+
+    # Save digest timestamp
+    state["_last_digest"] = now.isoformat()
+    save_state(state)
+
+    return msg
 
 
 def generate_report():
@@ -307,5 +372,7 @@ def generate_report():
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "report":
         print(generate_report())
+    elif len(sys.argv) > 1 and sys.argv[1] == "digest":
+        weekly_digest()
     else:
         sync()

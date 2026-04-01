@@ -1,0 +1,1611 @@
+{
+  "katherine.sutton@reebok.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Katherine Sutton",
+    "company": "Reebok"
+  },
+  "michele_l_moore@progressive.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Michele Moore",
+    "company": "Progressive"
+  },
+  "chris.farris@nixon.com": {
+    "status": "opened",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Chris Farris",
+    "company": "Nixon"
+  },
+  "chad.dinenna@nixon.com": {
+    "status": "opened",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Chad DiNenna",
+    "company": "Nixon"
+  },
+  "jean-francois.vallee@ubisoft.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Jean-Francois Vallee",
+    "company": "Ubisoft"
+  },
+  "emmanuel.fauchez@ubisoft.com": {
+    "status": "opened",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Emmanuel Fauchez",
+    "company": "Ubisoft"
+  },
+  "paola_rosato@diesel.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Paola Rosato",
+    "company": "Diesel"
+  },
+  "tkachel@dtlr.com": {
+    "status": "opened",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Tresse Kachel",
+    "company": "DTLR"
+  },
+  "dan.wright@robinhood.com": {
+    "status": "opened",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Dan Wright",
+    "company": "Robinhood"
+  },
+  "david.dinkins@rockstargames.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "David Dinkins",
+    "company": "Rockstar Games"
+  },
+  "laura.valdes@ford.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Laura Vald\u00e9s",
+    "company": "Ford Motor"
+  },
+  "bryce.viglione@nike.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Bryce Viglione",
+    "company": "Nike"
+  },
+  "ron.sherman@nike.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Ron Sherman",
+    "company": "Nike"
+  },
+  "ryan.schafer@nike.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Ryan Schafer",
+    "company": "Nike"
+  },
+  "steven.boyd@nike.com": {
+    "status": "sent",
+    "last_updated": "2026-03-03T09:15:02.576825+00:00",
+    "name": "Steven Boyd",
+    "company": "Nike"
+  },
+  "merrin.bartley@nike.com": {
+    "status": "pending",
+    "last_updated": "2026-03-02T22:37:07.411394+00:00",
+    "name": "Merrin Bartley",
+    "company": "Nike"
+  },
+  "alice.wee@nike.com": {
+    "status": "pending",
+    "last_updated": "2026-03-02T22:37:07.411394+00:00",
+    "name": "Alice Wee",
+    "company": "Nike"
+  },
+  "liam.branaghan@uber.com": {
+    "status": "pending",
+    "last_updated": "2026-03-02T22:37:07.411394+00:00",
+    "name": "Liam Branaghan",
+    "company": "Uber"
+  },
+  "barbara.boudalia@uber.com": {
+    "status": "pending",
+    "last_updated": "2026-03-02T22:37:07.411394+00:00",
+    "name": "Barbara Boudalia",
+    "company": "Uber"
+  },
+  "jaipal.singh@uber.com": {
+    "status": "pending",
+    "last_updated": "2026-03-02T22:37:07.411394+00:00",
+    "name": "Jaipal Singh",
+    "company": "Uber"
+  },
+  "lucas.piken@uber.com": {
+    "status": "pending",
+    "last_updated": "2026-03-02T22:37:07.411394+00:00",
+    "name": "Lucas Piken",
+    "company": "Uber"
+  },
+  "cburns@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Colin Burns",
+    "company": "massmutual.com"
+  },
+  "hsmiley@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "E Heather Smiley",
+    "company": "massmutual.com"
+  },
+  "jlake@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Josh Lake",
+    "company": "massmutual.com"
+  },
+  "vgallardo@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Victor Gallardo",
+    "company": "massmutual.com"
+  },
+  "etaliep@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Emad Taliep",
+    "company": "massmutual.com"
+  },
+  "kwu@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Kin Wu",
+    "company": "massmutual.com"
+  },
+  "dbreuss@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Diana Breuss",
+    "company": "massmutual.com"
+  },
+  "jcloutier@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Jennifer Cloutier",
+    "company": "massmutual.com"
+  },
+  "sdeschenes@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Steve Deschenes",
+    "company": "massmutual.com"
+  },
+  "cshaw@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Charles Shaw",
+    "company": "massmutual.com"
+  },
+  "psullivan@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Pat Sullivan",
+    "company": "massmutual.com"
+  },
+  "lgerstner@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Lauren Gerstner",
+    "company": "massmutual.com"
+  },
+  "ayeung@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Andy Yeung",
+    "company": "massmutual.com"
+  },
+  "akam@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Anthony Kam",
+    "company": "massmutual.com"
+  },
+  "acornet@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Alicia Cornet",
+    "company": "massmutual.com"
+  },
+  "mowen@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Michael Owen",
+    "company": "massmutual.com"
+  },
+  "abavasso@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Abigail Bavasso",
+    "company": "massmutual.com"
+  },
+  "nkalina@massmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Nora Kalina",
+    "company": "massmutual.com"
+  },
+  "tgissing@acorns.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Thomas Gissing",
+    "company": "acorns.com"
+  },
+  "vtomkinson@acorns.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Victoria Tomkinson",
+    "company": "acorns.com"
+  },
+  "jesssorenson@northwesternmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Jess Sorenson",
+    "company": "northwesternmutual.com"
+  },
+  "karlasment@northwesternmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Karla Sment",
+    "company": "northwesternmutual.com"
+  },
+  "antonettevolpendesta@northwesternmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Antonette Volpendesta",
+    "company": "northwesternmutual.com"
+  },
+  "lynnteo@northwesternmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Lynn Teo",
+    "company": "northwesternmutual.com"
+  },
+  "jenniferkhadivar@northwesternmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Jennifer Khadivar",
+    "company": "northwesternmutual.com"
+  },
+  "jenniferkraft@northwesternmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Jennifer Kraft",
+    "company": "northwesternmutual.com"
+  },
+  "elyselindsey@northwesternmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Elyse Lindsey",
+    "company": "northwesternmutual.com"
+  },
+  "joeramos@northwesternmutual.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Joe Ramos",
+    "company": "northwesternmutual.com"
+  },
+  "bob.ferrini@airbnb.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Bob Ferrini",
+    "company": "airbnb.com"
+  },
+  "teresa.orsolini@airbnb.com": {
+    "status": null,
+    "last_updated": "2026-03-03T04:45:01.971075+00:00",
+    "name": "Teresa Orsolini",
+    "company": "airbnb.com"
+  },
+  "vivian@whatsapp.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Vivian Odior",
+    "company": "whatsapp.com"
+  },
+  "channing@whatsapp.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Channing Christensen",
+    "company": "whatsapp.com"
+  },
+  "cole@whatsapp.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Amy Cole",
+    "company": "whatsapp.com"
+  },
+  "joyceli@whatsapp.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Joyce Li",
+    "company": "whatsapp.com"
+  },
+  "bd@whatsapp.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Dewanshi B",
+    "company": "whatsapp.com"
+  },
+  "neil@reddit.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Neil Marti",
+    "company": "reddit.com"
+  },
+  "enzoannunziata@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Enzo Annunziata",
+    "company": "amazon.com"
+  },
+  "gayathrikavitha@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Gayathri Kavitha",
+    "company": "amazon.com"
+  },
+  "clintpatterson@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Clint Patterson",
+    "company": "amazon.com"
+  },
+  "osvaldocalzada@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Osvaldo Calzada",
+    "company": "amazon.com"
+  },
+  "brandonmunday@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Brandon Munday",
+    "company": "amazon.com"
+  },
+  "aidanmarcuss@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Aidan Marcuss",
+    "company": "amazon.com"
+  },
+  "ishantjain@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Ishant Jain",
+    "company": "amazon.com"
+  },
+  "drewswain@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Drew Swain",
+    "company": "amazon.com"
+  },
+  "beatajotterand@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Beata Jotterand",
+    "company": "amazon.com"
+  },
+  "cathyshoaf@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Cathy Shoaf",
+    "company": "amazon.com"
+  },
+  "franciscofuchslin@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Francisco Fuchslin",
+    "company": "amazon.com"
+  },
+  "arvindari@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Arvind Ari",
+    "company": "amazon.com"
+  },
+  "cclark@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Carly Clark",
+    "company": "amazon.com"
+  },
+  "felipeabramovitch@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Felipe Abramovitch",
+    "company": "amazon.com"
+  },
+  "echoy@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Echo Yin",
+    "company": "amazon.com"
+  },
+  "moulanarock@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Moulana Rock",
+    "company": "amazon.com"
+  },
+  "shreyassubbaraya@amazon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T05:00:02.439660+00:00",
+    "name": "Shreyas Subbaraya",
+    "company": "amazon.com"
+  },
+  "paul.beckett@chevrolet.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:30:02.222656+00:00",
+    "name": "Paul Beckett",
+    "company": "chevrolet.com"
+  },
+  "steven.majoros@chevrolet.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:30:02.222656+00:00",
+    "name": "Steven Majoros",
+    "company": "chevrolet.com"
+  },
+  "paul.edwards@chevrolet.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:30:02.222656+00:00",
+    "name": "Paul Edwards",
+    "company": "chevrolet.com"
+  },
+  "bedler@beatsbydre.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:30:02.222656+00:00",
+    "name": "Brigette Edler",
+    "company": "beatsbydre.com"
+  },
+  "aminah_charles@beatsbydre.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:30:02.222656+00:00",
+    "name": "Aminah Charles",
+    "company": "beatsbydre.com"
+  },
+  "ttwele@beatsbydre.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:30:02.222656+00:00",
+    "name": "Tania Twele",
+    "company": "beatsbydre.com"
+  },
+  "tina.walton@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Tina Walton",
+    "company": "verizon.com"
+  },
+  "karin.goers@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Karin Goers",
+    "company": "verizon.com"
+  },
+  "bridget.mullen@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Bridget Mullen",
+    "company": "verizon.com"
+  },
+  "robyn.parks@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Robyn Parks",
+    "company": "verizon.com"
+  },
+  "danielle.fields@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Danielle Fields",
+    "company": "verizon.com"
+  },
+  "jeremie.clark@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Jeremie Clark",
+    "company": "verizon.com"
+  },
+  "robert.johnston@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Robert Johnston",
+    "company": "verizon.com"
+  },
+  "erin.ayrim@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Erin Ayrim",
+    "company": "verizon.com"
+  },
+  "jocelyn.lyles@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Jocelyn Lyles",
+    "company": "verizon.com"
+  },
+  "brian.donaghy@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Brian Donaghy",
+    "company": "verizon.com"
+  },
+  "michelle.pantina@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Michelle Pantina",
+    "company": "verizon.com"
+  },
+  "alexis.madrigal@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Alexis Madrigal",
+    "company": "verizon.com"
+  },
+  "kristin.mchugh@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Kristin McHugh",
+    "company": "verizon.com"
+  },
+  "denny.post@t-mobile.com": {
+    "status": null,
+    "last_updated": "2026-03-03T19:45:02.119353+00:00",
+    "name": "Denny Post",
+    "company": "t-mobile.com"
+  },
+  "sq.shawshank@cricketwireless.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "None Shawshank",
+    "company": "cricketwireless.com"
+  },
+  "ginny.delycure@cricketwireless.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Ginny Delycure",
+    "company": "cricketwireless.com"
+  },
+  "kijuana.lloyd@cricketwireless.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Kijuana Lloyd",
+    "company": "cricketwireless.com"
+  },
+  "cindy.rozier@cricketwireless.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Cindy Rozier",
+    "company": "cricketwireless.com"
+  },
+  "rebecca.horrocks@cricketwireless.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Rebecca Horrocks",
+    "company": "cricketwireless.com"
+  },
+  "scott.edwards@cricketwireless.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Scott Edwards",
+    "company": "cricketwireless.com"
+  },
+  "kristine.m.shipley@sprint.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Kristine Shipley",
+    "company": "sprint.com"
+  },
+  "janna.hamm@epicgames.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Janna Hamm",
+    "company": "epicgames.com"
+  },
+  "dhelmhold@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Daniel Helmhold",
+    "company": "ea.com"
+  },
+  "tpae@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Thomas Pae",
+    "company": "ea.com"
+  },
+  "cvilliers@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Charlie Villiers",
+    "company": "ea.com"
+  },
+  "cbumbaca@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Christina Bumbaca",
+    "company": "ea.com"
+  },
+  "kstrunk@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Kevin Strunk",
+    "company": "ea.com"
+  },
+  "nlammie@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Nicholas Lammie",
+    "company": "ea.com"
+  },
+  "tpuglisi@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Tiara Puglisi",
+    "company": "ea.com"
+  },
+  "scoleman@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Stuart Coleman",
+    "company": "ea.com"
+  },
+  "mbernardi@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Michael Bernardi",
+    "company": "ea.com"
+  },
+  "ea@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Ana Esteban",
+    "company": "ea.com"
+  },
+  "devinb@ea.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Devin Bennett",
+    "company": "ea.com"
+  },
+  "crocha@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Cornell Rocha",
+    "company": "lyft.com"
+  },
+  "amcgaughey@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Allison McGaughey",
+    "company": "lyft.com"
+  },
+  "scottw@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Scott Widmer",
+    "company": "lyft.com"
+  },
+  "sroh@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Sunny Roh",
+    "company": "lyft.com"
+  },
+  "klazarus@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Katie Lazarus",
+    "company": "lyft.com"
+  },
+  "mznaor@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Marijana Znaor",
+    "company": "lyft.com"
+  },
+  "trousculp@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Tom Rousculp",
+    "company": "lyft.com"
+  },
+  "mross@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Prince Jain",
+    "company": "lyft.com"
+  },
+  "angiengo@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Angie Cortes",
+    "company": "lyft.com"
+  },
+  "jbenedict@lyft.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Jacob Benedict",
+    "company": "lyft.com"
+  },
+  "andrew.testa@verizon.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:00:02.098848+00:00",
+    "name": "Andrew Testa",
+    "company": "verizon.com"
+  },
+  "beatriz.castillo@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Beatriz Castillo",
+    "company": "generalmills.com"
+  },
+  "kate.pluenneke@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Kate Pluenneke",
+    "company": "generalmills.com"
+  },
+  "kathy.cheung@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Kathy Cheung",
+    "company": "generalmills.com"
+  },
+  "vaibhav.shenoy@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Vaibhav Shenoy",
+    "company": "generalmills.com"
+  },
+  "ketan.bhavsar@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Ketan Bhavsar",
+    "company": "generalmills.com"
+  },
+  "elizabeth.ekstrand@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Elizabeth Ekstrand",
+    "company": "generalmills.com"
+  },
+  "taher.kolhapurwala@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Taher Kolhapurwala",
+    "company": "generalmills.com"
+  },
+  "jorge.robles@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Jorge Robles",
+    "company": "generalmills.com"
+  },
+  "larissa.starkweather@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Larissa Starkweather",
+    "company": "generalmills.com"
+  },
+  "allen.xu@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Allen Xu",
+    "company": "generalmills.com"
+  },
+  "casey.piontkowski@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Casey Piontkowski",
+    "company": "generalmills.com"
+  },
+  "jamie.kollen@generalmills.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Jamie Kollen",
+    "company": "generalmills.com"
+  },
+  "alessia.taddei@pepsico.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Alessia Taddei",
+    "company": "pepsico.com"
+  },
+  "veronica.yeung@pepsico.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Veronica Yeung",
+    "company": "pepsico.com"
+  },
+  "sneha.nair@pepsico.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Sneha Nair",
+    "company": "pepsico.com"
+  },
+  "nuria.bombardo@pepsico.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Nuria Bombard\u00f3",
+    "company": "pepsico.com"
+  },
+  "om.jha@pepsico.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Om Jha",
+    "company": "pepsico.com"
+  },
+  "tina.liu@pepsico.com": {
+    "status": "opened",
+    "last_updated": "2026-03-04T14:00:02.559047+00:00",
+    "name": "Tina Liu",
+    "company": "pepsico.com"
+  },
+  "sean.cauterman@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Sean Cauterman",
+    "company": "pepsico.com"
+  },
+  "jeff.kearney@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Jeff Kearney",
+    "company": "pepsico.com"
+  },
+  "michael.forsyth@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Michael Forsyth",
+    "company": "pepsico.com"
+  },
+  "cody.berg@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Cody Berg",
+    "company": "pepsico.com"
+  },
+  "joey.huang@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Joey Huang",
+    "company": "pepsico.com"
+  },
+  "danny.hsiao@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Danny Hsiao",
+    "company": "pepsico.com"
+  },
+  "marek.tomalak@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Marek Tomalak",
+    "company": "pepsico.com"
+  },
+  "jessica.riess@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Jessica Rie\u00df",
+    "company": "pepsico.com"
+  },
+  "rich.funaoka@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Rich Funaoka",
+    "company": "pepsico.com"
+  },
+  "lucie.blankenship@pepsico.com": {
+    "status": "pending",
+    "last_updated": "2026-03-04T02:15:02.540881+00:00",
+    "name": "Lucie Blankenship",
+    "company": "pepsico.com"
+  },
+  "eric.melis@pepsico.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Eric Melis",
+    "company": "pepsico.com"
+  },
+  "karson.williams@pepsico.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Karson Williams",
+    "company": "pepsico.com"
+  },
+  "akanksha.bahl@pepsico.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Akanksha Bahl",
+    "company": "pepsico.com"
+  },
+  "vlad.vladescu@pepsico.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Vlad Vladescu",
+    "company": "pepsico.com"
+  },
+  "clara.contreras@pepsico.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Clara Contreras",
+    "company": "pepsico.com"
+  },
+  "patrick.tremblay@pepsico.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Patrick Tremblay",
+    "company": "pepsico.com"
+  },
+  "tiffanystone@coca-cola.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Tiffany Stone",
+    "company": "coca-cola.com"
+  },
+  "rosalindbrown@coca-cola.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Rosalind Brown",
+    "company": "coca-cola.com"
+  },
+  "leonardogonzalez@coca-cola.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Leonardo Gonz\u00e1lez",
+    "company": "coca-cola.com"
+  },
+  "sandra.lischka@coca-cola.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Sandra Lischka",
+    "company": "coca-cola.com"
+  },
+  "katiemiller@coca-cola.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Katie Miller",
+    "company": "coca-cola.com"
+  },
+  "megansaad@coca-cola.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Megan Saad",
+    "company": "coca-cola.com"
+  },
+  "amaitra@coca-cola.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Arpita Maitra",
+    "company": "coca-cola.com"
+  },
+  "casey.levy@venmo.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Casey Levy",
+    "company": "venmo.com"
+  },
+  "seizan.crandall@venmo.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Seizan Crandall",
+    "company": "venmo.com"
+  },
+  "thalia@venmo.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Thalia Rybar",
+    "company": "venmo.com"
+  },
+  "cspadari@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Cristina Spadari",
+    "company": "paypal.com"
+  },
+  "i.velichkova@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Iskra Velichkova",
+    "company": "paypal.com"
+  },
+  "bsharma@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Babita Sharma",
+    "company": "paypal.com"
+  },
+  "masaff@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Meredith Asaff",
+    "company": "paypal.com"
+  },
+  "ramkumar@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Ram Kumar",
+    "company": "paypal.com"
+  },
+  "kjohnson@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Kendal Johnson",
+    "company": "paypal.com"
+  },
+  "mleung@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Megan Leung",
+    "company": "paypal.com"
+  },
+  "ahill@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Alex Hill",
+    "company": "paypal.com"
+  },
+  "afranyuti@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Aida Franyuti",
+    "company": "paypal.com"
+  },
+  "carquie@paypal.com": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Christelle Arqui\u00e9",
+    "company": "paypal.com"
+  },
+  "ecatzin@att.com.mx": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "Eduardo Catzin",
+    "company": "att.com.mx"
+  },
+  "dmoreno@att.com.mx": {
+    "status": null,
+    "last_updated": "2026-03-03T23:15:02.764862+00:00",
+    "name": "David Moreno",
+    "company": "att.com.mx"
+  },
+  "eliana.margherio@soundcloud.com": {
+    "status": "opened",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Eliana Margherio",
+    "company": "soundcloud.com"
+  },
+  "marielena.gonzalez@soundcloud.com": {
+    "status": "opened",
+    "last_updated": "2026-03-06T10:00:02.797660+00:00",
+    "name": "Marielena Gonzalez",
+    "company": "soundcloud.com"
+  },
+  "scott.macrae@soundcloud.com": {
+    "status": "unsubscribed",
+    "last_updated": "2026-03-06T09:30:02.240115+00:00",
+    "name": "Scott Macrae",
+    "company": "soundcloud.com"
+  },
+  "tom.noble@soundcloud.com": {
+    "status": "opened",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Tom Noble",
+    "company": "soundcloud.com"
+  },
+  "mackenzie.whalen@soundcloud.com": {
+    "status": "sent",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Mackenzie Whalen",
+    "company": "soundcloud.com"
+  },
+  "snarvaez@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Stephany Narvaez",
+    "company": "google.com"
+  },
+  "amitsabale@google.com": {
+    "status": "opened",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Amit Sabale",
+    "company": "google.com"
+  },
+  "bteufel@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Birte Teufel",
+    "company": "google.com"
+  },
+  "kerrylancaster@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Kerry Lancaster",
+    "company": "google.com"
+  },
+  "virginiasharma@google.com": {
+    "status": "opened",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Virginia Sharma",
+    "company": "google.com"
+  },
+  "tonychang@google.com": {
+    "status": "unsubscribed",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Tony Chang",
+    "company": "google.com"
+  },
+  "nbenoy@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Natalie Benoy",
+    "company": "google.com"
+  },
+  "darylbutler@google.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Daryl Butler",
+    "company": "google.com"
+  },
+  "barryames@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Barry Ames",
+    "company": "google.com"
+  },
+  "mbalcazar@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Michelle Balcazar",
+    "company": "google.com"
+  },
+  "vibhork@google.com": {
+    "status": "unsubscribed",
+    "last_updated": "2026-03-09T20:00:02.692398+00:00",
+    "name": "Vibhor Khandelwal",
+    "company": "google.com"
+  },
+  "yoshiyukisato@google.com": {
+    "status": "opened",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Yoshiyuki Sato",
+    "company": "google.com"
+  },
+  "kbuchanan@google.com": {
+    "status": "opened",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Keri Buchanan",
+    "company": "google.com"
+  },
+  "saurabhc@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Saurabh Chawla",
+    "company": "google.com"
+  },
+  "jensj@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Jens J\u00e4ger",
+    "company": "google.com"
+  },
+  "bselma@google.com": {
+    "status": "opened",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Selma Bronsky",
+    "company": "google.com"
+  },
+  "tmarek@google.com": {
+    "status": "sent",
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Marek Turski",
+    "company": "google.com"
+  },
+  "tfred@google.com": {
+    "status": "opened",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Fred Taylor",
+    "company": "google.com"
+  },
+  "krajesh@c-k.com": {
+    "status": "bounced",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Kajal Rajesh",
+    "company": "c-k.com"
+  },
+  "nickp@c-k.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Nick P",
+    "company": "c-k.com"
+  },
+  "dstefanides@c-k.com": {
+    "status": "bounced",
+    "last_updated": "2026-03-04T09:15:02.306606+00:00",
+    "name": "Dean Stefanides",
+    "company": "c-k.com"
+  },
+  "swhitlow@c-k.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Sabrina Whitlow",
+    "company": "c-k.com"
+  },
+  "pcounsell@c-k.com": {
+    "status": "bounced",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Paul Counsell",
+    "company": "c-k.com"
+  },
+  "bdow@c-k.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Bill Dow",
+    "company": "c-k.com"
+  },
+  "asheridan@c-k.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Amy Sheridan",
+    "company": "c-k.com"
+  },
+  "brian.cole@elementthree.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Brian Cole",
+    "company": "elementthree.com"
+  },
+  "ryan.walker@elementthree.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Ryan Walker",
+    "company": "elementthree.com"
+  },
+  "kyler.mason@elementthree.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Kyler Mason",
+    "company": "elementthree.com"
+  },
+  "john.gough@elementthree.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "John Gough",
+    "company": "elementthree.com"
+  },
+  "kyle@gigasavvy.com": {
+    "status": "opened",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Kyle Johnston",
+    "company": "gigasavvy.com"
+  },
+  "max.roddenberry@rrpartners.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Max Roddenberry",
+    "company": "rrpartners.com"
+  },
+  "brian.rasmussen@rrpartners.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Brian Rasmussen",
+    "company": "rrpartners.com"
+  },
+  "michelle.mader@rrpartners.com": {
+    "status": "opened",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Michelle Mader",
+    "company": "rrpartners.com"
+  },
+  "jacqueline.meason@rrpartners.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Jacqueline Meason",
+    "company": "rrpartners.com"
+  },
+  "suhaimi.amiruddin@rrpartners.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Suhaimi Amiruddin",
+    "company": "rrpartners.com"
+  },
+  "rob.dondero@rrpartners.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Rob Dondero",
+    "company": "rrpartners.com"
+  },
+  "fletcher.whitwell@rrpartners.com": {
+    "status": "sent",
+    "last_updated": "2026-03-10T20:00:03.216758+00:00",
+    "name": "Fletcher Whitwell",
+    "company": "rrpartners.com"
+  },
+  "liz.keating@hbo.com": {
+    "status": "opened",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Liz Keating",
+    "company": "hbo.com"
+  },
+  "jenny.montalbano@hbo.com": {
+    "status": "opened",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Jenny Montalbano",
+    "company": "hbo.com"
+  },
+  "daniel.zibulsky@hbo.com": {
+    "status": "opened",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Daniel Zibulsky",
+    "company": "hbo.com"
+  },
+  "dana.flax@hbo.com": {
+    "status": "opened",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Dana Flax",
+    "company": "hbo.com"
+  },
+  "sono.mitchell@hbo.com": {
+    "status": "opened",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Sono Mitchell",
+    "company": "hbo.com"
+  },
+  "shanna.yehlen@hbo.com": {
+    "status": "opened",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Shanna Yehlen",
+    "company": "hbo.com"
+  },
+  "mark.doumet@hbo.com": {
+    "status": "opened",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Mark Doumet",
+    "company": "hbo.com"
+  },
+  "gwatson@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Grey Watson",
+    "company": "netflix.com"
+  },
+  "mmgobhozi@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Mazwi Mgobhozi",
+    "company": "netflix.com"
+  },
+  "janab@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Jana Borges",
+    "company": "netflix.com"
+  },
+  "adavidov@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-05T09:15:02.321389+00:00",
+    "name": "Asaf Davidov",
+    "company": "netflix.com"
+  },
+  "tbroderick@netflix.com": {
+    "status": "unsubscribed",
+    "last_updated": "2026-03-06T02:45:02.846483+00:00",
+    "name": "Tony Broderick",
+    "company": "netflix.com"
+  },
+  "apang@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-05T09:30:02.856164+00:00",
+    "name": "Andy Pang",
+    "company": "netflix.com"
+  },
+  "lsimoens@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Ludovic Simoens",
+    "company": "netflix.com"
+  },
+  "mvianoli@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Matteo Vianoli",
+    "company": "netflix.com"
+  },
+  "ndettmeijer@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Nienke Dettmeijer",
+    "company": "netflix.com"
+  },
+  "rnathwani@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Rajiv Nathwani",
+    "company": "netflix.com"
+  },
+  "fhoffmann@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Flo Hoffmann",
+    "company": "netflix.com"
+  },
+  "agerber@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Adam Gerber",
+    "company": "netflix.com"
+  },
+  "hgullixson@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Hannah Gullixson",
+    "company": "netflix.com"
+  },
+  "marianl@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Marian Lee",
+    "company": "netflix.com"
+  },
+  "plegarrea@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Pablo Legarrea",
+    "company": "netflix.com"
+  },
+  "dbernet@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Damien Bernet",
+    "company": "netflix.com"
+  },
+  "mberlanga@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Marcela Berlanga",
+    "company": "netflix.com"
+  },
+  "khundere@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Katie Hundere",
+    "company": "netflix.com"
+  },
+  "hnorqvist@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Hugo Norqvist",
+    "company": "netflix.com"
+  },
+  "mangrisani@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Matt Angrisani",
+    "company": "netflix.com"
+  },
+  "sungmic@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Sungmi Choi",
+    "company": "netflix.com"
+  },
+  "crumminger@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Chad Rumminger",
+    "company": "netflix.com"
+  },
+  "kwrzosek@netflix.com": {
+    "status": "clicked",
+    "last_updated": "2026-03-06T09:15:02.061852+00:00",
+    "name": "Katarzyna Wrzosek",
+    "company": "netflix.com"
+  },
+  "monica@blackrocklaw.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Monica Sanchez",
+    "company": "blackrocklaw.com"
+  },
+  "gil@blackrocklaw.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Gil Sanchez",
+    "company": "blackrocklaw.com"
+  },
+  "jeremy@searsinjurylaw.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Jeremy Corwen",
+    "company": "searsinjurylaw.com"
+  },
+  "ryan@searsinjurylaw.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Ryan Sandberg",
+    "company": "searsinjurylaw.com"
+  },
+  "michaela@searsinjurylaw.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Michaela Ignacio",
+    "company": "searsinjurylaw.com"
+  },
+  "parker@searsinjurylaw.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Parker Davidson",
+    "company": "searsinjurylaw.com"
+  },
+  "bianca.llambes@thomaslawoffices.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Harshitha Somalaraju",
+    "company": "thomaslawoffices.com"
+  },
+  "lindsy.lopez@thomaslawoffices.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Lindsy Lopez",
+    "company": "thomaslawoffices.com"
+  },
+  "brianhinton@baderscott.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Brian Hinton",
+    "company": "baderscott.com"
+  },
+  "seth@baderscott.com": {
+    "status": null,
+    "last_updated": "2026-03-04T02:30:02.345770+00:00",
+    "name": "Seth Bader",
+    "company": "baderscott.com"
+  },
+  "jpires@netflix.com": {
+    "status": "pending",
+    "last_updated": "2026-03-05T16:30:03.180604+00:00",
+    "name": "Juliana Pires",
+    "company": "netflix.com"
+  },
+  "adam.vanbuskirk@topdoglaw.com": {
+    "status": null,
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Adam Vanbuskirk",
+    "company": "topdoglaw.com"
+  },
+  "intake@topdoglaw.com": {
+    "status": null,
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "None None",
+    "company": "topdoglaw.com"
+  },
+  "alex.tucci@topdoglaw.com": {
+    "status": null,
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Alex Tucci",
+    "company": "topdoglaw.com"
+  },
+  "alicia.kramer@topdoglaw.com": {
+    "status": null,
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "Alicia Kramer",
+    "company": "topdoglaw.com"
+  },
+  "james.helm@topdoglaw.com": {
+    "status": null,
+    "last_updated": "2026-03-20T20:00:02.400544+00:00",
+    "name": "James Helm",
+    "company": "topdoglaw.com"
+  },
+  "_last_digest": "2026-03-21T12:07:56.970333+00:00"
+}

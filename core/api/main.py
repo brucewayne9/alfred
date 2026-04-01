@@ -437,6 +437,7 @@ async def auto_login(request: Request):
             ipaddress.ip_network("192.168.0.0/16"),
             ipaddress.ip_network("127.0.0.0/8"),
             ipaddress.ip_network("::1/128"),
+            ipaddress.ip_network("75.43.156.0/24"),  # Ground Rush LAN
         ]
         trusted = any(addr in net for net in private_nets)
     except ValueError:
@@ -830,9 +831,131 @@ def _check_claude_code_cli() -> bool:
 # status: "pending" (waiting for Telegram reply), "connect", "decline"
 _pending_escalations: dict[str, dict] = {}
 
+# Pending voice responses: CallSid -> {response_text, audio_id, ready}
+_pending_voice_responses: dict[str, dict] = {}
+
 MIKE_CELL = "+16788582241"
 MIKE_TELEGRAM_ID = "7582976864"
 ESCALATION_TIMEOUT = 60  # seconds to wait for Telegram reply
+
+# OpenClaw gateway config for voice routing
+OPENCLAW_CLI = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/openclaw"
+OPENCLAW_AGENT_TIMEOUT = 45  # seconds
+
+AMBIENT_AUDIO_PATH = Path(__file__).parent.parent.parent / "data" / "audio" / "ambient_working.wav"
+
+
+async def query_openclaw(speech: str) -> str:
+    """Send a query to OpenClaw gateway and get response text.
+
+    Routes voice calls through the same brain as Telegram-Alfred.
+    """
+    import asyncio
+    import json as _json
+
+    phone_prefix = "[PHONE CALL - Keep response under 3 sentences. Be concise and conversational, like talking to your boss. No lists, no markdown, no detailed breakdowns. Speak naturally.]"
+    full_message = f"{phone_prefix} {speech}"
+
+    # OpenClaw requires Node 22 — ensure correct PATH for systemd context
+    env = os.environ.copy()
+    node22_bin = "/home/aialfred/.nvm/versions/node/v22.22.0/bin"
+    env["PATH"] = f"{node22_bin}:{env.get('PATH', '/usr/bin:/bin')}"
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            OPENCLAW_CLI, "agent",
+            "--agent", "main",
+            "--message", full_message,
+            "--json",
+            "--timeout", str(OPENCLAW_AGENT_TIMEOUT),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=OPENCLAW_AGENT_TIMEOUT + 5
+        )
+
+        if proc.returncode != 0:
+            logger.error(f"OpenClaw agent failed (rc={proc.returncode}): {stderr.decode()[:200]}")
+            return None
+
+        data = _json.loads(stdout.decode())
+        # Extract response text from payloads
+        payloads = data.get("result", {}).get("payloads", [])
+        if payloads:
+            return payloads[0].get("text", "")
+        return None
+
+    except asyncio.TimeoutError:
+        logger.error("OpenClaw agent timed out")
+        return None
+    except Exception as e:
+        logger.error(f"OpenClaw query error: {e}")
+        return None
+
+
+async def _process_voice_async(call_sid: str, speech: str):
+    """Process voice query through OpenClaw and redirect call when ready.
+
+    Runs as a background task while ambient audio plays.
+    """
+    from integrations.twilio.client import _get_client
+
+    base_url = "https://aialfred.groundrushcloud.com"
+
+    try:
+        # Query OpenClaw (same brain as Telegram)
+        logger.info(f"[Voice {call_sid}] Querying OpenClaw: {speech[:80]}")
+        reply_text = await query_openclaw(speech)
+
+        if not reply_text:
+            # Fallback to local ask() if OpenClaw fails
+            logger.warning(f"[Voice {call_sid}] OpenClaw failed, falling back to local")
+            try:
+                import asyncio
+                phone_query = f"[PHONE CALL - Keep response under 3 sentences. Be concise and conversational. No lists or markdown.] {speech}"
+                alfred_response = await asyncio.wait_for(
+                    ask(query=phone_query, messages=None, smart_routing=True),
+                    timeout=12.0,
+                )
+                reply_text = alfred_response.get("response", "I'm sorry, I couldn't process that.")
+            except Exception:
+                reply_text = "I'm sorry, I ran into an issue. Could you try asking again?"
+
+        # Generate TTS audio
+        reply_audio_id = generate_tts_audio(reply_text)
+        logger.info(f"[Voice {call_sid}] Response ready ({len(reply_text)} chars), audio: {reply_audio_id}")
+
+        # Store the response
+        _pending_voice_responses[call_sid] = {
+            "text": reply_text,
+            "audio_id": reply_audio_id,
+            "ready": True,
+        }
+
+        # Redirect the live call from ambient loop to response
+        try:
+            client = _get_client()
+            client.calls(call_sid).update(
+                url=f"{base_url}/webhooks/twilio/voice/response?sid={call_sid}",
+                method="POST",
+            )
+            logger.info(f"[Voice {call_sid}] Redirected call to response")
+        except Exception as e:
+            logger.error(f"[Voice {call_sid}] Failed to redirect call: {e}")
+
+    except Exception as e:
+        logger.error(f"[Voice {call_sid}] Async processing error: {e}")
+        # Try to redirect to error
+        try:
+            client = _get_client()
+            client.calls(call_sid).update(
+                url=f"{base_url}/webhooks/twilio/voice/response?sid={call_sid}&error=1",
+                method="POST",
+            )
+        except Exception:
+            pass
 
 URGENCY_KEYWORDS = [
     "urgent", "emergency", "asap", "right away", "immediately",
@@ -939,7 +1062,8 @@ async def twilio_voice_webhook(request: Request):
     """Handle incoming voice calls from Twilio.
 
     This endpoint is called when someone calls your Twilio number.
-    Alfred will answer and have a conversation using Kokoro TTS (bm_daniel voice).
+    Alfred answers and has a natural conversation using Kokoro TTS.
+    Processing routes through OpenClaw so phone-Alfred has the same brain as Telegram-Alfred.
     """
     from twilio.twiml.voice_response import VoiceResponse, Gather
 
@@ -950,6 +1074,7 @@ async def twilio_voice_webhook(request: Request):
     from_number = params.get("From", "")
     speech_result = params.get("SpeechResult", "")
     call_status = params.get("CallStatus", "")
+    call_sid = params.get("CallSid", "")
 
     logger.info(f"Voice webhook: from={from_number}, status={call_status}, speech={speech_result[:50] if speech_result else 'none'}")
 
@@ -968,7 +1093,7 @@ async def twilio_voice_webhook(request: Request):
             action=f"{base_url}/webhooks/twilio/voice",
             method="POST",
             speech_timeout="3",
-            timeout=5,
+            timeout=10,
             language="en-US",
         )
         gather.play(f"{base_url}/audio/tts/{greeting_audio_id}.wav")
@@ -976,8 +1101,8 @@ async def twilio_voice_webhook(request: Request):
         # If no input, say goodbye
         response.play(f"{base_url}/audio/tts/{goodbye_audio_id}.wav")
     else:
-        # Play "One moment" immediately, then redirect to process
-        # This gives instant feedback while Alfred thinks
+        # Play a natural thinking phrase, then loop ambient working sounds
+        # while OpenClaw processes the query in the background
         from urllib.parse import quote
         thinking_audio_id = get_random_thinking_audio_id()
         response.play(f"{base_url}/audio/tts/{thinking_audio_id}.wav")
@@ -989,33 +1114,35 @@ async def twilio_voice_webhook(request: Request):
 
 @app.post("/webhooks/twilio/voice/process")
 async def twilio_voice_process(request: Request):
-    """Process speech and return Alfred's response.
+    """Process speech through OpenClaw with ambient audio feedback.
 
-    Called after playing "One moment" to reduce perceived latency.
+    Plays ambient typing/working sounds while OpenClaw processes the query.
+    When the response is ready, the background task redirects the call
+    to /voice/response via Twilio REST API.
     """
-    from twilio.twiml.voice_response import VoiceResponse, Gather
+    from twilio.twiml.voice_response import VoiceResponse
     from urllib.parse import unquote
+    import asyncio
 
     # Get speech from query params
     speech_result = request.query_params.get("speech", "")
     if speech_result:
         speech_result = unquote(speech_result)
 
+    form_data = await request.form()
+    params = dict(form_data)
+    call_sid = params.get("CallSid", "")
+    from_number = params.get("From", "unknown")
+
     base_url = "https://aialfred.groundrushcloud.com"
     response = VoiceResponse()
 
     if not speech_result:
-        # No speech to process
         response.play(f"{base_url}/audio/tts/{get_static_audio_id('error')}.wav")
         return Response(content=str(response), media_type="application/xml")
 
     # Check for urgency — if caller wants to reach Mike, escalate
     if _detect_urgency(speech_result):
-        form_data = await request.form()
-        params = dict(form_data)
-        call_sid = params.get("CallSid", "")
-        from_number = params.get("From", "unknown")
-
         import time
         _pending_escalations[call_sid] = {
             "from": from_number,
@@ -1025,10 +1152,8 @@ async def twilio_voice_process(request: Request):
         }
         logger.info(f"Urgent call detected from {from_number}, escalating: {speech_result[:80]}")
 
-        # Notify Mike on Telegram
         await _notify_telegram_escalation(call_sid, from_number, speech_result)
 
-        # Tell caller we're reaching out, then put them in a hold loop
         hold_msg = "I understand this is urgent. I'm reaching out to Mike now. Please hold for up to 60 seconds while I get him on the line."
         hold_audio_id = generate_tts_audio(hold_msg)
         response.play(f"{base_url}/audio/tts/{hold_audio_id}.wav")
@@ -1036,49 +1161,69 @@ async def twilio_voice_process(request: Request):
 
         return Response(content=str(response), media_type="application/xml")
 
-    # Process speech through Alfred
-    # Add phone-specific instructions to keep responses brief (Twilio has 15s timeout)
-    phone_query = f"[PHONE CALL - Keep response under 3 sentences. Be concise and conversational. No lists or detailed breakdowns.] {speech_result}"
-    logger.info(f"Processing speech: {speech_result}")
-    try:
-        import asyncio
-        # Timeout after 12 seconds to stay under Twilio's 15s limit
-        alfred_response = await asyncio.wait_for(
-            ask(
-                query=phone_query,
-                messages=None,
-                smart_routing=True,
-            ),
-            timeout=12.0
+    # Start async processing through OpenClaw in the background
+    logger.info(f"[Voice {call_sid}] Starting async OpenClaw processing: {speech_result[:80]}")
+    asyncio.create_task(_process_voice_async(call_sid, speech_result))
+
+    # Play ambient working sounds in a loop
+    # The background task will interrupt this via Twilio REST API
+    # when the response is ready
+    response.play(f"{base_url}/audio/ambient_working.wav", loop=0)
+
+    return Response(content=str(response), media_type="application/xml")
+
+
+@app.post("/webhooks/twilio/voice/response")
+@app.get("/webhooks/twilio/voice/response")
+async def twilio_voice_response(request: Request):
+    """Serve the AI response after async processing completes.
+
+    Called by the background task via Twilio REST API calls().update()
+    to redirect the call from the ambient audio loop to the actual response.
+    """
+    from twilio.twiml.voice_response import VoiceResponse, Gather
+
+    call_sid = request.query_params.get("sid", "")
+    is_error = request.query_params.get("error", "")
+
+    base_url = "https://aialfred.groundrushcloud.com"
+    response = VoiceResponse()
+
+    if is_error or call_sid not in _pending_voice_responses:
+        # Error or no response found — apologize and listen again
+        error_msg = "I'm sorry, I ran into an issue with that. Could you try asking again?"
+        error_audio_id = generate_tts_audio(error_msg)
+        gather = Gather(
+            input="speech",
+            action=f"{base_url}/webhooks/twilio/voice",
+            method="POST",
+            speech_timeout="3",
+            timeout=10,
+            language="en-US",
         )
-        reply_text = alfred_response.get("response", "I'm sorry, I couldn't process that.")
-    except asyncio.TimeoutError:
-        logger.warning("Phone call processing timed out after 12s")
-        reply_text = "I'm still working on that. Can you ask me again in a simpler way?"
-    except Exception as e:
-        logger.error(f"Error processing voice: {e}")
-        reply_text = None
+        gather.play(f"{base_url}/audio/tts/{error_audio_id}.wav")
+        response.append(gather)
+        response.play(f"{base_url}/audio/tts/{get_static_audio_id('goodbye')}.wav")
+        return Response(content=str(response), media_type="application/xml")
 
-    # Generate audio for response (dynamic) or use pre-generated error
-    if reply_text:
-        reply_audio_id = generate_tts_audio(reply_text)
-    else:
-        reply_audio_id = get_static_audio_id("error")
+    # Get the prepared response
+    voice_data = _pending_voice_responses.pop(call_sid)
+    reply_audio_id = voice_data["audio_id"]
 
-    # Follow-up is always the same - use pre-generated (instant)
-    followup_audio_id = get_static_audio_id("followup")
-
-    # Speak the response and listen for more
+    # Speak the response and listen for more (natural conversation loop)
     gather = Gather(
         input="speech",
         action=f"{base_url}/webhooks/twilio/voice",
         method="POST",
         speech_timeout="3",
-        timeout=5,
+        timeout=10,
         language="en-US",
     )
     gather.play(f"{base_url}/audio/tts/{reply_audio_id}.wav")
     response.append(gather)
+
+    # If no further input, ask if there's anything else
+    followup_audio_id = get_static_audio_id("followup")
     response.play(f"{base_url}/audio/tts/{followup_audio_id}.wav")
 
     return Response(content=str(response), media_type="application/xml")
@@ -1303,58 +1448,33 @@ STATIC_PHRASES = {
     "default_outbound": "Hello, this is Alfred calling.",
 }
 
-# 50 natural acknowledgment variations for thinking time
+# Natural, human-sounding thinking phrases — conversational, not robotic
 THINKING_PHRASES = [
-    "Let me check on that for you.",
-    "One moment please.",
-    "Let me look into that.",
-    "Give me just a second.",
-    "Let me see what I can find.",
-    "Hold on, let me check.",
-    "Just a moment.",
-    "Let me pull that up.",
-    "One sec.",
-    "Let me take a look.",
-    "Alright, checking now.",
-    "Let me find that for you.",
-    "Sure, one moment.",
-    "Let me get that information.",
-    "Okay, looking into it.",
-    "Let me see here.",
-    "Just a second.",
-    "Let me dig into that.",
-    "Hang on a moment.",
-    "Let me check my sources.",
-    "Working on that now.",
-    "Let me look that up.",
-    "Sure thing, one moment.",
-    "Let me find out.",
-    "Checking on that.",
-    "Let me see what I've got.",
-    "One moment, please.",
-    "Let me get back to you on that.",
-    "Alright, let me check.",
-    "Give me a moment.",
-    "Let me look into this.",
-    "Sure, let me check.",
-    "Just one second.",
-    "Let me pull up that information.",
-    "Okay, one moment.",
-    "Let me search for that.",
-    "Hold on just a second.",
-    "Let me take a quick look.",
-    "Alright, one sec.",
-    "Let me review that.",
-    "Sure, checking now.",
-    "Let me gather that info.",
-    "One second please.",
-    "Let me verify that.",
-    "Okay, let me see.",
-    "Let me check real quick.",
-    "Alright, looking now.",
-    "Let me fetch that.",
-    "Sure, give me a moment.",
-    "Let me process that.",
+    "Yeah, give me one sec.",
+    "Sure, let me pull that up real quick.",
+    "Oh yeah, I know what you're talking about. Give me a second.",
+    "Alright, I'm on it.",
+    "Yeah, let me check on that.",
+    "Good question. Give me just a moment.",
+    "Mmhmm, pulling that up now.",
+    "Yeah, one sec. I've got it right here somewhere.",
+    "Absolutely. Let me take a look.",
+    "Sure thing. Bear with me one second.",
+    "Right, let me see what I've got.",
+    "Yep, looking into that now.",
+    "Okay, give me just a sec on that one.",
+    "Yeah yeah, I'm pulling it up.",
+    "Let me grab that for you real quick.",
+    "Alright, I'm checking now. One moment.",
+    "Oh sure, I can get that. Hang on.",
+    "Yeah, I've got that. Just give me a second to pull it together.",
+    "Mmhmm, working on it.",
+    "Right, give me a moment on that.",
+    "Yeah, I was actually just looking at that. One sec.",
+    "Okay, let me dig into that real quick.",
+    "Sure. I'll have that for you in just a moment.",
+    "Gotcha. Let me check.",
+    "Alright, pulling that up for you now.",
 ]
 
 # Pre-generated thinking phrase audio IDs (populated on startup)
@@ -1481,6 +1601,27 @@ async def serve_tts_audio(audio_id: str):
         headers={
             "Content-Disposition": f"inline; filename={audio_id}.wav",
             "Cache-Control": "no-cache",
+        }
+    )
+
+
+@app.get("/audio/ambient_working.wav")
+async def serve_ambient_audio():
+    """Serve ambient typing/working sounds for voice call processing.
+
+    Played in a loop while OpenClaw processes voice queries,
+    so the caller hears subtle activity instead of silence.
+    """
+    if not AMBIENT_AUDIO_PATH.exists():
+        raise HTTPException(status_code=404, detail="Ambient audio not found")
+
+    audio_data = AMBIENT_AUDIO_PATH.read_bytes()
+    return Response(
+        content=audio_data,
+        media_type="audio/wav",
+        headers={
+            "Content-Disposition": "inline; filename=ambient_working.wav",
+            "Cache-Control": "public, max-age=3600",
         }
     )
 
@@ -2250,37 +2391,44 @@ async def download_file(filename: str, user: dict = Depends(require_auth)):
     )
 
 
-@app.head("/media/{filename}")
-@app.get("/media/{filename}")
-async def media_file(filename: str):
-    """Serve generated images publicly (no auth) for social media APIs.
+@app.head("/media/{filepath:path}")
+@app.get("/media/{filepath:path}")
+async def media_file(filepath: str):
+    """Serve generated images/videos publicly (no auth) for social media APIs.
 
     Instagram/Facebook Graph API requires publicly accessible direct image URLs.
-    Checks data/generated/ first, then ComfyUI output directory.
+    Supports subdirectories (e.g. /media/pipeline-demo/ig_feed.png).
+    Checks data/generated/ first, then static/media, then ComfyUI output.
     """
     from pathlib import Path
-    # Security: only allow alphanumeric, dots, underscores, hyphens
-    safe_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
-    if not all(c in safe_chars for c in filename):
+    # Security: only allow alphanumeric, dots, underscores, hyphens, forward slashes
+    safe_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-/")
+    if not all(c in safe_chars for c in filepath):
         raise HTTPException(status_code=400, detail="Invalid filename")
+    # Block path traversal
+    if ".." in filepath:
+        raise HTTPException(status_code=400, detail="Invalid path")
     # Only serve image and video files
-    allowed_extensions = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4"}
-    ext = Path(filename).suffix.lower()
+    allowed_extensions = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".wav", ".mp3"}
+    ext = Path(filepath).suffix.lower()
     if ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail="Only image/video files are allowed")
-    # Check data/generated/ first, then ComfyUI output, then Claw's static video
+        raise HTTPException(status_code=400, detail="Only image/video/audio files are allowed")
+    # Check data/generated/ first, then static/media (ComfyUI Cloud), then ComfyUI output, then Claw's static video
     from core.tools.files import GENERATED_DIR
+    static_media = Path("/home/aialfred/alfred/static/media")
     comfyui_output = Path("/home/aialfred/ComfyUI/output")
     claw_video = Path("/home/aialfred/.openclaw/workspace/static/video")
     path = None
-    if (GENERATED_DIR / filename).exists():
-        path = GENERATED_DIR / filename
-    elif (comfyui_output / filename).exists():
-        path = comfyui_output / filename
-    elif (claw_video / filename).exists():
-        path = claw_video / filename
+    if (GENERATED_DIR / filepath).exists():
+        path = GENERATED_DIR / filepath
+    elif (static_media / filepath).exists():
+        path = static_media / filepath
+    elif (comfyui_output / filepath).exists():
+        path = comfyui_output / filepath
+    elif (claw_video / filepath).exists():
+        path = claw_video / filepath
     if not path or not path.is_file():
-        raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(status_code=404, detail="File not found")
     content_types = {
         ".png": "image/png",
         ".jpg": "image/jpeg",
@@ -2288,6 +2436,8 @@ async def media_file(filename: str):
         ".webp": "image/webp",
         ".gif": "image/gif",
         ".mp4": "video/mp4",
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
     }
     ct = content_types.get(ext, "application/octet-stream")
     return Response(

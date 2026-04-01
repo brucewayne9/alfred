@@ -221,8 +221,7 @@ def get_daily_tasks():
             t["overdue"] = True
         # Today's tasks first, then overdue from previous days
         all_tasks = tasks + outstanding
-        if all_tasks:
-            return all_tasks
+        return all_tasks  # Return even if empty — DB is authoritative
     except Exception as e:
         log.warning(f"Tasks DB unavailable, falling back to JSON: {e}")
 

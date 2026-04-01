@@ -77,6 +77,12 @@ SERVERS = [
         "name": "cloud-mail",
         "description": "gloundrush-cloud-mail",
     },
+    {
+        "alias": "casaos",
+        "ip": "75.43.156.111",
+        "name": "casaos-dev",
+        "description": "CasaOS Dev/Test",
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -210,6 +216,20 @@ DAILY_TARGETS: dict[str, dict] = {
              "'pg_dumpall -U postgres 2>&1 "
              "|| pg_dumpall -U \"$POSTGRES_USER\" 2>&1' 2>/dev/null; echo; done "
              "|| echo '(no postgres containers found)'"),
+        ],
+    },
+    "casaos-dev": {
+        # CasaOS on Debian 12 — Docker-based apps, Claw sandbox
+        "files": _COMMON_FILES,
+        "commands": _COMMON_COMMANDS + [
+            ("docker-containers.txt",
+             "docker ps -a --format 'table {{.Names}}\\t{{.Status}}\\t{{.Image}}' 2>/dev/null "
+             "|| echo '(no docker)'"),
+            ("casaos-apps.txt",
+             "ls -la /DATA/AppData/ 2>/dev/null || echo '(no CasaOS app data)'"),
+            ("dotenv-files.txt",
+             "find /DATA /opt /home -maxdepth 4 -name '.env' 2>/dev/null "
+             "| head -20 | while read f; do echo \"=== $f ===\"; cat \"$f\" 2>/dev/null; echo; done"),
         ],
     },
     "cloud-mail": {

@@ -1,0 +1,152 @@
+{
+  "timestamp": "2026-04-01T09:00:01.662510+00:00",
+  "servers": {
+    "alfred-labs": {
+      "daily": {
+        "server": "alfred-labs",
+        "backup_type": "daily",
+        "latest_date": "2026-04-01",
+        "age_hours": 9.0,
+        "file_count": 1,
+        "total_size_bytes": 6334778,
+        "status": "ok"
+      },
+      "weekly": {
+        "server": "alfred-labs",
+        "backup_type": "weekly",
+        "latest_date": "2026-03-29",
+        "age_hours": 81.0,
+        "file_count": 1,
+        "total_size_bytes": 13829726,
+        "status": "ok"
+      }
+    },
+    "groundrush-radio": {
+      "daily": {
+        "server": "groundrush-radio",
+        "backup_type": "daily",
+        "latest_date": "2026-04-01",
+        "age_hours": 9.0,
+        "file_count": 1,
+        "total_size_bytes": 4048891,
+        "status": "ok"
+      },
+      "weekly": {
+        "server": "groundrush-radio",
+        "backup_type": "weekly",
+        "latest_date": "2026-03-29",
+        "age_hours": 81.0,
+        "file_count": 1,
+        "total_size_bytes": 149261067,
+        "status": "ok"
+      }
+    },
+    "labs-edge": {
+      "daily": {
+        "server": "labs-edge",
+        "backup_type": "daily",
+        "latest_date": "2026-04-01",
+        "age_hours": 9.0,
+        "file_count": 1,
+        "total_size_bytes": 3698659,
+        "status": "ok"
+      },
+      "weekly": {
+        "server": "labs-edge",
+        "backup_type": "weekly",
+        "latest_date": "2026-03-29",
+        "age_hours": 81.0,
+        "file_count": 1,
+        "total_size_bytes": 1272279060,
+        "status": "ok"
+      }
+    },
+    "alfred-claw": {
+      "daily": {
+        "server": "alfred-claw",
+        "backup_type": "daily",
+        "latest_date": "2026-04-01",
+        "age_hours": 9.0,
+        "file_count": 1,
+        "total_size_bytes": 108878149,
+        "status": "ok"
+      },
+      "weekly": {
+        "server": "alfred-claw",
+        "backup_type": "weekly",
+        "latest_date": "2026-03-29",
+        "age_hours": 81.0,
+        "file_count": 1,
+        "total_size_bytes": 108923079,
+        "status": "ok"
+      }
+    },
+    "labsliveserver": {
+      "daily": {
+        "server": "labsliveserver",
+        "backup_type": "daily",
+        "latest_date": "2026-04-01",
+        "age_hours": 9.0,
+        "file_count": 1,
+        "total_size_bytes": 29595440,
+        "status": "ok"
+      },
+      "weekly": {
+        "server": "labsliveserver",
+        "backup_type": "weekly",
+        "latest_date": "2026-03-29",
+        "age_hours": 81.0,
+        "file_count": 1,
+        "total_size_bytes": 30268098,
+        "status": "ok"
+      }
+    },
+    "lonewolf": {
+      "daily": {
+        "server": "lonewolf",
+        "backup_type": "daily",
+        "latest_date": "2026-04-01",
+        "age_hours": 9.0,
+        "file_count": 1,
+        "total_size_bytes": 116264081,
+        "status": "ok"
+      },
+      "weekly": {
+        "server": "lonewolf",
+        "backup_type": "weekly",
+        "latest_date": "2026-03-29",
+        "age_hours": 81.0,
+        "file_count": 1,
+        "total_size_bytes": 601555128,
+        "status": "ok"
+      }
+    },
+    "cloud-mail": {
+      "daily": {
+        "server": "cloud-mail",
+        "backup_type": "daily",
+        "latest_date": "2026-04-01",
+        "age_hours": 9.0,
+        "file_count": 1,
+        "total_size_bytes": 1196360,
+        "status": "ok"
+      },
+      "weekly": {
+        "server": "cloud-mail",
+        "backup_type": "weekly",
+        "latest_date": "2026-03-29",
+        "age_hours": 81.0,
+        "file_count": 1,
+        "total_size_bytes": 428235592,
+        "status": "ok"
+      }
+    }
+  },
+  "summary": {
+    "total_checks": 14,
+    "ok": 14,
+    "stale": 0,
+    "empty": 0,
+    "missing": 0
+  }
+}
