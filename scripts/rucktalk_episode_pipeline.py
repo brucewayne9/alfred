@@ -637,11 +637,14 @@ def generate_clips(
     clip_moments: list[dict],
     episode_number: int,
     episode_slug: str,
+    analysis: dict | None = None,
 ) -> list[dict]:
     """
-    Cut video clips at identified moments in both portrait and landscape.
+    Cut video clips at identified moments in both portrait and landscape,
+    then render branded versions through the RuckTalkClip Remotion template.
     Returns list of clip metadata dicts for the social queue.
     """
+    analysis = analysis or {}
     clips_generated = []
     episode_clips_dir = CLIPS_DIR / f"episode_{episode_number}"
     episode_clips_dir.mkdir(parents=True, exist_ok=True)
@@ -680,13 +683,30 @@ def generate_clips(
             logger.warning("Clip %d (%s) failed to generate.", i, label)
             continue
 
-        # Copy portrait clips to STATIC_MEDIA for web access
-        web_filename = f"rucktalk_ep{episode_number}_{clip_slug}_portrait.mp4"
+        # Render branded version through Remotion RuckTalkClip template
+        branded_path = episode_clips_dir / f"{clip_slug}_branded.mp4"
+        branded_ok = _render_branded_clip(
+            raw_clip_path=portrait_path if portrait_ok else landscape_path,
+            output_path=branded_path,
+            episode_number=episode_number,
+            episode_title=analysis.get("title", ""),
+            context_line=caption,
+            host_name="MIKE JOHNSON",
+            guest_name=analysis.get("guest_name"),
+            transcript=transcript,
+            clip_start=start,
+            clip_end=end,
+            duration_frames=int(duration * 30),
+        ) if (portrait_ok or landscape_ok) else False
+
+        # Use branded version for social, fall back to raw portrait
+        social_clip = branded_path if branded_ok else portrait_path
+        web_filename = f"rucktalk_ep{episode_number}_{clip_slug}_branded.mp4"
         web_path = STATIC_MEDIA / "rucktalk" / web_filename
         web_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if portrait_ok and portrait_path.exists():
-            shutil.copy2(str(portrait_path), str(web_path))
+        if social_clip and Path(social_clip).exists():
+            shutil.copy2(str(social_clip), str(web_path))
 
         clip_meta = {
             "episode_number": episode_number,
@@ -700,8 +720,9 @@ def generate_clips(
             "duration": duration,
             "landscape_path": str(landscape_path) if landscape_ok else None,
             "portrait_path": str(portrait_path) if portrait_ok else None,
+            "branded_path": str(branded_path) if branded_ok else None,
             "srt_path": str(srt_path),
-            "web_url": f"{PUBLIC_MEDIA_URL}/rucktalk/{web_filename}" if portrait_ok else None,
+            "web_url": f"{PUBLIC_MEDIA_URL}/rucktalk/{web_filename}" if (branded_ok or portrait_ok) else None,
             "posted": False,
             "created_at": datetime.now().isoformat(),
         }
@@ -709,6 +730,106 @@ def generate_clips(
 
     logger.info("Generated %d/%d clips successfully.", len(clips_generated), len(clip_moments))
     return clips_generated
+
+
+def _render_branded_clip(
+    raw_clip_path: Path,
+    output_path: Path,
+    episode_number: int,
+    episode_title: str,
+    context_line: str,
+    host_name: str,
+    guest_name: str | None,
+    transcript: dict,
+    clip_start: float,
+    clip_end: float,
+    duration_frames: int,
+) -> bool:
+    """Render a clip through the Remotion RuckTalkClip template with branded overlays."""
+    if output_path.exists():
+        return True
+
+    # Build caption phrases from transcript segments in this time range
+    segments = transcript.get("segments", [])
+    phrases = []
+    fps = 30
+    phrase_words = []
+    phrase_start = None
+
+    for seg in segments:
+        seg_start = seg.get("start", 0)
+        seg_end = seg.get("end", 0)
+        if seg_start >= clip_start and seg_end <= clip_end:
+            adj_start = seg_start - clip_start
+            adj_end = seg_end - clip_start
+            text = seg.get("text", "").strip().upper()
+            if not text:
+                continue
+
+            if phrase_start is None:
+                phrase_start = adj_start
+
+            phrase_words.append(text)
+
+            # Group into phrases of ~4-6 words
+            if len(phrase_words) >= 4 or adj_end - phrase_start > 4.0:
+                phrases.append({
+                    "text": " ".join(phrase_words),
+                    "startFrame": int(phrase_start * fps),
+                    "endFrame": int(adj_end * fps),
+                })
+                phrase_words = []
+                phrase_start = None
+
+    # Flush remaining words
+    if phrase_words and phrase_start is not None:
+        phrases.append({
+            "text": " ".join(phrase_words),
+            "startFrame": int(phrase_start * fps),
+            "endFrame": duration_frames,
+        })
+
+    if not phrases:
+        # Fallback: single phrase from context
+        phrases = [{"text": context_line.upper(), "startFrame": 30, "endFrame": duration_frames - 30}]
+
+    # Build Remotion props
+    props = {
+        "videoSrc": str(raw_clip_path),
+        "episodeNumber": episode_number,
+        "episodeTitle": episode_title,
+        "contextLine": context_line,
+        "hostName": host_name,
+        "guestName": guest_name or "",
+        "captionPhrases": phrases,
+    }
+
+    props_json = json.dumps(props)
+    remotion_dir = "/home/aialfred/remotion"
+    npx = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/npx"
+
+    cmd = [
+        npx, "remotion", "render",
+        "src/index.ts", "RuckTalkClip",
+        f"--props={props_json}",
+        "--frames=0-" + str(min(duration_frames, 1800)),
+        str(output_path),
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd, cwd=remotion_dir,
+            capture_output=True, text=True, timeout=600,
+            env={**os.environ, "PATH": f"/home/aialfred/.nvm/versions/node/v22.22.0/bin:{os.environ.get('PATH', '')}"},
+        )
+        if result.returncode != 0:
+            logger.warning("Remotion render failed for %s: %s", output_path.name, result.stderr[-300:])
+            return False
+        logger.info("Branded clip rendered: %s", output_path.name)
+        return True
+    except Exception as exc:
+        logger.warning("Remotion render error: %s", exc)
+        return False
 
 
 def _cut_clip(
@@ -958,7 +1079,8 @@ def process_episode(file_info: dict) -> bool:
         # Step 10: Generate clips
         if clip_moments:
             clips = generate_clips(
-                video_path, transcript, clip_moments, episode_number, episode_slug
+                video_path, transcript, clip_moments, episode_number, episode_slug,
+                analysis=analysis,
             )
             results["clips_generated"] = len(clips)
 
