@@ -777,13 +777,15 @@ def _cut_clip(
 def queue_clips_for_social(clips: list[dict]) -> int:
     """Add generated clips to the social posting queue. Returns count added."""
     queue = load_clip_queue()
+    clip_list = queue.get("clips", [])
     added = 0
     for clip in clips:
         if clip.get("portrait_path") or clip.get("landscape_path"):
-            queue.append(clip)
+            clip_list.append(clip)
             added += 1
+    queue["clips"] = clip_list
     save_clip_queue(queue)
-    logger.info("Added %d clips to social queue (total queue: %d).", added, len(queue))
+    logger.info("Added %d clips to social queue (total queue: %d).", added, len(clip_list))
     return added
 
 
