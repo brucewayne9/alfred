@@ -51,7 +51,7 @@ def select_content_mode(history: dict) -> str:
       2. "trend" (40%) or "evergreen" (60%) random
     """
     queue = load_clip_queue()
-    unposted = [c for c in queue if not c.get("posted")]
+    unposted = [c for c in queue.get("clips", []) if not c.get("posted")]
     if unposted:
         logger.info("Clip queue has %d unposted clips — selecting clip mode.", len(unposted))
         return "clip"
@@ -294,7 +294,7 @@ def post_episode_clip(dry_run: bool = False) -> dict | None:
     and marks the clip as posted.
     """
     queue = load_clip_queue()
-    unposted = [c for c in queue if not c.get("posted")]
+    unposted = [c for c in queue.get("clips", []) if not c.get("posted")]
     if not unposted:
         logger.warning("No unposted clips in queue.")
         return None
@@ -353,7 +353,7 @@ Rules:
         logger.info("[DRY RUN] Would schedule clip to Postiz at %s", schedule_dt)
 
     # Mark clip as posted in queue
-    for c in queue:
+    for c in queue.get("clips", []):
         if c is clip or (c.get("path") == clip.get("path") and c.get("title") == clip.get("title")):
             c["posted"] = True
             c["posted_date"] = datetime.now(EST).strftime("%Y-%m-%d")
