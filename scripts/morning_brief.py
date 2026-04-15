@@ -1,26 +1,27 @@
 #!/usr/bin/env python3
-"""Alfred Morning Brief — Beautiful HTML newsletter delivered daily at 6:30 AM.
+"""
+Mike's Morning Brief — 6:30 AM ET daily
+One brief. One time. Everything Mike needs to know.
 
 Sections:
-1. Greeting + Date + Weather
-2. Stocks (portfolio watchlist)
-3. News: 3 Political, 3 Motivational/Business, 3 Tech stories
-4. Server Performance (actual numbers)
-5. Daily Task Checklist (from evening ping)
-6. CRM Pipeline Quick Stats
-7. Calendar Today
+1. Today's Tasks — from evening ping or manual entry
+2. Brain Dumps — what Alfred & Mike worked on (last 24h from Grey Matter)
+3. Infrastructure — server fleet health + services
+4. Stock Portfolio — watchlist with daily changes
+5. News — conservative + tech headlines (clickable)
+6. Big Picture — strategic context from Grey Matter
 
-Cron: 30 6 * * * cd /home/aialfred/alfred && /home/aialfred/.pyenv/versions/3.11.11/bin/python3 scripts/morning_brief.py >> /tmp/morning_brief.log 2>&1
+Sends as a designed HTML email via alfred@groundrushinc.com (Google Workspace).
 """
 
-import asyncio
 import json
 import logging
 import os
 import re
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -29,633 +30,633 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dotenv import load_dotenv
 load_dotenv("/home/aialfred/alfred/config/.env")
 
-import httpx
-import requests
-
 from integrations.email.client import EmailClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("morning_brief")
 
+ET = timezone(timedelta(hours=-4))
+NOW = datetime.now(ET)
+DATE_STR = NOW.strftime("%A, %B %-d, %Y")
+DATE_SHORT = NOW.strftime("%Y-%m-%d")
+SCRIPTS = os.path.expanduser("~/.openclaw/workspace/scripts/integrations")
 TASK_FILE = Path("/home/aialfred/alfred/data/daily_tasks.json")
+
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = "7582976864"
-MIKE_EMAIL = "mjohnson@groundrushinc.com"
 
-email_client = EmailClient()
-
-# Stocks to track
-WATCHLIST = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "META", "NVDA", "SPY"]
-
-# Server list
-SERVERS = [
-    {"name": "Alfred Labs", "host": "75.43.156.105", "port": 8400, "check": "/health"},
-    {"name": "Alfred Claw", "host": "75.43.156.101", "port": 2222, "check": "ssh"},
-    {"name": "Lonewolf (Dokploy)", "host": "75.43.156.117", "port": 443, "check": "https"},
-    {"name": "Home Assistant", "host": "75.43.156.104", "port": 8123, "check": "http"},
+# Stock watchlist — Mike's portfolio
+TICKERS = [
+    ("NVDA", "NVIDIA"), ("AMZN", "Amazon"), ("GOOGL", "Google"),
+    ("VTI", "Total Market"), ("VXUS", "Int'l Stocks"), ("SCHD", "Dividend ETF"),
+    ("BBLU", "Bridgebio"), ("FELC", "Fidelity"), ("SCHK", "Schwab"),
+    ("JHAC", "John Hancock"), ("BND", "Bonds"), ("UBER", "Uber"),
+    ("LOW", "Lowe's"), ("HD", "Home Depot"),
 ]
 
 
-# ── Data Fetchers ─────────────────────────────────────────────
-
-async def fetch_weather():
-    """Get Atlanta weather."""
+def run_script(script, args, timeout=30):
+    """Run an integration script and return stdout."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            geo = await client.get("https://geocoding-api.open-meteo.com/v1/search?name=Atlanta,GA&count=1")
-            geo_data = geo.json()
-            if not geo_data.get("results"):
-                return None
-            lat = geo_data["results"][0]["latitude"]
-            lon = geo_data["results"][0]["longitude"]
-
-            w = await client.get(
-                f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
-                f"&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m"
-                f"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
-                f"&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America/New_York"
-            )
-            data = w.json()
-            current = data.get("current", {})
-            daily = data.get("daily", {})
-
-            codes = {
-                0: "Clear", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
-                45: "Foggy", 48: "Foggy", 51: "Light Drizzle", 53: "Drizzle",
-                61: "Light Rain", 63: "Rain", 65: "Heavy Rain", 80: "Showers",
-                95: "Thunderstorm",
-            }
-            return {
-                "temp": round(current.get("temperature_2m", 0)),
-                "condition": codes.get(current.get("weather_code", 0), "Unknown"),
-                "wind": round(current.get("wind_speed_10m", 0)),
-                "humidity": current.get("relative_humidity_2m", 0),
-                "high": round(daily.get("temperature_2m_max", [0])[0]),
-                "low": round(daily.get("temperature_2m_min", [0])[0]),
-                "precip": daily.get("precipitation_probability_max", [0])[0],
-            }
+        result = subprocess.run(
+            ["python3", f"{SCRIPTS}/{script}"] + args,
+            capture_output=True, text=True, timeout=timeout
+        )
+        return result.stdout.strip()
     except Exception as e:
-        log.error(f"Weather fetch failed: {e}")
-        return None
+        return f"(unavailable: {e})"
 
 
-async def fetch_stocks():
-    """Get stock quotes using Yahoo Finance."""
-    results = []
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            for symbol in WATCHLIST:
-                try:
-                    resp = await client.get(
-                        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
-                        params={"interval": "1d", "range": "2d"},
-                        headers={"User-Agent": "Mozilla/5.0"},
-                    )
-                    data = resp.json()
-                    meta = data.get("chart", {}).get("result", [{}])[0].get("meta", {})
-                    price = meta.get("regularMarketPrice", 0)
-                    prev = meta.get("chartPreviousClose", 0) or meta.get("previousClose", 0)
-                    change = price - prev if prev else 0
-                    pct = (change / prev * 100) if prev else 0
-                    results.append({
-                        "symbol": symbol,
-                        "price": round(price, 2),
-                        "change": round(change, 2),
-                        "pct": round(pct, 2),
-                    })
-                except Exception:
-                    results.append({"symbol": symbol, "price": 0, "change": 0, "pct": 0})
-    except Exception as e:
-        log.error(f"Stock fetch failed: {e}")
-    return results
+# ─────────────────────────────────────────────────
+# DATA SECTIONS — return structured data
+# ─────────────────────────────────────────────────
 
-
-async def fetch_news_rss(category: str, feed_url: str, count: int = 3):
-    """Fetch news from RSS feed."""
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(feed_url, headers={"User-Agent": "Mozilla/5.0"})
-            root = ET.fromstring(resp.text)
-
-            items = []
-            for item in root.findall(".//item")[:count]:
-                title = item.findtext("title", "")
-                link = item.findtext("link", "")
-                desc = item.findtext("description", "")
-                # Clean HTML from description
-                desc = re.sub(r"<[^>]+>", "", desc)[:150]
-                if title:
-                    items.append({"title": title, "link": link, "desc": desc})
-            return items
-    except Exception as e:
-        log.error(f"RSS fetch failed for {category}: {e}")
+def get_tasks() -> list[dict]:
+    """Return list of {text, done} task dicts."""
+    if not TASK_FILE.exists():
         return []
-
-
-async def fetch_all_news():
-    """Fetch news from all categories."""
-    feeds = {
-        "political": "https://news.google.com/rss/search?q=politics+US&hl=en-US&gl=US&ceid=US:en",
-        "motivational": "https://news.google.com/rss/search?q=entrepreneur+success+motivation&hl=en-US&gl=US&ceid=US:en",
-        "tech": "https://news.google.com/rss/search?q=technology+AI+startup&hl=en-US&gl=US&ceid=US:en",
-    }
-    results = {}
-    tasks = [fetch_news_rss(cat, url, 3) for cat, url in feeds.items()]
-    fetched = await asyncio.gather(*tasks, return_exceptions=True)
-    for (cat, _), result in zip(feeds.items(), fetched):
-        results[cat] = result if not isinstance(result, Exception) else []
-    return results
-
-
-async def check_servers():
-    """Check server status and get basic metrics."""
-    results = []
-    async with httpx.AsyncClient(timeout=5, verify=False) as client:
-        for server in SERVERS:
-            status = {"name": server["name"], "host": server["host"], "online": False, "latency_ms": 0}
-            try:
-                start = datetime.now()
-                if server["check"] == "ssh":
-                    # SSH check via subprocess
-                    proc = await asyncio.create_subprocess_exec(
-                        "ssh", "-p", str(server["port"]), "-o", "ConnectTimeout=3",
-                        "-o", "StrictHostKeyChecking=no",
-                        f"brucewayne9@{server['host']}", "uptime",
-                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                    )
-                    stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
-                    status["online"] = proc.returncode == 0
-                    status["uptime"] = stdout.decode().strip() if stdout else ""
-                elif server["check"].startswith("http"):
-                    proto = server["check"]
-                    url = f"{proto}://{server['host']}:{server['port']}"
-                    resp = await client.get(url)
-                    status["online"] = resp.status_code < 500
-                    status["status_code"] = resp.status_code
-                else:
-                    url = f"http://{server['host']}:{server['port']}{server['check']}"
-                    resp = await client.get(url)
-                    status["online"] = resp.status_code == 200
-                    try:
-                        status["details"] = resp.json()
-                    except Exception:
-                        pass
-                latency = (datetime.now() - start).total_seconds() * 1000
-                status["latency_ms"] = round(latency)
-            except Exception as e:
-                status["error"] = str(e)[:80]
-            results.append(status)
-    return results
-
-
-def get_daily_tasks():
-    """Get today's task list from the tasks DB (reflects web app check-offs).
-    Falls back to daily_tasks.json if DB is unavailable."""
     try:
-        from core.tasks.manager import get_tasks_for_date, get_outstanding_tasks
-        today = datetime.now().strftime("%Y-%m-%d")
-        tasks = get_tasks_for_date(today)
-        outstanding = get_outstanding_tasks()
-        # Mark outstanding tasks so the brief can highlight them
-        for t in outstanding:
-            t["overdue"] = True
-        # Today's tasks first, then overdue from previous days
-        all_tasks = tasks + outstanding
-        return all_tasks  # Return even if empty — DB is authoritative
-    except Exception as e:
-        log.warning(f"Tasks DB unavailable, falling back to JSON: {e}")
+        data = json.loads(TASK_FILE.read_text())
+    except Exception:
+        return []
+    raw = data.get(DATE_SHORT, data.get("tasks", []))
+    tasks = []
+    for t in raw:
+        if isinstance(t, dict):
+            tasks.append({"text": t.get("text", str(t)), "done": t.get("done", False)})
+        else:
+            tasks.append({"text": str(t), "done": False})
+    return tasks
 
-    # Fallback to JSON file
-    if TASK_FILE.exists():
-        try:
-            data = json.loads(TASK_FILE.read_text())
-            today = datetime.now().strftime("%Y-%m-%d")
-            tasks = data.get(today, data.get("tasks", []))
-            return tasks if isinstance(tasks, list) else []
-        except Exception:
-            return []
+
+def get_brain_dumps() -> str:
+    """Return brain dump text from Grey Matter."""
+    output = run_script("lightrag_client.py", [
+        "recall", "What did Mike and Alfred work on in the last 24 hours? "
+        "Include any brain dumps, decisions made, tasks completed, "
+        "and important conversations from yesterday and today."
+    ], timeout=45)
+    if output and "unavailable" not in output and len(output) > 20:
+        lines = output.strip().split("\n")
+        return "\n".join(lines[:20])
+    return ""
+
+
+def get_git_activity() -> list[str]:
+    """Return list of commit one-liners."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "--oneline", "--since=midnight", "--all"],
+            capture_output=True, text=True, timeout=10,
+            cwd=os.path.expanduser("~/alfred")
+        )
+        if result.stdout.strip():
+            return result.stdout.strip().split("\n")[:10]
+    except Exception:
+        pass
     return []
 
 
-async def get_crm_stats():
-    """Get CRM pipeline quick stats."""
+def get_infrastructure() -> tuple[list[dict], list[dict]]:
+    """Return (servers, services) as lists of status dicts."""
+    SERVERS = [
+        ("105", "75.43.156.105", "Labs + Claw"),
+        ("104", "75.43.156.104", "Production"),
+        ("117", "75.43.156.117", "Dokploy/CRM"),
+        ("111", "75.43.156.111", "CasaOS Dev"),
+        ("121", "75.43.156.121", "Mailcow"),
+        ("098", "75.43.156.98", "LoovaCast Dev"),
+        ("100", "75.43.156.100", "LoovaCast Prod"),
+    ]
+
+    servers = []
+    for sid, ip, role in SERVERS:
+        try:
+            result = subprocess.run(
+                ["ping", "-c", "1", "-W", "3", ip],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                m = re.search(r'time=(\d+\.?\d*)', result.stdout)
+                ms = f"{float(m.group(1)):.0f}ms" if m else "ok"
+                servers.append({"id": sid, "ip": ip, "role": role, "status": "up", "latency": ms})
+            else:
+                servers.append({"id": sid, "ip": ip, "role": role, "status": "down", "latency": ""})
+        except Exception:
+            servers.append({"id": sid, "ip": ip, "role": role, "status": "unknown", "latency": ""})
+
+    services = []
     try:
-        from integrations.base_crm.client import pipeline_summary, list_tasks
-        pipeline = pipeline_summary()
-        tasks = list_tasks(limit=50)
+        result = subprocess.run(
+            ["systemctl", "--user", "is-active", "openclaw-gateway"],
+            capture_output=True, text=True, timeout=5
+        )
+        services.append({"name": "OpenClaw", "status": result.stdout.strip()})
+    except Exception:
+        services.append({"name": "OpenClaw", "status": "unknown"})
 
-        # Count urgent tasks (due today or overdue)
-        today = datetime.now(timezone.utc).date()
-        urgent = 0
-        for t in tasks:
-            due = t.get("due_date")
-            if due:
-                try:
-                    due_date = datetime.fromisoformat(due.replace("Z", "+00:00")).date()
-                    if due_date <= today:
-                        urgent += 1
-                except Exception:
-                    pass
+    for name, url in [("ComfyUI", "http://localhost:8188/system_stats"), ("Alfred Labs", "http://localhost:8400/health")]:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "brief"})
+            with urllib.request.urlopen(req, timeout=3):
+                services.append({"name": name, "status": "active"})
+        except Exception:
+            services.append({"name": name, "status": "down"})
 
-        return {
-            "total_deals": pipeline.get("total_deals", 0),
-            "total_value": pipeline.get("total_value", 0),
-            "stages": pipeline.get("stages", {}),
-            "urgent_tasks": urgent,
-        }
-    except Exception as e:
-        log.error(f"CRM stats failed: {e}")
-        return None
+    return servers, services
 
 
-async def get_calendar_today():
-    """Get today's calendar events."""
+def get_stocks() -> list[dict]:
+    """Return list of {ticker, name, price, change, pct, up} dicts."""
+    stocks = []
+    for ticker, name in TICKERS:
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=2d"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+            meta = data["chart"]["result"][0]["meta"]
+            price = meta["regularMarketPrice"]
+            prev = meta["chartPreviousClose"]
+            change = price - prev
+            pct = (change / prev) * 100 if prev else 0
+            stocks.append({
+                "ticker": ticker, "name": name, "price": price,
+                "change": change, "pct": pct, "up": change >= 0,
+            })
+        except Exception:
+            stocks.append({"ticker": ticker, "name": name, "price": None, "change": 0, "pct": 0, "up": True})
+    return stocks
+
+
+def get_news() -> dict:
+    """Return {conservative: [{title, url, snippet}], tech: [{title, url, snippet}]}."""
+    news = {"conservative": [], "tech": []}
+
     try:
-        from core.tools.definitions import today_schedule
-        result = await asyncio.get_event_loop().run_in_executor(None, today_schedule)
-        events = result.get("events", [])
-        # Normalize — events may be a list of dicts or list of other
-        if isinstance(events, list):
-            return [e if isinstance(e, dict) else {"summary": str(e)} for e in events]
-        return []
-    except Exception as e:
-        log.error(f"Calendar fetch failed: {e}")
-        return []
+        result = subprocess.run(
+            ["python3", f"{SCRIPTS}/search.py", "batch",
+             "conservative news headlines today site:foxnews.com OR site:dailywire.com OR site:breitbart.com",
+             "technology AI news today site:techcrunch.com OR site:theverge.com OR site:arstechnica.com"],
+            capture_output=True, text=True, timeout=45
+        )
+        if result.stdout.strip():
+            raw = result.stdout.strip()
+            current_category = "conservative"
+
+            for line in raw.split("\n"):
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("==="):
+                    if "technology" in line.lower() or "tech" in line.lower():
+                        current_category = "tech"
+                    continue
+
+                # Format: "1. [engine] Title — https://url"
+                m = re.match(r'^\d+\.\s*\[\w+\]\s*(.+?)\s*—\s*(https?://\S+)', line)
+                if m:
+                    title = m.group(1).strip()
+                    url = m.group(2).strip()
+                    news[current_category].append({"title": title, "url": url, "snippet": ""})
+
+    except Exception:
+        pass
+
+    # Cap at 5 each, skip homepage-only results
+    for cat in news:
+        news[cat] = [n for n in news[cat] if len(n.get("title", "")) > 20][:5]
+
+    return news
 
 
-async def generate_ai_summary(weather, stocks, servers, crm, calendar, tasks):
-    """Generate an AI executive summary of the day's data."""
-    try:
-        # Build a data snapshot for the LLM
-        parts = []
-        if weather:
-            parts.append(f"Weather: {weather['temp']}°F, {weather['condition']}, high {weather['high']}°, {weather['precip']}% rain chance")
-        if crm:
-            stages = crm.get("stages", {})
-            stage_str = ", ".join(f"{k}: {v}" for k, v in stages.items()) if stages else "no stage breakdown"
-            parts.append(f"CRM: {crm['total_deals']} active deals, ${crm['total_value']:,.0f} pipeline, {crm['urgent_tasks']} tasks due. Stages: {stage_str}")
-        if calendar:
-            event_strs = []
-            for e in calendar[:5]:
-                s = e.get("start", {})
-                t = s.get("dateTime", "all day")
-                if "T" in str(t):
-                    try:
-                        t = datetime.fromisoformat(t.replace("Z", "+00:00")).strftime("%-I:%M %p")
-                    except Exception:
-                        pass
-                event_strs.append(f"{t}: {e.get('summary', 'Untitled')}")
-            parts.append(f"Calendar: {', '.join(event_strs)}")
-        else:
-            parts.append("Calendar: No events today")
-        if tasks:
-            task_strs = [t if isinstance(t, str) else t.get("text", str(t)) for t in tasks]
-            parts.append(f"Tasks: {'; '.join(task_strs[:5])}")
-        server_down = [s["name"] for s in (servers or []) if not s.get("online")]
-        if server_down:
-            parts.append(f"SERVERS DOWN: {', '.join(server_down)}")
-        else:
-            parts.append("All servers online")
-
-        data_snapshot = "\n".join(parts)
-
-        prompt = f"""You are Alfred, executive AI assistant to Mike Johnson (Groundrush Inc CEO).
-Write a 3-4 sentence executive morning summary. Be direct, actionable, highlight what matters most.
-Focus on: urgent items, overdue tasks, server issues, key meetings, deal movements.
-Do NOT just restate numbers — provide INSIGHT and PRIORITIES.
-
-Today's data:
-{data_snapshot}"""
-
-        for model in ["minimax-m2:cloud", "gpt-oss:120b-cloud"]:
-            try:
-                resp = requests.post(
-                    "http://localhost:11434/api/chat",
-                    json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "stream": False,
-                        "options": {"temperature": 0.6, "num_predict": 300},
-                    },
-                    timeout=30,
-                )
-                data = resp.json()
-                summary = data.get("message", {}).get("content", "").strip()
-                if summary and len(summary) > 30:
-                    log.info(f"AI summary generated via {model}")
-                    return summary
-            except Exception as e:
-                log.warning(f"AI summary via {model} failed: {e}")
-                continue
-
-        return None
-    except Exception as e:
-        log.error(f"AI summary generation failed: {e}")
-        return None
+def get_big_picture() -> str:
+    """Return strategic overview text from Grey Matter."""
+    output = run_script("lightrag_client.py", [
+        "recall", "What are Ground Rush Inc current strategic priorities, "
+        "active projects, and what is the team working towards this week? "
+        "Include LoovaCast, RuckTalk, and client work status."
+    ], timeout=45)
+    if output and "unavailable" not in output and len(output) > 20:
+        lines = output.strip().split("\n")
+        return "\n".join(lines[:15])
+    return ""
 
 
-# ── HTML Template ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────
+# HTML EMAIL BUILDER
+# ─────────────────────────────────────────────────
 
-def build_html(weather, stocks, news, servers, tasks, crm, calendar, ai_summary=None):
-    """Build beautiful HTML newsletter."""
-    today = datetime.now()
-    date_str = today.strftime("%A, %B %d, %Y")
-    hour = today.hour
+def _e(text):
+    """Escape HTML."""
+    return (str(text) if text else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def build_html_brief(tasks, brain, git, servers, services, stocks, news, big_picture):
+    """Build the morning brief as a premium designed HTML email."""
+
+    hour = NOW.hour
     greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
+    day_of_week = NOW.strftime("%A").upper()
 
-    # Stock rows
-    stock_rows = ""
+    # ── Tasks HTML ──
+    if tasks:
+        tasks_html = ""
+        for t in tasks:
+            check = "&#10003;" if t["done"] else ""
+            bg = "#0d2818" if t["done"] else "#1a1a2e"
+            border_color = "#22c55e" if t["done"] else "#334155"
+            text_color = "#6b7280" if t["done"] else "#e2e8f0"
+            deco = "line-through" if t["done"] else "none"
+            tasks_html += f'''<tr><td style="padding:6px 0;">
+              <table cellpadding="0" cellspacing="0" width="100%"><tr>
+                <td width="32" style="vertical-align:top;padding-top:2px;">
+                  <div style="width:20px;height:20px;border-radius:4px;border:2px solid {border_color};background:{bg};text-align:center;line-height:18px;font-size:13px;color:#22c55e;">{check}</div>
+                </td>
+                <td style="padding-left:10px;font-size:14px;color:{text_color};text-decoration:{deco};">{_e(t["text"])}</td>
+              </tr></table>
+            </td></tr>'''
+    else:
+        tasks_html = '<tr><td style="padding:12px 0;color:#64748b;font-size:14px;font-style:italic;">No tasks set. Reply to tonight\'s evening ping to set tomorrow\'s.</td></tr>'
+
+    # ── Brain Dumps HTML ──
+    if brain:
+        # Clean up markdown headers and formatting for email
+        brain_clean = brain.replace("##", "").replace("**", "").replace("---", "")
+        brain_lines = [l.strip() for l in brain_clean.split("\n") if l.strip()]
+        brain_html = "".join(f'<p style="margin:0 0 8px 0;color:#c9d1d9;font-size:13px;line-height:1.6;">{_e(l)}</p>' for l in brain_lines[:12])
+    else:
+        brain_html = '<p style="color:#64748b;font-size:13px;font-style:italic;">No recent activity logged.</p>'
+
+    # ── Git HTML ──
+    if git:
+        git_html = ""
+        for commit in git:
+            parts = commit.split(" ", 1)
+            sha = parts[0] if parts else ""
+            msg = parts[1] if len(parts) > 1 else commit
+            git_html += f'<tr><td style="padding:4px 0;"><span style="font-family:\'SF Mono\',Menlo,Monaco,Consolas,monospace;font-size:11px;color:#f97316;background:#1c1917;padding:2px 6px;border-radius:3px;">{_e(sha[:7])}</span> <span style="font-size:13px;color:#c9d1d9;margin-left:8px;">{_e(msg)}</span></td></tr>'
+    else:
+        git_html = '<tr><td style="padding:8px 0;color:#64748b;font-size:13px;font-style:italic;">No commits today.</td></tr>'
+
+    # ── Infrastructure HTML ──
+    infra_html = ""
+    up_count = sum(1 for s in servers if s["status"] == "up")
+    total = len(servers)
+
+    for s in servers:
+        if s["status"] == "up":
+            dot_color = "#22c55e"
+            status_text = s["latency"]
+        elif s["status"] == "down":
+            dot_color = "#ef4444"
+            status_text = "DOWN"
+        else:
+            dot_color = "#eab308"
+            status_text = "?"
+
+        infra_html += f'''<tr>
+          <td style="padding:5px 0;width:16px;"><div style="width:8px;height:8px;border-radius:50%;background:{dot_color};"></div></td>
+          <td style="padding:5px 8px;font-size:13px;color:#e2e8f0;font-weight:600;">{_e(s["id"])}</td>
+          <td style="padding:5px 8px;font-size:12px;color:#94a3b8;">{_e(s["role"])}</td>
+          <td style="padding:5px 0;font-size:12px;color:#64748b;text-align:right;">{_e(status_text)}</td>
+        </tr>'''
+
+    services_html = ""
+    for svc in services:
+        active = "active" in svc["status"].lower()
+        bg = "#052e16" if active else "#450a0a"
+        color = "#22c55e" if active else "#ef4444"
+        dot = "&#9679;" if active else "&#9679;"
+        services_html += f'<span style="display:inline-block;background:{bg};color:{color};padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;margin:3px 4px;letter-spacing:0.5px;"><span style="font-size:8px;">{dot}</span> {_e(svc["name"])}</span>'
+
+    # ── Stocks HTML ──
+    stocks_html = ""
+    total_change = sum(s["pct"] for s in stocks if s["price"] is not None) / max(1, sum(1 for s in stocks if s["price"] is not None))
+    portfolio_color = "#22c55e" if total_change >= 0 else "#ef4444"
+    portfolio_arrow = "&#9650;" if total_change >= 0 else "&#9660;"
+
     for s in stocks:
-        color = "#22c55e" if s["change"] >= 0 else "#ef4444"
-        arrow = "&#9650;" if s["change"] >= 0 else "&#9660;"
-        stock_rows += f"""
-        <tr>
-            <td style="padding:8px 12px;font-weight:600;color:#f5f5f5;">{s['symbol']}</td>
-            <td style="padding:8px 12px;text-align:right;color:#f5f5f5;">${s['price']:,.2f}</td>
-            <td style="padding:8px 12px;text-align:right;color:{color};">{arrow} ${abs(s['change']):,.2f} ({s['pct']:+.1f}%)</td>
-        </tr>"""
+        if s["price"] is None:
+            stocks_html += f'<tr><td colspan="4" style="padding:6px 0;color:#64748b;font-size:12px;">{_e(s["ticker"])} — unavailable</td></tr>'
+            continue
+        color = "#22c55e" if s["up"] else "#ef4444"
+        arrow = "&#9650;" if s["up"] else "&#9660;"
+        bar_width = min(abs(s["pct"]) * 8, 60)  # Visual bar proportional to % change
+        stocks_html += f'''<tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:8px 0;width:55px;">
+            <span style="font-size:12px;font-weight:700;color:#f1f5f9;letter-spacing:0.5px;">{_e(s["ticker"])}</span>
+          </td>
+          <td style="padding:8px 0;text-align:right;width:70px;">
+            <span style="font-size:13px;color:#e2e8f0;">${s["price"]:.2f}</span>
+          </td>
+          <td style="padding:8px 12px;text-align:right;width:90px;">
+            <span style="font-size:12px;color:{color};">{arrow} {s["change"]:+.2f} ({s["pct"]:+.1f}%)</span>
+          </td>
+          <td style="padding:8px 0;">
+            <div style="height:4px;background:#1e293b;border-radius:2px;overflow:hidden;">
+              <div style="height:4px;width:{bar_width}px;background:{color};border-radius:2px;"></div>
+            </div>
+          </td>
+        </tr>'''
 
-    # News sections
-    def news_block(title, emoji, items, accent):
-        html = f"""
-        <div style="margin-bottom:20px;">
-            <h3 style="color:{accent};font-size:16px;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:1px;">{emoji} {title}</h3>"""
-        for item in items:
-            link = item.get("link", "#")
-            html += f"""
-            <div style="margin-bottom:12px;padding:10px 14px;background:#1a1a1a;border-radius:8px;border-left:3px solid {accent};">
-                <a href="{link}" style="color:#f5f5f5;text-decoration:none;font-weight:600;font-size:14px;">{item['title']}</a>
-                <p style="color:#999;font-size:12px;margin:4px 0 0 0;">{item.get('desc', '')}</p>
-            </div>"""
+    # ── News HTML ──
+    def _news_block(items, accent_color):
         if not items:
-            html += '<p style="color:#666;font-size:13px;padding-left:14px;">No stories available right now.</p>'
-        html += "</div>"
+            return '<p style="color:#64748b;font-size:13px;font-style:italic;">No headlines available.</p>'
+        html = ""
+        for n in items:
+            title = _e(n.get("title", ""))
+            url = n.get("url", "")
+            snippet = _e(n.get("snippet", ""))
+            if url:
+                html += f'''<div style="padding:10px 0;border-bottom:1px solid #1e293b;">
+                  <a href="{url}" style="color:#e2e8f0;text-decoration:none;font-size:14px;font-weight:500;line-height:1.4;">{title}</a>
+                  <div style="font-size:12px;color:#64748b;margin-top:4px;line-height:1.4;">{snippet}</div>
+                </div>'''
+            else:
+                html += f'''<div style="padding:10px 0;border-bottom:1px solid #1e293b;">
+                  <div style="color:#e2e8f0;font-size:14px;font-weight:500;line-height:1.4;">{title}</div>
+                </div>'''
         return html
 
-    political_html = news_block("Political", "&#127463;", news.get("political", []), "#3b82f6")
-    motivational_html = news_block("Motivation & Business", "&#128170;", news.get("motivational", []), "#f97316")
-    tech_html = news_block("Tech & AI", "&#129302;", news.get("tech", []), "#8b5cf6")
+    con_news_html = _news_block(news.get("conservative", []), "#ef4444")
+    tech_news_html = _news_block(news.get("tech", []), "#3b82f6")
 
-    # Server status
-    server_rows = ""
-    for s in servers:
-        status_dot = "&#x1F7E2;" if s["online"] else "&#x1F534;"
-        latency = f"{s['latency_ms']}ms" if s["online"] else "DOWN"
-        uptime = s.get("uptime", "")
-        extra = ""
-        if uptime:
-            # Parse load average from uptime
-            load_match = re.search(r"load average:\s*([\d.]+)", uptime)
-            if load_match:
-                extra = f" | Load: {load_match.group(1)}"
-        server_rows += f"""
-        <tr>
-            <td style="padding:6px 12px;color:#f5f5f5;">{status_dot} {s['name']}</td>
-            <td style="padding:6px 12px;text-align:center;color:#f5f5f5;">{latency}</td>
-            <td style="padding:6px 12px;color:#999;font-size:12px;">{s['host']}{extra}</td>
-        </tr>"""
-
-    # Task checklist
-    task_html = ""
-    if tasks:
-        for i, task in enumerate(tasks):
-            t = task if isinstance(task, str) else task.get("text", str(task))
-            done = task.get("completed", task.get("done", False)) if isinstance(task, dict) else False
-            overdue = task.get("overdue", False) if isinstance(task, dict) else False
-            days_out = task.get("days_outstanding", 0) if isinstance(task, dict) else 0
-            check = "&#9745;" if done else "&#9744;"
-            if done:
-                style = "text-decoration:line-through;color:#666;"
-            elif overdue:
-                style = "color:#ef4444;font-weight:600;"
-            else:
-                style = "color:#f5f5f5;"
-            overdue_badge = f' <span style="font-size:11px;color:#ef4444;">({days_out}d overdue)</span>' if overdue and days_out > 0 else ""
-            task_html += f'<div style="padding:8px 14px;margin-bottom:4px;background:#1a1a1a;border-radius:6px;font-size:14px;{style}">{check} {t}{overdue_badge}</div>'
+    # ── Big Picture HTML ──
+    if big_picture:
+        bp_clean = big_picture.replace("##", "").replace("**", "").replace("---", "")
+        bp_lines = [l.strip() for l in bp_clean.split("\n") if l.strip()]
+        bp_html = "".join(f'<p style="margin:0 0 8px 0;color:#c9d1d9;font-size:13px;line-height:1.6;">{_e(l)}</p>' for l in bp_lines[:12])
     else:
-        task_html = '<p style="color:#666;font-size:13px;padding-left:14px;">No tasks set for today. Tell Alfred tonight what you need done tomorrow!</p>'
+        bp_html = '<p style="color:#64748b;font-size:13px;font-style:italic;">Ask Alfred for a project status update.</p>'
 
-    # CRM stats
-    crm_html = ""
-    if crm:
-        crm_html = f"""
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <div style="flex:1;min-width:120px;background:#1a1a1a;border-radius:8px;padding:12px;text-align:center;">
-                <div style="font-size:24px;font-weight:700;color:#f97316;">{crm['total_deals']}</div>
-                <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;">Active Deals</div>
-            </div>
-            <div style="flex:1;min-width:120px;background:#1a1a1a;border-radius:8px;padding:12px;text-align:center;">
-                <div style="font-size:24px;font-weight:700;color:#22c55e;">${crm['total_value']:,.0f}</div>
-                <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;">Pipeline Value</div>
-            </div>
-            <div style="flex:1;min-width:120px;background:#1a1a1a;border-radius:8px;padding:12px;text-align:center;">
-                <div style="font-size:24px;font-weight:700;color:#ef4444;">{crm['urgent_tasks']}</div>
-                <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;">Tasks Due</div>
-            </div>
-        </div>"""
+    # ── FULL EMAIL ──
+    html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background:#090d18;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;">
 
-    # Calendar
-    cal_html = ""
-    if calendar:
-        for event in calendar[:5]:
-            start = event.get("start", {})
-            time_str = start.get("dateTime", "")
-            if time_str:
-                try:
-                    dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
-                    time_str = dt.strftime("%-I:%M %p")
-                except Exception:
-                    time_str = time_str[:16].split("T")[-1]
-            else:
-                time_str = "All Day"
-            summary = event.get("summary", "Untitled")
-            cal_html += f'<div style="padding:8px 14px;margin-bottom:4px;background:#1a1a1a;border-radius:6px;font-size:14px;color:#f5f5f5;"><span style="color:#f97316;font-weight:600;">{time_str}</span> &mdash; {summary}</div>'
-    else:
-        cal_html = '<p style="color:#666;font-size:13px;padding-left:14px;">No events scheduled today.</p>'
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#090d18;">
+<tr><td align="center" style="padding:24px 12px;">
 
-    # Weather bar
-    weather_html = ""
-    if weather:
-        precip_note = f" | {weather['precip']}% rain" if weather['precip'] > 10 else ""
-        weather_html = f"""
-        <div style="background:linear-gradient(135deg,#1e3a5f,#0a2540);border-radius:12px;padding:16px 20px;margin-bottom:24px;">
-            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-                <div style="font-size:36px;font-weight:700;color:#fff;">{weather['temp']}°F</div>
-                <div style="color:#93c5fd;">
-                    <div style="font-size:16px;font-weight:600;">{weather['condition']}</div>
-                    <div style="font-size:12px;">H: {weather['high']}° L: {weather['low']}° | Wind: {weather['wind']}mph{precip_note}</div>
-                </div>
-                <div style="margin-left:auto;color:#93c5fd;font-size:12px;">Atlanta, GA</div>
-            </div>
-        </div>"""
+<!-- Container -->
+<table width="620" cellpadding="0" cellspacing="0" style="background:#0f1629;border-radius:12px;overflow:hidden;">
 
-    html = f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="max-width:640px;margin:0 auto;padding:20px;">
+  <!-- ═══ HEADER ═══ -->
+  <tr><td style="padding:40px 36px 32px 36px;background:linear-gradient(180deg,#141b33 0%,#0f1629 100%);">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:bottom;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:4px;color:#ef4444;font-weight:700;">ALFRED</div>
+        <div style="font-size:32px;font-weight:700;color:#f8fafc;margin-top:2px;line-height:1.1;">Morning Brief</div>
+      </td>
+      <td style="text-align:right;vertical-align:bottom;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#475569;font-weight:600;">{day_of_week}</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:2px;">{NOW.strftime("%B %-d, %Y")}</div>
+      </td>
+    </tr></table>
+    <div style="height:3px;background:linear-gradient(90deg,#ef4444 0%,#f97316 50%,transparent 100%);margin-top:20px;border-radius:2px;"></div>
+    <div style="font-size:13px;color:#64748b;margin-top:16px;">{greeting}, sir.</div>
+  </td></tr>
 
-    <!-- Header -->
-    <div style="text-align:center;padding:24px 0;border-bottom:1px solid #222;">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#f97316;margin-bottom:4px;">Alfred Intelligence</div>
-        <h1 style="margin:0;font-size:28px;color:#fff;font-weight:300;">{greeting}, Mike</h1>
-        <p style="margin:4px 0 0;color:#666;font-size:13px;">{date_str}</p>
+  <!-- ═══ TASKS ═══ -->
+  <tr><td style="padding:28px 36px;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:#94a3b8;font-weight:600;padding-bottom:16px;">
+        <span style="color:#22c55e;margin-right:6px;">&#9632;</span> Today's Priorities
+      </td>
+    </tr>
+    {tasks_html}
+    </table>
+  </td></tr>
+  <tr><td style="padding:0 36px;"><div style="height:1px;background:#1e293b;"></div></td></tr>
+
+  <!-- ═══ BRAIN DUMPS ═══ -->
+  <tr><td style="padding:28px 36px;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:#94a3b8;font-weight:600;margin-bottom:14px;">
+      <span style="color:#818cf8;margin-right:6px;">&#9632;</span> What We Worked On <span style="color:#475569;font-weight:400;">(24h)</span>
     </div>
+    {brain_html}
+  </td></tr>
+  <tr><td style="padding:0 36px;"><div style="height:1px;background:#1e293b;"></div></td></tr>
 
-    <!-- AI Executive Summary -->
-    {f'''<div style="margin:20px 0;padding:16px 20px;background:linear-gradient(135deg,#1a0a00,#2a1500);border:1px solid #f97316;border-radius:12px;">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#f97316;margin-bottom:8px;">&#9889; Alfred's Take</div>
-        <p style="color:#f5f5f5;font-size:14px;line-height:1.6;margin:0;">{ai_summary}</p>
-    </div>''' if ai_summary else ''}
-
-    <!-- Weather -->
-    <div style="padding-top:20px;">
-        {weather_html}
+  <!-- ═══ CODE ═══ -->
+  <tr><td style="padding:28px 36px;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:#94a3b8;font-weight:600;margin-bottom:14px;">
+      <span style="color:#f97316;margin-right:6px;">&#9632;</span> Code Changes
     </div>
+    <table cellpadding="0" cellspacing="0">{git_html}</table>
+  </td></tr>
+  <tr><td style="padding:0 36px;"><div style="height:1px;background:#1e293b;"></div></td></tr>
 
-    <!-- Daily Tasks -->
-    <div style="margin-bottom:28px;">
-        <h2 style="color:#f97316;font-size:18px;margin:0 0 12px 0;border-bottom:1px solid #222;padding-bottom:8px;">&#9745; Today's Priorities</h2>
-        {task_html}
+  <!-- ═══ INFRASTRUCTURE ═══ -->
+  <tr><td style="padding:28px 36px;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:#94a3b8;font-weight:600;padding-bottom:14px;">
+        <span style="color:#38bdf8;margin-right:6px;">&#9632;</span> Infrastructure
+      </td>
+      <td style="text-align:right;font-size:12px;color:#64748b;padding-bottom:14px;">
+        <span style="color:#22c55e;font-weight:600;">{up_count}</span>/{total} online
+      </td>
+    </tr></table>
+    <table width="100%" cellpadding="0" cellspacing="0">{infra_html}</table>
+    <div style="margin-top:14px;">{services_html}</div>
+  </td></tr>
+  <tr><td style="padding:0 36px;"><div style="height:1px;background:#1e293b;"></div></td></tr>
+
+  <!-- ═══ STOCKS ═══ -->
+  <tr><td style="padding:28px 36px;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:#94a3b8;font-weight:600;padding-bottom:14px;">
+        <span style="color:#eab308;margin-right:6px;">&#9632;</span> Portfolio
+      </td>
+      <td style="text-align:right;padding-bottom:14px;">
+        <span style="font-size:13px;font-weight:600;color:{portfolio_color};">{portfolio_arrow} Avg {total_change:+.1f}%</span>
+      </td>
+    </tr></table>
+    <table width="100%" cellpadding="0" cellspacing="0">{stocks_html}</table>
+  </td></tr>
+  <tr><td style="padding:0 36px;"><div style="height:1px;background:#1e293b;"></div></td></tr>
+
+  <!-- ═══ NEWS ═══ -->
+  <tr><td style="padding:28px 36px;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:#94a3b8;font-weight:600;margin-bottom:14px;">
+      <span style="color:#ef4444;margin-right:6px;">&#9632;</span> Conservative
     </div>
+    {con_news_html}
 
-    <!-- Stocks -->
-    <div style="margin-bottom:28px;">
-        <h2 style="color:#f97316;font-size:18px;margin:0 0 12px 0;border-bottom:1px solid #222;padding-bottom:8px;">&#128200; Markets</h2>
-        <table style="width:100%;border-collapse:collapse;background:#111;border-radius:8px;overflow:hidden;">
-            <tr style="background:#1a1a1a;">
-                <th style="padding:8px 12px;text-align:left;color:#999;font-size:11px;text-transform:uppercase;">Symbol</th>
-                <th style="padding:8px 12px;text-align:right;color:#999;font-size:11px;text-transform:uppercase;">Price</th>
-                <th style="padding:8px 12px;text-align:right;color:#999;font-size:11px;text-transform:uppercase;">Change</th>
-            </tr>
-            {stock_rows}
-        </table>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:#94a3b8;font-weight:600;margin-bottom:14px;margin-top:24px;">
+      <span style="color:#3b82f6;margin-right:6px;">&#9632;</span> Tech &amp; AI
     </div>
+    {tech_news_html}
+  </td></tr>
+  <tr><td style="padding:0 36px;"><div style="height:1px;background:#1e293b;"></div></td></tr>
 
-    <!-- News -->
-    <div style="margin-bottom:28px;">
-        <h2 style="color:#f97316;font-size:18px;margin:0 0 16px 0;border-bottom:1px solid #222;padding-bottom:8px;">&#128240; Daily Digest</h2>
-        {political_html}
-        {motivational_html}
-        {tech_html}
+  <!-- ═══ BIG PICTURE ═══ -->
+  <tr><td style="padding:28px 36px;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:#94a3b8;font-weight:600;margin-bottom:14px;">
+      <span style="color:#a78bfa;margin-right:6px;">&#9632;</span> Big Picture
     </div>
+    {bp_html}
+  </td></tr>
 
-    <!-- Server Performance -->
-    <div style="margin-bottom:28px;">
-        <h2 style="color:#f97316;font-size:18px;margin:0 0 12px 0;border-bottom:1px solid #222;padding-bottom:8px;">&#128421; Server Performance</h2>
-        <table style="width:100%;border-collapse:collapse;background:#111;border-radius:8px;overflow:hidden;">
-            <tr style="background:#1a1a1a;">
-                <th style="padding:6px 12px;text-align:left;color:#999;font-size:11px;text-transform:uppercase;">Server</th>
-                <th style="padding:6px 12px;text-align:center;color:#999;font-size:11px;text-transform:uppercase;">Latency</th>
-                <th style="padding:6px 12px;text-align:left;color:#999;font-size:11px;text-transform:uppercase;">Details</th>
-            </tr>
-            {server_rows}
-        </table>
+  <!-- ═══ FOOTER ═══ -->
+  <tr><td style="padding:24px 36px;background:#0a0e1a;text-align:center;">
+    <div style="height:2px;width:40px;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:1px;margin:0 auto 16px auto;"></div>
+    <div style="font-size:11px;color:#475569;letter-spacing:1px;">
+      ALFRED &middot; {NOW.strftime("%B %-d, %Y")} &middot; Ground Rush Inc
     </div>
+  </td></tr>
 
-    <!-- CRM Pipeline -->
-    <div style="margin-bottom:28px;">
-        <h2 style="color:#f97316;font-size:18px;margin:0 0 12px 0;border-bottom:1px solid #222;padding-bottom:8px;">&#128188; Business Pipeline</h2>
-        {crm_html if crm_html else '<p style="color:#666;">CRM data unavailable.</p>'}
-    </div>
+</table>
+<!-- End Container -->
 
-    <!-- Calendar -->
-    <div style="margin-bottom:28px;">
-        <h2 style="color:#f97316;font-size:18px;margin:0 0 12px 0;border-bottom:1px solid #222;padding-bottom:8px;">&#128197; Today's Schedule</h2>
-        {cal_html}
-    </div>
+</td></tr>
+</table>
 
-    <!-- Footer -->
-    <div style="text-align:center;padding:20px 0;border-top:1px solid #222;margin-top:20px;">
-        <p style="color:#444;font-size:11px;margin:0;">Generated by Alfred Intelligence at {datetime.now().strftime('%-I:%M %p ET')}</p>
-        <p style="color:#333;font-size:10px;margin:4px 0 0;">Groundrush Inc &bull; Atlanta, GA &bull; groundrushlabs.com</p>
-    </div>
-
-</div>
 </body>
-</html>"""
-
+</html>'''
     return html
 
 
-# ── Main ──────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────
+# PLAIN TEXT (for logging / fallback)
+# ─────────────────────────────────────────────────
 
-async def generate_and_send():
-    """Generate all data and send the morning brief."""
-    log.info("Generating morning brief...")
+def build_plain_brief(tasks, brain, git, servers, services, stocks, news, big_picture):
+    """Assemble plain text version for logging."""
+    task_lines = "\n".join(f"  {'✅' if t['done'] else '⬜'} {t['text']}" for t in tasks) if tasks else "  No tasks set."
+    git_lines = "\n".join(f"  • {c}" for c in git) if git else "  No commits today."
+    infra_lines = "\n".join(f"  {'✅' if s['status']=='up' else '❌'} {s['id']} ({s['ip']}) — {s['role']} [{s['latency']}]" for s in servers)
+    svc_line = "  Services: " + " | ".join(f"{s['name']}: {s['status']}" for s in services)
+    stock_lines = "\n".join(f"  {s['ticker']:<6} ${s['price']:>8.2f}  {'▲' if s['up'] else '▼'} {s['change']:+.2f} ({s['pct']:+.1f}%)  {s['name']}" for s in stocks if s["price"])
+    news_lines = ""
+    for cat in ["conservative", "tech"]:
+        items = news.get(cat, [])
+        if items:
+            news_lines += f"\n  {cat.upper()}:\n"
+            for n in items:
+                news_lines += f"    • {n['title']}\n      {n.get('url', '')}\n"
 
-    # Fetch all data concurrently
-    weather_task = fetch_weather()
-    stocks_task = fetch_stocks()
-    news_task = fetch_all_news()
-    servers_task = check_servers()
-    crm_task = get_crm_stats()
-    calendar_task = get_calendar_today()
+    return f"""
+══════════════════════════════════════════════════════════
+  MORNING BRIEF — {DATE_STR}
+══════════════════════════════════════════════════════════
 
-    results = await asyncio.gather(
-        weather_task, stocks_task, news_task, servers_task, crm_task, calendar_task,
-        return_exceptions=True,
+📋 TODAY'S TASKS
+{task_lines}
+
+🧠 BRAIN DUMPS (Last 24h)
+  {brain or 'No recent activity.'}
+
+🔧 CODE CHANGES
+{git_lines}
+
+🖥️ INFRASTRUCTURE
+{infra_lines}
+{svc_line}
+
+📈 STOCKS
+{stock_lines}
+
+📰 NEWS
+{news_lines}
+
+🗺️ BIG PICTURE
+  {big_picture or 'Ask Alfred for a status update.'}
+
+══════════════════════════════════════════════════════════
+  End of Brief — {DATE_STR}
+  Have a great day, sir.
+══════════════════════════════════════════════════════════
+""".strip()
+
+
+# ─────────────────────────────────────────────────
+# DELIVERY
+# ─────────────────────────────────────────────────
+
+def send_email(html_brief):
+    """Email the brief to Mike from Alfred's Google Workspace."""
+    try:
+        client = EmailClient()
+        result = client.send_email(
+            account="alfred-gw",
+            to="mjohnson@groundrushinc.com",
+            subject=f"Morning Brief — {NOW.strftime('%B %-d, %Y')}",
+            body=html_brief,
+            html=True,
+        )
+        if result.get("status") == "sent":
+            log.info("Morning brief sent to mjohnson@groundrushinc.com from alfred@groundrushinc.com")
+        else:
+            log.error(f"Email failed: {result}")
+    except Exception as e:
+        log.error(f"Email error: {e}")
+
+
+def send_telegram_notification():
+    """Short Telegram ping that the brief was sent."""
+    if not TELEGRAM_BOT_TOKEN:
+        return
+
+    message = (
+        f"Good morning, sir. Your morning brief for {DATE_STR} "
+        f"has been sent to your email."
     )
 
-    weather = results[0] if not isinstance(results[0], Exception) else None
-    stocks = results[1] if not isinstance(results[1], Exception) else []
-    news = results[2] if not isinstance(results[2], Exception) else {}
-    servers = results[3] if not isinstance(results[3], Exception) else []
-    crm = results[4] if not isinstance(results[4], Exception) else None
-    calendar = results[5] if not isinstance(results[5], Exception) else []
+    try:
+        data = json.dumps({
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message,
+        }).encode()
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=10)
+        log.info("Telegram notification sent")
+    except Exception as e:
+        log.error(f"Telegram notification failed: {e}")
 
-    tasks = get_daily_tasks()
 
-    # Generate AI executive summary
-    ai_summary = await generate_ai_summary(weather, stocks, servers, crm, calendar, tasks)
+def main():
+    log.info(f"Building morning brief for {DATE_STR}...")
 
-    # Build HTML
-    html = build_html(weather, stocks, news, servers, tasks, crm, calendar, ai_summary)
+    print("  [1/7] Tasks...")
+    tasks = get_tasks()
+    print("  [2/7] Brain dumps...")
+    brain = get_brain_dumps()
+    print("  [3/7] Git...")
+    git = get_git_activity()
+    print("  [4/7] Infrastructure...")
+    servers, services = get_infrastructure()
+    print("  [5/7] Stocks...")
+    stocks = get_stocks()
+    print("  [6/7] News...")
+    news = get_news()
+    print("  [7/7] Big picture...")
+    big_picture = get_big_picture()
 
-    # Send email
-    today_str = datetime.now().strftime("%A, %B %d")
-    result = email_client.send_email(
-        "alfred",
-        MIKE_EMAIL,
-        f"Morning Brief — {today_str}",
-        html,
-        html=True,
-    )
+    plain = build_plain_brief(tasks, brain, git, servers, services, stocks, news, big_picture)
+    html = build_html_brief(tasks, brain, git, servers, services, stocks, news, big_picture)
+    print(plain)
 
-    if "error" in result:
-        log.error(f"Failed to send morning brief: {result['error']}")
-        # Try Telegram as fallback notification
-        if TELEGRAM_BOT_TOKEN:
-            requests.post(
-                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                json={
-                    "chat_id": TELEGRAM_CHAT_ID,
-                    "text": "Morning brief email failed to send. Check /tmp/morning_brief.log",
-                },
-                timeout=10,
-            )
-    else:
-        log.info(f"Morning brief sent to {MIKE_EMAIL}")
-        # Also notify on Telegram
-        if TELEGRAM_BOT_TOKEN:
-            server_summary = " | ".join(
-                [f"{'✅' if s['online'] else '❌'} {s['name']}" for s in servers]
-            )
-            task_count = len(tasks)
-            requests.post(
-                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                json={
-                    "chat_id": TELEGRAM_CHAT_ID,
-                    "text": f"☀️ Morning brief sent to your email!\n\n"
-                            f"Servers: {server_summary}\n"
-                            f"Tasks today: {task_count}\n"
-                            f"Deals in pipeline: {crm['total_deals'] if crm else '?'}",
-                },
-                timeout=10,
-            )
+    log.info("Delivering...")
+    send_email(html)
+    send_telegram_notification()
 
-    return result
+    # Save HTML preview
+    preview = Path("/home/aialfred/alfred/static/drafts/morning-brief-preview.html")
+    preview.write_text(html)
+
+    log.info("Morning brief complete.")
 
 
 if __name__ == "__main__":
-    asyncio.run(generate_and_send())
+    main()
