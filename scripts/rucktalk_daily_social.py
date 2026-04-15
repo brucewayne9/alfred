@@ -25,6 +25,11 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# Ensure project root is importable
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from scripts.rucktalk_common import (
     WORK_DIR, CLIPS_DIR, IMAGES_DIR, STATIC_MEDIA, PUBLIC_MEDIA_URL,
     SCRIPTS, POSTIZ_IDS, EST,
