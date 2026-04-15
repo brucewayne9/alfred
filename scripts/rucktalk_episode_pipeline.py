@@ -52,6 +52,7 @@ from scripts.rucktalk_common import (
     llm_call,
     llm_json,
     run_comfyui,
+    run_comfyui_cloud,
     run_tts,
     run_script,
     BRAND_VOICE,
@@ -275,7 +276,7 @@ def generate_cover_image(title: str, episode_number: int) -> str | None:
         f"bold energetic composition. {IMAGE_STYLE_SUFFIX}"
     )
     logger.info("Generating cover image for Episode %d...", episode_number)
-    result = run_comfyui(prompt, width=1400, height=1400)
+    result = run_comfyui_cloud(prompt, width=1400, height=1400)
     if result:
         # Copy to images dir with a stable name
         dest = IMAGES_DIR / f"episode_{episode_number}_cover.png"

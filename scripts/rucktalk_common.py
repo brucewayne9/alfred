@@ -280,11 +280,42 @@ def llm_json(prompt: str, temperature: float = 0.5) -> dict | None:
 # ─────────────────────────────────────────────
 
 
+COMFYUI_CLOUD_API_KEY = "comfyui-22acca191efd4a61b4b2f79886ab60015f5fe6d0859b84f6337e728cef9986b3"
+
+
 def run_comfyui(prompt: str, width: int = 1024, height: int = 1024) -> str | None:
     """
-    Generate an image via comfyui_gen.py.
+    Generate an image via LOCAL ComfyUI (GPU on 105).
+    Used for daily social images.
     Returns the local file path on success, or None on failure.
     """
+    return _run_comfyui_impl(prompt, width, height, use_cloud=False)
+
+
+def run_comfyui_cloud(prompt: str, width: int = 1024, height: int = 1024) -> str | None:
+    """
+    Generate an image via ComfyUI Cloud.
+    Used for blog images and episode cover art — offloads from local GPU.
+    Returns the local file path on success, or None on failure.
+    """
+    result = _run_comfyui_impl(prompt, width, height, use_cloud=True)
+    if result is None:
+        # Fallback to local if cloud fails
+        logger.warning("ComfyUI Cloud failed, falling back to local GPU.")
+        return _run_comfyui_impl(prompt, width, height, use_cloud=False)
+    return result
+
+
+def _run_comfyui_impl(prompt: str, width: int, height: int, use_cloud: bool) -> str | None:
+    """Internal: generate image via local or cloud ComfyUI."""
+    env = os.environ.copy()
+    if use_cloud:
+        env["COMFYUI_CLOUD_API_KEY"] = COMFYUI_CLOUD_API_KEY
+        mode_label = "cloud"
+    else:
+        env.pop("COMFYUI_CLOUD_API_KEY", None)
+        mode_label = "local"
+
     try:
         result = subprocess.run(
             [
@@ -300,6 +331,7 @@ def run_comfyui(prompt: str, width: int = 1024, height: int = 1024) -> str | Non
             capture_output=True,
             text=True,
             timeout=600,
+            env=env,
         )
         if result.returncode != 0:
             logger.error("ComfyUI failed: %s", result.stderr[:500])
@@ -314,16 +346,15 @@ def run_comfyui(prompt: str, width: int = 1024, height: int = 1024) -> str | Non
             data = _json.loads(output)
             filename = data.get("filename", "")
             if filename:
-                # Check ComfyUI output dir
-                comfyui_path = f"/home/aialfred/ComfyUI/output/{filename}"
-                if os.path.isfile(comfyui_path):
-                    logger.info("ComfyUI generated: %s", comfyui_path)
-                    return comfyui_path
-                # Check static media
-                static_path = f"/home/aialfred/alfred/static/media/{filename}"
-                if os.path.isfile(static_path):
-                    logger.info("ComfyUI generated: %s", static_path)
-                    return static_path
+                # Check all possible locations
+                for check_path in [
+                    f"/home/aialfred/ComfyUI/output/{filename}",  # local mode
+                    f"/home/aialfred/alfred/static/media/{filename}",  # media dir
+                    f"/tmp/{filename}",  # cloud mode downloads here
+                ]:
+                    if os.path.isfile(check_path):
+                        logger.info("ComfyUI (%s) generated: %s", mode_label, check_path)
+                        return check_path
         except (ValueError, KeyError):
             pass
 
