@@ -305,21 +305,56 @@ def run_comfyui(prompt: str, width: int = 1024, height: int = 1024) -> str | Non
             logger.error("ComfyUI failed: %s", result.stderr[:500])
             return None
 
-        # Parse output for the file path (last non-empty line typically)
+        # Parse output — comfyui_gen.py outputs JSON with image_url and filename
         output = result.stdout.strip()
+
+        # Try to parse JSON output
+        try:
+            import json as _json
+            data = _json.loads(output)
+            filename = data.get("filename", "")
+            if filename:
+                # Check ComfyUI output dir
+                comfyui_path = f"/home/aialfred/ComfyUI/output/{filename}"
+                if os.path.isfile(comfyui_path):
+                    logger.info("ComfyUI generated: %s", comfyui_path)
+                    return comfyui_path
+                # Check static media
+                static_path = f"/home/aialfred/alfred/static/media/{filename}"
+                if os.path.isfile(static_path):
+                    logger.info("ComfyUI generated: %s", static_path)
+                    return static_path
+        except (ValueError, KeyError):
+            pass
+
+        # Fallback: look for local file paths in output
         for line in reversed(output.splitlines()):
             line = line.strip()
             if line and (line.endswith(".png") or line.endswith(".jpg") or line.endswith(".webp")):
                 if os.path.isfile(line):
                     logger.info("ComfyUI generated: %s", line)
                     return line
+            # Check if it's a filename (not a path) — look in ComfyUI output dir
+            if line and not line.startswith("/") and (line.endswith(".png") or line.endswith(".jpg")):
+                comfyui_path = f"/home/aialfred/ComfyUI/output/{line}"
+                if os.path.isfile(comfyui_path):
+                    logger.info("ComfyUI generated: %s", comfyui_path)
+                    return comfyui_path
 
-        # Fallback: look for any path-like string in output
+        # Fallback: look for any path-like string
         for line in reversed(output.splitlines()):
             line = line.strip()
             if line.startswith("/") and os.path.isfile(line):
                 logger.info("ComfyUI generated: %s", line)
                 return line
+
+        # Last resort: find the most recent file in ComfyUI output dir
+        comfyui_out = Path("/home/aialfred/ComfyUI/output")
+        if comfyui_out.exists():
+            recent = sorted(comfyui_out.glob("alfred_flux_*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if recent:
+                logger.info("ComfyUI generated (by recency): %s", recent[0])
+                return str(recent[0])
 
         logger.error("Could not find output file in ComfyUI output:\n%s", output[:500])
         return None
