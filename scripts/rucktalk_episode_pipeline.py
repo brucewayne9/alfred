@@ -791,22 +791,75 @@ def queue_clips_for_social(clips: list[dict]) -> int:
 # ─────────────────────────────────────────────
 
 
-def move_to_processed(filename: str) -> None:
-    """Move the processed MP4 to the Processed folder on NextCloud."""
-    src = f"{NC_EPISODE_FOLDER}/{filename}"
-    dst = f"{NC_PROCESSED_FOLDER}/{filename}"
-    try:
-        # Ensure Processed folder exists
-        try:
-            create_folder(NC_PROCESSED_FOLDER)
-        except Exception:
-            pass  # Already exists
+def move_to_processed(filename: str, episode_number: int, title: str) -> None:
+    """Move the processed MP4 to a named episode folder on NextCloud."""
+    from integrations.nextcloud.client import move_file, upload_file
 
-        from integrations.nextcloud.client import move_file
+    ep_folder_name = f"Episode {episode_number} - {title}"
+    # Sanitize folder name
+    ep_folder_name = re.sub(r'[<>:"/\\|?*]', '', ep_folder_name).strip()
+    ep_folder = f"{NC_PROCESSED_FOLDER}/{ep_folder_name}"
+
+    try:
+        # Create episode folder structure
+        for folder in [NC_PROCESSED_FOLDER, ep_folder, f"{ep_folder}/Clips"]:
+            try:
+                create_folder(folder)
+            except Exception:
+                pass  # Already exists
+
+        # Move original MP4 into the episode folder
+        src = f"{NC_EPISODE_FOLDER}/{filename}"
+        dst = f"{ep_folder}/{filename}"
         move_file(src, dst)
-        logger.info("Moved %s to Processed folder on NextCloud.", filename)
+        logger.info("Moved %s to %s on NextCloud.", filename, ep_folder)
     except Exception as exc:
         logger.warning("Could not move %s to Processed: %s (non-fatal)", filename, exc)
+
+
+def upload_clips_to_nextcloud(clips: list[dict], episode_number: int, title: str) -> None:
+    """Upload generated clips to NextCloud under the episode's Processed folder."""
+    from integrations.nextcloud.client import upload_file
+
+    ep_folder_name = f"Episode {episode_number} - {title}"
+    ep_folder_name = re.sub(r'[<>:"/\\|?*]', '', ep_folder_name).strip()
+    clips_folder = f"{NC_PROCESSED_FOLDER}/{ep_folder_name}/Clips"
+
+    # Ensure folder exists
+    for folder in [NC_PROCESSED_FOLDER, f"{NC_PROCESSED_FOLDER}/{ep_folder_name}", clips_folder]:
+        try:
+            create_folder(folder)
+        except Exception:
+            pass
+
+    uploaded = 0
+    for clip in clips:
+        # Upload portrait clip
+        portrait = clip.get("portrait_path")
+        if portrait and Path(portrait).exists():
+            try:
+                nc_name = f"clip_{clip['clip_index']}_{clip.get('label', 'clip')}_portrait.mp4"
+                nc_name = re.sub(r'[<>:"/\\|?*]', '', nc_name)
+                content = Path(portrait).read_bytes()
+                upload_file(f"{clips_folder}/{nc_name}", content, "video/mp4")
+                uploaded += 1
+                logger.info("Uploaded clip %d portrait to NextCloud.", clip["clip_index"])
+            except Exception as exc:
+                logger.warning("Failed to upload clip %d portrait: %s", clip["clip_index"], exc)
+
+        # Upload landscape clip
+        landscape = clip.get("landscape_path")
+        if landscape and Path(landscape).exists():
+            try:
+                nc_name = f"clip_{clip['clip_index']}_{clip.get('label', 'clip')}_landscape.mp4"
+                nc_name = re.sub(r'[<>:"/\\|?*]', '', nc_name)
+                content = Path(landscape).read_bytes()
+                upload_file(f"{clips_folder}/{nc_name}", content, "video/mp4")
+                uploaded += 1
+            except Exception as exc:
+                logger.warning("Failed to upload clip %d landscape: %s", clip["clip_index"], exc)
+
+    logger.info("Uploaded %d clip files to NextCloud: %s", uploaded, clips_folder)
 
 
 # ─────────────────────────────────────────────
@@ -911,6 +964,9 @@ def process_episode(file_info: dict) -> bool:
                 queued = queue_clips_for_social(clips)
                 results["clips_queued"] = queued
 
+                # Step 11b: Upload clips to NextCloud
+                upload_clips_to_nextcloud(clips, episode_number, title)
+
         # Mark as processed
         state = load_state()
         if filename not in state.get("processed", []):
@@ -919,7 +975,7 @@ def process_episode(file_info: dict) -> bool:
         save_state(state)
 
         # Move file on NextCloud
-        move_to_processed(filename)
+        move_to_processed(filename, episode_number, title)
 
         # Save episode results
         results_path = METADATA_DIR / f"{episode_slug}_results.json"
