@@ -394,6 +394,92 @@ def _run_comfyui_impl(prompt: str, width: int, height: int, use_cloud: bool) -> 
         return None
 
 
+def run_comfyui_video_cloud(prompt: str, duration: int = 10) -> str | None:
+    """
+    Generate a short AI video via ComfyUI Cloud (LTX-2 model).
+    Portrait orientation (9:16) for Shorts/Reels/TikTok.
+    Returns local file path of the MP4, or None on failure.
+    """
+    env = os.environ.copy()
+    env["COMFYUI_CLOUD_API_KEY"] = COMFYUI_CLOUD_API_KEY
+
+    # LTX-2: 9:16 portrait, duration in frames (~16fps)
+    frames = duration * 16
+
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPTS / "comfyui_gen.py"),
+                "video",
+                prompt,
+                "--model", "ltx",
+                "--width", "768",
+                "--height", "1344",
+                "--length", str(frames),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=1200,  # 20 min max for video
+            env=env,
+        )
+
+        output = result.stdout.strip()
+        logger.info("ComfyUI Cloud video output: %s", output[:300])
+
+        if result.returncode != 0:
+            logger.error("ComfyUI Cloud video failed: %s", result.stderr[:500])
+            return None
+
+        # Parse JSON output for filename
+        try:
+            data = json.loads(output)
+            filename = data.get("filename", "")
+            if filename:
+                for check_path in [
+                    f"/home/aialfred/ComfyUI/output/{filename}",
+                    f"/home/aialfred/ComfyUI/output/video/{filename}",
+                    f"/home/aialfred/alfred/static/drafts/{filename}",
+                    f"/tmp/{filename}",
+                ]:
+                    if os.path.isfile(check_path):
+                        logger.info("ComfyUI Cloud video generated: %s", check_path)
+                        return check_path
+                # Check video subdirectories
+                video_dir = Path("/home/aialfred/ComfyUI/output/video")
+                if video_dir.exists():
+                    for f in video_dir.rglob(f"*{filename}*"):
+                        if f.is_file():
+                            logger.info("ComfyUI Cloud video found: %s", f)
+                            return str(f)
+            # Check for video_url in output
+            video_url = data.get("video_url", "")
+            if video_url and video_url.startswith("http"):
+                # Download to local
+                local = WORK_DIR / f"cloud_video_{uuid.uuid4().hex[:8]}.mp4"
+                urllib.request.urlretrieve(video_url, str(local))
+                logger.info("ComfyUI Cloud video downloaded: %s", local)
+                return str(local)
+        except (ValueError, KeyError):
+            pass
+
+        # Fallback: find most recent video in output dirs
+        for search_dir in [Path("/home/aialfred/ComfyUI/output/video"),
+                           Path("/home/aialfred/ComfyUI/output"),
+                           Path("/home/aialfred/alfred/static/drafts")]:
+            if search_dir.exists():
+                recent = sorted(search_dir.glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if recent and (time.time() - recent[0].stat().st_mtime) < 300:  # within 5 min
+                    logger.info("ComfyUI Cloud video (by recency): %s", recent[0])
+                    return str(recent[0])
+
+        logger.error("Could not find video output: %s", output[:500])
+        return None
+    except Exception as exc:
+        logger.error("ComfyUI Cloud video error: %s", exc)
+        return None
+
+
 def run_tts(text: str, output_path: str) -> bool:
     """
     Generate TTS audio via Kokoro at port 8880.

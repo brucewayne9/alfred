@@ -37,7 +37,7 @@ from scripts.rucktalk_common import (
     load_clip_queue, save_clip_queue,
     load_social_history, save_social_history,
     notify_telegram, llm_call, llm_json,
-    run_comfyui, run_tts, run_script,
+    run_comfyui, run_comfyui_video_cloud, run_tts, run_script,
     BRAND_VOICE, IMAGE_STYLE_SUFFIX, PILLARS,
 )
 
@@ -155,105 +155,253 @@ def schedule_to_postiz(
 # ─────────────────────────────────────────────
 
 
-def _produce_narrated_video(content: dict, mode: str, dry_run: bool = False) -> dict | None:
-    """
-    Produce a narrated slideshow video from LLM-generated content.
+def _select_format(history: dict) -> str:
+    """Pick between 'monologue' (Kokoro+ComfyUI) and 'conversation' (NotebookLM).
 
-    Args:
-        content: dict with keys: narration_script, caption, image_prompts (list of 4),
-                 pillar (optional), topic (optional)
-        mode: "trend" or "evergreen"
-        dry_run: If True, skip posting/scheduling.
-
-    Returns result dict on success, None on failure.
+    Rotates formats so they alternate, giving variety.
     """
-    run_id = uuid.uuid4().hex[:8]
+    recent_formats = [p.get("format", "monologue") for p in history.get("posts", [])[-5:]]
+    last_format = recent_formats[-1] if recent_formats else "conversation"
+
+    # Alternate, with slight bias toward monologue (it's more reliable)
+    if last_format == "conversation":
+        return "monologue"
+    else:
+        return "conversation"
+
+
+def _produce_monologue_video(content: dict, mode: str, run_id: str) -> str | None:
+    """Format A — 'The Monologue': Kokoro TTS narration over ComfyUI Cloud AI video.
+
+    Returns local video file path, or None on failure.
+    """
     narration_script = content["narration_script"]
-    caption = content["caption"]
-    image_prompts = content["image_prompts"]
+    video_prompt = content.get("video_prompt", content.get("image_prompts", [""])[0])
 
-    # ── Step 1: Generate TTS narration ──
+    # Step 1: Generate TTS narration
     narration_path = WORK_DIR / f"narration_{run_id}.mp3"
     logger.info("Generating TTS narration (%d chars)...", len(narration_script))
     tts_ok = run_tts(narration_script, str(narration_path))
     if not tts_ok:
-        logger.error("TTS generation failed — aborting video production.")
-        notify_telegram("🎙️ RuckTalk daily social: TTS failed. No post today.")
+        logger.error("TTS generation failed.")
         return None
 
-    # ── Step 2: Generate 4 ComfyUI images (portrait 1080x1920) ──
-    image_paths = []
-    for i, prompt in enumerate(image_prompts[:4]):
-        full_prompt = f"{prompt}, {IMAGE_STYLE_SUFFIX}"
-        logger.info("Generating image %d/4: %.60s...", i + 1, prompt)
-        img_path = run_comfyui(full_prompt, width=1080, height=1920)
-        if img_path:
-            image_paths.append(img_path)
-        else:
-            logger.warning("Image %d/4 failed — continuing with available images.", i + 1)
+    # Step 2: Generate AI video via ComfyUI Cloud (LTX-2, portrait)
+    full_prompt = f"{video_prompt}, {IMAGE_STYLE_SUFFIX}"
+    logger.info("Generating AI video via ComfyUI Cloud...")
+    video_path = run_comfyui_video_cloud(full_prompt, duration=10)
 
-        # 3-second cooldown between GPU calls (except after last)
-        if i < 3:
-            time.sleep(3)
+    if not video_path:
+        logger.warning("Cloud video failed — falling back to local image slideshow.")
+        # Fallback: generate one image and loop it with narration
+        image_prompts = content.get("image_prompts", [video_prompt])
+        img_path = run_comfyui(f"{image_prompts[0]}, {IMAGE_STYLE_SUFFIX}", width=1080, height=1920)
+        if not img_path:
+            logger.error("Fallback image generation also failed.")
+            return None
 
-    if len(image_paths) < 2:
-        logger.error("Only %d images generated — need at least 2. Aborting.", len(image_paths))
-        notify_telegram(
-            f"🖼️ RuckTalk daily social: only {len(image_paths)}/4 images generated. "
-            "GPU may be struggling. No post today."
-        )
+        # Build simple video from single image + narration
+        output = WORK_DIR / f"monologue_{run_id}.mp4"
+        import subprocess as _sp
+        r = _sp.run([
+            "ffmpeg", "-y",
+            "-loop", "1", "-i", img_path,
+            "-i", str(narration_path),
+            "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+            "-shortest", str(output),
+        ], capture_output=True, text=True, timeout=120)
+        if r.returncode == 0 and output.exists():
+            logger.info("Fallback video built: %s", output)
+            return str(output)
+        logger.error("Fallback ffmpeg failed: %s", r.stderr[-300:])
         return None
 
-    logger.info("Generated %d/4 images successfully.", len(image_paths))
+    # Step 3: Composite narration over AI video
+    output = WORK_DIR / f"monologue_{run_id}.mp4"
+    import subprocess as _sp
+    r = _sp.run([
+        "ffmpeg", "-y",
+        "-i", video_path,
+        "-i", str(narration_path),
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+        "-map", "0:v", "-map", "1:a",
+        "-shortest", str(output),
+    ], capture_output=True, text=True, timeout=120)
 
-    # ── Step 3: Assemble video via video_render.py ──
-    logger.info("Assembling slideshow video...")
+    if r.returncode == 0 and output.exists():
+        logger.info("Monologue video assembled: %s", output)
+        return str(output)
+
+    logger.error("ffmpeg composite failed: %s", r.stderr[-300:])
+    return None
+
+
+def _produce_conversation_video(content: dict, mode: str, run_id: str) -> str | None:
+    """Format B — 'The Conversation': NotebookLM 2-person podcast over ComfyUI Cloud video.
+
+    Returns local video file path, or None on failure.
+    Falls back to monologue format if NotebookLM fails.
+    """
+    topic = content.get("topic", "RuckTalk")
+    source_text = content.get("narration_script", "")
+    video_prompt = content.get("video_prompt", content.get("image_prompts", [""])[0])
+
+    # Step 1: Try NotebookLM podcast generation
+    logger.info("Generating NotebookLM conversation for: %s", topic)
+    audio_path = WORK_DIR / f"conversation_{run_id}.mp3"
+
     try:
-        render_args = [
-            "slideshow",
-            *image_paths,
-            "--audio", str(narration_path),
-            "--transition", "fade",
-            "--ratio", "portrait",
-        ]
-        result = run_script("video_render.py", *render_args, timeout=600)
+        import subprocess as _sp
 
-        if result.returncode != 0:
-            logger.error("Video render failed: %s", result.stderr[:500])
-            notify_telegram("🎬 RuckTalk daily social: video render failed. No post today.")
-            return None
+        # Build source text for NotebookLM — use the narration script + topic context
+        nlm_source = (
+            f"RuckTalk — Tactical Living for the Modern Entrepreneur\n\n"
+            f"Topic: {topic}\n\n"
+            f"{source_text}\n\n"
+            f"This content is about: {content.get('pillar', 'entrepreneurship and discipline')}. "
+            f"The tone should be direct, motivating, no-BS — like two guys who train together "
+            f"talking about real life."
+        )
 
-        # Parse output path from JSON result
-        video_path = None
-        try:
-            render_output = json.loads(result.stdout.strip())
-            video_path = render_output.get("output") or render_output.get("path")
-        except (json.JSONDecodeError, AttributeError):
-            # Fallback: look for file path in stdout
-            for line in reversed(result.stdout.strip().splitlines()):
-                line = line.strip()
-                if line.startswith("/") and Path(line).exists():
-                    video_path = line
-                    break
+        # Write source to temp file
+        source_file = WORK_DIR / f"nlm_source_{run_id}.txt"
+        source_file.write_text(nlm_source)
 
-        if not video_path or not Path(video_path).exists():
-            logger.error("Could not determine video output path from render.")
-            notify_telegram("🎬 RuckTalk daily social: video render output not found.")
-            return None
+        # Call notebooklm-py to generate audio
+        # Flow: create notebook → add source → generate audio → download
+        nlm_script = f'''
+import asyncio
+from notebooklm import NotebookLMClient
 
-        logger.info("Video assembled: %s", video_path)
+async def main():
+    async with NotebookLMClient() as client:
+        nb = await client.notebooks.create("RuckTalk: {topic[:50]}")
+        await client.sources.add_text(nb.id, open("{source_file}").read(), wait=True)
+        await client.artifacts.generate_audio(nb.id, instructions="Make it engaging, conversational, two hosts discussing this topic with energy and authenticity. Keep it under 3 minutes.")
+
+        # Poll for completion
+        for _ in range(60):
+            artifact = await client.artifacts.get(nb.id)
+            if hasattr(artifact, "status") and artifact.status == "completed":
+                break
+            await asyncio.sleep(10)
+
+        audio = await client.artifacts.download(artifact.id)
+        with open("{audio_path}", "wb") as f:
+            f.write(audio)
+
+        # Clean up notebook
+        await client.notebooks.delete(nb.id)
+
+asyncio.run(main())
+'''
+        nlm_result = _sp.run(
+            [sys.executable, "-c", nlm_script],
+            capture_output=True, text=True, timeout=600,
+        )
+
+        if nlm_result.returncode != 0 or not audio_path.exists():
+            logger.warning("NotebookLM failed: %s", nlm_result.stderr[:300])
+            raise RuntimeError("NotebookLM generation failed")
+
+        logger.info("NotebookLM audio generated: %s (%d bytes)", audio_path, audio_path.stat().st_size)
 
     except Exception as exc:
-        logger.error("Video render error: %s", exc)
-        notify_telegram(f"🎬 RuckTalk daily social: video render exception: {exc}")
+        logger.warning("NotebookLM unavailable (%s) — falling back to monologue format.", exc)
+        return _produce_monologue_video(content, mode, run_id)
+
+    # Step 2: Generate AI video via ComfyUI Cloud
+    full_prompt = f"{video_prompt}, {IMAGE_STYLE_SUFFIX}"
+    logger.info("Generating background video via ComfyUI Cloud...")
+    video_path = run_comfyui_video_cloud(full_prompt, duration=10)
+
+    if not video_path:
+        # Fallback: generate a single image and loop it
+        img_path = run_comfyui(f"{video_prompt}, {IMAGE_STYLE_SUFFIX}", width=1080, height=1920)
+        if img_path:
+            video_path = WORK_DIR / f"bg_{run_id}.mp4"
+            import subprocess as _sp2
+            _sp2.run([
+                "ffmpeg", "-y", "-loop", "1", "-i", img_path,
+                "-vf", "scale=1080:1920,zoompan=z='min(zoom+0.0003,1.1)':d=500:s=1080x1920",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-t", "180",  # 3 min max
+                str(video_path),
+            ], capture_output=True, timeout=60)
+            video_path = str(video_path)
+
+    # Step 3: Composite NotebookLM audio over video
+    output = WORK_DIR / f"conversation_{run_id}_final.mp4"
+    import subprocess as _sp
+    if video_path and Path(video_path).exists():
+        r = _sp.run([
+            "ffmpeg", "-y",
+            "-i", str(video_path),
+            "-i", str(audio_path),
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+            "-map", "0:v", "-map", "1:a",
+            "-shortest", str(output),
+        ], capture_output=True, text=True, timeout=300)
+    else:
+        # Audio only — create a simple black background video with audio
+        r = _sp.run([
+            "ffmpeg", "-y",
+            "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=300",
+            "-i", str(audio_path),
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k",
+            "-shortest", str(output),
+        ], capture_output=True, text=True, timeout=300)
+
+    if r.returncode == 0 and output.exists():
+        logger.info("Conversation video assembled: %s", output)
+        return str(output)
+
+    logger.error("Conversation video assembly failed: %s", r.stderr[-300:])
+    # Last resort fallback to monologue
+    return _produce_monologue_video(content, mode, run_id)
+
+
+def _produce_video(content: dict, mode: str, dry_run: bool = False) -> dict | None:
+    """
+    Produce a social video using the best available format.
+
+    Rotates between:
+      - Format A: 'monologue' (Kokoro TTS + ComfyUI Cloud video)
+      - Format B: 'conversation' (NotebookLM + ComfyUI Cloud video)
+
+    Returns result dict on success, None on failure.
+    """
+    run_id = uuid.uuid4().hex[:8]
+    caption = content["caption"]
+    history = load_social_history()
+
+    # Pick format
+    fmt = _select_format(history)
+    logger.info("Selected format: %s", fmt)
+
+    # Produce the video
+    if fmt == "conversation":
+        video_path = _produce_conversation_video(content, mode, run_id)
+    else:
+        video_path = _produce_monologue_video(content, mode, run_id)
+
+    if not video_path or not Path(video_path).exists():
+        logger.error("Video production failed for format: %s", fmt)
+        notify_telegram(f"RuckTalk daily social: {fmt} video failed. No post today.")
         return None
 
-    # ── Step 4: Copy to static media ──
-    STATIC_MEDIA.mkdir(parents=True, exist_ok=True)
+    # ── Copy to static media ──
+    rucktalk_media = STATIC_MEDIA / "rucktalk"
+    rucktalk_media.mkdir(parents=True, exist_ok=True)
     video_filename = f"rucktalk_{mode}_{run_id}.mp4"
-    static_path = STATIC_MEDIA / video_filename
-    shutil.copy2(video_path, static_path)
-    video_url = f"{PUBLIC_MEDIA_URL}/{video_filename}"
+    static_path = rucktalk_media / video_filename
+    shutil.copy2(video_path, str(static_path))
+    video_url = f"{PUBLIC_MEDIA_URL}/rucktalk/{video_filename}"
     logger.info("Video copied to static: %s", static_path)
 
     # ── Step 5: Schedule to Postiz ──
@@ -272,6 +420,7 @@ def _produce_narrated_video(content: dict, mode: str, dry_run: bool = False) -> 
     record = {
         "id": run_id,
         "mode": mode,
+        "format": fmt,
         "date": datetime.now(EST).strftime("%Y-%m-%d"),
         "caption": caption[:500],
         "video_url": video_url,
@@ -470,7 +619,7 @@ Rules for image_prompts:
 
     content["topic"] = content.get("topic", "Trending Rucking Topic")
 
-    return _produce_narrated_video(content, mode="trend", dry_run=dry_run)
+    return _produce_video(content, mode="trend", dry_run=dry_run)
 
 
 def generate_evergreen_content(dry_run: bool = False) -> dict | None:
@@ -546,7 +695,7 @@ Pillar context for {pillar_name}:
 
     content["pillar"] = pillar_id
 
-    return _produce_narrated_video(content, mode="evergreen", dry_run=dry_run)
+    return _produce_video(content, mode="evergreen", dry_run=dry_run)
 
 
 # ─────────────────────────────────────────────
