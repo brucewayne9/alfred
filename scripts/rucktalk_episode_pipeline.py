@@ -269,27 +269,135 @@ TRANSCRIPT:
 
 
 def generate_cover_image(title: str, episode_number: int) -> str | None:
-    """Generate episode cover art via ComfyUI. Returns local path or None."""
+    """Generate branded episode cover art — ComfyUI background + text overlay.
+
+    Matches the RuckTalk cover style:
+    - Cinematic AI background (ComfyUI Cloud)
+    - "RUCK TALK" top left
+    - "EPISODE N" badge top right (orange)
+    - "NEW EPISODE" label in orange
+    - Episode title in huge bold text, key word in orange
+    - Dark overlay for readability
+    """
+    from PIL import Image, ImageDraw, ImageFont, ImageEnhance
+
+    # Step 1: Generate background image via ComfyUI Cloud
     prompt = (
-        f"Podcast cover art for a rucking podcast episode titled '{title}'. "
-        f"Episode {episode_number}. Rugged outdoor scene with rucksack, "
-        f"bold energetic composition. {IMAGE_STYLE_SUFFIX}"
+        f"cinematic dramatic scene related to '{title}', "
+        f"dark moody atmosphere, single person, masculine energy, "
+        f"studio or outdoor setting, professional photography, "
+        f"{IMAGE_STYLE_SUFFIX}"
     )
     logger.info("Generating cover image for Episode %d...", episode_number)
-    result = run_comfyui_cloud(prompt, width=1400, height=1400)
-    if result:
-        # Copy to images dir with a stable name
+    bg_path = run_comfyui_cloud(prompt, width=1400, height=1400)
+
+    if not bg_path:
+        logger.warning("ComfyUI Cloud failed for cover — trying local.")
+        bg_path = run_comfyui(prompt, width=1400, height=1400)
+
+    if not bg_path:
+        logger.warning("Cover image generation failed entirely.")
+        return None
+
+    # Step 2: Composite branded text overlay
+    try:
+        bg = Image.open(bg_path).resize((1400, 1400))
+        bg = ImageEnhance.Brightness(bg).enhance(0.45)
+
+        draw = ImageDraw.Draw(bg)
+
+        # Find a bold font
+        font_path = None
+        for fp in [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        ]:
+            if Path(fp).exists():
+                font_path = fp
+                break
+
+        if not font_path:
+            logger.warning("No bold font found — using default.")
+            font_path = None
+
+        def _font(size):
+            return ImageFont.truetype(font_path, size) if font_path else ImageFont.load_default()
+
+        # "RUCK TALK" top left
+        draw.text((60, 50), "RUCK TALK", fill="white", font=_font(48))
+
+        # "EPISODE N" badge top right
+        ep_text = f"EPISODE {episode_number}"
+        ep_bbox = draw.textbbox((0, 0), ep_text, font=_font(32))
+        ep_w = ep_bbox[2] - ep_bbox[0] + 30
+        ep_h = ep_bbox[3] - ep_bbox[1] + 20
+        ep_x = 1400 - ep_w - 60
+        draw.rounded_rectangle([ep_x, 50, ep_x + ep_w, 50 + ep_h], radius=10, fill="#f97316")
+        draw.text((ep_x + 15, 58), ep_text, fill="white", font=_font(32))
+
+        # "NEW EPISODE" label
+        draw.text((60, 950), "NEW EPISODE", fill="#f97316", font=_font(36))
+
+        # Episode title — split into lines, last significant word in orange
+        words = title.upper().split()
+        lines = []
+        current_line = []
+        max_chars = 18  # rough chars per line at this font size
+
+        for word in words:
+            if sum(len(w) for w in current_line) + len(current_line) + len(word) > max_chars:
+                lines.append(" ".join(current_line))
+                current_line = [word]
+            else:
+                current_line.append(word)
+        if current_line:
+            lines.append(" ".join(current_line))
+
+        # Render title lines — last line in orange
+        y = 1010
+        title_font = _font(110)
+        for i, line in enumerate(lines[:4]):
+            if i == len(lines) - 1:
+                draw.text((60, y), line, fill="#f97316", font=title_font)
+            else:
+                draw.text((60, y), line, fill="white", font=title_font)
+            y += 125
+
+        # Save
         dest = IMAGES_DIR / f"episode_{episode_number}_cover.png"
-        shutil.copy2(result, str(dest))
-        logger.info("Cover image saved: %s", dest)
+        bg.save(str(dest), quality=95)
+        logger.info("Branded cover image saved: %s", dest)
         return str(dest)
-    logger.warning("Cover image generation failed, proceeding without.")
-    return None
+
+    except Exception as exc:
+        logger.error("Cover image branding failed: %s", exc)
+        # Fall back to raw ComfyUI image
+        dest = IMAGES_DIR / f"episode_{episode_number}_cover.png"
+        shutil.copy2(bg_path, str(dest))
+        return str(dest)
 
 
 # ─────────────────────────────────────────────
 # Step 7: Publish audio to WordPress
 # ─────────────────────────────────────────────
+
+
+SSH_100 = "ssh -i /home/aialfred/.ssh/alfred_100 -o ConnectTimeout=10 -o StrictHostKeyChecking=no brucewayne9@75.43.156.100"
+WP_CLI = "docker exec rt-wordpress wp"
+
+
+def _wp_cli(cmd: str, timeout: int = 30) -> tuple[bool, str]:
+    """Run a WP-CLI command on the RuckTalk WordPress server. Returns (success, output)."""
+    full_cmd = f'{SSH_100} "{WP_CLI} {cmd} --allow-root"'
+    try:
+        r = subprocess.run(full_cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        output = r.stdout.strip()
+        if r.returncode != 0:
+            output = r.stderr.strip() or output
+        return r.returncode == 0, output
+    except Exception as exc:
+        return False, str(exc)
 
 
 def publish_to_wordpress(
@@ -301,16 +409,16 @@ def publish_to_wordpress(
     cover_image_path: str | None,
 ) -> dict | None:
     """
-    Upload audio + cover to WordPress and create a podcast post.
+    Upload audio + cover to WordPress and create a proper Sonaar podcast episode.
+    Uses the 'podcast' custom post type with correct meta fields so the episode
+    appears on the show page at /show/ruck-talk/.
     Returns dict with 'post_link', 'post_id', 'audio_url'.
     """
     full_title = f"Episode {episode_number}: {title}"
 
     # Upload audio file
     logger.info("Uploading audio to WordPress...")
-    audio_result = run_script(
-        "wordpress.py", "upload-media", "rucktalk", str(audio_path)
-    )
+    audio_result = run_script("wordpress.py", "upload-media", "rucktalk", str(audio_path))
     if audio_result.returncode != 0:
         logger.error("WordPress audio upload failed: %s", audio_result.stderr[:500])
         return None
@@ -318,18 +426,17 @@ def publish_to_wordpress(
     try:
         audio_media = json.loads(audio_result.stdout)
     except (json.JSONDecodeError, ValueError):
-        logger.error("Could not parse WordPress audio upload response: %s", audio_result.stdout[:500])
+        logger.error("Could not parse audio upload response: %s", audio_result.stdout[:500])
         return None
 
     audio_url = audio_media.get("source_url", "")
+    audio_media_id = audio_media.get("id", "")
 
-    # Upload cover image if available
+    # Upload cover image
     featured_media_id = None
     if cover_image_path and os.path.isfile(cover_image_path):
         logger.info("Uploading cover image to WordPress...")
-        img_result = run_script(
-            "wordpress.py", "upload-media", "rucktalk", cover_image_path
-        )
+        img_result = run_script("wordpress.py", "upload-media", "rucktalk", cover_image_path)
         if img_result.returncode == 0:
             try:
                 img_media = json.loads(img_result.stdout)
@@ -337,53 +444,64 @@ def publish_to_wordpress(
             except (json.JSONDecodeError, ValueError):
                 logger.warning("Could not parse cover image upload response.")
 
-    # Build post content with audio player
-    content = f"""<div class="podcast-episode">
-<h2>{full_title}</h2>
+    # Build post content
+    content = (
+        f"<p>{description}</p>"
+        f"<h3>Show Notes</h3>"
+        f"{show_notes}"
+        f"<p><strong>Subscribe to RuckTalk for new episodes. No fluff, no excuses.</strong></p>"
+    )
+    # Escape single quotes for shell
+    safe_title = full_title.replace("'", "'\\''")
+    safe_content = content.replace("'", "'\\''")
 
-<audio controls preload="metadata">
-  <source src="{audio_url}" type="audio/mpeg">
-  Your browser does not support the audio element.
-</audio>
+    # Create as podcast post type via WP-CLI
+    logger.info("Creating podcast episode on WordPress...")
+    ok, output = _wp_cli(
+        f"post create --post_type=podcast --post_title='{safe_title}' "
+        f"--post_status=publish --post_content='{safe_content}' --porcelain",
+        timeout=30,
+    )
 
-<div class="episode-description">
-{description}
-</div>
+    if not ok:
+        logger.error("WordPress podcast post creation failed: %s", output)
+        return None
 
-<div class="show-notes">
-<h3>Show Notes</h3>
-{show_notes}
-</div>
-</div>"""
+    post_id = output.strip()
+    logger.info("Created podcast post ID: %s", post_id)
 
-    # Create post
-    logger.info("Creating WordPress podcast post...")
-    post_args = [
-        "wordpress.py", "create-post", "rucktalk",
-        "--title", full_title,
-        "--content", content,
-        "--status", "publish",
+    # Set Sonaar podcast meta fields
+    meta_cmds = [
+        f"post meta update {post_id} FileOrStreamPodCast mp3",
+        f"post meta update {post_id} track_mp3_podcast {audio_media_id}",
+        f"post meta update {post_id} podcast_player_position above",
+        f"post meta update {post_id} podcast_itunes_episode_number {episode_number}",
+        f"post meta update {post_id} podcast_itunes_episode_title '{title.replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}'",
+        f"post meta update {post_id} podcast_explicit_episode 0",
+        f"post meta update {post_id} no_track_skip 0",
     ]
     if featured_media_id:
-        post_args.extend(["--featured-media", featured_media_id])
+        meta_cmds.append(f"post meta update {post_id} _thumbnail_id {featured_media_id}")
 
-    post_result = run_script(*post_args)
-    if post_result.returncode != 0:
-        logger.error("WordPress post creation failed: %s", post_result.stderr[:500])
-        return None
+    # Assign to podcast category 184
+    meta_cmds.append(f"post term add {post_id} podcast-category 184")
 
-    try:
-        post_data = json.loads(post_result.stdout)
-    except (json.JSONDecodeError, ValueError):
-        logger.error("Could not parse WordPress post response: %s", post_result.stdout[:500])
-        return None
+    for cmd in meta_cmds:
+        ok, out = _wp_cli(cmd)
+        if not ok:
+            logger.warning("Meta command failed: %s → %s", cmd, out)
+
+    # Get the post URL
+    ok, post_url = _wp_cli(f"post get {post_id} --field=url")
+    if not ok:
+        post_url = f"https://rucktalk.com/podcast/{post_id}/"
 
     result = {
-        "post_link": post_data.get("link", ""),
-        "post_id": post_data.get("id"),
+        "post_link": post_url,
+        "post_id": post_id,
         "audio_url": audio_url,
     }
-    logger.info("WordPress podcast post published: %s", result["post_link"])
+    logger.info("Podcast episode published: %s", post_url)
     return result
 
 
@@ -841,25 +959,19 @@ def _cut_clip(
     scale: str | None,
     crop: str | None,
 ) -> bool:
-    """Cut a single clip with ffmpeg. Returns True on success."""
+    """Cut a single clip with ffmpeg, re-encoding to H.264 for Remotion compatibility.
+    Returns True on success. No subtitles burned in — Remotion template handles captions."""
     if output_path.exists():
         return True
 
-    # Build filter chain
+    # Build filter chain — scale/crop only, no subtitle burn-in
     filters = []
     if crop:
-        # For portrait: scale to ensure height, then crop to 1080x1920
         filters.append(f"scale=-2:1920")
         filters.append(f"crop=1080:1920")
     elif scale:
         filters.append(f"scale={scale}:force_original_aspect_ratio=decrease")
         filters.append(f"pad={scale}:(ow-iw)/2:(oh-ih)/2")
-
-    # Burn in subtitles if SRT exists and has content
-    if srt_path.exists() and srt_path.stat().st_size > 10:
-        # Escape path for ffmpeg subtitles filter
-        escaped_srt = str(srt_path).replace("'", "'\\''").replace(":", "\\:")
-        filters.append(f"subtitles='{escaped_srt}'")
 
     vf = ",".join(filters) if filters else None
 
