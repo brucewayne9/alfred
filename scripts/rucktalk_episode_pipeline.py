@@ -911,9 +911,19 @@ def _render_branded_clip(
         # Fallback: single phrase from context
         phrases = [{"text": context_line.upper(), "startFrame": 30, "endFrame": duration_frames - 30}]
 
-    # Build Remotion props
+    # Copy raw clip to Remotion's public/ dir so staticFile() can serve it
+    remotion_dir = "/home/aialfred/remotion"
+    public_dir = Path(remotion_dir) / "public"
+    public_dir.mkdir(exist_ok=True)
+
+    clip_filename = f"clip_{output_path.stem}.mp4"
+    public_clip = public_dir / clip_filename
+    shutil.copy2(str(raw_clip_path), str(public_clip))
+    logger.info("Copied clip to Remotion public: %s", clip_filename)
+
+    # Build Remotion props — videoSrc is the filename in public/, staticFile() resolves it
     props = {
-        "videoSrc": str(raw_clip_path),
+        "videoSrc": clip_filename,
         "episodeNumber": episode_number,
         "episodeTitle": episode_title,
         "contextLine": context_line,
@@ -922,15 +932,16 @@ def _render_branded_clip(
         "captionPhrases": phrases,
     }
 
-    props_json = json.dumps(props)
-    remotion_dir = "/home/aialfred/remotion"
-    npx = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/npx"
+    # Write props to a temp file to avoid shell escaping issues with JSON
+    props_file = Path(remotion_dir) / f"props_{output_path.stem}.json"
+    props_file.write_text(json.dumps(props))
 
+    npx = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/npx"
     cmd = [
         npx, "remotion", "render",
         "src/index.ts", "RuckTalkClip",
-        f"--props={props_json}",
-        "--frames=0-" + str(min(duration_frames, 1800)),
+        f"--props={str(props_file)}",
+        f"--frames=0-{min(duration_frames, 1800)}",
         str(output_path),
     ]
 
@@ -940,6 +951,11 @@ def _render_branded_clip(
             capture_output=True, text=True, timeout=600,
             env={**os.environ, "PATH": f"/home/aialfred/.nvm/versions/node/v22.22.0/bin:{os.environ.get('PATH', '')}"},
         )
+
+        # Clean up temp files
+        public_clip.unlink(missing_ok=True)
+        props_file.unlink(missing_ok=True)
+
         if result.returncode != 0:
             logger.warning("Remotion render failed for %s: %s", output_path.name, result.stderr[-300:])
             return False
