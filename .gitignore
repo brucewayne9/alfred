@@ -60,3 +60,40 @@ logs/
 # Infrastructure inventory (generated files — contain IPs and service info)
 data/infrastructure/inventory.json
 data/infrastructure/inventory.md
+
+# Credentials
+config/google_analytics_credentials.json
+
+# WhatsApp interface (session data + deps)
+interfaces/whatsapp/.wwebjs_auth/
+interfaces/whatsapp/.wwebjs_cache/
+interfaces/whatsapp/node_modules/
+interfaces/whatsapp/package-lock.json
+
+# Runtime state files
+data/*_state.json
+data/*_sync_state.json
+
+# Generated content
+data/audio/
+data/static/
+data/learning.db
+data/tasks.db
+
+# Backups
+backups/
+
+# Loose media in root
+*.jpg
+*.jpeg
+*.png
+
+# Claude agent/skill configs
+.agents/
+.claude/skills/
+
+# One-off audit files
+ORACLE_AUDIT_*.md
+
+.superpowers/
+.worktrees/
