@@ -67,7 +67,7 @@ from scripts.rucktalk_rig_props import (
 
 # Phase 2 migration flag. Default is the deprecated rig during cutover;
 # Task 5 flips it to "MagazineRig". Set EPISODE_RIG env var to override at runtime.
-EPISODE_RIG = os.environ.get("EPISODE_RIG", "RuckTalkClip")
+EPISODE_RIG = os.environ.get("EPISODE_RIG", "MagazineRig")
 
 
 # ─────────────────────────────────────────────
