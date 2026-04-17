@@ -60,6 +60,14 @@ from scripts.rucktalk_common import (
     PILLARS,
 )
 from integrations.nextcloud.client import list_files, download_file, create_folder
+from scripts.rucktalk_rig_props import (
+    build_rucktalkclip_props,
+    build_magazinerig_props,
+)
+
+# Phase 2 migration flag. Default is the deprecated rig during cutover;
+# Task 5 flips it to "MagazineRig". Set EPISODE_RIG env var to override at runtime.
+EPISODE_RIG = os.environ.get("EPISODE_RIG", "MagazineRig")
 
 
 # ─────────────────────────────────────────────
@@ -921,25 +929,39 @@ def _render_branded_clip(
     shutil.copy2(str(raw_clip_path), str(public_clip))
     logger.info("Copied clip to Remotion public: %s", clip_filename)
 
-    # Build Remotion props — videoSrc is the filename in public/, staticFile() resolves it
-    props = {
-        "videoSrc": clip_filename,
-        "episodeNumber": episode_number,
-        "episodeTitle": episode_title,
-        "contextLine": context_line,
-        "hostName": host_name,
-        "guestName": guest_name or "",
-        "captionPhrases": phrases,
-    }
+    # Build props + pick composition id based on EPISODE_RIG flag
+    if EPISODE_RIG == "MagazineRig":
+        props = build_magazinerig_props(
+            clip_filename=clip_filename,
+            episode_number=episode_number,
+            episode_title=episode_title,
+            host_name=host_name,
+            guest_name=guest_name,
+            caption_phrases=phrases,
+        )
+        composition_id = "MagazineRig"
+    else:
+        props = build_rucktalkclip_props(
+            clip_filename=clip_filename,
+            episode_number=episode_number,
+            episode_title=episode_title,
+            context_line=context_line,
+            host_name=host_name,
+            guest_name=guest_name,
+            caption_phrases=phrases,
+        )
+        composition_id = "RuckTalkClip"
 
     # Write props to a temp file to avoid shell escaping issues with JSON
     props_file = Path(remotion_dir) / f"props_{output_path.stem}.json"
     props_file.write_text(json.dumps(props))
 
+    logger.info("Rendering clip via %s (EPISODE_RIG=%s)", composition_id, EPISODE_RIG)
+
     npx = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/npx"
     cmd = [
         npx, "remotion", "render",
-        "src/index.ts", "RuckTalkClip",
+        "src/index.ts", composition_id,
         f"--props={str(props_file)}",
         f"--frames=0-{min(duration_frames, 1800)}",
         str(output_path),
@@ -997,6 +1019,8 @@ def _cut_clip(
         "-i", str(video_path),
         "-t", str(duration),
         "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-r", "30",  # Force 30fps output — matches Remotion composition fps and prevents
+                     # judder when source is 29.97fps broadcast (see Phase 2 Task 4.5 fix).
         "-c:a", "aac", "-b:a", "128k",
     ]
     if vf:
@@ -1277,6 +1301,56 @@ def _send_failure_notification(filename: str, episode_number: int, exc: Exceptio
         f"Episode: {episode_number}\n"
         f"Error: {str(exc)[:200]}"
     )
+
+
+# ─────────────────────────────────────────────
+# Phase 2 Rig Comparison Helper
+# ─────────────────────────────────────────────
+
+
+def compare_rigs_for_clip(
+    raw_clip_path: Path,
+    output_dir: Path,
+    episode_number: int,
+    episode_title: str,
+    context_line: str,
+    host_name: str,
+    guest_name: str | None,
+    transcript: dict,
+    clip_start: float,
+    clip_end: float,
+    duration_frames: int,
+) -> tuple[Path, Path]:
+    """Render the same clip through BOTH rigs and return paths to both outputs.
+
+    Used once, at the Phase 2 cutover gate, to produce a side-by-side
+    comparison for human review before flipping EPISODE_RIG default.
+    """
+    global EPISODE_RIG
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    old_path = output_dir / f"ep{episode_number}_rucktalkclip.mp4"
+    new_path = output_dir / f"ep{episode_number}_magazinerig.mp4"
+
+    # Save and restore EPISODE_RIG so we don't leak state to the caller.
+    saved = EPISODE_RIG
+    try:
+        EPISODE_RIG = "RuckTalkClip"
+        _render_branded_clip(
+            raw_clip_path, old_path, episode_number, episode_title,
+            context_line, host_name, guest_name, transcript,
+            clip_start, clip_end, duration_frames,
+        )
+        EPISODE_RIG = "MagazineRig"
+        _render_branded_clip(
+            raw_clip_path, new_path, episode_number, episode_title,
+            context_line, host_name, guest_name, transcript,
+            clip_start, clip_end, duration_frames,
+        )
+    finally:
+        EPISODE_RIG = saved
+
+    return old_path, new_path
 
 
 # ─────────────────────────────────────────────
