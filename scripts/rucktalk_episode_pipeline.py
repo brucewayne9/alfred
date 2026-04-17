@@ -1019,6 +1019,8 @@ def _cut_clip(
         "-i", str(video_path),
         "-t", str(duration),
         "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-r", "30",  # Force 30fps output — matches Remotion composition fps and prevents
+                     # judder when source is 29.97fps broadcast (see Phase 2 Task 4.5 fix).
         "-c:a", "aac", "-b:a", "128k",
     ]
     if vf:
