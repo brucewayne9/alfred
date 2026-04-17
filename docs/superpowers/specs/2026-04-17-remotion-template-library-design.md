@@ -56,6 +56,10 @@ A shared design system (primitives, rigs, brand theme tokens, motion tokens, gra
 ```ts
 export type BrandId = "rucktalk" | "loovacast" | "grl";
 
+export type TtsProviderId = "kokoro" | "qwen3";
+export type ImageProviderId = "comfyui-local" | "comfyui-cloud" | "higgsfield";
+export type VideoProviderId = "ltx-cloud" | "higgsfield";
+
 export type BrandTheme = {
   id: BrandId;
   colors: { primary: string; accent: string; bgDark: string; fgLight: string };
@@ -65,7 +69,9 @@ export type BrandTheme = {
   defaults: {
     grade: GradeId;
     captionStyle: CaptionStyleId;
-    voice: KokoroVoiceId;   // default Kokoro TTS voice; overridable per render
+    tts: { provider: TtsProviderId; voice: string };  // voice string is provider-specific
+    image: ImageProviderId;
+    video: VideoProviderId;
   };
 };
 ```
@@ -114,7 +120,7 @@ type AutoBrief = {
   clip?: ClipData;           // from clip queue
   audio?: AudioData;
   assets?: AssetRefs;
-  voice?: KokoroVoiceId;     // overrides brand default
+  tts?: { provider: TtsProviderId; voice: string };  // overrides brand default
 };
 
 type AutoOutput =
@@ -133,9 +139,27 @@ type HeroBrief = {
   brand: BrandId;
   props: RigProps;      // typed per rig
   assets: AssetManifest;
-  voice: KokoroVoiceId; // always explicit
+  tts: { provider: TtsProviderId; voice: string };  // always explicit
 };
 ```
+
+**TTS provider pool + rotation:**
+
+```ts
+// theme/providers.ts
+
+export const ttsRotation = {
+  kokoro: ["am_adam", "am_michael", "am_eric", "af_sarah", "af_sky", "af_alloy"],  // 3M / 3F
+  qwen3:  ["Barbra_Gordon", "Brenda_Walker", "JAYDEE", "Louis_Lane"],              // cloned voices
+};
+
+// Reserved: not in any rotation. Must be set explicitly on a brief (hero tier).
+export const ttsReserved = {
+  qwen3: ["MJ"],  // Mike's own cloned voice — only on opt-in hero briefs
+};
+```
+
+Auto tier draws from `ttsRotation[provider]` by `(rotation % pool.length)`. Hero briefs can set any voice including reserved ones.
 
 Hero briefs live as JSON at `briefs/YYYY-MM-DD-topic.json` or as direct TSX entries in `Root.tsx`.
 
@@ -150,9 +174,31 @@ Hero briefs live as JSON at `briefs/YYYY-MM-DD-topic.json` or as direct TSX entr
 | Grey Matter recall | topic ideas, quotes | caption text |
 
 **Voice selection:**
-- Permanent brand default → `theme/<brand>.ts` → `defaults.voice`
-- Per-render override → set `voice` on the brief
-- Helper: `npm run voices` prints the list grouped by locale/gender (pulled from `localhost:8880/v1/audio/voices`)
+- Permanent brand default → `theme/<brand>.ts` → `defaults.tts`
+- Per-render override → set `tts` on the brief
+- Helper: `npm run voices` prints Kokoro + Qwen3 voice pools (pulled live from both providers) with rotation and reserved-voice annotations
+
+**Asset provider abstraction (Python side, `scripts/providers/`):**
+
+```
+tts/
+├─ base.py            TtsProvider interface: synth(text, voice) → audio path
+├─ kokoro.py          wraps localhost:8880 (OpenAI-compatible)
+└─ qwen3.py           wraps localhost:7860 (/synthesize_speech/)
+
+image/
+├─ base.py            ImageProvider: gen(prompt) → image path
+├─ comfyui_local.py
+├─ comfyui_cloud.py
+└─ higgsfield.py      stub — raises NotImplementedError until Mike has API access
+
+video/
+├─ base.py            VideoProvider: gen(prompt, duration) → video path
+├─ ltx_cloud.py
+└─ higgsfield.py      stub
+```
+
+Adding a provider (e.g., filling in Higgsfield) = one new file implementing the interface + flipping a default in `theme/<brand>.ts`. Rigs never change.
 
 ## Section 5 — Motion + Grade Tokens
 
