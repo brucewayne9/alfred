@@ -60,6 +60,14 @@ from scripts.rucktalk_common import (
     PILLARS,
 )
 from integrations.nextcloud.client import list_files, download_file, create_folder
+from scripts.rucktalk_rig_props import (
+    build_rucktalkclip_props,
+    build_magazinerig_props,
+)
+
+# Phase 2 migration flag. Default is the deprecated rig during cutover;
+# Task 5 flips it to "MagazineRig". Set EPISODE_RIG env var to override at runtime.
+EPISODE_RIG = os.environ.get("EPISODE_RIG", "RuckTalkClip")
 
 
 # ─────────────────────────────────────────────
@@ -921,25 +929,39 @@ def _render_branded_clip(
     shutil.copy2(str(raw_clip_path), str(public_clip))
     logger.info("Copied clip to Remotion public: %s", clip_filename)
 
-    # Build Remotion props — videoSrc is the filename in public/, staticFile() resolves it
-    props = {
-        "videoSrc": clip_filename,
-        "episodeNumber": episode_number,
-        "episodeTitle": episode_title,
-        "contextLine": context_line,
-        "hostName": host_name,
-        "guestName": guest_name or "",
-        "captionPhrases": phrases,
-    }
+    # Build props + pick composition id based on EPISODE_RIG flag
+    if EPISODE_RIG == "MagazineRig":
+        props = build_magazinerig_props(
+            clip_filename=clip_filename,
+            episode_number=episode_number,
+            episode_title=episode_title,
+            host_name=host_name,
+            guest_name=guest_name,
+            caption_phrases=phrases,
+        )
+        composition_id = "MagazineRig"
+    else:
+        props = build_rucktalkclip_props(
+            clip_filename=clip_filename,
+            episode_number=episode_number,
+            episode_title=episode_title,
+            context_line=context_line,
+            host_name=host_name,
+            guest_name=guest_name,
+            caption_phrases=phrases,
+        )
+        composition_id = "RuckTalkClip"
 
     # Write props to a temp file to avoid shell escaping issues with JSON
     props_file = Path(remotion_dir) / f"props_{output_path.stem}.json"
     props_file.write_text(json.dumps(props))
 
+    logger.info("Rendering clip via %s (EPISODE_RIG=%s)", composition_id, EPISODE_RIG)
+
     npx = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/npx"
     cmd = [
         npx, "remotion", "render",
-        "src/index.ts", "RuckTalkClip",
+        "src/index.ts", composition_id,
         f"--props={str(props_file)}",
         f"--frames=0-{min(duration_frames, 1800)}",
         str(output_path),
