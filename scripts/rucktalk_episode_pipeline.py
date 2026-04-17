@@ -1302,6 +1302,56 @@ def _send_failure_notification(filename: str, episode_number: int, exc: Exceptio
 
 
 # ─────────────────────────────────────────────
+# Phase 2 Rig Comparison Helper
+# ─────────────────────────────────────────────
+
+
+def compare_rigs_for_clip(
+    raw_clip_path: Path,
+    output_dir: Path,
+    episode_number: int,
+    episode_title: str,
+    context_line: str,
+    host_name: str,
+    guest_name: str | None,
+    transcript: dict,
+    clip_start: float,
+    clip_end: float,
+    duration_frames: int,
+) -> tuple[Path, Path]:
+    """Render the same clip through BOTH rigs and return paths to both outputs.
+
+    Used once, at the Phase 2 cutover gate, to produce a side-by-side
+    comparison for human review before flipping EPISODE_RIG default.
+    """
+    global EPISODE_RIG
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    old_path = output_dir / f"ep{episode_number}_rucktalkclip.mp4"
+    new_path = output_dir / f"ep{episode_number}_magazinerig.mp4"
+
+    # Save and restore EPISODE_RIG so we don't leak state to the caller.
+    saved = EPISODE_RIG
+    try:
+        EPISODE_RIG = "RuckTalkClip"
+        _render_branded_clip(
+            raw_clip_path, old_path, episode_number, episode_title,
+            context_line, host_name, guest_name, transcript,
+            clip_start, clip_end, duration_frames,
+        )
+        EPISODE_RIG = "MagazineRig"
+        _render_branded_clip(
+            raw_clip_path, new_path, episode_number, episode_title,
+            context_line, host_name, guest_name, transcript,
+            clip_start, clip_end, duration_frames,
+        )
+    finally:
+        EPISODE_RIG = saved
+
+    return old_path, new_path
+
+
+# ─────────────────────────────────────────────
 # CLI Entry Point
 # ─────────────────────────────────────────────
 
