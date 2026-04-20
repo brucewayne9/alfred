@@ -198,9 +198,11 @@ def _render_via_remotion(brief: dict, output_path: Path) -> bool:
     brief_file = WORK_DIR / f"brief_{output_path.stem}.json"
     brief_file.write_text(json.dumps(brief))
     try:
+        # Call auto-render.mjs directly via node. Avoids npx treating
+        # "auto-render" as a package name to install from npm registry.
         cmd = [
-            NPX_PATH, "--prefix", REMOTION_DIR,
-            "auto-render", "--",
+            NODE_PATH,
+            f"{REMOTION_DIR}/scripts/auto-render.mjs",
             str(brief_file),
             f"--out={output_path}",
         ]
