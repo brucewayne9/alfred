@@ -345,14 +345,34 @@ def _produce_monologue_video_remotion(content: dict, mode: str, run_id: str) -> 
         logger.error("Could not probe narration duration: %s", exc)
         return None
 
-    # 2. Generate a single ComfyUI Cloud video of matching-or-longer duration
-    bg_video_path = WORK_DIR / f"monologue_{run_id}_bg.mp4"
+    # 2. Generate a background video. Try ComfyUI Cloud LTX first; if that
+    # fails (common when the cloud session expired) fall back to a local
+    # still image looped to the audio's length.
     topic_prompt = content.get("image_prompt") or content.get("topic") or "rucking motivation"
-    cloud_ok = run_comfyui_video_cloud(topic_prompt, str(bg_video_path),
-                                        duration_s=max(8.0, audio_duration_s + 1.0))
-    if not cloud_ok or not bg_video_path.exists():
-        logger.warning("ComfyUI Cloud bg video failed — aborting remotion monologue.")
-        return None
+    needed_duration = int(max(8, audio_duration_s + 1))
+    cloud_video_str = run_comfyui_video_cloud(topic_prompt, duration=needed_duration)
+
+    if cloud_video_str and Path(cloud_video_str).exists():
+        bg_video_path = Path(cloud_video_str)
+    else:
+        logger.warning("ComfyUI Cloud video unavailable — falling back to local image loop.")
+        img_path = run_comfyui(topic_prompt, width=1080, height=1920)
+        if not img_path:
+            logger.error("ComfyUI fallback image also failed — aborting remotion monologue.")
+            return None
+        bg_video_path = WORK_DIR / f"monologue_{run_id}_bg.mp4"
+        fb_cmd = [
+            "ffmpeg", "-y",
+            "-loop", "1", "-t", f"{audio_duration_s + 1.0:.2f}",
+            "-i", str(img_path),
+            "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-r", "30",
+            str(bg_video_path),
+        ]
+        fb_result = subprocess.run(fb_cmd, capture_output=True, text=True, timeout=120)
+        if fb_result.returncode != 0 or not bg_video_path.exists():
+            logger.error("Local image loop fallback failed: %s", fb_result.stderr[-300:])
+            return None
 
     # 3. Copy bg to Remotion public/ so staticFile() serves it
     bg_public_name = _copy_to_remotion_public(bg_video_path, f"daily_{run_id}_bg.mp4")
@@ -580,8 +600,26 @@ def _produce_conversation_video_remotion(content: dict, mode: str, run_id: str) 
         "mountain rucking golden hour",
     ]
     for i, prompt in enumerate(prompts):
-        seg_path = WORK_DIR / f"conversation_{run_id}_seg{i}.mp4"
-        if run_comfyui_video_cloud(prompt, seg_path, duration_s=seg_duration):
+        # Try ComfyUI Cloud first; fall back to local image loop on failure.
+        seg_path = None
+        cloud_str = run_comfyui_video_cloud(prompt, duration=int(seg_duration))
+        if cloud_str and Path(cloud_str).exists():
+            seg_path = Path(cloud_str)
+        else:
+            img = run_comfyui(prompt, width=1080, height=1920)
+            if img:
+                seg_fallback = WORK_DIR / f"conversation_{run_id}_seg{i}.mp4"
+                fb = subprocess.run([
+                    "ffmpeg", "-y",
+                    "-loop", "1", "-t", f"{seg_duration:.2f}",
+                    "-i", str(img),
+                    "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-r", "30",
+                    str(seg_fallback),
+                ], capture_output=True, text=True, timeout=120)
+                if fb.returncode == 0 and seg_fallback.exists():
+                    seg_path = seg_fallback
+        if seg_path:
             name = _copy_to_remotion_public(seg_path, f"daily_{run_id}_seg{i}.mp4")
             bg_clips.append({"src": name, "durationFrames": seg_frames})
     if not bg_clips:
