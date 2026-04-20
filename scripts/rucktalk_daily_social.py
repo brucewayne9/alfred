@@ -393,7 +393,7 @@ def _produce_monologue_video_remotion(content: dict, mode: str, run_id: str) -> 
     return str(muxed)
 
 
-def _produce_conversation_video(content: dict, mode: str, run_id: str) -> str | None:
+def _produce_conversation_video_legacy(content: dict, mode: str, run_id: str) -> str | None:
     """Format B — 'The Conversation': NotebookLM 2-person podcast over ComfyUI Cloud video.
 
     Returns local video file path, or None on failure.
@@ -518,6 +518,104 @@ asyncio.run(main())
     logger.error("Conversation video assembly failed: %s", r.stderr[-300:])
     # Last resort fallback to monologue
     return _produce_monologue_video(content, mode, run_id)
+
+
+def _produce_conversation_video(content: dict, mode: str, run_id: str) -> str | None:
+    """Dispatcher — routes to legacy ffmpeg path or new Remotion path based on DAILY_SOCIAL_ENGINE."""
+    if DAILY_SOCIAL_ENGINE == "remotion":
+        return _produce_conversation_video_remotion(content, mode, run_id)
+    return _produce_conversation_video_legacy(content, mode, run_id)
+
+
+def _produce_conversation_video_remotion(content: dict, mode: str, run_id: str) -> str | None:
+    """Format B via Remotion GritDocRig.
+
+    NotebookLM 2-host podcast audio over a B-roll montage assembled from
+    ComfyUI Cloud video segments. Falls back to monologue-remotion if
+    NotebookLM fails.
+    """
+    topic = content.get("topic") or "RuckTalk"
+    logger.info("Generating NotebookLM conversation for Remotion path: %s", topic)
+
+    # 1. NotebookLM audio (reuses the legacy path's NotebookLM generation)
+    audio_path = WORK_DIR / f"conversation_{run_id}.mp3"
+    try:
+        import asyncio
+        from notebooklm import NotebookLMClient
+
+        async def _gen():
+            async with NotebookLMClient() as client:
+                nb = await client.notebooks.create(name=f"RuckTalk daily {run_id}")
+                await client.sources.add_text(nb.id, f"Topic: {topic}\n\nScript: {content.get('narration_script','')}")
+                await client.artifacts.generate_audio(nb.id,
+                    instructions="Two hosts, energetic, under 3 minutes.")
+                audio_bytes = await client.artifacts.download_audio(nb.id)
+                audio_path.write_bytes(audio_bytes)
+        asyncio.run(_gen())
+    except Exception as exc:
+        logger.warning("NotebookLM unavailable (%s) — falling back to monologue-remotion.", exc)
+        return _produce_monologue_video_remotion(content, mode, run_id)
+
+    if not audio_path.exists():
+        return _produce_monologue_video_remotion(content, mode, run_id)
+
+    # Probe audio duration
+    try:
+        dur_result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        audio_duration_s = float(dur_result.stdout.strip())
+    except Exception:
+        return _produce_monologue_video_remotion(content, mode, run_id)
+
+    # 2. Generate 2-3 ComfyUI Cloud video segments to montage
+    seg_duration = max(4.0, audio_duration_s / 3.0)
+    seg_frames = int(seg_duration * 30)
+    bg_clips = []
+    prompts = [
+        content.get("image_prompt") or content.get("video_prompt") or "rucking outdoors",
+        f"{content.get('topic','rucking')} atmosphere",
+        "mountain rucking golden hour",
+    ]
+    for i, prompt in enumerate(prompts):
+        seg_path = WORK_DIR / f"conversation_{run_id}_seg{i}.mp4"
+        if run_comfyui_video_cloud(prompt, seg_path, duration_s=seg_duration):
+            name = _copy_to_remotion_public(seg_path, f"daily_{run_id}_seg{i}.mp4")
+            bg_clips.append({"src": name, "durationFrames": seg_frames})
+    if not bg_clips:
+        logger.warning("No bg segments generated — aborting conversation-remotion.")
+        return None
+
+    # 3. Build brief + render
+    brief = build_conversation_brief(
+        date=datetime.now(EST).date().isoformat(),
+        rotation=pick_rotation_for_grit_doc(),
+        bg_clips=bg_clips,
+    )
+    silent_out = WORK_DIR / f"conversation_{run_id}.mp4"
+    ok = _render_via_remotion(brief, silent_out)
+    # Cleanup staged segments
+    for c in bg_clips:
+        (REMOTION_PUBLIC / c["src"]).unlink(missing_ok=True)
+    if not ok:
+        return None
+
+    # 4. Mux NotebookLM audio
+    muxed = WORK_DIR / f"conversation_{run_id}_final.mp4"
+    mux_cmd = [
+        "ffmpeg", "-y",
+        "-i", str(silent_out),
+        "-i", str(audio_path),
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        str(muxed),
+    ]
+    mux_result = subprocess.run(mux_cmd, capture_output=True, text=True, timeout=120)
+    if mux_result.returncode != 0:
+        return str(silent_out)
+    return str(muxed)
 
 
 def _produce_video(content: dict, mode: str, dry_run: bool = False) -> dict | None:
