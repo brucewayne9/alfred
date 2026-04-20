@@ -239,6 +239,13 @@ def _copy_to_remotion_public(src: Path, target_name: str) -> str:
 
 
 def _produce_monologue_video(content: dict, mode: str, run_id: str) -> str | None:
+    """Dispatcher — routes to legacy ffmpeg path or new Remotion path based on DAILY_SOCIAL_ENGINE."""
+    if DAILY_SOCIAL_ENGINE == "remotion":
+        return _produce_monologue_video_remotion(content, mode, run_id)
+    return _produce_monologue_video_legacy(content, mode, run_id)
+
+
+def _produce_monologue_video_legacy(content: dict, mode: str, run_id: str) -> str | None:
     """Format A — 'The Monologue': Kokoro TTS narration over ComfyUI Cloud AI video.
 
     Returns local video file path, or None on failure.
@@ -305,6 +312,85 @@ def _produce_monologue_video(content: dict, mode: str, run_id: str) -> str | Non
 
     logger.error("ffmpeg composite failed: %s", r.stderr[-300:])
     return None
+
+
+def _produce_monologue_video_remotion(content: dict, mode: str, run_id: str) -> str | None:
+    """Format A via Remotion KineticTypeRig.
+
+    Same inputs as legacy (Kokoro TTS audio + ComfyUI Cloud video) but
+    composed through the Remotion rig instead of raw ffmpeg. Captions
+    appear on-screen in sync with the voiceover.
+    """
+    script = content.get("script") or content.get("narration_script") or ""
+    if not script:
+        logger.error("Monologue content has no script/narration text — cannot derive captions.")
+        return None
+
+    # 1. Run Kokoro TTS to get the voiceover mp3
+    narration_path = WORK_DIR / f"monologue_{run_id}_narration.mp3"
+    tts_ok = run_tts(script, str(narration_path))
+    if not tts_ok or not narration_path.exists():
+        logger.error("Kokoro TTS failed to produce narration.")
+        return None
+
+    # Discover the audio's duration via ffprobe
+    try:
+        dur_result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(narration_path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        audio_duration_s = float(dur_result.stdout.strip())
+    except Exception as exc:
+        logger.error("Could not probe narration duration: %s", exc)
+        return None
+
+    # 2. Generate a single ComfyUI Cloud video of matching-or-longer duration
+    bg_video_path = WORK_DIR / f"monologue_{run_id}_bg.mp4"
+    topic_prompt = content.get("image_prompt") or content.get("topic") or "rucking motivation"
+    cloud_ok = run_comfyui_video_cloud(topic_prompt, str(bg_video_path),
+                                        duration_s=max(8.0, audio_duration_s + 1.0))
+    if not cloud_ok or not bg_video_path.exists():
+        logger.warning("ComfyUI Cloud bg video failed — aborting remotion monologue.")
+        return None
+
+    # 3. Copy bg to Remotion public/ so staticFile() serves it
+    bg_public_name = _copy_to_remotion_public(bg_video_path, f"daily_{run_id}_bg.mp4")
+
+    # 4. Build the AutoBrief
+    brief = build_monologue_brief(
+        date=datetime.now(EST).date().isoformat(),
+        rotation=pick_rotation_for_kinetic_type(),
+        script=script,
+        bg_clip_public_name=bg_public_name,
+        audio_duration_s=audio_duration_s,
+    )
+
+    # 5. Render
+    output = WORK_DIR / f"monologue_{run_id}.mp4"
+    ok = _render_via_remotion(brief, output)
+    # Best-effort cleanup of staged asset (not critical if it fails)
+    (REMOTION_PUBLIC / bg_public_name).unlink(missing_ok=True)
+
+    if not ok:
+        return None
+
+    # NOTE: Remotion output does NOT include the Kokoro audio yet — KineticTypeRig
+    # currently renders silent with bg video only. Mux the audio in as a final step.
+    muxed = WORK_DIR / f"monologue_{run_id}_final.mp4"
+    mux_cmd = [
+        "ffmpeg", "-y",
+        "-i", str(output),
+        "-i", str(narration_path),
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        str(muxed),
+    ]
+    mux_result = subprocess.run(mux_cmd, capture_output=True, text=True, timeout=120)
+    if mux_result.returncode != 0:
+        logger.warning("ffmpeg mux failed: %s", mux_result.stderr[-300:])
+        return str(output)  # fall back to silent render rather than nothing
+    return str(muxed)
 
 
 def _produce_conversation_video(content: dict, mode: str, run_id: str) -> str | None:
