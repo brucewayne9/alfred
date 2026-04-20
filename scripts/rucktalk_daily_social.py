@@ -17,8 +17,10 @@ Every post is a VIDEO:
 
 import argparse
 import json
+import os
 import random
 import shutil
+import subprocess
 import sys
 import time
 import uuid
@@ -40,6 +42,23 @@ from scripts.rucktalk_common import (
     run_comfyui, run_comfyui_video_cloud, run_tts, run_script,
     BRAND_VOICE, IMAGE_STYLE_SUFFIX, PILLARS,
 )
+
+from scripts.daily_social_briefs import (
+    build_monologue_brief,
+    build_conversation_brief,
+    pick_rotation_for_kinetic_type,
+    pick_rotation_for_grit_doc,
+)
+
+# Phase 3 migration flag. "legacy" = current ffmpeg direct composition.
+# "remotion" = new path via scripts/auto-render.mjs.
+# Default stays legacy during rollout; Task 8 flips it to remotion after Mike approves.
+DAILY_SOCIAL_ENGINE = os.environ.get("DAILY_SOCIAL_ENGINE", "legacy")
+
+REMOTION_DIR = "/home/aialfred/remotion"
+REMOTION_PUBLIC = Path(REMOTION_DIR) / "public"
+NPX_PATH = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/npx"
+NODE_PATH = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/node"
 
 
 # ─────────────────────────────────────────────
@@ -168,6 +187,55 @@ def _select_format(history: dict) -> str:
         return "monologue"
     else:
         return "conversation"
+
+
+def _render_via_remotion(brief: dict, output_path: Path) -> bool:
+    """Invoke scripts/auto-render.mjs with an AutoBrief and capture output.
+
+    The brief's bgClip / clips.src fields must already be filenames that
+    exist in Remotion's public/ dir. Returns True on render success.
+    """
+    brief_file = WORK_DIR / f"brief_{output_path.stem}.json"
+    brief_file.write_text(json.dumps(brief))
+    try:
+        cmd = [
+            NPX_PATH, "--prefix", REMOTION_DIR,
+            "auto-render", "--",
+            str(brief_file),
+            f"--out={output_path}",
+        ]
+        result = subprocess.run(
+            cmd, cwd=REMOTION_DIR,
+            capture_output=True, text=True, timeout=900,
+            env={**os.environ, "PATH": f"/home/aialfred/.nvm/versions/node/v22.22.0/bin:{os.environ.get('PATH','')}"},
+        )
+        brief_file.unlink(missing_ok=True)
+        if result.returncode != 0:
+            logger.warning("Remotion auto-render failed: %s", result.stderr[-400:])
+            return False
+        # Parse "RESOLVED_RIG=..." from stdout for logging
+        rig = next((l.split("=", 1)[1] for l in result.stdout.splitlines()
+                    if l.startswith("RESOLVED_RIG=")), "unknown")
+        logger.info("Rendered via Remotion %s: %s (%.1f MB)",
+                    rig, output_path.name, output_path.stat().st_size / 1024 / 1024)
+        return True
+    except subprocess.TimeoutExpired:
+        logger.error("Remotion auto-render timed out: %s", output_path.name)
+        return False
+    except Exception as exc:
+        logger.error("Remotion auto-render error: %s", exc)
+        return False
+
+
+def _copy_to_remotion_public(src: Path, target_name: str) -> str:
+    """Copy a local asset to Remotion's public/ dir so staticFile() can serve it.
+
+    Returns the target_name (what the Remotion brief references).
+    """
+    REMOTION_PUBLIC.mkdir(parents=True, exist_ok=True)
+    dest = REMOTION_PUBLIC / target_name
+    shutil.copy2(str(src), str(dest))
+    return target_name
 
 
 def _produce_monologue_video(content: dict, mode: str, run_id: str) -> str | None:
@@ -454,9 +522,9 @@ def post_episode_clip(dry_run: bool = False) -> dict | None:
         return None
 
     clip = unposted[0]
-    clip_path = clip.get("path", "")
-    clip_title = clip.get("title", "RuckTalk Episode Clip")
-    episode = clip.get("episode", "")
+    clip_path = clip.get("portrait_path") or clip.get("path", "")
+    clip_title = clip.get("label") or clip.get("title", "RuckTalk Episode Clip")
+    episode = clip.get("episode_number") or clip.get("episode", "")
 
     logger.info("Processing clip: %s (episode: %s)", clip_title, episode)
 
@@ -486,7 +554,7 @@ Rules:
 
     # Determine media URL
     # If clip has a public URL, use it; otherwise copy to static
-    video_url = clip.get("url")
+    video_url = clip.get("web_url") or clip.get("url")
     if not video_url and clip_path and Path(clip_path).exists():
         STATIC_MEDIA.mkdir(parents=True, exist_ok=True)
         clip_filename = f"rucktalk_clip_{uuid.uuid4().hex[:8]}{Path(clip_path).suffix}"
