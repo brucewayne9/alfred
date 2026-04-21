@@ -53,41 +53,64 @@ _ROTATION_FOR_KINETIC_TYPE = 2
 _ROTATION_FOR_GRIT_DOC = 1
 
 
+_MAX_CHARS_PER_BEAT = 12  # KineticTypeRig renders at ~42% of 1920px height —
+                          # anything longer overflows horizontally.
+
+
 def derive_word_beats_from_script(
     script: str,
     audio_duration_s: float,
     fps: int = 30,
 ) -> list[CaptionPhrase]:
-    """Break a TTS script into timed caption phrases.
+    """Break a TTS script into timed caption beats that fit KineticTypeRig.
 
-    Sentences are the unit of typographic emphasis. Time is allocated
-    proportionally to each sentence's character count (approximation of
-    speaking time). Result is a list of phrases with non-overlapping
-    frame ranges, guaranteed to fit within [0, audio_duration_s*fps].
+    Strategy: split on BOTH sentence-enders (.!?) AND commas, then further
+    chunk any remaining beat > _MAX_CHARS_PER_BEAT into word-level groups of
+    1-2 words. This keeps each on-screen phrase short enough that the rig's
+    large hero typography doesn't overflow.
     """
-    # Split on sentence-ending punctuation, drop empties
-    raw = re.split(r"(?<=[.!?])\s+", script.strip())
-    sentences = [s.strip() for s in raw if s.strip()]
-    if not sentences:
+    # Split on sentence-enders and commas
+    raw = re.split(r"(?<=[.!?,])\s+|\s*,\s*", script.strip())
+    phrases = [p.strip() for p in raw if p and p.strip()]
+    if not phrases:
         return []
 
-    total_chars = sum(len(s) for s in sentences) or 1
+    # Second pass — break over-long phrases into 1-2 word chunks
+    chunks: list[str] = []
+    for p in phrases:
+        if len(p) <= _MAX_CHARS_PER_BEAT:
+            chunks.append(p)
+            continue
+        words = p.split()
+        i = 0
+        while i < len(words):
+            # Try 2 words; back off to 1 if still too long
+            candidate = " ".join(words[i:i + 2])
+            if len(candidate) <= _MAX_CHARS_PER_BEAT:
+                chunks.append(candidate)
+                i += 2
+            else:
+                chunks.append(words[i])
+                i += 1
+
+    # Allocate frames proportionally to chunk char count
+    total_chars = sum(len(c) for c in chunks) or 1
     total_frames = int(audio_duration_s * fps)
 
     beats: list[CaptionPhrase] = []
     cursor = 0
-    for i, s in enumerate(sentences):
-        share = len(s) / total_chars
+    for i, c in enumerate(chunks):
+        share = len(c) / total_chars
         span = max(1, int(total_frames * share))
-        end = cursor + span if i < len(sentences) - 1 else total_frames
-        # Upper-case short punchy phrase for hero caption display
-        clean = re.sub(r"[^A-Za-z0-9\s'-]", "", s).upper().strip()
-        variant = "scaleOnBeat" if len(clean) <= 20 else "stacked"
+        end = cursor + span if i < len(chunks) - 1 else total_frames
+        clean = re.sub(r"[^A-Za-z0-9\s'-]", "", c).upper().strip()
+        if not clean:
+            continue
         beats.append({
             "word": clean,
             "startFrame": cursor,
             "endFrame": end,
-            "variant": variant,
+            "variant": "scaleOnBeat",
         })
         cursor = end
 

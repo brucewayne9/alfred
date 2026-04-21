@@ -448,11 +448,22 @@ def _produce_monologue_video_remotion(content: dict, mode: str, run_id: str) -> 
     # 2. Generate 3 varied images via local ComfyUI, crossfade into a slideshow.
     # Prompt variety: same topic, different composition + lighting + angle so
     # the final video doesn't look like "same photo all the time."
-    base_prompt = content.get("image_prompt") or content.get("topic") or "rucking motivation"
+    # 3 visually-distinct prompts: environment / gear still-life / person in motion.
+    # Each template is a genuinely different subject and composition so the
+    # final slideshow doesn't read as "the same photo" even across renders.
+    theme = content.get("image_prompt") or content.get("topic") or "rucking"
     prompts = [
-        f"{base_prompt}, wide establishing shot, golden hour, 35mm cinematic",
-        f"{base_prompt}, close-up intense focus, dramatic side light, 85mm portrait",
-        f"{base_prompt}, aerial overhead composition, moody overcast, cinematic grade",
+        f"wide cinematic landscape, empty forest trail winding through tall pines, "
+        f"no people, dramatic natural light, 35mm film still, atmospheric, "
+        f"evokes the feeling of {theme}",
+
+        f"still-life detail photograph, weathered rucksack and worn hiking boots "
+        f"on mossy rocks, top-down overhead, fine textural detail, cool moody palette, "
+        f"macro lens, thematic of {theme}",
+
+        f"dramatic silhouette of a lone figure walking up a ridge, backlit by low sun, "
+        f"rim light, lens flare, 85mm telephoto compression, high contrast, "
+        f"story of {theme}",
     ]
     image_paths: list[Path] = []
     for i, p in enumerate(prompts):
@@ -503,6 +514,7 @@ def _produce_monologue_video_remotion(content: dict, mode: str, run_id: str) -> 
         "ffmpeg", "-y",
         "-i", str(output),
         "-i", str(narration_path),
+        "-map", "0:v:0", "-map", "1:a:0",  # force video from Remotion, audio from narration
         "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
         "-shortest",
         str(muxed),
@@ -747,6 +759,7 @@ def _produce_conversation_video_remotion(content: dict, mode: str, run_id: str) 
         "ffmpeg", "-y",
         "-i", str(silent_out),
         "-i", str(audio_path),
+        "-map", "0:v:0", "-map", "1:a:0",  # force video from Remotion, audio from narration
         "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
         "-shortest",
         str(muxed),
