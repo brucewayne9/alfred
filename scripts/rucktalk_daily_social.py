@@ -316,24 +316,122 @@ def _produce_monologue_video_legacy(content: dict, mode: str, run_id: str) -> st
     return None
 
 
+# Daily rotation pool for Qwen3 TTS. MJ is reserved for hero briefs only.
+# Mirrors src/theme/providers.ts ttsRotation.qwen3 on the Remotion side.
+_QWEN3_DAILY_ROTATION = ["Barbra_Gordon", "Brenda_Walker", "JAYDEE", "Louis_Lane"]
+
+
+def _pick_qwen3_voice_for_date(date: datetime) -> str:
+    """Wrap-around by day-of-year so voices rotate evenly across the week."""
+    return _QWEN3_DAILY_ROTATION[date.timetuple().tm_yday % len(_QWEN3_DAILY_ROTATION)]
+
+
+def _synth_qwen3_narration(script: str, out_path: Path, voice: str) -> bool:
+    """Narrate via the Phase 1 Qwen3 provider. Returns True on success.
+
+    Kept as a thin wrapper so swapping providers (future Higgsfield voice,
+    etc.) is a one-file change.
+    """
+    from scripts.providers.tts.qwen3 import Qwen3Tts
+    from scripts.providers.tts.base import TtsRequest
+    try:
+        provider = Qwen3Tts()
+        result = provider.synth(TtsRequest(text=script, voice=voice, output_path=out_path))
+        return result.audio_path.exists() and result.audio_path.stat().st_size > 1000
+    except Exception as exc:
+        logger.warning("Qwen3 TTS failed for voice %s: %s", voice, exc)
+        return False
+
+
+def _build_image_slideshow(
+    image_paths: list[Path],
+    output_path: Path,
+    total_duration_s: float,
+    crossfade_s: float = 0.5,
+    fps: int = 30,
+) -> bool:
+    """ffmpeg-crossfade multiple images into a slideshow mp4.
+
+    Each image holds for `hold_s = (total + (n-1)*crossfade_s) / n`; successive
+    xfade transitions start at `(hold_s - crossfade_s) * i`.
+    """
+    n = len(image_paths)
+    if n == 0:
+        return False
+    if n == 1:
+        # Single image — just loop it.
+        r = subprocess.run([
+            "ffmpeg", "-y",
+            "-loop", "1", "-t", f"{total_duration_s:.2f}", "-i", str(image_paths[0]),
+            "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-r", str(fps),
+            str(output_path),
+        ], capture_output=True, text=True, timeout=180)
+        return r.returncode == 0 and output_path.exists()
+
+    hold_s = (total_duration_s + (n - 1) * crossfade_s) / n
+    cmd = ["ffmpeg", "-y"]
+    for img in image_paths:
+        cmd += ["-loop", "1", "-t", f"{hold_s:.3f}", "-i", str(img)]
+
+    parts = []
+    for i in range(n):
+        parts.append(
+            f"[{i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+            f"pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,setsar=1[v{i}]"
+        )
+    # Chain xfades: [v0][v1]xfade ... -> [v01]; [v01][v2]xfade ... -> [v012]
+    chain_in = "v0"
+    for i in range(1, n):
+        offset = (hold_s - crossfade_s) * i
+        chain_out = f"v{'.'.join(str(j) for j in range(i + 1))}"
+        parts.append(
+            f"[{chain_in}][v{i}]xfade=transition=fade:duration={crossfade_s}:offset={offset:.3f}[{chain_out}]"
+        )
+        chain_in = chain_out
+
+    cmd += [
+        "-filter_complex", "; ".join(parts),
+        "-map", f"[{chain_in}]",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-r", str(fps),
+        "-t", f"{total_duration_s:.2f}",
+        str(output_path),
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=240)
+    if r.returncode != 0:
+        logger.warning("Slideshow ffmpeg failed: %s", r.stderr[-300:])
+        return False
+    return output_path.exists()
+
+
 def _produce_monologue_video_remotion(content: dict, mode: str, run_id: str) -> str | None:
     """Format A via Remotion KineticTypeRig.
 
-    Same inputs as legacy (Kokoro TTS audio + ComfyUI Cloud video) but
-    composed through the Remotion rig instead of raw ffmpeg. Captions
-    appear on-screen in sync with the voiceover.
+    Pipeline: Qwen3 TTS (daily rotation) -> 3 ComfyUI local images with prompt
+    variety -> ffmpeg crossfade slideshow -> KineticTypeRig render -> ffmpeg mux.
+    Upgrades from the initial v1: (1) Qwen3 voices instead of Kokoro, (2) image
+    variety across the narration instead of one static image.
     """
     script = content.get("script") or content.get("narration_script") or ""
     if not script:
         logger.error("Monologue content has no script/narration text — cannot derive captions.")
         return None
 
-    # 1. Run Kokoro TTS to get the voiceover mp3
-    narration_path = WORK_DIR / f"monologue_{run_id}_narration.mp3"
-    tts_ok = run_tts(script, str(narration_path))
-    if not tts_ok or not narration_path.exists():
-        logger.error("Kokoro TTS failed to produce narration.")
-        return None
+    # 1. Narration via Qwen3 provider (daily rotation)
+    now_et = datetime.now(EST)
+    voice = content.get("voice_override") or _pick_qwen3_voice_for_date(now_et)
+    narration_path = WORK_DIR / f"monologue_{run_id}_narration.wav"
+    ok = _synth_qwen3_narration(script, narration_path, voice)
+    if not ok:
+        logger.warning("Qwen3 narration failed — falling back to Kokoro for this render.")
+        kokoro_path = narration_path.with_suffix(".mp3")
+        if not run_tts(script, str(kokoro_path)):
+            logger.error("Both Qwen3 and Kokoro TTS failed.")
+            return None
+        narration_path = kokoro_path
+    logger.info("Narration voice: %s (provider=%s) -> %s",
+                voice, "qwen3" if narration_path.suffix == ".wav" else "kokoro-fallback",
+                narration_path.name)
 
     # Discover the audio's duration via ffprobe
     try:
@@ -347,34 +445,35 @@ def _produce_monologue_video_remotion(content: dict, mode: str, run_id: str) -> 
         logger.error("Could not probe narration duration: %s", exc)
         return None
 
-    # 2. Generate a background video. Try ComfyUI Cloud LTX first; if that
-    # fails (common when the cloud session expired) fall back to a local
-    # still image looped to the audio's length.
-    topic_prompt = content.get("image_prompt") or content.get("topic") or "rucking motivation"
-    needed_duration = int(max(8, audio_duration_s + 1))
-    cloud_video_str = run_comfyui_video_cloud(topic_prompt, duration=needed_duration)
+    # 2. Generate 3 varied images via local ComfyUI, crossfade into a slideshow.
+    # Prompt variety: same topic, different composition + lighting + angle so
+    # the final video doesn't look like "same photo all the time."
+    base_prompt = content.get("image_prompt") or content.get("topic") or "rucking motivation"
+    prompts = [
+        f"{base_prompt}, wide establishing shot, golden hour, 35mm cinematic",
+        f"{base_prompt}, close-up intense focus, dramatic side light, 85mm portrait",
+        f"{base_prompt}, aerial overhead composition, moody overcast, cinematic grade",
+    ]
+    image_paths: list[Path] = []
+    for i, p in enumerate(prompts):
+        img = run_comfyui(p, width=1080, height=1920)
+        if img:
+            image_paths.append(Path(img))
+        else:
+            logger.warning("ComfyUI image %d failed for prompt: %s", i, p[:60])
+    if not image_paths:
+        logger.error("No images generated for monologue bg — aborting.")
+        return None
 
-    if cloud_video_str and Path(cloud_video_str).exists():
-        bg_video_path = Path(cloud_video_str)
-    else:
-        logger.warning("ComfyUI Cloud video unavailable — falling back to local image loop.")
-        img_path = run_comfyui(topic_prompt, width=1080, height=1920)
-        if not img_path:
-            logger.error("ComfyUI fallback image also failed — aborting remotion monologue.")
-            return None
-        bg_video_path = WORK_DIR / f"monologue_{run_id}_bg.mp4"
-        fb_cmd = [
-            "ffmpeg", "-y",
-            "-loop", "1", "-t", f"{audio_duration_s + 1.0:.2f}",
-            "-i", str(img_path),
-            "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-r", "30",
-            str(bg_video_path),
-        ]
-        fb_result = subprocess.run(fb_cmd, capture_output=True, text=True, timeout=120)
-        if fb_result.returncode != 0 or not bg_video_path.exists():
-            logger.error("Local image loop fallback failed: %s", fb_result.stderr[-300:])
-            return None
+    bg_video_path = WORK_DIR / f"monologue_{run_id}_bg.mp4"
+    slideshow_ok = _build_image_slideshow(
+        image_paths, bg_video_path,
+        total_duration_s=audio_duration_s + 1.0,
+    )
+    if not slideshow_ok:
+        logger.error("Slideshow build failed — aborting remotion monologue.")
+        return None
+    logger.info("Built slideshow bg from %d images: %s", len(image_paths), bg_video_path.name)
 
     # 3. Copy bg to Remotion public/ so staticFile() serves it
     bg_public_name = _copy_to_remotion_public(bg_video_path, f"daily_{run_id}_bg.mp4")
