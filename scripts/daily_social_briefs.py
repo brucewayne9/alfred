@@ -93,7 +93,10 @@ def derive_word_beats_from_script(
                 chunks.append(words[i])
                 i += 1
 
-    # Allocate frames proportionally to chunk char count
+    # Allocate frames proportionally to chunk char count.
+    # Each beat needs enough frames to be both legible AND cover the pop-in/
+    # pop-out fade window on the rig side (popIn=3 + popOut=4 = 7 → 12 is safer).
+    MIN_BEAT_FRAMES = 12
     total_chars = sum(len(c) for c in chunks) or 1
     total_frames = int(audio_duration_s * fps)
 
@@ -101,8 +104,8 @@ def derive_word_beats_from_script(
     cursor = 0
     for i, c in enumerate(chunks):
         share = len(c) / total_chars
-        span = max(1, int(total_frames * share))
-        end = cursor + span if i < len(chunks) - 1 else total_frames
+        span = max(MIN_BEAT_FRAMES, int(total_frames * share))
+        end = cursor + span if i < len(chunks) - 1 else max(total_frames, cursor + MIN_BEAT_FRAMES)
         clean = re.sub(r"[^A-Za-z0-9\s'-]", "", c).upper().strip()
         if not clean:
             continue
