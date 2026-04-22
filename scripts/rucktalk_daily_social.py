@@ -17,8 +17,10 @@ Every post is a VIDEO:
 
 import argparse
 import json
+import os
 import random
 import shutil
+import subprocess
 import sys
 import time
 import uuid
@@ -40,6 +42,24 @@ from scripts.rucktalk_common import (
     run_comfyui, run_comfyui_video_cloud, run_tts, run_script,
     BRAND_VOICE, IMAGE_STYLE_SUFFIX, PILLARS,
 )
+
+from scripts.daily_social_briefs import (
+    build_monologue_brief,
+    build_conversation_brief,
+    pick_rotation_for_kinetic_type,
+    pick_rotation_for_grit_doc,
+)
+
+# Phase 3 migration flag. "remotion" = AutoBrief → auto-render.mjs → KineticTypeRig/GritDocRig.
+# "legacy" = old ffmpeg direct composition (kept as escape hatch).
+# Flipped to remotion 2026-04-21 after Mike approved v4 sample.
+# Rollback: set DAILY_SOCIAL_ENGINE=legacy in env.
+DAILY_SOCIAL_ENGINE = os.environ.get("DAILY_SOCIAL_ENGINE", "remotion")
+
+REMOTION_DIR = "/home/aialfred/remotion"
+REMOTION_PUBLIC = Path(REMOTION_DIR) / "public"
+NPX_PATH = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/npx"
+NODE_PATH = "/home/aialfred/.nvm/versions/node/v22.22.0/bin/node"
 
 
 # ─────────────────────────────────────────────
@@ -170,7 +190,65 @@ def _select_format(history: dict) -> str:
         return "conversation"
 
 
+def _render_via_remotion(brief: dict, output_path: Path) -> bool:
+    """Invoke scripts/auto-render.mjs with an AutoBrief and capture output.
+
+    The brief's bgClip / clips.src fields must already be filenames that
+    exist in Remotion's public/ dir. Returns True on render success.
+    """
+    brief_file = WORK_DIR / f"brief_{output_path.stem}.json"
+    brief_file.write_text(json.dumps(brief))
+    try:
+        # Call auto-render.mjs directly via node. Avoids npx treating
+        # "auto-render" as a package name to install from npm registry.
+        cmd = [
+            NODE_PATH,
+            f"{REMOTION_DIR}/scripts/auto-render.mjs",
+            str(brief_file),
+            f"--out={output_path}",
+        ]
+        result = subprocess.run(
+            cmd, cwd=REMOTION_DIR,
+            capture_output=True, text=True, timeout=900,
+            env={**os.environ, "PATH": f"/home/aialfred/.nvm/versions/node/v22.22.0/bin:{os.environ.get('PATH','')}"},
+        )
+        brief_file.unlink(missing_ok=True)
+        if result.returncode != 0:
+            logger.warning("Remotion auto-render failed: %s", result.stderr[-400:])
+            return False
+        # Parse "RESOLVED_RIG=..." from stdout for logging
+        rig = next((l.split("=", 1)[1] for l in result.stdout.splitlines()
+                    if l.startswith("RESOLVED_RIG=")), "unknown")
+        logger.info("Rendered via Remotion %s: %s (%.1f MB)",
+                    rig, output_path.name, output_path.stat().st_size / 1024 / 1024)
+        return True
+    except subprocess.TimeoutExpired:
+        logger.error("Remotion auto-render timed out: %s", output_path.name)
+        return False
+    except Exception as exc:
+        logger.error("Remotion auto-render error: %s", exc)
+        return False
+
+
+def _copy_to_remotion_public(src: Path, target_name: str) -> str:
+    """Copy a local asset to Remotion's public/ dir so staticFile() can serve it.
+
+    Returns the target_name (what the Remotion brief references).
+    """
+    REMOTION_PUBLIC.mkdir(parents=True, exist_ok=True)
+    dest = REMOTION_PUBLIC / target_name
+    shutil.copy2(str(src), str(dest))
+    return target_name
+
+
 def _produce_monologue_video(content: dict, mode: str, run_id: str) -> str | None:
+    """Dispatcher — routes to legacy ffmpeg path or new Remotion path based on DAILY_SOCIAL_ENGINE."""
+    if DAILY_SOCIAL_ENGINE == "remotion":
+        return _produce_monologue_video_remotion(content, mode, run_id)
+    return _produce_monologue_video_legacy(content, mode, run_id)
+
+
+def _produce_monologue_video_legacy(content: dict, mode: str, run_id: str) -> str | None:
     """Format A — 'The Monologue': Kokoro TTS narration over ComfyUI Cloud AI video.
 
     Returns local video file path, or None on failure.
@@ -239,7 +317,217 @@ def _produce_monologue_video(content: dict, mode: str, run_id: str) -> str | Non
     return None
 
 
-def _produce_conversation_video(content: dict, mode: str, run_id: str) -> str | None:
+# Daily rotation pool for Qwen3 TTS. MJ is reserved for hero briefs only.
+# Mirrors src/theme/providers.ts ttsRotation.qwen3 on the Remotion side.
+_QWEN3_DAILY_ROTATION = ["Barbra_Gordon", "Brenda_Walker", "JAYDEE", "Louis_Lane"]
+
+
+def _pick_qwen3_voice_for_date(date: datetime) -> str:
+    """Wrap-around by day-of-year so voices rotate evenly across the week."""
+    return _QWEN3_DAILY_ROTATION[date.timetuple().tm_yday % len(_QWEN3_DAILY_ROTATION)]
+
+
+def _synth_qwen3_narration(script: str, out_path: Path, voice: str) -> bool:
+    """Narrate via the Phase 1 Qwen3 provider. Returns True on success.
+
+    Kept as a thin wrapper so swapping providers (future Higgsfield voice,
+    etc.) is a one-file change.
+    """
+    from scripts.providers.tts.qwen3 import Qwen3Tts
+    from scripts.providers.tts.base import TtsRequest
+    try:
+        provider = Qwen3Tts()
+        result = provider.synth(TtsRequest(text=script, voice=voice, output_path=out_path))
+        return result.audio_path.exists() and result.audio_path.stat().st_size > 1000
+    except Exception as exc:
+        logger.warning("Qwen3 TTS failed for voice %s: %s", voice, exc)
+        return False
+
+
+def _build_image_slideshow(
+    image_paths: list[Path],
+    output_path: Path,
+    total_duration_s: float,
+    crossfade_s: float = 0.5,
+    fps: int = 30,
+) -> bool:
+    """ffmpeg-crossfade multiple images into a slideshow mp4.
+
+    Each image holds for `hold_s = (total + (n-1)*crossfade_s) / n`; successive
+    xfade transitions start at `(hold_s - crossfade_s) * i`.
+    """
+    n = len(image_paths)
+    if n == 0:
+        return False
+    if n == 1:
+        # Single image — just loop it.
+        r = subprocess.run([
+            "ffmpeg", "-y",
+            "-loop", "1", "-t", f"{total_duration_s:.2f}", "-i", str(image_paths[0]),
+            "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-r", str(fps),
+            str(output_path),
+        ], capture_output=True, text=True, timeout=180)
+        return r.returncode == 0 and output_path.exists()
+
+    hold_s = (total_duration_s + (n - 1) * crossfade_s) / n
+    cmd = ["ffmpeg", "-y"]
+    for img in image_paths:
+        cmd += ["-loop", "1", "-t", f"{hold_s:.3f}", "-i", str(img)]
+
+    parts = []
+    for i in range(n):
+        parts.append(
+            f"[{i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+            f"pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,setsar=1[v{i}]"
+        )
+    # Chain xfades: [v0][v1]xfade ... -> [v01]; [v01][v2]xfade ... -> [v012]
+    chain_in = "v0"
+    for i in range(1, n):
+        offset = (hold_s - crossfade_s) * i
+        chain_out = f"v{'.'.join(str(j) for j in range(i + 1))}"
+        parts.append(
+            f"[{chain_in}][v{i}]xfade=transition=fade:duration={crossfade_s}:offset={offset:.3f}[{chain_out}]"
+        )
+        chain_in = chain_out
+
+    cmd += [
+        "-filter_complex", "; ".join(parts),
+        "-map", f"[{chain_in}]",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-r", str(fps),
+        "-t", f"{total_duration_s:.2f}",
+        str(output_path),
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=240)
+    if r.returncode != 0:
+        logger.warning("Slideshow ffmpeg failed: %s", r.stderr[-300:])
+        return False
+    return output_path.exists()
+
+
+def _produce_monologue_video_remotion(content: dict, mode: str, run_id: str) -> str | None:
+    """Format A via Remotion KineticTypeRig.
+
+    Pipeline: Qwen3 TTS (daily rotation) -> 3 ComfyUI local images with prompt
+    variety -> ffmpeg crossfade slideshow -> KineticTypeRig render -> ffmpeg mux.
+    Upgrades from the initial v1: (1) Qwen3 voices instead of Kokoro, (2) image
+    variety across the narration instead of one static image.
+    """
+    script = content.get("script") or content.get("narration_script") or ""
+    if not script:
+        logger.error("Monologue content has no script/narration text — cannot derive captions.")
+        return None
+
+    # 1. Narration via Qwen3 provider (daily rotation)
+    now_et = datetime.now(EST)
+    voice = content.get("voice_override") or _pick_qwen3_voice_for_date(now_et)
+    narration_path = WORK_DIR / f"monologue_{run_id}_narration.wav"
+    ok = _synth_qwen3_narration(script, narration_path, voice)
+    if not ok:
+        logger.warning("Qwen3 narration failed — falling back to Kokoro for this render.")
+        kokoro_path = narration_path.with_suffix(".mp3")
+        if not run_tts(script, str(kokoro_path)):
+            logger.error("Both Qwen3 and Kokoro TTS failed.")
+            return None
+        narration_path = kokoro_path
+    logger.info("Narration voice: %s (provider=%s) -> %s",
+                voice, "qwen3" if narration_path.suffix == ".wav" else "kokoro-fallback",
+                narration_path.name)
+
+    # Discover the audio's duration via ffprobe
+    try:
+        dur_result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(narration_path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        audio_duration_s = float(dur_result.stdout.strip())
+    except Exception as exc:
+        logger.error("Could not probe narration duration: %s", exc)
+        return None
+
+    # 2. Generate 3 varied images via local ComfyUI, crossfade into a slideshow.
+    # Prompt variety: same topic, different composition + lighting + angle so
+    # the final video doesn't look like "same photo all the time."
+    # 3 visually-distinct prompts: environment / gear still-life / person in motion.
+    # Each template is a genuinely different subject and composition so the
+    # final slideshow doesn't read as "the same photo" even across renders.
+    theme = content.get("image_prompt") or content.get("topic") or "rucking"
+    prompts = [
+        f"wide cinematic landscape, empty forest trail winding through tall pines, "
+        f"no people, dramatic natural light, 35mm film still, atmospheric, "
+        f"evokes the feeling of {theme}",
+
+        f"still-life detail photograph, weathered rucksack and worn hiking boots "
+        f"on mossy rocks, top-down overhead, fine textural detail, cool moody palette, "
+        f"macro lens, thematic of {theme}",
+
+        f"dramatic silhouette of a lone figure walking up a ridge, backlit by low sun, "
+        f"rim light, lens flare, 85mm telephoto compression, high contrast, "
+        f"story of {theme}",
+    ]
+    image_paths: list[Path] = []
+    for i, p in enumerate(prompts):
+        img = run_comfyui(p, width=1080, height=1920)
+        if img:
+            image_paths.append(Path(img))
+        else:
+            logger.warning("ComfyUI image %d failed for prompt: %s", i, p[:60])
+    if not image_paths:
+        logger.error("No images generated for monologue bg — aborting.")
+        return None
+
+    bg_video_path = WORK_DIR / f"monologue_{run_id}_bg.mp4"
+    slideshow_ok = _build_image_slideshow(
+        image_paths, bg_video_path,
+        total_duration_s=audio_duration_s + 1.0,
+    )
+    if not slideshow_ok:
+        logger.error("Slideshow build failed — aborting remotion monologue.")
+        return None
+    logger.info("Built slideshow bg from %d images: %s", len(image_paths), bg_video_path.name)
+
+    # 3. Copy bg to Remotion public/ so staticFile() serves it
+    bg_public_name = _copy_to_remotion_public(bg_video_path, f"daily_{run_id}_bg.mp4")
+
+    # 4. Build the AutoBrief
+    brief = build_monologue_brief(
+        date=datetime.now(EST).date().isoformat(),
+        rotation=pick_rotation_for_kinetic_type(),
+        script=script,
+        bg_clip_public_name=bg_public_name,
+        audio_duration_s=audio_duration_s,
+    )
+
+    # 5. Render
+    output = WORK_DIR / f"monologue_{run_id}.mp4"
+    ok = _render_via_remotion(brief, output)
+    # Best-effort cleanup of staged asset (not critical if it fails)
+    (REMOTION_PUBLIC / bg_public_name).unlink(missing_ok=True)
+
+    if not ok:
+        return None
+
+    # NOTE: Remotion output does NOT include the Kokoro audio yet — KineticTypeRig
+    # currently renders silent with bg video only. Mux the audio in as a final step.
+    muxed = WORK_DIR / f"monologue_{run_id}_final.mp4"
+    mux_cmd = [
+        "ffmpeg", "-y",
+        "-i", str(output),
+        "-i", str(narration_path),
+        "-map", "0:v:0", "-map", "1:a:0",  # force video from Remotion, audio from narration
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        str(muxed),
+    ]
+    mux_result = subprocess.run(mux_cmd, capture_output=True, text=True, timeout=120)
+    if mux_result.returncode != 0:
+        logger.warning("ffmpeg mux failed: %s", mux_result.stderr[-300:])
+        return str(output)  # fall back to silent render rather than nothing
+    return str(muxed)
+
+
+def _produce_conversation_video_legacy(content: dict, mode: str, run_id: str) -> str | None:
     """Format B — 'The Conversation': NotebookLM 2-person podcast over ComfyUI Cloud video.
 
     Returns local video file path, or None on failure.
@@ -366,6 +654,123 @@ asyncio.run(main())
     return _produce_monologue_video(content, mode, run_id)
 
 
+def _produce_conversation_video(content: dict, mode: str, run_id: str) -> str | None:
+    """Dispatcher — routes to legacy ffmpeg path or new Remotion path based on DAILY_SOCIAL_ENGINE."""
+    if DAILY_SOCIAL_ENGINE == "remotion":
+        return _produce_conversation_video_remotion(content, mode, run_id)
+    return _produce_conversation_video_legacy(content, mode, run_id)
+
+
+def _produce_conversation_video_remotion(content: dict, mode: str, run_id: str) -> str | None:
+    """Format B via Remotion GritDocRig.
+
+    NotebookLM 2-host podcast audio over a B-roll montage assembled from
+    ComfyUI Cloud video segments. Falls back to monologue-remotion if
+    NotebookLM fails.
+    """
+    topic = content.get("topic") or "RuckTalk"
+    logger.info("Generating NotebookLM conversation for Remotion path: %s", topic)
+
+    # 1. NotebookLM audio (reuses the legacy path's NotebookLM generation)
+    audio_path = WORK_DIR / f"conversation_{run_id}.mp3"
+    try:
+        import asyncio
+        from notebooklm import NotebookLMClient
+
+        async def _gen():
+            async with NotebookLMClient() as client:
+                nb = await client.notebooks.create(name=f"RuckTalk daily {run_id}")
+                await client.sources.add_text(nb.id, f"Topic: {topic}\n\nScript: {content.get('narration_script','')}")
+                await client.artifacts.generate_audio(nb.id,
+                    instructions="Two hosts, energetic, under 3 minutes.")
+                audio_bytes = await client.artifacts.download_audio(nb.id)
+                audio_path.write_bytes(audio_bytes)
+        asyncio.run(_gen())
+    except Exception as exc:
+        logger.warning("NotebookLM unavailable (%s) — falling back to monologue-remotion.", exc)
+        return _produce_monologue_video_remotion(content, mode, run_id)
+
+    if not audio_path.exists():
+        return _produce_monologue_video_remotion(content, mode, run_id)
+
+    # Probe audio duration
+    try:
+        dur_result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        audio_duration_s = float(dur_result.stdout.strip())
+    except Exception:
+        return _produce_monologue_video_remotion(content, mode, run_id)
+
+    # 2. Generate 2-3 ComfyUI Cloud video segments to montage
+    seg_duration = max(4.0, audio_duration_s / 3.0)
+    seg_frames = int(seg_duration * 30)
+    bg_clips = []
+    prompts = [
+        content.get("image_prompt") or content.get("video_prompt") or "rucking outdoors",
+        f"{content.get('topic','rucking')} atmosphere",
+        "mountain rucking golden hour",
+    ]
+    for i, prompt in enumerate(prompts):
+        # Try ComfyUI Cloud first; fall back to local image loop on failure.
+        seg_path = None
+        cloud_str = run_comfyui_video_cloud(prompt, duration=int(seg_duration))
+        if cloud_str and Path(cloud_str).exists():
+            seg_path = Path(cloud_str)
+        else:
+            img = run_comfyui(prompt, width=1080, height=1920)
+            if img:
+                seg_fallback = WORK_DIR / f"conversation_{run_id}_seg{i}.mp4"
+                fb = subprocess.run([
+                    "ffmpeg", "-y",
+                    "-loop", "1", "-t", f"{seg_duration:.2f}",
+                    "-i", str(img),
+                    "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-r", "30",
+                    str(seg_fallback),
+                ], capture_output=True, text=True, timeout=120)
+                if fb.returncode == 0 and seg_fallback.exists():
+                    seg_path = seg_fallback
+        if seg_path:
+            name = _copy_to_remotion_public(seg_path, f"daily_{run_id}_seg{i}.mp4")
+            bg_clips.append({"src": name, "durationFrames": seg_frames})
+    if not bg_clips:
+        logger.warning("No bg segments generated — aborting conversation-remotion.")
+        return None
+
+    # 3. Build brief + render
+    brief = build_conversation_brief(
+        date=datetime.now(EST).date().isoformat(),
+        rotation=pick_rotation_for_grit_doc(),
+        bg_clips=bg_clips,
+    )
+    silent_out = WORK_DIR / f"conversation_{run_id}.mp4"
+    ok = _render_via_remotion(brief, silent_out)
+    # Cleanup staged segments
+    for c in bg_clips:
+        (REMOTION_PUBLIC / c["src"]).unlink(missing_ok=True)
+    if not ok:
+        return None
+
+    # 4. Mux NotebookLM audio
+    muxed = WORK_DIR / f"conversation_{run_id}_final.mp4"
+    mux_cmd = [
+        "ffmpeg", "-y",
+        "-i", str(silent_out),
+        "-i", str(audio_path),
+        "-map", "0:v:0", "-map", "1:a:0",  # force video from Remotion, audio from narration
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        str(muxed),
+    ]
+    mux_result = subprocess.run(mux_cmd, capture_output=True, text=True, timeout=120)
+    if mux_result.returncode != 0:
+        return str(silent_out)
+    return str(muxed)
+
+
 def _produce_video(content: dict, mode: str, dry_run: bool = False) -> dict | None:
     """
     Produce a social video using the best available format.
@@ -454,9 +859,9 @@ def post_episode_clip(dry_run: bool = False) -> dict | None:
         return None
 
     clip = unposted[0]
-    clip_path = clip.get("path", "")
-    clip_title = clip.get("title", "RuckTalk Episode Clip")
-    episode = clip.get("episode", "")
+    clip_path = clip.get("portrait_path") or clip.get("path", "")
+    clip_title = clip.get("label") or clip.get("title", "RuckTalk Episode Clip")
+    episode = clip.get("episode_number") or clip.get("episode", "")
 
     logger.info("Processing clip: %s (episode: %s)", clip_title, episode)
 
@@ -486,7 +891,7 @@ Rules:
 
     # Determine media URL
     # If clip has a public URL, use it; otherwise copy to static
-    video_url = clip.get("url")
+    video_url = clip.get("web_url") or clip.get("url")
     if not video_url and clip_path and Path(clip_path).exists():
         STATIC_MEDIA.mkdir(parents=True, exist_ok=True)
         clip_filename = f"rucktalk_clip_{uuid.uuid4().hex[:8]}{Path(clip_path).suffix}"
