@@ -50,10 +50,11 @@ from scripts.daily_social_briefs import (
     pick_rotation_for_grit_doc,
 )
 
-# Phase 3 migration flag. "legacy" = current ffmpeg direct composition.
-# "remotion" = new path via scripts/auto-render.mjs.
-# Default stays legacy during rollout; Task 8 flips it to remotion after Mike approves.
-DAILY_SOCIAL_ENGINE = os.environ.get("DAILY_SOCIAL_ENGINE", "legacy")
+# Phase 3 migration flag. "remotion" = AutoBrief → auto-render.mjs → KineticTypeRig/GritDocRig.
+# "legacy" = old ffmpeg direct composition (kept as escape hatch).
+# Flipped to remotion 2026-04-21 after Mike approved v4 sample.
+# Rollback: set DAILY_SOCIAL_ENGINE=legacy in env.
+DAILY_SOCIAL_ENGINE = os.environ.get("DAILY_SOCIAL_ENGINE", "remotion")
 
 REMOTION_DIR = "/home/aialfred/remotion"
 REMOTION_PUBLIC = Path(REMOTION_DIR) / "public"
