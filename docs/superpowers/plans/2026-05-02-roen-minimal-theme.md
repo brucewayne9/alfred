@@ -1608,6 +1608,11 @@ Expected: `name\nroen-minimal`
 Run: `timeout 12 curl -ksS https://www.roenhandmade.com/ | grep -cE 'storefront-credit|storefront_homepage|storefront-handheld'`
 Expected: `0`
 
+Then verify the cleanup module actually removed the parent's footer credit (this catches priority drift in future Storefront updates that the class-name grep above would miss):
+
+Run: `timeout 12 curl -ksS https://www.roenhandmade.com/ | grep -ic "built with storefront"`
+Expected: `0`
+
 - [ ] **Step 3: All 7 products in the grid**
 
 Run: `timeout 12 curl -ksS https://www.roenhandmade.com/ | grep -c 'roen-card'`
