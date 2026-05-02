@@ -11,14 +11,16 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import time
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import requests
 
 OLLAMA_HOST = "http://localhost:11434"
 VISION_MODEL = "qwen3-vl:235b-cloud"
-TIMEOUT_SECONDS = 120
+TIMEOUT_SECONDS = 180
+MAX_ATTEMPTS = 2
 
 logger = logging.getLogger(__name__)
 
@@ -63,16 +65,26 @@ def describe_piece(photo_paths: List[Path]) -> str:
         "options": {"temperature": 0.2},
     }
 
-    logger.info("vision: calling %s with %d image(s)", VISION_MODEL, len(images))
-    r = requests.post(
-        f"{OLLAMA_HOST}/api/chat",
-        json=payload,
-        timeout=TIMEOUT_SECONDS,
-    )
-    r.raise_for_status()
-    data = r.json()
-    content = data.get("message", {}).get("content", "").strip()
-    if not content:
-        raise RuntimeError(f"vision returned empty: {data}")
-    logger.info("vision: %d chars returned", len(content))
-    return content
+    last_err: Optional[Exception] = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            logger.info("vision: calling %s with %d image(s) (attempt %d/%d)", VISION_MODEL, len(images), attempt, MAX_ATTEMPTS)
+            r = requests.post(
+                f"{OLLAMA_HOST}/api/chat",
+                json=payload,
+                timeout=TIMEOUT_SECONDS,
+            )
+            r.raise_for_status()
+            data = r.json()
+            content = data.get("message", {}).get("content", "").strip()
+            if not content:
+                raise RuntimeError(f"vision returned empty: {data}")
+            logger.info("vision: %d chars returned", len(content))
+            return content
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            last_err = e
+            logger.warning("vision timeout/conn error on attempt %d: %s", attempt, e)
+            if attempt >= MAX_ATTEMPTS:
+                raise
+            time.sleep(2)
+    raise RuntimeError(f"vision exhausted retries: {last_err}")

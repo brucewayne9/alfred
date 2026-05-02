@@ -17,7 +17,8 @@ import requests
 
 OLLAMA_HOST = "http://localhost:11434"
 COPY_MODEL = "kimi-k2.6:cloud"
-TIMEOUT_SECONDS = 90
+TIMEOUT_SECONDS = 180
+MAX_ATTEMPTS = 2
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +79,16 @@ def _validate(d: dict) -> None:
         raise ValueError(f"invalid category: {d['category']!r}")
 
 
-def write_copy(description: str, price_cents: int) -> dict:
-    """Return validated product metadata dict."""
+def write_copy(description: str, price_cents: int, feedback: Optional[str] = None) -> dict:
+    """Return validated product metadata dict.
+
+    feedback: optional steering note from the user when re-writing copy
+    (e.g. "more poetic", "shorter", "emphasize that it's vintage-inspired").
+    """
     price_dollars = f"{price_cents / 100:.2f}".rstrip("0").rstrip(".")
     user = USER_TEMPLATE.format(description=description, price_dollars=price_dollars)
+    if feedback:
+        user = f"User feedback for this rewrite: {feedback.strip()}\n\n" + user
 
     payload = {
         "model": COPY_MODEL,
@@ -90,16 +97,28 @@ def write_copy(description: str, price_cents: int) -> dict:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user},
         ],
-        "options": {"temperature": 0.4},
+        "options": {"temperature": 0.4 if not feedback else 0.6},
         "format": "json",
     }
 
-    logger.info("copywriter: calling %s", COPY_MODEL)
-    r = requests.post(f"{OLLAMA_HOST}/api/chat", json=payload, timeout=TIMEOUT_SECONDS)
-    r.raise_for_status()
-    raw = r.json().get("message", {}).get("content", "")
-    if not raw:
-        raise RuntimeError("copywriter returned empty content")
+    last_err: Optional[Exception] = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            logger.info("copywriter: calling %s (attempt %d/%d)", COPY_MODEL, attempt, MAX_ATTEMPTS)
+            r = requests.post(f"{OLLAMA_HOST}/api/chat", json=payload, timeout=TIMEOUT_SECONDS)
+            r.raise_for_status()
+            raw = r.json().get("message", {}).get("content", "")
+            if not raw:
+                raise RuntimeError("copywriter returned empty content")
+            break
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            last_err = e
+            logger.warning("copywriter timeout/conn error on attempt %d: %s", attempt, e)
+            if attempt >= MAX_ATTEMPTS:
+                raise
+            time.sleep(2)
+    else:
+        raise RuntimeError(f"copywriter exhausted retries: {last_err}")
 
     parsed = _extract_json(raw)
     _validate(parsed)

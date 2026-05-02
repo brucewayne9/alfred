@@ -145,3 +145,31 @@ def list_recent(limit: int = 20) -> Iterable[sqlite3.Row]:
         return c.execute(
             "SELECT * FROM intakes ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
+
+
+def list_since(chat_id: int, since_epoch: int) -> Iterable[sqlite3.Row]:
+    """Intakes for a chat with created_at >= since_epoch, newest first."""
+    with _conn() as c:
+        return c.execute(
+            "SELECT * FROM intakes WHERE chat_id=? AND created_at >= ? ORDER BY id DESC",
+            (chat_id, since_epoch),
+        ).fetchall()
+
+
+def latest_intake_with_post(chat_id: int, max_age_seconds: int = 86400) -> Optional[sqlite3.Row]:
+    """Most recent intake for this chat that has a WooCommerce post — regardless of status."""
+    cutoff = int(time.time()) - max_age_seconds
+    with _conn() as c:
+        return c.execute(
+            "SELECT * FROM intakes WHERE chat_id=? AND woocommerce_post_id IS NOT NULL AND updated_at >= ? ORDER BY id DESC LIMIT 1",
+            (chat_id, cutoff),
+        ).fetchone()
+
+
+def find_intake_by_post(post_id: int) -> Optional[sqlite3.Row]:
+    """Look up an intake by its WooCommerce post_id."""
+    with _conn() as c:
+        return c.execute(
+            "SELECT * FROM intakes WHERE woocommerce_post_id=? LIMIT 1",
+            (post_id,),
+        ).fetchone()

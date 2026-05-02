@@ -45,11 +45,15 @@ def process_intake(
 
     photo_paths: List[Path] = [Path(p["path"]) for p in photos]
 
-    # Step 1: vision describe
-    db.set_status(intake_id, "describing")
-    _say("looking at the piece...")
-    description = vision.describe_piece(photo_paths)
-    db.set_description(intake_id, description)
+    # Step 1: vision describe (skip if a description is already on the intake — supports retries)
+    if intake["description"]:
+        description = intake["description"]
+        _say("re-using existing description (resume)...")
+    else:
+        db.set_status(intake_id, "describing")
+        _say("looking at the piece...")
+        description = vision.describe_piece(photo_paths)
+        db.set_description(intake_id, description)
 
     # Step 2: copywriter
     db.set_status(intake_id, "drafting")

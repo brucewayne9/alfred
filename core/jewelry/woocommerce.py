@@ -143,6 +143,47 @@ def preview_url(post_id: int) -> str:
     return f"{SITE_URL}/?p={post_id}&preview=true"
 
 
+def update_product_field(post_id: int, field: str, value: str) -> None:
+    """Update one field on an existing WooCommerce product via wp eval."""
+    setters = {
+        "name": "set_name",
+        "regular_price": "set_regular_price",
+        "short_description": "set_short_description",
+        "description": "set_description",
+        "sku": "set_sku",
+    }
+    if field not in setters:
+        raise ValueError(f"unsupported field: {field}")
+    php = (
+        f"$p = wc_get_product({int(post_id)});"
+        f"if(!$p){{ echo 'NOTFOUND'; return; }}"
+        f"$p->{setters[field]}({_php_str(str(value))});"
+        f"$p->save();"
+        f"echo 'OK';"
+    )
+    rc, out, err = _ssh_docker_wp(["eval", php], timeout=30)
+    if rc != 0 or "OK" not in out:
+        raise RuntimeError(f"update {field} on post {post_id} failed: rc={rc} out={out!r} err={err!r}")
+
+
+def trash_product(post_id: int) -> None:
+    rc, out, err = _ssh_docker_wp(
+        ["post", "delete", str(int(post_id))],
+        timeout=30,
+    )
+    if rc != 0:
+        raise RuntimeError(f"trash post {post_id} failed: {err}")
+
+
+def publish_product(post_id: int) -> None:
+    rc, out, err = _ssh_docker_wp(
+        ["post", "update", str(int(post_id)), "--post_status=publish"],
+        timeout=30,
+    )
+    if rc != 0:
+        raise RuntimeError(f"publish post {post_id} failed: {err}")
+
+
 # --- PHP literal builders (so we don't have to escape user content into a php string at the shell level) ---
 
 def _php_str(s: str) -> str:
