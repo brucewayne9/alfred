@@ -96,15 +96,45 @@ def tg(method: str, **params):
     return j["result"]
 
 
-def send_message(chat_id: int, text: str, reply_to: Optional[int] = None) -> None:
+def send_message(chat_id: int, text: str, reply_to: Optional[int] = None, reply_markup: Optional[dict] = None) -> Optional[dict]:
     try:
         params = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
         if reply_to is not None:
             params["reply_to_message_id"] = reply_to
             params["allow_sending_without_reply"] = True
-        tg("sendMessage", **params)
+        if reply_markup is not None:
+            params["reply_markup"] = reply_markup
+        return tg("sendMessage", **params)
     except Exception:
         logger.exception("send_message to %s failed", chat_id)
+        return None
+
+
+def draft_keyboard(post_id: int) -> dict:
+    """Three-button inline keyboard rendered under every 'Draft is ready' message."""
+    return {
+        "inline_keyboard": [[
+            {"text": "✅ Publish", "callback_data": f"pub:{post_id}"},
+            {"text": "✏️ Edit",    "callback_data": f"edt:{post_id}"},
+            {"text": "🗑️ Delete",  "callback_data": f"del:{post_id}"},
+        ]]
+    }
+
+
+def remove_keyboard(chat_id: int, message_id: int) -> None:
+    """Strip the inline keyboard off a previously-sent message (after the user acted on it)."""
+    try:
+        tg("editMessageReplyMarkup", chat_id=chat_id, message_id=message_id, reply_markup={"inline_keyboard": []})
+    except Exception:
+        logger.exception("remove_keyboard failed for %s/%s", chat_id, message_id)
+
+
+def answer_callback(callback_id: str, text: str = "") -> None:
+    """Acknowledge a callback so Telegram stops the spinner on the user's button."""
+    try:
+        tg("answerCallbackQuery", callback_query_id=callback_id, text=text)
+    except Exception:
+        logger.exception("answer_callback failed")
 
 
 def download_photo(file_id: str, dest_path: Path) -> None:
@@ -157,6 +187,31 @@ _album_lock = threading.Lock()
 _kicked: set = set()                 # intake_ids already submitted to the pipeline
 _kicked_lock = threading.Lock()
 ALBUM_QUIET_SECONDS = 3.0
+
+# pending edit state: chat_id -> (post_id, expires_at_epoch)
+# Set when user taps the Edit button; consumed by the next text message they send.
+_pending_edit: dict = {}
+_pending_edit_lock = threading.Lock()
+PENDING_EDIT_TTL = 300  # 5 minutes
+
+
+def set_pending_edit(chat_id: int, post_id: int) -> None:
+    with _pending_edit_lock:
+        _pending_edit[chat_id] = (post_id, int(time.time()) + PENDING_EDIT_TTL)
+
+
+def pop_pending_edit(chat_id: int) -> Optional[int]:
+    """Return post_id if there's a fresh pending edit for this chat, else None. Clears on read."""
+    with _pending_edit_lock:
+        entry = _pending_edit.get(chat_id)
+        if not entry:
+            return None
+        post_id, expires = entry
+        if time.time() > expires:
+            _pending_edit.pop(chat_id, None)
+            return None
+        _pending_edit.pop(chat_id, None)
+        return post_id
 
 
 def _intake_for_album(chat_id: int, user_handle: Optional[str], media_group_id: str) -> int:
@@ -223,8 +278,9 @@ def kick_off_pipeline(intake_id: int, chat_id: int) -> None:
                     f"SKU: <code>{result['sku']}</code>\n\n"
                     f"Preview: {result['preview_url']}\n"
                     f"Edit:    {result['edit_url']}\n\n"
-                    f"It's saved as a draft. Reply <b>publish</b> to make it live."
+                    f"Tap a button below or quote-reply to edit."
                 ),
+                reply_markup=draft_keyboard(result["post_id"]),
             )
         except Exception as e:
             logger.exception("pipeline failed for intake %d", intake_id)
@@ -315,6 +371,10 @@ def handle_text(msg: dict) -> None:
         return
 
     if lower in ("/cancel", "cancel"):
+        # Cancel a pending Edit (from inline button) before falling back to active intake.
+        if pop_pending_edit(chat_id) is not None:
+            send_message(chat_id, "Edit cancelled.")
+            return
         row = db.get_active_intake(chat_id)
         if row is not None:
             db.set_status(int(row["id"]), "cancelled")
@@ -325,6 +385,20 @@ def handle_text(msg: dict) -> None:
 
     if lower in ("publish", "/publish"):
         _publish_last(chat_id, msg.get("message_id"))
+        return
+
+    # Admin batch commands: "delete 188 194" / "publish 188 194" — explicit post IDs.
+    if lower.startswith("delete ") or lower.startswith("/delete "):
+        _admin_batch(chat_id, "delete", lower.split()[1:], msg.get("message_id"))
+        return
+    if lower.startswith("publish ") or lower.startswith("/publish "):
+        _admin_batch(chat_id, "publish", lower.split()[1:], msg.get("message_id"))
+        return
+
+    # Pending Edit (set when the user tapped the ✏️ Edit button) — consume it now.
+    pending_post_id = pop_pending_edit(chat_id)
+    if pending_post_id is not None:
+        _handle_edit(chat_id, pending_post_id, text, msg.get("message_id"))
         return
 
     # If this is a quote-reply to a bot draft message, treat as an edit.
@@ -358,6 +432,74 @@ def handle_text(msg: dict) -> None:
     intake_id = int(row["id"])
     db.set_price(intake_id, price_cents, text)
     _react_and_maybe_kick(chat_id, intake_id, msg.get("message_id"))
+
+
+def handle_callback_query(query: dict) -> None:
+    """Inline-keyboard taps land here. callback_data format: 'pub:<id>' / 'edt:<id>' / 'del:<id>'."""
+    cb_id = query.get("id")
+    data = query.get("data", "")
+    msg = query.get("message") or {}
+    chat_id = (msg.get("chat") or {}).get("id")
+    msg_id = msg.get("message_id")
+    if chat_id not in ALLOWED_CHAT_IDS:
+        answer_callback(cb_id, "Not allowed.")
+        return
+    if ":" not in data:
+        answer_callback(cb_id, "Bad action.")
+        return
+    action, _, raw_id = data.partition(":")
+    try:
+        post_id = int(raw_id)
+    except ValueError:
+        answer_callback(cb_id, "Bad post id.")
+        return
+
+    if action == "pub":
+        try:
+            from core.jewelry.woocommerce import publish_product
+            publish_product(post_id)
+            answer_callback(cb_id, "Published.")
+            remove_keyboard(chat_id, msg_id)
+            send_message(chat_id, f"Published draft #{post_id}.\n{preview_url(post_id)}")
+        except Exception as e:
+            logger.exception("publish via button failed for %s", post_id)
+            answer_callback(cb_id, "Publish failed.")
+            send_message(chat_id, f"Publish failed for #{post_id}: {e}")
+        return
+
+    if action == "del":
+        try:
+            from core.jewelry.woocommerce import trash_product
+            trash_product(post_id)
+            row = db.find_intake_by_post(post_id)
+            if row:
+                db.set_status(int(row["id"]), "deleted")
+            answer_callback(cb_id, "Deleted.")
+            remove_keyboard(chat_id, msg_id)
+            send_message(chat_id, f"Draft #{post_id} moved to trash.")
+        except Exception as e:
+            logger.exception("delete via button failed for %s", post_id)
+            answer_callback(cb_id, "Delete failed.")
+            send_message(chat_id, f"Delete failed for #{post_id}: {e}")
+        return
+
+    if action == "edt":
+        set_pending_edit(chat_id, post_id)
+        answer_callback(cb_id, "Tell me what to change.")
+        send_message(
+            chat_id,
+            (
+                f"What should I change about draft #{post_id}?\n\n"
+                "Examples:\n"
+                "  <code>change name to Sterling Cuff</code>\n"
+                "  <code>price is $55</code>\n"
+                "  <code>rewrite description, more poetic</code>\n\n"
+                "(Or send <code>/cancel</code> to drop this edit.)"
+            ),
+        )
+        return
+
+    answer_callback(cb_id, "Unknown action.")
 
 
 def _handle_edit(chat_id: int, post_id: int, text: str, reply_to: Optional[int]) -> None:
@@ -438,17 +580,19 @@ def _send_help(chat_id: int, reply_to: Optional[int]) -> None:
         "Send photos of a finished piece (an album works — all the photos go to one product), "
         "plus the price (e.g. <code>$45</code>). I'll write the listing and create a draft on the website.\n\n"
         "<b>Bulk</b>: send several albums in a row, each becomes its own product.\n\n"
-        "<b>Edit a draft</b>: quote-reply the <i>Draft is ready</i> message and tell me what to change. "
-        "Examples:\n"
+        "<b>Edit a draft</b>: tap ✏️ <b>Edit</b> under the draft message and tell me what to change, "
+        "or quote-reply the message with the change. Examples:\n"
         "  <code>change name to Sterling Cuff</code>\n"
         "  <code>price is $55</code>\n"
-        "  <code>rewrite description, more poetic</code>\n"
-        "  <code>delete</code>  /  <code>publish</code>\n\n"
+        "  <code>rewrite description, more poetic</code>\n\n"
+        "<b>Publish or delete</b>: tap ✅ Publish or 🗑️ Delete under the draft.\n\n"
         "<b>Commands</b>\n"
-        "  <code>/today</code>   — drafts created today\n"
-        "  <code>/status</code>  — show your last intake\n"
-        "  <code>/cancel</code>  — drop the in-progress intake\n"
-        "  <code>publish</code>  — publish the last draft (Mike only, for now)"
+        "  <code>/today</code>          — drafts created today\n"
+        "  <code>/status</code>         — show your last intake\n"
+        "  <code>/cancel</code>         — drop in-progress intake or pending edit\n"
+        "  <code>publish</code>         — publish most recent draft (Mike)\n"
+        "  <code>publish 188 194</code> — batch-publish by post ID (Mike)\n"
+        "  <code>delete 188 194</code>  — batch-delete by post ID (Mike)"
     )
     send_message(chat_id, msg, reply_to=reply_to)
 
@@ -496,6 +640,39 @@ def _send_status(chat_id: int, reply_to: Optional[int]) -> None:
             f"Edit: {admin_edit_url(row['woocommerce_post_id'])}"
         )
     send_message(chat_id, msg, reply_to=reply_to)
+
+
+def _admin_batch(chat_id: int, op: str, raw_ids: List[str], reply_to: Optional[int]) -> None:
+    """Apply publish/delete to a list of explicit post IDs. Mike-only."""
+    if chat_id != 7582976864:
+        send_message(chat_id, "Only Mike can run batch commands.", reply_to=reply_to)
+        return
+    ids: List[int] = []
+    for r in raw_ids:
+        try:
+            ids.append(int(r))
+        except ValueError:
+            pass
+    if not ids:
+        send_message(chat_id, f"No post IDs found. Try: <code>{op} 188 194</code>", reply_to=reply_to)
+        return
+
+    from core.jewelry.woocommerce import publish_product, trash_product
+    results = []
+    for pid in ids:
+        try:
+            if op == "publish":
+                publish_product(pid)
+                results.append(f"✅ #{pid} published")
+            else:
+                trash_product(pid)
+                row = db.find_intake_by_post(pid)
+                if row:
+                    db.set_status(int(row["id"]), "deleted")
+                results.append(f"🗑️ #{pid} deleted")
+        except Exception as e:
+            results.append(f"❌ #{pid} failed: {e}")
+    send_message(chat_id, "\n".join(results), reply_to=reply_to)
 
 
 def _publish_last(chat_id: int, reply_to: Optional[int]) -> None:
@@ -556,7 +733,7 @@ def main() -> None:
 
     while _running:
         try:
-            updates = tg("getUpdates", offset=offset, timeout=25, allowed_updates=["message"])
+            updates = tg("getUpdates", offset=offset, timeout=25, allowed_updates=["message", "callback_query"])
         except Exception:
             logger.exception("getUpdates failed; sleeping")
             time.sleep(5)
@@ -565,6 +742,15 @@ def main() -> None:
         for update in updates:
             offset = update["update_id"] + 1
             save_offset(offset)
+
+            cbq = update.get("callback_query")
+            if cbq:
+                try:
+                    handle_callback_query(cbq)
+                except Exception:
+                    logger.exception("callback handler crashed")
+                continue
+
             msg = update.get("message")
             if not msg:
                 continue
