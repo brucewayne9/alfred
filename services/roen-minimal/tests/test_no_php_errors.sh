@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
-# Test: child theme activates without PHP fatals
+# Test: child theme activates without PHP fatals or activation-time errors
 set -euo pipefail
 
-ssh server-104 'docker exec roenhandmade-wp wp theme activate roen-minimal --allow-root --path=/var/www/html' \
-  | grep -q "Success" || { echo "FAIL: theme did not activate cleanly"; exit 1; }
+# Activate; capture both stdout and stderr so we can detect PHP errors that
+# WP-CLI emits to stderr while loading the theme.
+ssh server-104 'docker exec roenhandmade-wp wp theme activate roen-minimal --allow-root --path=/var/www/html 2>&1' \
+  | tee /tmp/roen-activate.log \
+  | grep -q "Success" || { echo "FAIL: theme did not activate cleanly"; cat /tmp/roen-activate.log; exit 1; }
+
+if grep -qiE "fatal error|warning:|notice:|deprecated" /tmp/roen-activate.log; then
+  echo "FAIL: PHP errors during theme activation"
+  grep -iE "fatal error|warning:|notice:|deprecated" /tmp/roen-activate.log | head -5
+  exit 1
+fi
 
 # Hit the homepage and confirm 200 + no PHP error string
 HTTP=$(timeout 15 curl -ksS -o /tmp/roen-home.html -w "%{http_code}" https://www.roenhandmade.com/)
