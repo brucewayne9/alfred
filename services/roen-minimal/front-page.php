@@ -65,6 +65,10 @@ $product_cats = get_terms( array(
 				wp_reset_postdata();
 				?>
 			</ul>
+
+			<p class="roen-grid__more">
+				<a href="<?php echo esc_url( wc_get_page_permalink( 'shop' ) ); ?>">shop all pieces &rarr;</a>
+			</p>
 			<?php
 		endif;
 		?>
