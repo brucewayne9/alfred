@@ -23,7 +23,7 @@ $product_cats = get_terms( array(
 
 <section class="roen-tagline">
 	<div class="roen-container">
-		<h1 class="roen-tagline__head">handmade jewelry, made in atlanta.</h1>
+		<h1 class="roen-tagline__head">decorate yourself.</h1>
 		<p class="roen-tagline__sub">new pieces every week.</p>
 	</div>
 </section>
