@@ -53,6 +53,11 @@ Text Domain: roen-minimal
   --roen-breakpoint-mobile: 768px;
   --roen-breakpoint-tablet: 1024px;
 
+  /* Letter-spacing (brand-defining, per spec) */
+  --roen-tracking-hero: -2px;
+  --roen-tracking-body: -0.5px;
+  --roen-tracking-product: -0.2px;
+
   /* Transitions */
   --roen-transition: 200ms ease;
 }
