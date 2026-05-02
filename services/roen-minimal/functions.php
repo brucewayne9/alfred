@@ -87,3 +87,8 @@ add_action( 'after_setup_theme', 'roen_theme_supports' );
  * Storefront cleanup (header credits, default homepage components, etc.)
  */
 require_once get_stylesheet_directory() . '/inc/theme-cleanup.php';
+
+/**
+ * Shared template helpers (wordmark SVG, cart count, fragment filter).
+ */
+require_once get_stylesheet_directory() . '/inc/template-helpers.php';

@@ -531,10 +531,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 ?>
 </main><?php // close .roen-main from header.php ?>
 
-<footer class="roen-footer" role="contentinfo">
+<footer class="roen-footer">
     <div class="roen-container roen-footer__inner">
         <div class="roen-footer__brand">
-            <?php echo file_get_contents( get_stylesheet_directory() . '/assets/img/roen-wordmark.svg' ); // phpcs:ignore ?>
+            <?php echo roen_wordmark_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG asset shipped with theme ?>
             <p class="roen-footer__legal">© <?php echo (int) date( 'Y' ); ?> Roen Handmade.</p>
         </div>
 
@@ -1131,6 +1131,24 @@ button { font-family: var(--roen-font-stack); cursor: pointer; }
     padding: var(--roen-space-7) 0;
 }
 
+/* ---------- Skip link (accessibility) ---------- */
+
+.roen-skip-link.screen-reader-text:focus {
+    position: absolute; top: 8px; left: 8px;
+    z-index: 100;
+    background: var(--roen-text-primary);
+    color: var(--roen-bg-primary);
+    padding: 10px 16px;
+    font-size: 13px;
+    text-decoration: none;
+    clip: auto !important; clip-path: none !important;
+    width: auto !important; height: auto !important;
+}
+
+/* ---------- WP admin bar offset (only fires when logged-in) ---------- */
+
+.admin-bar .roen-skip-link.screen-reader-text:focus { top: 40px; }
+
 /* ---------- Footer ---------- */
 
 .roen-footer {
@@ -1617,6 +1635,15 @@ Expected: `0`
 
 Run: `timeout 12 curl -ksS https://www.roenhandmade.com/ | grep -c 'roen-card'`
 Expected: `7`
+
+- [ ] **Step 3b: Cart count refreshes via AJAX**
+
+Manual smoke test:
+1. Visit https://www.roenhandmade.com/ — note "cart (0)" in nav.
+2. Visit any product, click `add to cart`.
+3. Without a full reload, the header's cart count should update to "cart (1)" via WC's fragments AJAX.
+
+If the count stays at 0 after add-to-cart, the `woocommerce_add_to_cart_fragments` filter in `inc/template-helpers.php` is wrong — the fragment selector `span.roen-cart-count` must match what `header.php` outputs.
 
 - [ ] **Step 4: Add to Cart works end-to-end**
 
