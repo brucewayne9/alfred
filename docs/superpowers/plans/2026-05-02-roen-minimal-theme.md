@@ -712,7 +712,7 @@ foreach ( wp_get_post_terms( $product->get_id(), 'product_cat' ) as $cat ) {
             ?>
         </div>
         <div class="roen-card__body">
-            <h3 class="roen-card__title"><?php echo esc_html( $product->get_name() ); ?></h3>
+            <h2 class="roen-card__title"><?php echo esc_html( $product->get_name() ); ?></h2>
             <div class="roen-card__price"><?php echo $product->get_price_html(); // phpcs:ignore ?></div>
         </div>
     </a>
@@ -1130,6 +1130,18 @@ button { font-family: var(--roen-font-stack); cursor: pointer; }
     color: var(--roen-text-secondary);
     padding: var(--roen-space-7) 0;
 }
+
+.roen-grid__more {
+    text-align: center;
+    padding: var(--roen-space-6) 0 0;
+    margin: 0;
+}
+.roen-grid__more a {
+    font-size: var(--roen-fs-nav);
+    color: var(--roen-text-secondary);
+    letter-spacing: 0.5px;
+}
+.roen-grid__more a:hover { color: var(--roen-accent); }
 
 /* ---------- Skip link (accessibility) ---------- */
 
