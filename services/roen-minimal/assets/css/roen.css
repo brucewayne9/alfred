@@ -1,0 +1,222 @@
+/* ============================================================
+   roen-minimal — structural CSS
+   Tokens defined in style.css. This file owns layout only.
+   ============================================================ */
+
+/* Reset Storefront cruft we never want */
+.site-header,
+.storefront-handheld-footer-bar,
+.storefront-credit { display: none !important; }
+
+body, button, input, select, textarea {
+    font-family: var(--roen-font-stack);
+    font-weight: var(--roen-fw-regular);
+    font-size: var(--roen-fs-body);
+    color: var(--roen-text-primary);
+    background: var(--roen-bg-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: var(--roen-text-primary); text-decoration: none; transition: color var(--roen-transition); }
+a:hover, a:focus { color: var(--roen-accent); }
+
+img { max-width: 100%; display: block; height: auto; }
+
+button { font-family: var(--roen-font-stack); cursor: pointer; }
+
+.roen-container {
+    max-width: var(--roen-content-max);
+    margin: 0 auto;
+    padding: 0 var(--roen-content-pad-mobile);
+}
+@media (min-width: 768px) { .roen-container { padding: 0 var(--roen-content-pad-desktop); } }
+
+/* ---------- Header ---------- */
+
+.roen-header {
+    border-bottom: 1px solid var(--roen-hairline);
+    background: var(--roen-bg-primary);
+}
+
+.roen-header__inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--roen-space-4) var(--roen-content-pad-mobile);
+    gap: var(--roen-space-4);
+}
+@media (min-width: 768px) {
+    .roen-header__inner { padding: var(--roen-space-5) var(--roen-content-pad-desktop); }
+}
+
+.roen-header__brand { display: flex; align-items: center; color: var(--roen-text-primary); }
+.roen-header__brand svg { height: 28px; width: auto; }
+
+.roen-header__nav {
+    display: flex; align-items: center; gap: var(--roen-space-5);
+    font-size: var(--roen-fs-nav);
+    font-weight: var(--roen-fw-regular);
+    color: var(--roen-text-secondary);
+}
+.roen-header__nav a { color: inherit; }
+.roen-header__nav a:hover { color: var(--roen-accent); }
+
+/* ---------- Tagline ---------- */
+
+.roen-tagline { padding: var(--roen-space-7) 0 var(--roen-space-5); text-align: center; }
+.roen-tagline--small { padding: var(--roen-space-5) 0 var(--roen-space-3); }
+.roen-tagline__head {
+    font-size: var(--roen-fs-tagline);
+    font-weight: var(--roen-fw-thin);
+    letter-spacing: var(--roen-tracking-body);
+    color: var(--roen-text-primary);
+    margin: 0 0 var(--roen-space-2) 0;
+    line-height: 1.2;
+}
+.roen-tagline__sub {
+    font-size: var(--roen-fs-tagline-sub);
+    color: var(--roen-text-secondary);
+    margin: 0;
+}
+
+/* ---------- Category pills ---------- */
+
+.roen-pills { padding: 0 0 var(--roen-space-5); }
+.roen-pills__row { display: flex; gap: var(--roen-space-2); flex-wrap: wrap; justify-content: center; }
+.roen-pill {
+    background: transparent;
+    border: 1px solid var(--roen-hairline);
+    border-radius: 24px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: var(--roen-fw-regular);
+    color: var(--roen-text-secondary);
+    transition: color var(--roen-transition), border-color var(--roen-transition), background var(--roen-transition);
+}
+.roen-pill:hover { color: var(--roen-text-primary); border-color: var(--roen-text-primary); }
+.roen-pill.is-active {
+    color: var(--roen-bg-primary);
+    background: var(--roen-text-primary);
+    border-color: var(--roen-text-primary);
+}
+
+/* ---------- Product grid ---------- */
+
+.roen-grid-section { padding: 0 0 var(--roen-space-7); }
+.roen-grid {
+    list-style: none; margin: 0; padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--roen-space-4);
+}
+@media (min-width: 768px) { .roen-grid { grid-template-columns: repeat(3, 1fr); gap: var(--roen-space-5); } }
+@media (min-width: 1024px) { .roen-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.roen-card {
+    background: var(--roen-bg-primary);
+    transition: transform var(--roen-transition);
+}
+.roen-card.is-hidden { display: none; }
+.roen-card:hover { transform: translateY(-2px); }
+.roen-card__link { display: block; color: inherit; }
+.roen-card__media {
+    aspect-ratio: 4 / 5;
+    background: var(--roen-bg-secondary);
+    overflow: hidden;
+    margin-bottom: var(--roen-space-3);
+}
+.roen-card__img { width: 100%; height: 100%; object-fit: cover; }
+.roen-card__title {
+    font-size: var(--roen-fs-product-title);
+    font-weight: var(--roen-fw-regular);
+    letter-spacing: var(--roen-tracking-product);
+    color: var(--roen-text-primary);
+    margin: 0 0 var(--roen-space-1) 0;
+    line-height: 1.4;
+}
+.roen-card__price {
+    font-size: var(--roen-fs-product-price);
+    font-weight: var(--roen-fw-light);
+    color: var(--roen-text-secondary);
+}
+.roen-card__price del { color: var(--roen-text-secondary); margin-right: 6px; }
+.roen-card__price ins { color: var(--roen-accent); text-decoration: none; }
+
+.roen-empty {
+    text-align: center;
+    color: var(--roen-text-secondary);
+    padding: var(--roen-space-7) 0;
+}
+
+.roen-grid__more {
+    text-align: center;
+    padding: var(--roen-space-6) 0 0;
+    margin: 0;
+}
+.roen-grid__more a {
+    font-size: var(--roen-fs-nav);
+    color: var(--roen-text-secondary);
+    letter-spacing: 0.5px;
+}
+.roen-grid__more a:hover { color: var(--roen-accent); }
+
+/* ---------- Skip link (accessibility) ---------- */
+
+.roen-skip-link.screen-reader-text:focus {
+    position: absolute; top: 8px; left: 8px;
+    z-index: 100;
+    background: var(--roen-text-primary);
+    color: var(--roen-bg-primary);
+    padding: 10px 16px;
+    font-size: 13px;
+    text-decoration: none;
+    clip: auto !important; clip-path: none !important;
+    width: auto !important; height: auto !important;
+}
+
+/* ---------- WP admin bar offset (only fires when logged-in) ---------- */
+
+.admin-bar .roen-skip-link.screen-reader-text:focus { top: 40px; }
+
+/* ---------- Footer ---------- */
+
+.roen-footer {
+    background: var(--roen-bg-secondary);
+    border-top: 1px solid var(--roen-hairline);
+    margin-top: var(--roen-space-8);
+}
+.roen-footer__inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--roen-space-6);
+    padding: var(--roen-space-6) var(--roen-content-pad-mobile);
+}
+@media (min-width: 768px) {
+    .roen-footer__inner {
+        grid-template-columns: 1.5fr 1fr 1fr;
+        padding: var(--roen-space-7) var(--roen-content-pad-desktop);
+    }
+}
+.roen-footer__brand svg { height: 24px; width: auto; color: var(--roen-text-primary); margin-bottom: var(--roen-space-3); }
+.roen-footer__legal { font-size: var(--roen-fs-footer); color: var(--roen-text-secondary); margin: 0; }
+.roen-footer__heading {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+    font-weight: var(--roen-fw-medium); color: var(--roen-text-primary);
+    margin: 0 0 var(--roen-space-3) 0;
+}
+.roen-footer__col a {
+    display: block;
+    font-size: var(--roen-fs-footer);
+    color: var(--roen-text-secondary);
+    line-height: 1.9;
+}
+.roen-footer__col a:hover { color: var(--roen-accent); }
+
+/* ---------- About ---------- */
+
+.roen-about { max-width: 640px; padding-top: var(--roen-space-7); padding-bottom: var(--roen-space-8); }
+.roen-about__title {
+    font-size: 32px; font-weight: var(--roen-fw-thin); letter-spacing: var(--roen-tracking-body);
+    margin: 0 0 var(--roen-space-5) 0;
+}
+.roen-about__body { font-size: 16px; line-height: 1.7; color: var(--roen-text-primary); }
+.roen-about__body p { margin: 0 0 var(--roen-space-4) 0; }
