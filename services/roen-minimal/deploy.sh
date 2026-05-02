@@ -19,11 +19,14 @@ rsync -av --delete \
   --exclude '.DS_Store' \
   "${SRC_DIR}/" "${SSH_HOST}:${STAGE_DIR}/"
 
-echo "==> docker cp into ${CONTAINER}:${TARGET}"
+echo "==> tar-pipe into ${CONTAINER}:${TARGET}"
+# Snap-installed Docker on 104 sandboxes /tmp, so 'docker cp /tmp/...' fails.
+# Pipe a tar stream through 'docker exec' stdin instead — works regardless
+# of where the host staged files.
 ssh "${SSH_HOST}" "
   set -e
   timeout 30 docker exec ${CONTAINER} mkdir -p ${TARGET}
-  timeout 60 docker cp ${STAGE_DIR}/. ${CONTAINER}:${TARGET}/
+  tar -C ${STAGE_DIR} -cf - . | timeout 60 docker exec -i ${CONTAINER} tar -C ${TARGET} -xf -
   timeout 30 docker exec ${CONTAINER} chown -R www-data:www-data ${TARGET}
 "
 
