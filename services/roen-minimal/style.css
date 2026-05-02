@@ -1,0 +1,58 @@
+/*
+Theme Name: Roen Minimal
+Theme URI: https://www.roenhandmade.com/
+Author: Roen Handmade
+Author URI: https://www.roenhandmade.com/
+Description: Minimal-modern child theme for Roen Handmade. Lowercase wordmark, marble photography, product-first homepage, terracotta accent. Built on Storefront.
+Template: storefront
+Version: 1.0.0
+License: GNU General Public License v2 or later
+Text Domain: roen-minimal
+*/
+
+:root {
+  /* Brand color tokens */
+  --roen-bg-primary: #FFFFFF;
+  --roen-bg-secondary: #FAF9F6;
+  --roen-text-primary: #1A1A1A;
+  --roen-text-secondary: #666666;
+  --roen-hairline: #EEEEEE;
+  --roen-accent: #B85C3D;
+  --roen-accent-hover: #9C4A30;
+
+  /* Typography tokens */
+  --roen-font-stack: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --roen-fw-thin: 200;
+  --roen-fw-light: 300;
+  --roen-fw-regular: 400;
+  --roen-fw-medium: 500;
+
+  --roen-fs-wordmark: 28px;
+  --roen-fs-tagline: 22px;
+  --roen-fs-tagline-sub: 13px;
+  --roen-fs-product-title: 14px;
+  --roen-fs-product-price: 13px;
+  --roen-fs-body: 15px;
+  --roen-fs-nav: 13px;
+  --roen-fs-footer: 12px;
+
+  /* Spacing scale */
+  --roen-space-1: 4px;
+  --roen-space-2: 8px;
+  --roen-space-3: 12px;
+  --roen-space-4: 16px;
+  --roen-space-5: 24px;
+  --roen-space-6: 32px;
+  --roen-space-7: 48px;
+  --roen-space-8: 64px;
+
+  /* Layout */
+  --roen-content-max: 1280px;
+  --roen-content-pad-mobile: 20px;
+  --roen-content-pad-desktop: 48px;
+  --roen-breakpoint-mobile: 768px;
+  --roen-breakpoint-tablet: 1024px;
+
+  /* Transitions */
+  --roen-transition: 200ms ease;
+}
