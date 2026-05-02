@@ -1514,6 +1514,16 @@ ssh server-104 'timeout 20 docker exec roenhandmade-wp wp theme activate roen-mi
 ```
 Expected: `Success: Switched to 'Roen Minimal' theme.`
 
+- [ ] **Step 2b: Regenerate product image sizes**
+
+The `add_theme_support('woocommerce', ['thumbnail_image_width' => 600, 'single_image_width' => 1200])` declaration in `functions.php` only affects new uploads. Existing images need to be regenerated for the new aspect ratio crops.
+
+Run:
+```bash
+ssh server-104 'timeout 180 docker exec roenhandmade-wp wp media regenerate --yes --allow-root --path=/var/www/html'
+```
+Expected: a list of regenerated images, ending with a Success summary. May take 30-60 seconds for the existing 7 products.
+
 - [ ] **Step 3: Run the no-PHP-errors smoke test from Task 2**
 
 Run: `bash /home/aialfred/alfred/services/roen-minimal/tests/test_no_php_errors.sh`
