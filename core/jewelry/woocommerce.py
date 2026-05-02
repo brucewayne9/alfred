@@ -167,12 +167,13 @@ def update_product_field(post_id: int, field: str, value: str) -> None:
 
 
 def trash_product(post_id: int) -> None:
+    """Soft-trash a WooCommerce product (status=trash). Recoverable in WP admin."""
     rc, out, err = _ssh_docker_wp(
-        ["post", "delete", str(int(post_id))],
+        ["post", "update", str(int(post_id)), "--post_status=trash"],
         timeout=30,
     )
     if rc != 0:
-        raise RuntimeError(f"trash post {post_id} failed: {err}")
+        raise RuntimeError(f"trash post {post_id} failed: {err.strip()}")
 
 
 def publish_product(post_id: int) -> None:
