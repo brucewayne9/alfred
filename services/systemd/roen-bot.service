@@ -1,0 +1,24 @@
+[Unit]
+Description=Roen Handmade Telegram intake bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aialfred
+WorkingDirectory=/home/aialfred/alfred
+ExecStart=/home/aialfred/alfred/venv/bin/python3 /home/aialfred/alfred/scripts/roen_telegram_bot.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/aialfred/alfred/data/roen/bot.systemd.log
+StandardError=append:/home/aialfred/alfred/data/roen/bot.systemd.log
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/aialfred/alfred/data /home/aialfred/alfred/services/roen-minimal /home/aialfred/.ssh /tmp
+
+[Install]
+WantedBy=multi-user.target
