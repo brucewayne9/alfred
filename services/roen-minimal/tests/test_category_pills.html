@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><title>category pills test</title>
+<style>
+  .roen-card.is-hidden { display: none; }
+  .roen-pill.is-active { font-weight: bold; }
+  .roen-card { display: block; padding: 8px; }
+</style>
+</head>
+<body>
+<nav class="roen-pills">
+  <div class="roen-pills__row">
+    <button class="roen-pill is-active" data-cat="all">all</button>
+    <button class="roen-pill" data-cat="bracelets">bracelets</button>
+    <button class="roen-pill" data-cat="earrings">earrings</button>
+  </div>
+</nav>
+<ul class="roen-grid">
+  <li class="roen-card" data-cats="bracelets">A &mdash; bracelet</li>
+  <li class="roen-card" data-cats="earrings">B &mdash; earring</li>
+  <li class="roen-card" data-cats="bracelets necklaces">C &mdash; both</li>
+</ul>
+<script src="../assets/js/category-pills.js"></script>
+<script>
+  // Manual checklist: click each pill, confirm visibility:
+  //   all       -> A, B, C all visible
+  //   bracelets -> A, C visible; B hidden
+  //   earrings  -> B visible; A, C hidden
+</script>
+</body></html>
