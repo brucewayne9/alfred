@@ -29,10 +29,11 @@ function roen_remove_storefront_homepage_actions() {
 add_action( 'after_setup_theme', 'roen_remove_storefront_homepage_actions', 11 );
 
 /**
- * Replace Storefront's footer credit with Roen's own.
+ * Replace Storefront's footer credit + remove the mobile handheld footer bar.
  */
 function roen_remove_storefront_footer_credit() {
     remove_action( 'storefront_footer', 'storefront_credit', 20 );
+    remove_action( 'wp_footer', 'storefront_handheld_footer_bar' );
 }
 add_action( 'after_setup_theme', 'roen_remove_storefront_footer_credit', 11 );
 
