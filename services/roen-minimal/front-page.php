@@ -11,7 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 get_header();
 
-// Pull product categories that have at least 1 in-stock product.
+// Pull product categories that have at least 1 published product.
+// (hide_empty filters by attached post count, not stock status.)
 $product_cats = get_terms( array(
 	'taxonomy'   => 'product_cat',
 	'hide_empty' => true,
