@@ -3,14 +3,16 @@
 set -euo pipefail
 
 # Activate; capture both stdout and stderr so we can detect PHP errors that
-# WP-CLI emits to stderr while loading the theme.
+# WP-CLI emits to stderr while loading the theme. WP-CLI returns "Success"
+# on first activate and "already active" on re-runs — both are healthy states.
 ssh server-104 'docker exec roenhandmade-wp wp theme activate roen-minimal --allow-root --path=/var/www/html 2>&1' \
   | tee /tmp/roen-activate.log \
-  | grep -q "Success" || { echo "FAIL: theme did not activate cleanly"; cat /tmp/roen-activate.log; exit 1; }
+  | grep -qE "Success|already active" || { echo "FAIL: theme did not activate cleanly"; cat /tmp/roen-activate.log; exit 1; }
 
-if grep -qiE "fatal error|warning:|notice:|deprecated" /tmp/roen-activate.log; then
+# Filter out WP-CLI's benign "already active" warning before grepping for PHP errors.
+if grep -v -i "already active" /tmp/roen-activate.log | grep -qiE "fatal error|warning:|notice:|deprecated"; then
   echo "FAIL: PHP errors during theme activation"
-  grep -iE "fatal error|warning:|notice:|deprecated" /tmp/roen-activate.log | head -5
+  grep -v -i "already active" /tmp/roen-activate.log | grep -iE "fatal error|warning:|notice:|deprecated" | head -5
   exit 1
 fi
 
