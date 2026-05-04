@@ -40,20 +40,15 @@ $product_cats  = get_terms( array(
 
 <section class="roen-grid-section">
     <div class="roen-container">
-        <?php if ( woocommerce_product_loop() ) : ?>
-            <?php woocommerce_product_loop_start(); ?>
-
-            <?php
-            if ( wc_get_loop_prop( 'total' ) ) {
+        <?php if ( woocommerce_product_loop() && wc_get_loop_prop( 'total' ) ) : ?>
+            <ul class="roen-grid" role="list">
+                <?php
                 while ( have_posts() ) {
                     the_post();
-                    do_action( 'woocommerce_shop_loop' );
                     wc_get_template_part( 'content', 'product' );
                 }
-            }
-            ?>
-
-            <?php woocommerce_product_loop_end(); ?>
+                ?>
+            </ul>
 
             <?php do_action( 'woocommerce_after_shop_loop' ); ?>
 

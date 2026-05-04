@@ -55,6 +55,16 @@ function roen_enqueue_assets() {
         $version
     );
 
+    // Product gallery JS — only on single product pages.
+    if ( function_exists( 'is_product' ) && is_product() ) {
+        wp_enqueue_script(
+            'roen-gallery',
+            get_stylesheet_directory_uri() . '/assets/js/gallery.js',
+            array(),
+            $version,
+            true
+        );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'roen_enqueue_assets', 20 );
 
@@ -67,12 +77,22 @@ function roen_theme_supports() {
     add_theme_support( 'post-thumbnails' );
     add_theme_support( 'woocommerce', array(
         'thumbnail_image_width' => 600,
-        'single_image_width'    => 1200,
+        'single_image_width'    => 1500,
     ) );
-    add_theme_support( 'wc-product-gallery-zoom' );
-    add_theme_support( 'wc-product-gallery-lightbox' );
-    add_theme_support( 'wc-product-gallery-slider' );
+    // Note: deliberately NOT registering wc-product-gallery-* — we ship our
+    // own gallery template (woocommerce/single-product/product-image.php) so
+    // Flexslider/zoom/lightbox aren't enqueued on the single-product page.
 }
+
+/**
+ * Override WC catalog image sizes — Storefront's theme support otherwise wins.
+ * Source photos from the Telegram intake are ~721×1280 portrait, so we cap
+ * thumbnail width at 600 for retina sharpness on a 4-up grid (~300px CSS).
+ */
+function roen_image_size_thumbnail( $size ) {
+    return array( 'width' => 600, 'height' => 750, 'crop' => 1 );
+}
+add_filter( 'woocommerce_get_image_size_thumbnail', 'roen_image_size_thumbnail', 99 );
 add_action( 'after_setup_theme', 'roen_theme_supports' );
 
 /**
