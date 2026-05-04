@@ -55,14 +55,6 @@ function roen_enqueue_assets() {
         $version
     );
 
-    // Category pills filter on homepage / archive.
-    wp_enqueue_script(
-        'roen-category-pills',
-        get_stylesheet_directory_uri() . '/assets/js/category-pills.js',
-        array(),
-        $version,
-        true
-    );
 }
 add_action( 'wp_enqueue_scripts', 'roen_enqueue_assets', 20 );
 

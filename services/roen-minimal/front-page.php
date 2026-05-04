@@ -29,11 +29,11 @@ $product_cats = get_terms( array(
 </section>
 
 <?php if ( ! empty( $product_cats ) && ! is_wp_error( $product_cats ) ) : ?>
-<nav class="roen-pills" aria-label="<?php esc_attr_e( 'Filter by category', 'roen-minimal' ); ?>">
+<nav class="roen-pills" aria-label="<?php esc_attr_e( 'Browse by category', 'roen-minimal' ); ?>">
 	<div class="roen-container roen-pills__row">
-		<button class="roen-pill is-active" data-cat="all" type="button">all</button>
+		<a class="roen-pill is-active" href="<?php echo esc_url( wc_get_page_permalink( 'shop' ) ); ?>">all</a>
 		<?php foreach ( $product_cats as $cat ) : ?>
-			<button class="roen-pill" data-cat="<?php echo esc_attr( $cat->slug ); ?>" type="button"><?php echo esc_html( strtolower( $cat->name ) ); ?></button>
+			<a class="roen-pill" href="<?php echo esc_url( get_term_link( $cat ) ); ?>"><?php echo esc_html( strtolower( $cat->name ) ); ?></a>
 		<?php endforeach; ?>
 	</div>
 </nav>
