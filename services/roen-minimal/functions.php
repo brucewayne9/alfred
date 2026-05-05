@@ -114,3 +114,8 @@ require_once get_stylesheet_directory() . '/inc/theme-cleanup.php';
  * Shared template helpers (wordmark SVG, cart count, fragment filter).
  */
 require_once get_stylesheet_directory() . '/inc/template-helpers.php';
+
+/**
+ * Roen Bracelet Box — server-side glue.
+ */
+require_once get_stylesheet_directory() . '/inc/bracelet-box.php';
