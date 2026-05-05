@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60" fill="none"
+     stroke="#B85C3D" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"
+     role="img" aria-label="Roen — rowan branch mark">
+  <!-- Stem -->
+  <path d="M10 50 C 30 45, 50 30, 75 18" />
+  <!-- Leaves: three pairs along the stem -->
+  <path d="M28 47 q -4 -6 -2 -10 q 5 1 4 9 z" />
+  <path d="M30 47 q 4 -7 9 -8 q 1 6 -5 10 z" />
+  <path d="M44 38 q -4 -6 -2 -10 q 5 1 4 9 z" />
+  <path d="M46 38 q 4 -7 9 -8 q 1 6 -5 10 z" />
+  <path d="M60 28 q -4 -6 -2 -10 q 5 1 4 9 z" />
+  <path d="M62 28 q 4 -7 9 -8 q 1 6 -5 10 z" />
+  <!-- Berries: three small circles at the tip -->
+  <circle cx="80" cy="14" r="2.2" />
+  <circle cx="86" cy="11" r="2.2" />
+  <circle cx="84" cy="17" r="2.2" />
+</svg>
