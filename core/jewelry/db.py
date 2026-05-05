@@ -40,6 +40,26 @@ CREATE TABLE IF NOT EXISTS intakes (
 );
 CREATE INDEX IF NOT EXISTS idx_intakes_chat ON intakes (chat_id, status);
 CREATE INDEX IF NOT EXISTS idx_intakes_status ON intakes (status, updated_at);
+
+CREATE TABLE IF NOT EXISTS roen_bracelet_box_picks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    line_item_id INTEGER NOT NULL,
+    bundle_index INTEGER NOT NULL,
+    customer_email TEXT NOT NULL,
+    customer_first_name TEXT,
+    picked_skus TEXT NOT NULL,
+    color_tags TEXT,
+    style_tags TEXT,
+    note_text TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'suggested',
+    created_at INTEGER NOT NULL,
+    approved_at INTEGER,
+    shipped_at INTEGER,
+    UNIQUE(order_id, line_item_id, bundle_index)
+);
+CREATE INDEX IF NOT EXISTS idx_box_email_status ON roen_bracelet_box_picks (customer_email, status);
+CREATE INDEX IF NOT EXISTS idx_box_status_created ON roen_bracelet_box_picks (status, created_at);
 """
 
 
