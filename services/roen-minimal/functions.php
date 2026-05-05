@@ -65,6 +65,16 @@ function roen_enqueue_assets() {
             true
         );
     }
+
+    // /pick landing page CSS — only loaded on that page template.
+    if ( is_page_template( 'page-pick.php' ) ) {
+        wp_enqueue_style(
+            'roen-pick',
+            get_stylesheet_directory_uri() . '/assets/css/roen-pick.css',
+            array( 'roen-structure' ),
+            $version
+        );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'roen_enqueue_assets', 20 );
 
