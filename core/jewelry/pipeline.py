@@ -48,11 +48,13 @@ def process_intake(
     # Step 1: vision describe (skip if a description is already on the intake — supports retries)
     if intake["description"]:
         description = intake["description"]
+        vision_result = None  # tags only available on a fresh vision pass
         _say("re-using existing description (resume)...")
     else:
         db.set_status(intake_id, "describing")
         _say("looking at the piece...")
-        description = vision.describe_piece(photo_paths)
+        vision_result = vision.describe_piece(photo_paths)
+        description = vision_result["description"]
         db.set_description(intake_id, description)
 
     # Step 2: copywriter
@@ -93,6 +95,20 @@ def process_intake(
         image_attachment_ids=attachment_ids,
     )
     db.set_woocommerce_id(intake_id, post_id)
+
+    # Write structured tags as WC product meta for the picker (Roen's Bracelet Box).
+    if vision_result is not None:
+        for key, value in [
+            ('_roen_color_family',  vision_result['color_family']),
+            ('_roen_material_class',vision_result['material_class']),
+            ('_roen_style_class',   vision_result['style_class']),
+            ('_roen_dominant_hex',  vision_result['dominant_hex']),
+        ]:
+            try:
+                woocommerce.update_product_meta(post_id, key, value)
+            except Exception:
+                logger.exception("failed to write %s=%s on post %d (continuing)", key, value, post_id)
+
     db.set_status(intake_id, "done")
 
     return {

@@ -143,6 +143,20 @@ def preview_url(post_id: int) -> str:
     return f"{SITE_URL}/?p={post_id}&preview=true"
 
 
+def update_product_meta(post_id: int, meta_key: str, meta_value: str) -> None:
+    """Write a single meta_data entry on a WooCommerce product via wp eval."""
+    php = (
+        f"$p = wc_get_product({int(post_id)});"
+        f"if(!$p){{ echo 'NOTFOUND'; return; }}"
+        f"$p->update_meta_data({_php_str(meta_key)}, {_php_str(meta_value)});"
+        f"$p->save();"
+        f"echo 'OK';"
+    )
+    rc, out, err = _ssh_docker_wp(["eval", php], timeout=30)
+    if rc != 0 or "OK" not in out:
+        raise RuntimeError(f"update_product_meta {meta_key}={meta_value} on post {post_id} failed: rc={rc} out={out!r} err={err!r}")
+
+
 def update_product_field(post_id: int, field: str, value: str) -> None:
     """Update one field on an existing WooCommerce product via wp eval."""
     setters = {
