@@ -19,26 +19,40 @@ $box_product = wc_get_product( wc_get_product_id_by_sku( 'bracelet-box' ) );
 $in_stock = $box_product && $box_product->is_in_stock();
 $available = $box_product ? (int) $box_product->get_stock_quantity() : 0;
 
-$mark_url = get_stylesheet_directory_uri() . '/assets/svg/rowan-mark.svg';
+// Inline the rowan-mark SVG so currentColor inherits from CSS on .pick-mark.
+$mark_path = get_stylesheet_directory() . '/assets/svg/rowan-mark.svg';
+$mark_svg  = is_readable( $mark_path ) ? file_get_contents( $mark_path ) : '';
+
+// Resolve the refund-policy URL — robust to slug changes / subdirectory installs.
+$refund_page = get_page_by_path( 'refund_returns' );
+$refund_url  = $refund_page ? get_permalink( $refund_page ) : '/refund_returns/';
 ?>
 
 <main id="primary" class="site-main pick-page">
 
   <section class="pick-hero">
-    <img src="<?php echo esc_url( $mark_url ); ?>" alt="" class="pick-mark" />
+    <div class="pick-mark" aria-hidden="true"><?php echo $mark_svg; // safe: hardcoded theme asset ?></div>
     <h1 class="pick-h1">Can't decide? Roen will.</h1>
     <p class="pick-sub">Five hand-picked bracelets. One curated note. $25, shipped within five business days.</p>
 
-    <?php if ( $in_stock && $available > 0 ) : ?>
+    <?php if ( $in_stock ) : ?>
       <form class="pick-cta" method="post" action="<?php echo esc_url( wc_get_cart_url() ); ?>">
         <input type="hidden" name="add-to-cart" value="<?php echo esc_attr( $box_product->get_id() ); ?>" />
         <input type="hidden" name="quantity" value="1" />
         <button type="submit" class="button alt pick-button">Reserve your box — $25</button>
       </form>
-      <p class="pick-availability">
-        <?php printf( esc_html__( '%d %s available right now.', 'roen-minimal' ),
-                      $available, _n( 'box', 'boxes', $available, 'roen-minimal' ) ); ?>
-      </p>
+      <?php if ( $available > 0 ) : ?>
+        <p class="pick-availability">
+          <?php
+          printf(
+              /* translators: 1: count, 2: "box" or "boxes" */
+              esc_html__( '%1$d %2$s available right now.', 'roen-minimal' ),
+              $available,
+              esc_html( _n( 'box', 'boxes', $available, 'roen-minimal' ) )
+          );
+          ?>
+        </p>
+      <?php endif; ?>
     <?php else : ?>
       <button class="button pick-button pick-button--disabled" disabled>Roen is restocking</button>
       <p class="pick-availability">Back soon — usually within a few days.</p>
@@ -61,7 +75,7 @@ $mark_url = get_stylesheet_directory_uri() . '/assets/svg/rowan-mark.svg';
     </details>
     <details>
       <summary>Returns?</summary>
-      <p>Because each box is hand-curated, it's final sale. See <a href="/refund_returns/">refund policy</a> for details.</p>
+      <p>Because each box is hand-curated, it's final sale. See <a href="<?php echo esc_url( $refund_url ); ?>">refund policy</a> for details.</p>
     </details>
     <details>
       <summary>Is it gift-friendly?</summary>
