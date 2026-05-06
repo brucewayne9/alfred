@@ -60,6 +60,131 @@ button { font-family: var(--roen-font-stack); cursor: pointer; }
 .roen-header__nav a { color: inherit; }
 .roen-header__nav a:hover { color: var(--roen-accent); }
 
+/* ---------- Bracelet-box promo banner ----------
+   Sits above the homepage tagline. Wide editorial banner (image is a flat-lay
+   on marble) with overlaid type on the right where the FLUX prompt left
+   negative space. Whole banner is a single anchor → /pick. */
+
+.roen-promo-banner { padding: var(--roen-space-5) 0 0; }
+.roen-promo-banner__link {
+    display: block;
+    position: relative;
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    aspect-ratio: 5 / 1;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+    background: var(--roen-bg-secondary);
+    transition: transform var(--roen-transition);
+}
+.roen-promo-banner__link:hover { transform: translateY(-1px); }
+
+.roen-promo-banner__image {
+    position: absolute;
+    inset: 0;
+    background-image: url('../img/bracelet-box-banner.jpg');
+    background-size: cover;
+    background-position: center;
+    transition: transform 400ms ease;
+}
+.roen-promo-banner__link:hover .roen-promo-banner__image { transform: scale(1.02); }
+
+.roen-promo-banner__overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    padding: var(--roen-space-5) var(--roen-space-6);
+    text-align: right;
+    /* soft right-side gradient so type stays legible over busy areas of the photo */
+    background: linear-gradient(90deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.55) 65%, rgba(255,255,255,0.85) 100%);
+}
+
+.roen-promo-banner__eyebrow {
+    font-size: var(--roen-fs-pdp-eyebrow);
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--roen-text-secondary);
+    margin: 0 0 var(--roen-space-2) 0;
+    line-height: 1;
+}
+.roen-promo-banner__title {
+    font-size: 28px;
+    font-weight: var(--roen-fw-thin);
+    letter-spacing: var(--roen-tracking-body);
+    color: var(--roen-text-primary);
+    margin: 0 0 var(--roen-space-2) 0;
+    line-height: 1.1;
+}
+.roen-promo-banner__caption {
+    font-size: 14px;
+    font-weight: var(--roen-fw-light);
+    color: var(--roen-text-secondary);
+    margin: 0 0 var(--roen-space-3) 0;
+}
+.roen-promo-banner__caption span {
+    color: var(--roen-accent);
+    font-weight: var(--roen-fw-regular);
+}
+.roen-promo-banner__cta {
+    font-size: 12px;
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-button);
+    text-transform: lowercase;
+    color: var(--roen-text-primary);
+    border-bottom: 1px solid var(--roen-text-primary);
+    padding-bottom: 2px;
+    transition: color var(--roen-transition), border-color var(--roen-transition);
+}
+.roen-promo-banner__link:hover .roen-promo-banner__cta {
+    color: var(--roen-accent);
+    border-color: var(--roen-accent);
+}
+
+/* Tablet: a bit more vertical room and stronger gradient so type stays legible
+   when there's less photo to fade through. */
+@media (max-width: 1023px) and (min-width: 601px) {
+    .roen-promo-banner__link { aspect-ratio: 4 / 1; }
+    .roen-promo-banner__overlay {
+        background: linear-gradient(90deg, rgba(255,255,255,0) 25%, rgba(255,255,255,0.65) 55%, rgba(255,255,255,0.92) 100%);
+    }
+    .roen-promo-banner__title { font-size: 24px; }
+}
+
+/* Mobile: stack the photo on top and the type underneath — overlay-on-image
+   never works at narrow widths because either the photo or the type loses.
+   Image keeps a 5:2 strip aspect (matches the desktop hero feel). */
+@media (max-width: 600px) {
+    .roen-promo-banner__link {
+        aspect-ratio: auto;
+        display: flex;
+        flex-direction: column;
+        background: var(--roen-bg-secondary);
+    }
+    .roen-promo-banner__image {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        aspect-ratio: 5 / 2;
+        flex: 0 0 auto;
+    }
+    .roen-promo-banner__overlay {
+        position: relative;
+        inset: auto;
+        background: var(--roen-bg-secondary);
+        padding: var(--roen-space-5) var(--roen-space-4) var(--roen-space-4);
+        align-items: center;
+        text-align: center;
+    }
+    .roen-promo-banner__title { font-size: 22px; margin-bottom: var(--roen-space-2); }
+    .roen-promo-banner__caption { margin-bottom: var(--roen-space-3); }
+}
+
 /* ---------- Tagline ---------- */
 
 .roen-tagline { padding: var(--roen-space-7) 0 var(--roen-space-5); text-align: center; }

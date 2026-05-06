@@ -88,6 +88,11 @@ backups/
 *.jpeg
 *.png
 
+# Theme assets ship with the codebase — un-ignore them.
+!services/roen-minimal/assets/img/*.jpg
+!services/roen-minimal/assets/img/*.jpeg
+!services/roen-minimal/assets/img/*.png
+
 # Claude agent/skill configs
 .agents/
 .claude/skills/
@@ -97,3 +102,9 @@ ORACLE_AUDIT_*.md
 
 .superpowers/
 .worktrees/
+
+# AG manual screenshot toolchain — local cookies + node_modules + temp shots
+scripts/ag_manuals/.cookies.json
+scripts/ag_manuals/node_modules/
+scripts/ag_manuals/screenshots/
+

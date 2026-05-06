@@ -1,151 +1,247 @@
-/* Roen Bracelet Box — /pick landing page styles
- * Loads only when the page-pick.php template is active.
- * Inherits design tokens from style.css (--roen-accent, --roen-text-*, etc.) */
+/* ============================================================
+   roen-minimal — /pick (the bracelet box) landing page
+   Loaded only on the page-pick.php template.
+   Tokens inherit from style.css (--roen-*).
+   ============================================================ */
 
 .pick-page {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 56px 20px 80px;
-  color: var(--roen-text-primary);
+    max-width: var(--roen-content-max);
+    margin: 0 auto;
+    padding: 0 var(--roen-content-pad-mobile);
+    color: var(--roen-text-primary);
+}
+@media (min-width: 768px) {
+    .pick-page { padding: 0 var(--roen-content-pad-desktop); }
 }
 
+/* ---------- Eyebrow bar — wordmark + section tag ---------- */
+.pick-eyebrow-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--roen-space-4);
+    padding: var(--roen-space-6) 0 var(--roen-space-5);
+    border-bottom: 1px solid var(--roen-hairline);
+    margin-bottom: var(--roen-space-7);
+}
+.pick-wordmark { display: inline-flex; align-items: center; color: var(--roen-text-primary); }
+.pick-wordmark svg { display: block; height: 22px; width: auto; }
+.pick-eyebrow-tag {
+    font-size: var(--roen-fs-pdp-eyebrow);
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--roen-text-secondary);
+}
+
+/* ---------- Hero ---------- */
 .pick-hero {
-  text-align: center;
-  margin-bottom: 56px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--roen-space-6);
+    align-items: center;
+    margin-bottom: var(--roen-space-8);
+}
+@media (min-width: 1024px) {
+    .pick-hero {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--roen-space-8);
+    }
 }
 
-.pick-mark {
-  display: inline-block;
-  color: var(--roen-accent);
-  margin-bottom: 20px;
-  opacity: 0.9;
-  line-height: 0;
+.pick-hero__media {
+    background: var(--roen-bg-secondary);
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+}
+.pick-hero__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.pick-hero__panel { padding: 0; }
+@media (min-width: 1024px) {
+    .pick-hero__panel { padding-right: var(--roen-space-5); }
 }
 
-.pick-mark svg {
-  display: block;
-  width: 72px;
-  height: auto;
+.pick-hero__eyebrow {
+    font-size: var(--roen-fs-pdp-eyebrow);
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--roen-text-secondary);
+    margin: 0 0 var(--roen-space-3) 0;
+    line-height: 1;
+}
+.pick-hero__title {
+    font-size: clamp(28px, 4.5vw, 44px);
+    font-weight: var(--roen-fw-thin);
+    letter-spacing: var(--roen-tracking-body);
+    line-height: 1.1;
+    margin: 0 0 var(--roen-space-4) 0;
+    color: var(--roen-text-primary);
+}
+.pick-hero__sub {
+    font-size: 16px;
+    font-weight: var(--roen-fw-light);
+    color: var(--roen-text-secondary);
+    line-height: 1.65;
+    max-width: 480px;
+    margin: 0 0 var(--roen-space-5) 0;
 }
 
-.pick-h1 {
-  font-family: 'Inter', sans-serif;
-  font-weight: 200;
-  font-size: clamp(36px, 6vw, 56px);
-  letter-spacing: -1.5px;
-  line-height: 1.1;
-  margin: 0 0 16px;
-}
-
-.pick-sub {
-  font-weight: 300;
-  font-size: 17px;
-  color: var(--roen-text-secondary);
-  margin: 0 auto 32px;
-  max-width: 460px;
-  line-height: 1.5;
-}
-
-.pick-cta {
-  margin: 0;
-}
+.pick-cta { margin: 0; }
 
 .pick-button {
-  background: var(--roen-accent) !important;
-  color: #fff !important;
-  border: none !important;
-  padding: 14px 36px !important;
-  font-size: 14px !important;
-  font-weight: 400 !important;
-  letter-spacing: 0.5px !important;
-  text-transform: uppercase !important;
-  border-radius: 0 !important;
-  cursor: pointer;
-  transition: opacity .15s ease;
+    background: var(--roen-text-primary);
+    color: var(--roen-bg-primary);
+    border: 1px solid var(--roen-text-primary);
+    padding: 0 var(--roen-space-6);
+    height: 48px;
+    font-family: var(--roen-font-stack);
+    font-size: 13px;
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-button);
+    text-transform: lowercase;
+    cursor: pointer;
+    transition: background var(--roen-transition), border-color var(--roen-transition), color var(--roen-transition);
+    display: inline-block;
 }
-
-.pick-button:hover { opacity: 0.85; }
-
-.pick-button--disabled {
-  background: #CCC !important;
-  cursor: not-allowed;
+.pick-button:hover,
+.pick-button:focus {
+    background: var(--roen-accent);
+    border-color: var(--roen-accent);
+    color: var(--roen-bg-primary);
+    outline: none;
+}
+.pick-button--disabled,
+.pick-button--disabled:hover {
+    background: var(--roen-bg-secondary);
+    color: var(--roen-text-secondary);
+    border-color: var(--roen-hairline);
+    cursor: not-allowed;
 }
 
 .pick-availability {
-  margin-top: 14px;
-  font-size: 13px;
-  color: var(--roen-text-secondary);
+    margin: var(--roen-space-3) 0 0;
+    font-size: 13px;
+    color: var(--roen-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--roen-space-2);
+}
+.pick-availability__dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #5BA85A;   /* live-stock green */
 }
 
+/* ---------- Section eyebrow ---------- */
+.pick-section-eyebrow {
+    font-size: var(--roen-fs-pdp-eyebrow);
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--roen-text-secondary);
+    text-align: center;
+    margin: 0 0 var(--roen-space-6) 0;
+}
+
+/* ---------- How it works ---------- */
 .pick-howitworks {
-  border-top: 1px solid var(--roen-hairline);
-  border-bottom: 1px solid var(--roen-hairline);
-  padding: 40px 0;
-  margin: 56px 0;
+    border-top: 1px solid var(--roen-hairline);
+    padding: var(--roen-space-7) 0;
+    margin-bottom: var(--roen-space-7);
+}
+.pick-steps {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--roen-space-6);
+}
+@media (min-width: 768px) {
+    .pick-steps { grid-template-columns: repeat(3, 1fr); gap: var(--roen-space-6); }
 }
 
-.pick-howitworks ol {
-  list-style: none;
-  counter-reset: step;
-  padding: 0;
-  margin: 0;
+.pick-step { padding: 0; margin: 0; }
+.pick-step__num {
+    display: block;
+    font-size: 12px;
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    color: var(--roen-accent);
+    margin-bottom: var(--roen-space-2);
+}
+.pick-step__title {
+    font-size: 18px;
+    font-weight: var(--roen-fw-light);
+    letter-spacing: var(--roen-tracking-body);
+    color: var(--roen-text-primary);
+    margin: 0 0 var(--roen-space-2) 0;
+    line-height: 1.3;
+}
+.pick-step__body {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--roen-text-secondary);
+    margin: 0;
 }
 
-.pick-howitworks li {
-  counter-increment: step;
-  position: relative;
-  padding-left: 48px;
-  margin-bottom: 24px;
-  font-size: 16px;
-  line-height: 1.5;
+/* ---------- Unboxing photo ---------- */
+.pick-unboxing {
+    margin: var(--roen-space-7) 0;
+    text-align: center;
+}
+.pick-unboxing__img {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: var(--roen-bg-secondary);
+}
+.pick-unboxing__caption {
+    margin: var(--roen-space-3) 0 0;
+    font-size: var(--roen-fs-pdp-eyebrow);
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--roen-text-secondary);
 }
 
-.pick-howitworks li::before {
-  content: counter(step);
-  position: absolute;
-  left: 0; top: -2px;
-  width: 28px; height: 28px;
-  border: 1px solid var(--roen-accent);
-  color: var(--roen-accent);
-  text-align: center; line-height: 28px;
-  font-size: 13px; font-weight: 300;
+/* ---------- FAQ ---------- */
+.pick-faq {
+    border-top: 1px solid var(--roen-hairline);
+    padding: var(--roen-space-7) 0 var(--roen-space-8);
+    max-width: 720px;
+    margin: 0 auto;
 }
-
-.pick-howitworks li:last-child { margin-bottom: 0; }
-
-.pick-faq h2 {
-  font-weight: 300;
-  font-size: 22px;
-  letter-spacing: -0.3px;
-  margin: 0 0 20px;
-}
-
 .pick-faq details {
-  border-bottom: 1px solid var(--roen-hairline);
-  padding: 16px 0;
+    border-bottom: 1px solid var(--roen-hairline);
+    padding: var(--roen-space-4) 0;
 }
-
 .pick-faq summary {
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 400;
-  list-style: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: var(--roen-fw-regular);
+    color: var(--roen-text-primary);
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-
 .pick-faq summary::-webkit-details-marker { display: none; }
-
 .pick-faq summary::after {
-  content: '+';
-  float: right;
-  color: var(--roen-text-secondary);
-  font-weight: 200;
+    content: '+';
+    color: var(--roen-text-secondary);
+    font-weight: var(--roen-fw-thin);
+    font-size: 18px;
+    line-height: 1;
+    transition: transform var(--roen-transition);
 }
-
 .pick-faq details[open] summary::after { content: '−'; }
-
 .pick-faq p {
-  margin: 12px 0 0;
-  font-size: 14px;
-  color: var(--roen-text-secondary);
-  line-height: 1.55;
+    margin: var(--roen-space-3) 0 0;
+    font-size: 14px;
+    color: var(--roen-text-secondary);
+    line-height: 1.7;
 }

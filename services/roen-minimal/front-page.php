@@ -13,13 +13,38 @@ get_header();
 
 // Pull product categories that have at least 1 published product.
 // (hide_empty filters by attached post count, not stock status.)
+// Drop the WP-default "Uncategorized" bucket — products without a real
+// category land there silently and we never want it as a browsable pill.
 $product_cats = get_terms( array(
 	'taxonomy'   => 'product_cat',
 	'hide_empty' => true,
 	'orderby'    => 'name',
 	'order'      => 'ASC',
 ) );
+if ( ! is_wp_error( $product_cats ) && is_array( $product_cats ) ) {
+	$product_cats = array_values( array_filter( $product_cats, function ( $cat ) {
+		return $cat->slug !== 'uncategorized' && strtolower( $cat->name ) !== 'uncategorized';
+	} ) );
+}
+
+// Bracelet-box promo banner — points at /pick. Background image is loaded
+// via stylesheet so we can swap it without editing this template.
+$pick_url = home_url( '/pick/' );
 ?>
+
+<section class="roen-promo-banner" aria-label="<?php esc_attr_e( 'Roen bracelet box', 'roen-minimal' ); ?>">
+	<div class="roen-container">
+		<a class="roen-promo-banner__link" href="<?php echo esc_url( $pick_url ); ?>">
+			<div class="roen-promo-banner__image" role="img" aria-label="<?php esc_attr_e( 'Five handmade bracelets arranged on marble', 'roen-minimal' ); ?>"></div>
+			<div class="roen-promo-banner__overlay">
+				<p class="roen-promo-banner__eyebrow">curated</p>
+				<h2 class="roen-promo-banner__title">the bracelet box</h2>
+				<p class="roen-promo-banner__caption">five handmade pieces &middot; <span>$25</span></p>
+				<span class="roen-promo-banner__cta">shop the box &rarr;</span>
+			</div>
+		</a>
+	</div>
+</section>
 
 <section class="roen-tagline">
 	<div class="roen-container">
