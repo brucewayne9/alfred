@@ -128,3 +128,68 @@ add_filter( 'woocommerce_quantity_input_args', function ( $args, $product ) {
     }
     return $args;
 }, 10, 2 );
+
+/**
+ * On cancel/refund of an order containing the box SKU: trigger a stock
+ * recompute and add an admin note. The bot's pick records (in jewelry.db)
+ * remain in their last state — Mike or Sarah can manually mark the
+ * specific pick session as cancelled if needed. For v1 the customer-facing
+ * fix is the stock recompute; pick-record cleanup is best-effort manual.
+ */
+add_action( 'woocommerce_order_status_cancelled', 'roen_box_handle_order_void' );
+add_action( 'woocommerce_order_status_refunded',  'roen_box_handle_order_void' );
+
+function roen_box_handle_order_void( $order_id ) {
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        return;
+    }
+
+    $has_box = false;
+    foreach ( $order->get_items() as $item ) {
+        $product = $item->get_product();
+        if ( $product && $product->get_sku() === ROEN_BOX_SKU ) {
+            $has_box = true;
+            break;
+        }
+    }
+    if ( ! $has_box ) {
+        return;
+    }
+
+    roen_box_recompute_stock();
+
+    $order->add_order_note( sprintf(
+        'Box order #%d voided. Reserved bracelets may need manual restock — check the bot pick record.',
+        $order_id
+    ) );
+}
+
+/**
+ * WC orders admin column — flags which orders contain the bracelet-box SKU
+ * with a 📦 icon and the qty. Lets Mike scan the list for box-containing
+ * orders without opening each one.
+ */
+add_filter( 'manage_edit-shop_order_columns', function ( $cols ) {
+    $cols['roen_box_pick'] = '📦 Box';
+    return $cols;
+} );
+
+add_action( 'manage_shop_order_posts_custom_column', function ( $col, $post_id ) {
+    if ( $col !== 'roen_box_pick' ) {
+        return;
+    }
+    $order = wc_get_order( $post_id );
+    if ( ! $order ) {
+        return;
+    }
+    foreach ( $order->get_items() as $item ) {
+        $product = $item->get_product();
+        if ( $product && $product->get_sku() === ROEN_BOX_SKU ) {
+            $qty = (int) $item->get_quantity();
+            echo '<span title="contains bracelet-box, qty ' . esc_attr( $qty ) . '">📦 ' . esc_html( $qty ) . '</span>';
+            return;
+        }
+    }
+    echo '—';
+}, 10, 2 );
