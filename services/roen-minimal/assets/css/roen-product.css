@@ -1,37 +1,84 @@
 /* ============================================================
-   roen-minimal — single product page
+   roen-minimal — single product page (Option C rebuild)
+
+   Composition rules:
+   - PDP-only container: 1080px (vs 1280 shop) — tighter, more intimate.
+   - 50/50 grid on desktop with a sticky summary column.
+   - Gallery is a single hero image with a thumb STRIP underneath
+     (no vertical 80px right-rail). Frames the product cleanly.
+   - ATC button is capped, not stretched. Hairlines section the
+     summary panel into eyebrow / title / price / actions / meta.
    ============================================================ */
+
+/* Product-specific container override — kicks in only when the
+   single-product wrapper carries the .roen-container--product modifier. */
+.roen-container--product {
+    max-width: var(--roen-product-max);
+}
+@media (min-width: 768px) {
+    .roen-container--product { padding: 0 var(--roen-product-pad-desktop); }
+}
 
 .roen-single {
     padding-top: var(--roen-space-6);
     padding-bottom: var(--roen-space-8);
 }
 
-.roen-single .product {
+/* IMPORTANT: scope to direct child only — `.product` is also the class on
+   each <li> in the related-products grid, and we don't want this 1fr-1fr
+   layout exploding those cards. */
+.roen-single > .product {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--roen-space-5);
 }
 @media (min-width: 1024px) {
-    .roen-single .product {
-        grid-template-columns: 60fr 40fr;
-        gap: var(--roen-space-7);
+    .roen-single > .product {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--roen-space-8);
+        align-items: start;       /* required for sticky summary below */
     }
 }
 
-/* ---------- Custom gallery (replaces WC Flexslider) ---------- */
+/* Storefront's parent CSS floats .summary right via the right-sidebar body
+   class. Our grid wins on display, but the parent *also* sets float that
+   re-arranges grid items. Lock placement explicitly so our gallery is
+   always column-1 (left) and summary column-2 (right). */
+.roen-single > .product > .roen-gallery,
+.roen-single > .product > .woocommerce-product-gallery {
+    grid-column: 1;
+    grid-row: 1;
+    width: auto;
+    float: none;
+    order: 1;
+}
+.roen-single > .product > .summary {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    float: none;
+    order: 2;
+    margin: 0;
+}
+@media (max-width: 1023px) {
+    .roen-single > .product > .roen-gallery,
+    .roen-single > .product > .woocommerce-product-gallery,
+    .roen-single > .product > .summary {
+        grid-column: 1;
+        grid-row: auto;
+    }
+}
+
+/* ---------- Gallery ----------
+   Mobile: single column (main image, then thumbs as 4-col grid below).
+   Desktop: stays single column inside its grid cell — main image
+   anchored top, horizontal thumb strip flush underneath.
+*/
 
 .roen-gallery {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--roen-space-3);
-}
-@media (min-width: 768px) {
-    .roen-gallery {
-        grid-template-columns: 1fr 80px;
-        gap: var(--roen-space-4);
-        align-items: start;
-    }
 }
 
 .roen-gallery__main {
@@ -41,7 +88,8 @@
     order: 1;
 }
 .roen-gallery__main-img {
-    width: 100%; height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     display: block;
     transition: opacity 0.18s ease;
@@ -50,15 +98,18 @@
 
 .roen-gallery__thumbs {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: var(--roen-space-2);
     order: 2;
 }
 @media (min-width: 768px) {
     .roen-gallery__thumbs {
-        grid-template-columns: 1fr;
-        grid-auto-rows: 80px;
+        grid-template-columns: repeat(6, 1fr);
+        gap: var(--roen-space-2);
     }
+}
+@media (max-width: 480px) {
+    .roen-gallery__thumbs { grid-template-columns: repeat(4, 1fr); }
 }
 
 .roen-gallery__thumb {
@@ -69,7 +120,7 @@
     overflow: hidden;
     cursor: pointer;
     transition: border-color var(--roen-transition), opacity var(--roen-transition);
-    opacity: 0.6;
+    opacity: 0.55;
 }
 .roen-gallery__thumb:hover { opacity: 1; }
 .roen-gallery__thumb.is-active {
@@ -77,94 +128,250 @@
     opacity: 1;
 }
 .roen-gallery__thumb img {
-    width: 100%; height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     display: block;
 }
 
+/* ---------- Summary panel ----------
+   Sticky on desktop so as the buyer scrolls down past tabs/long
+   descriptions, the price + buy stays in view. Disabled below 1024
+   because there's nothing to sit alongside. */
 .roen-single .summary {
-    padding: var(--roen-space-3) 0;
+    padding: var(--roen-space-2) 0 0;
+}
+@media (min-width: 1024px) {
+    .roen-single .summary {
+        position: sticky;
+        top: var(--roen-space-5);
+        align-self: start;
+        max-height: calc(100vh - var(--roen-space-5));
+        overflow-y: auto;
+    }
+}
+
+/* Eyebrow tag — small uppercase category line above the title.
+   Injected via roen_product_eyebrow() hook in functions.php. */
+.roen-single__eyebrow {
+    font-size: var(--roen-fs-pdp-eyebrow);
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--roen-text-secondary);
+    margin: 0 0 var(--roen-space-3) 0;
+    line-height: 1;
 }
 
 .roen-single .product_title {
-    font-size: 28px;
+    font-size: var(--roen-fs-pdp-title);
     font-weight: var(--roen-fw-thin);
     letter-spacing: var(--roen-tracking-body);
     margin: 0 0 var(--roen-space-3) 0;
-    line-height: 1.2;
+    line-height: 1.15;
+    color: var(--roen-text-primary);
 }
 
 .roen-single__price {
-    font-size: 20px;
+    font-size: var(--roen-fs-pdp-price);
     font-weight: var(--roen-fw-light);
     color: var(--roen-text-primary);
     margin: 0 0 var(--roen-space-5) 0;
+    letter-spacing: var(--roen-tracking-product);
 }
 .roen-single__price del { color: var(--roen-text-secondary); margin-right: 8px; }
 .roen-single__price ins { color: var(--roen-accent); text-decoration: none; }
 
+/* Short description — sits between price and ATC. */
 .roen-single .woocommerce-product-details__short-description {
     color: var(--roen-text-primary);
+    font-size: var(--roen-fs-pdp-desc);
     line-height: 1.7;
-    margin-bottom: var(--roen-space-5);
+    margin: 0 0 var(--roen-space-5) 0;
 }
 
-/* ATC form */
+/* Hairline rule above the buy region — visually separates "what" from "act". */
 .roen-atc-form {
+    border-top: 1px solid var(--roen-hairline);
+    padding-top: var(--roen-space-5);
     display: flex;
-    align-items: stretch;
+    align-items: center;
     gap: var(--roen-space-3);
     flex-wrap: wrap;
-    margin-bottom: var(--roen-space-5);
+    margin-bottom: var(--roen-space-4);
 }
-.roen-atc-form .quantity {
-    display: flex; align-items: stretch;
-}
+
+.roen-atc-form .quantity { display: flex; align-items: stretch; }
 .roen-atc-form .quantity input.qty {
-    width: 64px;
-    padding: 0 12px;
+    width: 56px;
+    padding: 0 10px;
     border: 1px solid var(--roen-hairline);
     background: var(--roen-bg-primary);
+    font-family: var(--roen-font-stack);
     font-size: 14px;
     text-align: center;
     height: 44px;
+    transition: border-color var(--roen-transition);
+}
+.roen-atc-form .quantity input.qty:focus {
+    outline: none;
+    border-color: var(--roen-text-primary);
 }
 
 .roen-atc-btn {
-    background: var(--roen-accent);
+    background: var(--roen-text-primary);
     color: var(--roen-bg-primary);
-    border: none;
+    border: 1px solid var(--roen-text-primary);
     padding: 0 var(--roen-space-6);
     height: 44px;
-    font-size: 13px;
+    font-size: var(--roen-fs-pdp-button);
     font-weight: var(--roen-fw-medium);
-    letter-spacing: 1px;
+    letter-spacing: var(--roen-tracking-button);
     text-transform: lowercase;
     cursor: pointer;
-    transition: background var(--roen-transition);
-    flex: 1 1 auto;
-    min-width: 200px;
+    transition: background var(--roen-transition), color var(--roen-transition), border-color var(--roen-transition);
+    flex: 1 1 200px;
+    max-width: 280px;     /* don't let it stretch the whole column */
+    min-width: 180px;
 }
-.roen-atc-btn:hover, .roen-atc-btn:focus { background: var(--roen-accent-hover); }
+.roen-atc-btn:hover,
+.roen-atc-btn:focus {
+    background: var(--roen-accent);
+    border-color: var(--roen-accent);
+    color: var(--roen-bg-primary);
+    outline: none;
+}
 
 @media (max-width: 767px) {
-    .roen-atc-form { flex-direction: column; }
-    .roen-atc-btn { width: 100%; min-width: 0; }
+    .roen-atc-form { flex-direction: row; }
+    .roen-atc-btn { flex: 1 1 auto; max-width: none; }
 }
 
-/* Stock + tabs */
-.roen-single .stock { font-size: 13px; color: var(--roen-text-secondary); margin-bottom: var(--roen-space-3); }
+/* Stock status — small, secondary, terracotta only when out. */
+.roen-single .stock {
+    font-size: var(--roen-fs-pdp-meta);
+    color: var(--roen-text-secondary);
+    margin: 0 0 var(--roen-space-3) 0;
+    letter-spacing: 0.2px;
+}
 .roen-single .out-of-stock { color: var(--roen-accent); }
 
-.woocommerce-tabs {
+/* Product meta (SKU, categories, tags) — small, hairline-separated. */
+.roen-single .product_meta {
+    font-size: var(--roen-fs-pdp-meta);
+    color: var(--roen-text-secondary);
     border-top: 1px solid var(--roen-hairline);
-    padding-top: var(--roen-space-6);
-    margin-top: var(--roen-space-7);
+    padding-top: var(--roen-space-4);
+    margin-top: var(--roen-space-3);
+    line-height: 1.9;
+}
+.roen-single .product_meta > span { display: block; }
+.roen-single .product_meta a {
+    color: var(--roen-text-secondary);
+    text-decoration: none;
+}
+.roen-single .product_meta a:hover { color: var(--roen-accent); }
+.roen-single .product_meta .sku_wrapper,
+.roen-single .product_meta .posted_in,
+.roen-single .product_meta .tagged_as { letter-spacing: 0.2px; }
+
+/* ---------- Tabs (full-width, below grid) ---------- */
+.woocommerce-tabs {
     grid-column: 1 / -1;
+    border-top: 1px solid var(--roen-hairline);
+    padding-top: var(--roen-space-7);
+    margin-top: var(--roen-space-7);
+}
+.woocommerce-tabs ul.tabs {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    gap: var(--roen-space-6);
+    margin: 0 0 var(--roen-space-5) 0;
+    border-bottom: 1px solid var(--roen-hairline);
+}
+.woocommerce-tabs ul.tabs li {
+    padding: 0 0 var(--roen-space-2) 0;
+    margin-bottom: -1px;          /* overlap parent border for active state */
+}
+.woocommerce-tabs ul.tabs li a {
+    font-size: var(--roen-fs-pdp-meta);
+    text-transform: uppercase;
+    letter-spacing: var(--roen-tracking-eyebrow);
+    color: var(--roen-text-secondary);
+    transition: color var(--roen-transition);
+}
+.woocommerce-tabs ul.tabs li.active {
+    border-bottom: 1px solid var(--roen-text-primary);
+}
+.woocommerce-tabs ul.tabs li.active a { color: var(--roen-text-primary); }
+.woocommerce-tabs ul.tabs li:hover a { color: var(--roen-text-primary); }
+
+.woocommerce-tabs .panel {
+    font-size: var(--roen-fs-pdp-desc);
+    line-height: 1.7;
+    color: var(--roen-text-primary);
+    max-width: 720px;          /* readable line-length on wide screens */
+}
+.woocommerce-tabs .panel h2 { display: none; }   /* tab panel echo of tab name — redundant */
+
+/* ---------- Related products ---------- */
+/* Storefront ships these as a floated multi-column blob with its own column
+   classes (.columns-3, .columns-4 etc). Override to match our shop archive
+   grid aesthetic — same card silhouette, same hairline-clean treatment. */
+
+.roen-single .related.products,
+.roen-single .upsells.products {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--roen-hairline);
+    padding-top: var(--roen-space-7);
+    margin-top: var(--roen-space-7);
 }
 
-.woocommerce-tabs ul.tabs { list-style: none; padding: 0; display: flex; gap: var(--roen-space-5); margin: 0 0 var(--roen-space-5) 0; border-bottom: 1px solid var(--roen-hairline); }
-.woocommerce-tabs ul.tabs li { padding: 0 0 var(--roen-space-2) 0; }
-.woocommerce-tabs ul.tabs li a { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--roen-text-secondary); }
-.woocommerce-tabs ul.tabs li.active { border-bottom: 1px solid var(--roen-accent); }
-.woocommerce-tabs ul.tabs li.active a { color: var(--roen-text-primary); }
+.roen-single .related.products > h2,
+.roen-single .upsells.products > h2 {
+    font-size: var(--roen-fs-pdp-eyebrow);
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--roen-text-secondary);
+    margin: 0 0 var(--roen-space-5) 0;
+    text-align: center;
+}
+
+/* The theme overrides content-product.php and renders each loop item as
+   <li class="roen-card">, with internal .roen-card__media / __img / __title /
+   __price (already styled in roen.css for the shop archive). So here we only
+   need to give ul.products a grid layout — the cards style themselves. */
+.roen-single ul.products,
+.roen-single .related.products ul.products,
+.roen-single .upsells.products ul.products {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--roen-space-4);
+}
+@media (min-width: 768px) {
+    .roen-single ul.products,
+    .roen-single .related.products ul.products,
+    .roen-single .upsells.products ul.products {
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--roen-space-5);
+    }
+}
+
+/* Strip Storefront's float-based loop styling — overrides only.
+   .roen-card structure (link/media/body/title/price) inherits from roen.css. */
+.roen-single ul.products li.roen-card {
+    width: auto !important;
+    float: none !important;
+    margin: 0 !important;
+    clear: none !important;
+    list-style: none;
+}
+
+/* Hide the floating prev/next product pagination if the parent-theme hook
+   didn't fire (belt-and-braces). */
+.storefront-product-pagination { display: none !important; }

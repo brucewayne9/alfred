@@ -106,6 +106,30 @@ add_filter( 'woocommerce_get_image_size_thumbnail', 'roen_image_size_thumbnail',
 add_action( 'after_setup_theme', 'roen_theme_supports' );
 
 /**
+ * Single-product page: print a small uppercase category eyebrow above the title.
+ * Hooks at priority 4 — woocommerce_template_single_title runs at 5, so we land
+ * just before it. Falls back silently if the product has no category assigned.
+ */
+function roen_product_eyebrow() {
+    if ( ! function_exists( 'is_product' ) || ! is_product() ) {
+        return;
+    }
+    global $product;
+    if ( ! $product instanceof WC_Product ) {
+        return;
+    }
+    $terms = get_the_terms( $product->get_id(), 'product_cat' );
+    if ( ! $terms || is_wp_error( $terms ) ) {
+        return;
+    }
+    // Pick the most-specific category (deepest term) so "bracelet > beaded" picks "beaded".
+    usort( $terms, function ( $a, $b ) { return $b->term_id - $a->term_id; } );
+    $name = $terms[0]->name;
+    echo '<p class="roen-single__eyebrow">' . esc_html( strtoupper( $name ) ) . '</p>';
+}
+add_action( 'woocommerce_single_product_summary', 'roen_product_eyebrow', 4 );
+
+/**
  * Storefront cleanup (header credits, default homepage components, etc.)
  */
 require_once get_stylesheet_directory() . '/inc/theme-cleanup.php';

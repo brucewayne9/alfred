@@ -211,6 +211,151 @@ button { font-family: var(--roen-font-stack); cursor: pointer; }
 }
 .roen-footer__col a:hover { color: var(--roen-accent); }
 
+/* ---------- No-sidebar layout (site-wide) ----------
+   sidebar-1 + sidebar-shop are unregistered in theme-cleanup.php and the
+   storefront_layout mod is filtered to 'content', but Storefront ships
+   .right-sidebar / .left-sidebar rules with floats and percentage widths
+   that still apply if the body class lingers from a saved Customizer value.
+   Override with body-scoped specificity (no !important on max-width so
+   per-page containers below can still constrain). */
+
+#secondary,
+.widget-area,
+.sidebar { display: none !important; }
+
+body #primary,
+body .content-area,
+body .site-main {
+    width: 100%;
+    float: none;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* ---------- Page title (cart, checkout, account, etc.) ----------
+   Storefront prints the H1 inside <header class="entry-header"> on the page
+   template. Center inside our container so it doesn't hang off-edge. */
+
+.woocommerce-cart .entry-header,
+.woocommerce-checkout .entry-header,
+.woocommerce-account .entry-header,
+.page-template-default .entry-header,
+.archive .page-header,
+.search .page-header {
+    max-width: var(--roen-content-max);
+    margin: 0 auto;
+    padding: var(--roen-space-7) var(--roen-content-pad-mobile) var(--roen-space-3);
+}
+@media (min-width: 768px) {
+    .woocommerce-cart .entry-header,
+    .woocommerce-checkout .entry-header,
+    .woocommerce-account .entry-header,
+    .page-template-default .entry-header,
+    .archive .page-header,
+    .search .page-header {
+        padding: var(--roen-space-7) var(--roen-content-pad-desktop) var(--roen-space-3);
+    }
+}
+.entry-header .entry-title,
+.page-header .entry-title {
+    font-size: 28px;
+    font-weight: var(--roen-fw-thin);
+    letter-spacing: var(--roen-tracking-body);
+    margin: 0 0 var(--roen-space-3) 0;
+    color: var(--roen-text-primary);
+}
+
+/* ---------- Cart + Checkout (block-based and classic shortcode) ----------
+   WC 10.7 ships block-based cart/checkout (.wp-block-woocommerce-cart,
+   .wp-block-woocommerce-checkout). Wrap them in our container so margins
+   match the rest of the site. Also covers any classic shortcode fallback. */
+
+.woocommerce-cart .entry-content,
+.woocommerce-checkout .entry-content,
+.woocommerce-account .entry-content {
+    max-width: var(--roen-content-max);
+    margin: 0 auto;
+    padding: 0 var(--roen-content-pad-mobile) var(--roen-space-8);
+}
+@media (min-width: 768px) {
+    .woocommerce-cart .entry-content,
+    .woocommerce-checkout .entry-content,
+    .woocommerce-account .entry-content {
+        padding: 0 var(--roen-content-pad-desktop) var(--roen-space-8);
+    }
+}
+
+/* Block-based cart/checkout — neutralize the alignwide / alignfull stretch
+   the editor inserts. */
+.woocommerce-cart .wp-block-woocommerce-cart,
+.woocommerce-checkout .wp-block-woocommerce-checkout {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* Empty-cart state — center the message + smile and give it breathing room. */
+.wc-empty-cart-message,
+.cart-empty {
+    text-align: center;
+    font-size: 16px;
+    color: var(--roen-text-secondary);
+    padding: var(--roen-space-7) 0 var(--roen-space-6);
+    margin: 0 auto;
+    max-width: 480px;
+    border-bottom: 1px solid var(--roen-hairline);
+}
+
+/* Cross-sell / "New in store" / suggested products on cart page —
+   re-use our shop-archive grid look, but constrained to the container. */
+.cross-sells,
+.woocommerce-cart .cross-sells {
+    max-width: var(--roen-content-max);
+    margin: var(--roen-space-7) auto 0;
+}
+.cross-sells > h2 {
+    font-size: var(--roen-fs-pdp-eyebrow);
+    font-weight: var(--roen-fw-medium);
+    letter-spacing: var(--roen-tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--roen-text-secondary);
+    text-align: center;
+    margin: 0 0 var(--roen-space-5) 0;
+}
+
+/* Cart line items + totals (classic table fallback for any non-block cart) */
+.woocommerce-cart-form,
+.woocommerce-cart .cart_totals {
+    max-width: 100%;
+}
+.woocommerce-cart-form .shop_table {
+    border: none;
+    border-top: 1px solid var(--roen-hairline);
+}
+.woocommerce-cart-form .shop_table th {
+    font-size: var(--roen-fs-pdp-eyebrow);
+    text-transform: uppercase;
+    letter-spacing: var(--roen-tracking-eyebrow);
+    color: var(--roen-text-secondary);
+    font-weight: var(--roen-fw-medium);
+    padding: var(--roen-space-3) var(--roen-space-2);
+    border-bottom: 1px solid var(--roen-hairline);
+}
+.woocommerce-cart-form .shop_table td {
+    padding: var(--roen-space-4) var(--roen-space-2);
+    border-top: 1px solid var(--roen-hairline);
+    border-bottom: none;
+}
+
+.cart-collaterals {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--roen-space-6);
+    margin-top: var(--roen-space-6);
+}
+@media (min-width: 1024px) {
+    .cart-collaterals { grid-template-columns: 1fr 1fr; }
+}
+
 /* ---------- About ---------- */
 
 .roen-about { max-width: 640px; padding-top: var(--roen-space-7); padding-bottom: var(--roen-space-8); }

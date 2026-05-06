@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 get_header( 'shop' );
 ?>
 
-<section class="roen-single roen-container">
+<section class="roen-single roen-container roen-container--product">
     <?php while ( have_posts() ) : the_post(); ?>
         <?php wc_get_template_part( 'content', 'single-product' ); ?>
     <?php endwhile; ?>

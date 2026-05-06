@@ -36,6 +36,16 @@ Text Domain: roen-minimal
   --roen-fs-nav: 13px;
   --roen-fs-footer: 12px;
 
+  /* Single-product typography ladder */
+  --roen-fs-pdp-eyebrow: 11px;
+  --roen-fs-pdp-title: 34px;
+  --roen-fs-pdp-price: 19px;
+  --roen-fs-pdp-desc: 14px;
+  --roen-fs-pdp-meta: 12px;
+  --roen-fs-pdp-button: 12px;
+  --roen-tracking-eyebrow: 1.8px;
+  --roen-tracking-button: 1px;
+
   /* Spacing scale */
   --roen-space-1: 4px;
   --roen-space-2: 8px;
@@ -48,8 +58,10 @@ Text Domain: roen-minimal
 
   /* Layout */
   --roen-content-max: 1280px;
+  --roen-product-max: 1080px;        /* tighter container for single-product pages */
   --roen-content-pad-mobile: 20px;
   --roen-content-pad-desktop: 48px;
+  --roen-product-pad-desktop: 56px;  /* product page gets a touch more breathing room */
   --roen-breakpoint-mobile: 768px;
   --roen-breakpoint-tablet: 1024px;
 
