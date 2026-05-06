@@ -18,6 +18,7 @@ sys.path.insert(0, "/home/aialfred/alfred")
 import requests
 
 from config.settings import Settings
+from core.jewelry import db as core_db
 from core.jewelry.bracelet_box import db as box_db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -41,6 +42,9 @@ def _load_env() -> dict:
 
 
 def main() -> int:
+    # Idempotent — applies pending schema migrations if the bot hasn't run yet.
+    core_db.init()
+
     env = _load_env()
     token = env.get("TELEGRAM_BOT_ROENHANDMADE_TOKEN", "").strip()
     if not token:
