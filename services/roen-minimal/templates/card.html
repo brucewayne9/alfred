@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page {
+      size: 105mm 148mm;
+      margin: 0;
+    }
+    @font-face {
+      font-family: 'Inter';
+      src: local('Inter');
+      font-weight: 200 500;
+    }
+    html, body {
+      width: 105mm;
+      height: 148mm;
+      margin: 0;
+      padding: 0;
+      background: #FAF9F6;
+      color: #1A1A1A;
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+      font-size: 11pt;
+    }
+    .card {
+      box-sizing: border-box;
+      width: 105mm;
+      height: 148mm;
+      padding: 14mm 14mm 12mm;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 8mm;
+    }
+    /* The inlined rowan-mark SVG carries stroke="currentColor".
+       Setting color here drives the terracotta brand mark. */
+    .mark {
+      color: #B85C3D;
+      line-height: 0;
+      margin: 0 auto 5mm;
+    }
+    .mark svg {
+      display: block;
+      width: 36mm;
+      height: auto;
+      margin: 0 auto;
+    }
+    .wordmark {
+      font-size: 20pt;
+      font-weight: 200;
+      letter-spacing: -1px;
+      margin: 0 0 3mm;
+    }
+    .header-rule {
+      width: 80%;
+      height: 0;
+      margin: 0 auto;
+      border: 0;
+      border-top: 0.5pt solid #EEEEEE;
+    }
+    .body {
+      flex: 1;
+      text-align: left;
+      line-height: 1.55;
+    }
+    .recipient {
+      margin: 0 0 4mm;
+    }
+    .note {
+      margin: 0 0 5mm;
+    }
+    .pieces {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 5mm 1ch;
+      font-style: italic;
+      font-size: 9pt;
+      color: #444;
+    }
+    .pieces li {
+      margin: 0 0 1mm;
+    }
+    .signoff {
+      margin: 0;
+    }
+    .footer {
+      text-align: right;
+      font-size: 8pt;
+      color: #888888;
+      margin-top: 5mm;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="mark">{{ rowan_mark | safe }}</div>
+      <h1 class="wordmark">roen</h1>
+      <hr class="header-rule" />
+    </div>
+    <div class="body">
+      {% if recipient %}
+        <p class="recipient">for {{ recipient }},</p>
+      {% endif %}
+      <p class="note">{{ note_body }}</p>
+      <ul class="pieces">
+        {% for p in piece_names %}<li>{{ p }}</li>{% endfor %}
+      </ul>
+      <p class="signoff">{{ signoff }}</p>
+    </div>
+    <div class="footer">roenhandmade.com</div>
+  </div>
+</body>
+</html>
