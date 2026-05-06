@@ -66,6 +66,12 @@ class Settings(BaseSettings):
 
     # Stripe
     stripe_api_key: str = ""
+    stripe_fitasruck_webhook_secret: str = ""
+
+    # Fit as Ruck
+    brevo_fitasruck_rest_key: str = ""
+    fitasruck_pdf_url: str = "https://fitasruck.com/wp-content/uploads/fitasruck-130859f216d7fbb0/fitasruck-8week.pdf"
+    fitasruck_buyers_list_id: int = 3
 
     # AzuraCast Radio
     azuracast_url: str = ""
@@ -77,6 +83,10 @@ class Settings(BaseSettings):
     meta_access_token: str = ""
     meta_ad_account_id: str = ""
 
+    # Telegram (Alfred bot)
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = "7582976864"
+
     # Long Processing Notifications
     long_processing_threshold_seconds: int = 60
     long_processing_email_to: str = ""
@@ -86,6 +96,12 @@ class Settings(BaseSettings):
     vapid_private_key: str = ""
     vapid_public_key: str = ""
     vapid_contact_email: str = ""
+
+    # Roen Handmade — WooCommerce REST API
+    # Generate at WP Admin → WooCommerce → Settings → Advanced → REST API
+    # Permission: Read/Write. Add to config/.env as WC_ROEN_KEY / WC_ROEN_SECRET.
+    wc_roen_key: str = ""
+    wc_roen_secret: str = ""
 
     @property
     def database_url(self) -> str:
