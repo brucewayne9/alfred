@@ -633,6 +633,41 @@ def _send_help(chat_id: int, reply_to: Optional[int]) -> None:
     send_message(chat_id, msg, reply_to=reply_to)
 
 
+# Telegram sendMessage hard-caps text at 4096 chars. Stay safely under that
+# so HTML entities and reply markup don't tip us over.
+TELEGRAM_TEXT_LIMIT = 3800
+
+
+def _format_intake_line(r) -> str:
+    if r["woocommerce_post_id"]:
+        name = r["seo_title"] or "(unnamed)"
+        price = f"${r['price_cents']/100:.2f}" if r["price_cents"] else "?"
+        return (
+            f"#{r['woocommerce_post_id']}  <b>{name}</b>  {price}  [{r['status']}]\n"
+            f"  {preview_url(r['woocommerce_post_id'])}"
+        )
+    n_photos = len(_photos_of(r))
+    return f"#intake-{r['id']}  ({n_photos} photos)  [{r['status']}]"
+
+
+def _send_chunked(chat_id: int, header: str, lines: List[str], reply_to: Optional[int] = None) -> None:
+    """Send `header` plus `lines`, splitting into multiple messages so each stays under Telegram's limit."""
+    chunks: List[str] = []
+    current = header
+    for line in lines:
+        candidate = current + "\n" + line if current else line
+        if len(candidate) > TELEGRAM_TEXT_LIMIT:
+            if current:
+                chunks.append(current)
+            current = line
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    for i, chunk in enumerate(chunks):
+        send_message(chat_id, chunk, reply_to=reply_to if i == 0 else None)
+
+
 def _send_today(chat_id: int, reply_to: Optional[int]) -> None:
     """List every draft created today with preview links."""
     import datetime as _dt
@@ -641,19 +676,9 @@ def _send_today(chat_id: int, reply_to: Optional[int]) -> None:
     if not rows:
         send_message(chat_id, "Nothing today yet, sir.", reply_to=reply_to)
         return
-    lines = [f"<b>Today's drafts</b> ({len(rows)})", ""]
-    for r in rows:
-        if r["woocommerce_post_id"]:
-            name = r["seo_title"] or "(unnamed)"
-            price = f"${r['price_cents']/100:.2f}" if r["price_cents"] else "?"
-            lines.append(
-                f"#{r['woocommerce_post_id']}  <b>{name}</b>  {price}  [{r['status']}]\n"
-                f"  {preview_url(r['woocommerce_post_id'])}"
-            )
-        else:
-            n_photos = len(_photos_of(r))
-            lines.append(f"#intake-{r['id']}  ({n_photos} photos)  [{r['status']}]")
-    send_message(chat_id, "\n".join(lines), reply_to=reply_to)
+    header = f"<b>Today's drafts</b> ({len(rows)})\n"
+    lines = [_format_intake_line(r) for r in rows]
+    _send_chunked(chat_id, header, lines, reply_to=reply_to)
 
 
 def _send_status(chat_id: int, reply_to: Optional[int]) -> None:
