@@ -83,6 +83,22 @@ ROEN_ALLOWED_LIST = [
 ]
 SARAH_CHAT_ID: int = ROEN_ALLOWED_LIST[0] if ROEN_ALLOWED_LIST else 0
 
+# Mike's Telegram chat_id — also used for the admin-only batch publish/delete
+# gates further down. Centralized here for the address helper too.
+MIKE_CHAT_ID: int = 7582976864
+
+
+def _address_suffix(chat_id: int) -> str:
+    """Return a tail-of-sentence personal address (', sir' / ', Sarah' / '').
+    Sarah gets her first name (no 'ma'am' — feels off for a maker), Mike keeps
+    the butler 'sir', any unknown chat gets a clean drop."""
+    if chat_id == MIKE_CHAT_ID:
+        return ", sir"
+    if chat_id == SARAH_CHAT_ID:
+        return ", Sarah"
+    return ""
+
+
 API = f"https://api.telegram.org/bot{TOKEN}"
 FILE_API = f"https://api.telegram.org/file/bot{TOKEN}"
 
@@ -148,8 +164,32 @@ def answer_callback(callback_id: str, text: str = "") -> None:
         logger.exception("answer_callback failed")
 
 
+def _enhance_photo(path: Path) -> None:
+    """Subtle auto-tune for phone-shot product photos: gentle brightness /
+    contrast / saturation / sharpness bumps so dim shots pop a little
+    without looking processed. White backgrounds stay white (Sarah shoots
+    on a neutral surface — autocontrast was tinting it green, so we don't
+    use it). Runs in-place; any failure keeps the original file."""
+    try:
+        from PIL import Image, ImageEnhance
+    except Exception:
+        logger.exception("Pillow import failed — skipping enhance")
+        return
+    try:
+        with Image.open(path) as src:
+            img = src.convert("RGB")
+        img = ImageEnhance.Brightness(img).enhance(1.08)        # +8% brightness
+        img = ImageEnhance.Contrast(img).enhance(1.15)          # +15% contrast
+        img = ImageEnhance.Color(img).enhance(1.12)             # +12% saturation
+        img = ImageEnhance.Sharpness(img).enhance(1.20)         # +20% sharpness
+        img.save(path, "JPEG", quality=90, optimize=True)
+        logger.info("enhanced photo %s", path.name)
+    except Exception:
+        logger.exception("enhance failed for %s — keeping original", path)
+
+
 def download_photo(file_id: str, dest_path: Path) -> None:
-    """Resolve a Telegram file_id to a downloaded file."""
+    """Resolve a Telegram file_id to a downloaded file, then auto-enhance."""
     info = tg("getFile", file_id=file_id)
     rel = info["file_path"]
     url = f"{FILE_API}/{rel}"
@@ -157,6 +197,7 @@ def download_photo(file_id: str, dest_path: Path) -> None:
         r.raise_for_status()
         with dest_path.open("wb") as f:
             shutil.copyfileobj(r.raw, f)
+    _enhance_photo(dest_path)
 
 
 # ----------------------- intake helpers -----------------------
@@ -284,7 +325,7 @@ def kick_off_pipeline(intake_id: int, chat_id: int) -> None:
             send_message(
                 chat_id,
                 (
-                    f"Draft is ready, sir.\n\n"
+                    f"Draft is ready{_address_suffix(chat_id)}.\n\n"
                     f"<b>{result['name']}</b>\n"
                     f"SKU: <code>{result['sku']}</code>\n\n"
                     f"Preview: {result['preview_url']}\n"
@@ -356,7 +397,7 @@ def handle_photo(msg: dict) -> None:
         if photo_count == 1:
             send_message(
                 chat_id,
-                "Got the first photo, sir. Send the rest plus the price (e.g. $45) and I'll get to work.",
+                f"Got the first photo{_address_suffix(chat_id)}. Send the rest plus the price (e.g. $45) and I'll get to work.",
                 reply_to=msg.get("message_id"),
             )
 
@@ -674,7 +715,7 @@ def _send_today(chat_id: int, reply_to: Optional[int]) -> None:
     today_midnight = int(_dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
     rows = list(db.list_since(chat_id, today_midnight))
     if not rows:
-        send_message(chat_id, "Nothing today yet, sir.", reply_to=reply_to)
+        send_message(chat_id, f"Nothing today yet{_address_suffix(chat_id)}.", reply_to=reply_to)
         return
     header = f"<b>Today's drafts</b> ({len(rows)})\n"
     lines = [_format_intake_line(r) for r in rows]
