@@ -31,6 +31,8 @@ sys.path.insert(0, "/home/aialfred/alfred")
 
 from core.jewelry import db, pipeline, edit as edit_mod  # noqa: E402
 from core.jewelry.woocommerce import preview_url, admin_edit_url  # noqa: E402
+from core.jewelry.bracelet_box import handlers as box_handlers  # noqa: E402
+from core.jewelry.bracelet_box import wc_orders as box_wc  # noqa: E402
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -71,6 +73,15 @@ ALLOWED_CHAT_IDS: Set[int] = {
 if not ALLOWED_CHAT_IDS:
     print("FATAL: ROEN_INTAKE_ALLOWED_CHAT_IDS empty", file=sys.stderr)
     sys.exit(2)
+
+# Ordered list preserving env-var declaration order (set loses order).
+# First entry is Sarah (per CLAUDE.md); used by the bracelet-box poller.
+ROEN_ALLOWED_LIST = [
+    int(x.strip())
+    for x in _env.get("ROEN_INTAKE_ALLOWED_CHAT_IDS", "").split(",")
+    if x.strip().isdigit()
+]
+SARAH_CHAT_ID: int = ROEN_ALLOWED_LIST[0] if ROEN_ALLOWED_LIST else 0
 
 API = f"https://api.telegram.org/bot{TOKEN}"
 FILE_API = f"https://api.telegram.org/file/bot{TOKEN}"
@@ -356,6 +367,16 @@ def handle_text(msg: dict) -> None:
     if not text:
         return
 
+    # Bracelet-box approval flow: 'swap N' replies and quote-replied note rewrites
+    # are consumed here BEFORE the existing intake flow gets a shot.
+    try:
+        if box_handlers.handle_swap_message(chat_id, text, send_message_fn=_send_message_box):
+            return
+        if box_handlers.handle_note_edit_message(chat_id, text, send_message_fn=_send_message_box):
+            return
+    except Exception:
+        logger.exception("box text handler failed for %r", text)
+
     lower = text.lower()
 
     if lower in ("/start", "/help"):
@@ -444,6 +465,21 @@ def handle_callback_query(query: dict) -> None:
     if chat_id not in ALLOWED_CHAT_IDS:
         answer_callback(cb_id, "Not allowed.")
         return
+
+    # Bracelet-box callback?
+    if data.startswith("bx:"):
+        try:
+            box_handlers.handle_callback(
+                data, chat_id,
+                send_message_fn=_send_message_box,
+                send_document_fn=_send_document_box,
+            )
+            answer_callback(cb_id)
+        except Exception:
+            logger.exception("box callback failed: %s", data)
+            answer_callback(cb_id, "Box action failed.")
+        return
+
     if ":" not in data:
         answer_callback(cb_id, "Bad action.")
         return
@@ -712,6 +748,85 @@ def save_offset(offset: int) -> None:
 _running = True
 
 
+# ----------------------- bracelet-box poller -----------------------
+
+BOX_POLL_INTERVAL_SECONDS = 60
+
+
+def _send_message_box(chat_id: int, text: str, reply_markup=None):
+    """Adapter for box_handlers — wraps the existing send_message."""
+    return send_message(chat_id, text, reply_markup=reply_markup)
+
+
+def _send_media_group_box(chat_id: int, media: list):
+    """Send a media group (list of {type, media, caption}) via the bot API."""
+    try:
+        tg("sendMediaGroup", chat_id=chat_id, media=media)
+    except Exception:
+        logger.exception("sendMediaGroup to %s failed", chat_id)
+
+
+def _send_document_box(chat_id: int, file_path, caption: str = ""):
+    """Upload a local file as a Telegram document."""
+    try:
+        with open(file_path, "rb") as fp:
+            r = requests.post(
+                f"{API}/sendDocument",
+                data={"chat_id": chat_id, "caption": caption},
+                files={"document": fp},
+                timeout=60,
+            )
+            r.raise_for_status()
+    except Exception:
+        logger.exception("sendDocument to %s failed", chat_id)
+
+
+def _box_poll_once():
+    """One pass: fetch new orders, fan out pick sessions per qty, advance cursor."""
+    cursor = box_wc.load_cursor()
+    last_seen = cursor
+
+    if not SARAH_CHAT_ID:
+        return
+
+    for item in box_wc.iter_new_box_line_items(after_id=cursor):
+        for bundle_index in range(1, item['quantity'] + 1):
+            try:
+                box_handlers.open_pick_session(
+                    order_id=item['order_id'],
+                    line_item_id=item['line_item_id'],
+                    bundle_index=bundle_index,
+                    customer_email=item['customer_email'],
+                    customer_first_name=item['customer_first_name'],
+                    sarah_chat_id=SARAH_CHAT_ID,
+                    send_message_fn=_send_message_box,
+                    send_media_group_fn=_send_media_group_box,
+                )
+            except Exception:
+                logger.exception(
+                    "open_pick_session failed for order %d bundle %d",
+                    item['order_id'], bundle_index,
+                )
+        last_seen = max(last_seen, item['order_id'])
+
+    if last_seen > cursor:
+        box_wc.save_cursor(box_wc.CURSOR_PATH, last_seen)
+
+
+def _box_poll_loop():
+    """Daemon thread: poll WC every BOX_POLL_INTERVAL_SECONDS."""
+    while _running:
+        try:
+            _box_poll_once()
+        except Exception:
+            logger.exception("box poll iteration crashed")
+        # Sleep in small slices so we exit promptly on shutdown
+        for _ in range(BOX_POLL_INTERVAL_SECONDS):
+            if not _running:
+                return
+            time.sleep(1)
+
+
 def _sigterm(*_):
     global _running
     logger.info("SIGTERM received, shutting down")
@@ -728,6 +843,9 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, _sigterm)
     signal.signal(signal.SIGINT, _sigterm)
+
+    threading.Thread(target=_box_poll_loop, daemon=True, name="box-poll").start()
+    logger.info("bracelet-box poll thread started (%ds interval)", BOX_POLL_INTERVAL_SECONDS)
 
     offset = load_offset()
 
