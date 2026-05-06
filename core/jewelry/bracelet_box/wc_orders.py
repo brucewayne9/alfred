@@ -107,13 +107,17 @@ _BRACELETS_CAT_ID: Optional[int] = None
 
 
 def _bracelets_cat_id() -> int:
-    """Cache the 'bracelets' product_cat term id for one process lifetime."""
+    """Cache the 'bracelet' product_cat term id for one process lifetime.
+
+    Note: actual slug in the WP catalog is 'bracelet' (singular).
+    Function name kept plural for readability in callers.
+    """
     global _BRACELETS_CAT_ID
     if _BRACELETS_CAT_ID is None:
         r = requests.get(
             f"{WC_BASE}/products/categories",
             auth=_auth(),
-            params={"slug": "bracelets"},
+            params={"slug": "bracelet"},
             timeout=30,
         )
         r.raise_for_status()
