@@ -45,7 +45,7 @@ function roen_box_eligible_count(): int {
         WHERE p.post_type = 'product'
           AND p.post_status = 'publish'
           AND tt.taxonomy = 'product_cat'
-          AND t.slug = 'bracelets'
+          AND t.slug = 'bracelet'
           AND sm.meta_value = 'instock'
     ";
     $count = (int) $wpdb->get_var( $sql );
