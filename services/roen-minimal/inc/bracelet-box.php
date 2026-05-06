@@ -21,9 +21,11 @@ const ROEN_BOX_TRANSIENT_TTL = 60;
 const ROEN_BOX_BUNDLE_SIZE = 5;
 
 /**
- * Count published bracelets that are in stock with stock_quantity >= 1.
+ * Count published bracelets that are in stock.
  *
- * "Bracelets" = products in the 'bracelets' product_cat (slug-matched).
+ * Roen's catalog uses manage_stock=false for handmade 1-of-1 pieces, so
+ * the only reliable signal of availability is _stock_status. We do NOT
+ * also check _stock because it's unset for manage-stock-off products.
  * Cached in a transient.
  */
 function roen_box_eligible_count(): int {
@@ -40,13 +42,11 @@ function roen_box_eligible_count(): int {
         INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
         INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id
         INNER JOIN {$wpdb->postmeta} sm ON sm.post_id = p.ID AND sm.meta_key = '_stock_status'
-        INNER JOIN {$wpdb->postmeta} qm ON qm.post_id = p.ID AND qm.meta_key = '_stock'
         WHERE p.post_type = 'product'
           AND p.post_status = 'publish'
           AND tt.taxonomy = 'product_cat'
           AND t.slug = 'bracelets'
           AND sm.meta_value = 'instock'
-          AND CAST(qm.meta_value AS UNSIGNED) >= 1
     ";
     $count = (int) $wpdb->get_var( $sql );
 
