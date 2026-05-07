@@ -182,9 +182,38 @@
     <div class="sub">Recurring</div>
   </div>
   <div class="stat">
-    <div class="label">Payback</div>
-    <div class="num crimson">{{ savings.payback_months }} mo</div>
-    <div class="sub">Until the build pays itself</div>
+    <div class="label">Setup payback</div>
+    <div class="num crimson">{% if savings.payback_months %}{{ savings.payback_months }} mo{% else %}—{% endif %}</div>
+    <div class="sub">Time to recoup the $997 setup</div>
+  </div>
+</div>
+
+<!-- After-fee economics: what {{ company_name }} actually keeps -->
+<h2>What {{ company_name }} keeps after our fee</h2>
+<div class="stat-row">
+  <div class="stat">
+    <div class="label">In your pocket / month</div>
+    {% if savings.monthly_net > 0 %}
+    <div class="num gold">${{ "{:,.0f}".format(savings.monthly_net) }}</div>
+    <div class="sub">After the $697/mo retainer</div>
+    {% else %}
+    <div class="num" style="color:#888;">—</div>
+    <div class="sub">Savings don't yet exceed the fee — let's discuss DIY options</div>
+    {% endif %}
+  </div>
+  <div class="stat">
+    <div class="label">Net / year (yr 2+)</div>
+    {% if savings.annual_net_recurring > 0 %}
+    <div class="num">${{ "{:,.0f}".format(savings.annual_net_recurring) }}</div>
+    {% else %}
+    <div class="num" style="color:#888;">—</div>
+    {% endif %}
+    <div class="sub">Pure profit, every year, ongoing</div>
+  </div>
+  <div class="stat">
+    <div class="label">GroundRush price</div>
+    <div class="num" style="color:#0a0a0a;font-size:14pt;line-height:1.3;">$997 setup<br>+ $697/mo</div>
+    <div class="sub">All-in. We do the build + the operating.</div>
   </div>
 </div>
 
@@ -261,7 +290,7 @@
 <!-- ============ CTA ============ -->
 <div class="cta-block">
   <h2>Your next step</h2>
-  <p>15 minutes. We walk through your numbers above, show you which agent moves the needle fastest for {{ company_name }}, and you decide if you want a custom build proposal. No pitch deck, no pressure.</p>
+  <p>15 minutes. We walk through the numbers above, show you which agent plugs the biggest leak first for {{ company_name }}, and if it's a fit we scope the build. <strong style="color:#FF6B35;">$997 one-time setup + $697/mo retainer</strong> — we do the build, the training, and the ongoing tuning. You run your business.</p>
   <a href="{{ booking_url }}" class="button">Book your 15-min AI Audit Call →</a>
   <span class="url">{{ booking_url }}</span>
   <small>Mike Johnson · GroundRush · hello@groundrushlabs.com</small>

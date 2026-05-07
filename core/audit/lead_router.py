@@ -194,7 +194,11 @@ def _audit_email_html(lead: AIAuditLeadRequest, savings: SavingsBreakdown, booki
 
   <p>The full breakdown — labor reclamation, missed-call rescue, lead-speed lift — is in the attached PDF. It's a 4-page audit, no fluff.</p>
 
-  <p><strong>What I'd do next, if I were you:</strong> book 15 minutes. I walk through your numbers, show you which agent (Voice / Sales / Scheduler / Reputation) plugs the biggest leak first for {lead.company_name}, and you decide if you want a custom build proposal. No pitch deck, no pressure.</p>
+  <p><strong>What I'd do next, if I were you:</strong> book 15 minutes. I walk through your numbers, show you which agent plugs the biggest leak first for {lead.company_name}, and if it's a fit we scope a custom build.</p>
+
+  <p style="background: #fafafa; border-left: 3px solid #FF6B35; padding: 12px 14px; font-size: 14px; color: #444;">
+    <strong>What it costs if you say yes:</strong> $997 one-time setup + $697/mo retainer. We do the build, the training, the ongoing tuning. No pitch deck, no pressure.
+  </p>
 
   <p style="margin: 28px 0;">
     <a href="{booking_url}" style="display: inline-block; background: #FF6B35; color: #000; font-weight: 700; padding: 14px 24px; border-radius: 999px; text-decoration: none;">Book your 15-min AI Audit Call →</a>

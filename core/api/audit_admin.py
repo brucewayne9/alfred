@@ -12,9 +12,9 @@ import re
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
-from core.security.auth import require_auth
+from core.security.auth import get_current_user, require_auth
 from integrations.base_crm import client as crm
 
 logger = logging.getLogger(__name__)
@@ -226,10 +226,14 @@ def _render_html(leads: list[dict], current_user: dict) -> str:
 
 def register(app: FastAPI) -> None:
     @app.get("/admin/leads", response_class=HTMLResponse)
-    async def admin_leads(request: Request, user: dict = Depends(require_auth)):
+    async def admin_leads(request: Request, user: dict | None = Depends(get_current_user)):
+        # If the visitor is not authenticated, send them to the Alfred Labs
+        # login page with a returnTo so they bounce back here after login.
+        if user is None:
+            return RedirectResponse(url="/?returnTo=/admin/leads", status_code=303)
         try:
             leads = _fetch_audit_leads(limit=50)
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to fetch audit leads")
             leads = []
         return HTMLResponse(_render_html(leads, user))

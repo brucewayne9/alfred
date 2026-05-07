@@ -16,9 +16,16 @@ LEAD_CLOSE_RATE = 0.08      # Conversion of recaptured leads to closed deals
 DEFAULT_DEAL_VALUE = 250.0  # Used when monthly_leads is supplied without avg_customer_value
 MISSED_CALL_VALUE_FACTOR = 0.30  # Share of missed calls that would have converted
 
-# Cost of deploying a Ground Rush AI engagement, used for payback math
-DEPLOY_COST_FLOOR = 15000
-DEPLOY_COST_PCT_OF_SAVINGS = 0.18
+# GroundRush hybrid pricing — single source of truth for the calculator + PDF + email
+GR_SETUP_FEE = 997      # One-time setup
+GR_MONTHLY_FEE = 697    # Recurring retainer
+
+# Fit tier thresholds — based on monthly savings vs the monthly fee
+# A "high" fit needs ~3× the fee in savings (Darryn's healthy-customer ratio)
+HIGH_FIT_MONTHLY_FLOOR = 5000   # ≥ $5k/mo savings = strong fit, 🔥 ping
+MID_FIT_MONTHLY_FLOOR = 2100    # $2.1k–$5k/mo = workable, normal ping
+# Below MID_FIT_MONTHLY_FLOOR (~3× monthly fee), customer can't profit on the
+# subscription. We still capture the lead but mark it "low" (no Telegram).
 
 
 def compute_savings(req: AIAuditLeadRequest) -> SavingsBreakdown:
@@ -64,29 +71,50 @@ def compute_savings(req: AIAuditLeadRequest) -> SavingsBreakdown:
     hours_reclaimed = req.hours_per_week * WEEKS_PER_YEAR * AUTOMATION_RATE * req.headcount
     leads_recaptured = req.monthly_leads * 12 * LEAD_RECOVERY_RATE
 
-    deploy_cost = max(DEPLOY_COST_FLOOR, subtotal * DEPLOY_COST_PCT_OF_SAVINGS)
-    payback_months = (
-        max(2, round((deploy_cost / subtotal) * 12)) if subtotal > 0 else 0
-    )
+    monthly_total = round(subtotal / 12, 2) if subtotal else 0.0
+
+    # Hybrid-pricing economics: customer pays GR_MONTHLY_FEE/mo + GR_SETUP_FEE once.
+    # Net to customer = their monthly savings minus our monthly fee.
+    monthly_net = monthly_total - GR_MONTHLY_FEE
+    if monthly_net > 0:
+        # Setup fee pays back as the customer accrues monthly_net surplus
+        setup_payback_months = max(1, round(GR_SETUP_FEE / monthly_net))
+    else:
+        # Customer can't profit on the subscription — math is upside-down
+        setup_payback_months = 0
+
+    annual_net_year_one = round(monthly_net * 12 - GR_SETUP_FEE, 2)
+    annual_net_recurring = round(monthly_net * 12, 2)
 
     return SavingsBreakdown(
         annual_total=round(subtotal, 2),
-        monthly_total=round(subtotal / 12, 2) if subtotal else 0.0,
+        monthly_total=monthly_total,
         labor_savings=round(labor * multiplier, 2),
         support_savings=round(support * multiplier, 2),
         lead_speed_savings=round(lead_total * multiplier, 2),
         hours_reclaimed=round(hours_reclaimed, 1),
         leads_recaptured=round(leads_recaptured, 0),
-        payback_months=payback_months,
+        payback_months=setup_payback_months,
         industry_multiplier=multiplier,
+        # New hybrid-pricing fields
+        gr_setup_fee=GR_SETUP_FEE,
+        gr_monthly_fee=GR_MONTHLY_FEE,
+        monthly_net=round(monthly_net, 2),
+        annual_net_year_one=annual_net_year_one,
+        annual_net_recurring=annual_net_recurring,
     )
 
 
 def fit_tier_for(savings: SavingsBreakdown) -> str:
-    """Bucket savings into low/mid/high for routing + Telegram urgency."""
+    """Bucket savings into low/mid/high for routing + Telegram urgency.
+
+    Uses the customer's monthly savings against our monthly fee. If their
+    savings can't cover ~3× our fee (MID_FIT_MONTHLY_FLOOR = $2,100/mo), the
+    subscription is upside-down for them — mark "low" and don't ping Mike.
+    """
     monthly = savings.monthly_total
-    if monthly < 1000:
+    if monthly < MID_FIT_MONTHLY_FLOOR:
         return "low"
-    if monthly >= 5000:
+    if monthly >= HIGH_FIT_MONTHLY_FLOOR:
         return "high"
     return "mid"

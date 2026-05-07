@@ -85,8 +85,14 @@ class SavingsBreakdown(BaseModel):
     lead_speed_savings: float
     hours_reclaimed: float
     leads_recaptured: float
-    payback_months: int
+    payback_months: int                # Months until setup fee pays itself back from monthly_net
     industry_multiplier: float
+    # GroundRush hybrid-pricing economics — what the customer actually nets
+    gr_setup_fee: float = 0.0          # One-time setup fee
+    gr_monthly_fee: float = 0.0        # Recurring monthly retainer
+    monthly_net: float = 0.0           # monthly_total - gr_monthly_fee (can be negative)
+    annual_net_year_one: float = 0.0   # monthly_net*12 - setup_fee
+    annual_net_recurring: float = 0.0  # monthly_net*12 (year 2+)
 
 
 class AIAuditResponse(BaseModel):

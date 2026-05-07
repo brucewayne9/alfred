@@ -472,10 +472,24 @@
                 </div>
               </div>
 
-              <div class="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-4">
-                <div class="text-[10px] uppercase tracking-wider text-zinc-500">Payback period</div>
-                <div class="font-mono text-2xl font-bold tick text-[#FF6B35]"><span id="r-payback">2</span> mo</div>
-                <div class="text-xs text-zinc-500 ml-auto">on a GroundRush deploy</div>
+              <!-- After-fee economics: what the customer ACTUALLY keeps -->
+              <div class="p-5 rounded-xl bg-white/[0.04] border border-[#FF6B35]/30 mb-3">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-[#FF6B35] mb-3">In your pocket every month — after our fee</div>
+                <div class="flex items-end justify-between gap-4">
+                  <div>
+                    <div class="font-mono text-3xl sm:text-4xl font-bold tick" id="r-monthly-net">$0</div>
+                    <div class="text-[10px] text-zinc-500 mt-1">net /month</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="font-mono text-xl font-bold tick text-white">$<span id="r-annual-net">0</span></div>
+                    <div class="text-[10px] text-zinc-500 mt-1">net /year (yr 2+)</div>
+                  </div>
+                </div>
+                <div class="mt-3 pt-3 border-t border-white/5 flex items-baseline gap-3">
+                  <div class="text-[10px] uppercase tracking-wider text-zinc-500">Setup pays back in</div>
+                  <div class="font-mono text-base font-bold text-white"><span id="r-payback">—</span> mo</div>
+                </div>
+                <div class="mt-2 text-xs leading-snug" id="r-fit-msg">—</div>
               </div>
             </div>
 
@@ -497,7 +511,11 @@
           <div class="post-submit-only mt-6 p-6 rounded-2xl bg-gradient-to-br from-[#FF6B35]/12 to-transparent border border-[#FF6B35]/30">
             <div class="text-[10px] uppercase tracking-[0.3em] text-[#FF6B35] mb-2">Step 3</div>
             <h3 class="text-xl font-bold mb-2">Book your 15-min AI Audit Call</h3>
-            <p class="text-sm text-zinc-300 mb-4">We walk through your numbers, show you which AI agent plugs the biggest leak first, and you decide if you want a custom build proposal. No pitch deck, no pressure.</p>
+            <p class="text-sm text-zinc-300 mb-3">On the call, we walk through your numbers and show you exactly which AI agent plugs the biggest leak first. If it's a fit, we scope a custom build. No pitch deck, no pressure.</p>
+            <div class="text-xs text-zinc-400 mb-4 p-3 rounded-lg bg-white/[0.03] border border-white/5">
+              <strong class="text-white">What it costs if you say yes:</strong> $997 one-time setup + $697/mo retainer.
+              We do the build, the training, the ongoing tuning — you run your business.
+            </div>
             <a id="booking-link" href="https://calendar.app.google/4b6G2vqTxmEGWgGo9" target="_blank" rel="noopener"
                class="btn-shimmer inline-flex items-center justify-center gap-2 w-full px-7 py-4 rounded-full bg-[#FF6B35] text-black font-bold shadow-[0_14px_40px_rgba(255,107,53,0.30)]">
               Book your 15-min audit call
@@ -803,6 +821,10 @@
       requestAnimationFrame(step);
     }
 
+    // GroundRush hybrid pricing — must match core/audit/calculator.py
+    const GR_SETUP_FEE = 997;
+    const GR_MONTHLY_FEE = 697;
+
     function compute() {
       const hc = +inputs.headcount.value;
       const rate = +inputs.rate.value;
@@ -821,17 +843,52 @@
       const callsValue = calls * 12 * 0.30 * cv;
       const mult = INDUSTRY_MULT[industry] || 1.0;
       const subtotal = (labor + callsValue) * mult;
+      const monthlyTotal = subtotal / 12;
+
+      // Hybrid-pricing economics
+      const monthlyNet = monthlyTotal - GR_MONTHLY_FEE;
+      const setupPayback = monthlyNet > 0
+        ? Math.max(1, Math.round(GR_SETUP_FEE / monthlyNet))
+        : 0;
+      const annualNetRecurring = monthlyNet * 12;
 
       const hoursReclaimed = hrs * 50 * 0.60 * hc;
-      const deployCost = Math.max(15000, subtotal * 0.18);
-      const payback = subtotal > 0 ? Math.max(2, Math.round((deployCost / subtotal) * 12)) : 0;
 
       animate(document.getElementById('r-total'), subtotal);
-      document.getElementById('r-month').textContent = '$' + fmt(subtotal / 12);
+      document.getElementById('r-month').textContent = '$' + fmt(monthlyTotal);
       animate(document.getElementById('r-labor'), labor * mult);
       animate(document.getElementById('r-calls'), callsValue * mult);
       animate(document.getElementById('r-hours'), hoursReclaimed);
-      document.getElementById('r-payback').textContent = payback;
+      document.getElementById('r-payback').textContent = setupPayback || '—';
+
+      // New net-after-fee fields
+      const netEl = document.getElementById('r-monthly-net');
+      const netAnnualEl = document.getElementById('r-annual-net');
+      const fitEl = document.getElementById('r-fit-msg');
+      if (netEl) {
+        if (monthlyNet > 0) {
+          netEl.textContent = '$' + fmt(monthlyNet);
+          netEl.style.color = '#FF6B35';
+        } else {
+          netEl.textContent = '($' + fmt(-monthlyNet) + ')';
+          netEl.style.color = '#737373';
+        }
+      }
+      if (netAnnualEl) {
+        netAnnualEl.textContent = '$' + fmt(Math.max(0, annualNetRecurring));
+      }
+      if (fitEl) {
+        if (monthlyTotal < 2100) {
+          fitEl.textContent = 'Below the strong-fit threshold — book a call to discuss DIY options';
+          fitEl.style.color = '#737373';
+        } else if (monthlyTotal >= 5000) {
+          fitEl.textContent = 'Strong fit · setup pays back fast, big monthly net forever';
+          fitEl.style.color = '#FF6B35';
+        } else {
+          fitEl.textContent = 'Workable fit · solid net after the monthly fee';
+          fitEl.style.color = '#FF6B35';
+        }
+      }
 
       // Sync hidden form fields so the eventual POST carries the live values
       document.getElementById('f-headcount').value = hc;
@@ -992,12 +1049,28 @@
 
         // Animate result card to the API's authoritative number
         if (result && result.savings) {
-          animate(document.getElementById('r-total'), result.savings.annual_total, 1200);
-          document.getElementById('r-month').textContent = '$' + fmt(result.savings.monthly_total);
-          animate(document.getElementById('r-labor'), result.savings.labor_savings, 1200);
-          animate(document.getElementById('r-calls'), result.savings.lead_speed_savings, 1200);
-          animate(document.getElementById('r-hours'), result.savings.hours_reclaimed, 1200);
-          document.getElementById('r-payback').textContent = result.savings.payback_months;
+          const s = result.savings;
+          animate(document.getElementById('r-total'), s.annual_total, 1200);
+          document.getElementById('r-month').textContent = '$' + fmt(s.monthly_total);
+          animate(document.getElementById('r-labor'), s.labor_savings, 1200);
+          animate(document.getElementById('r-calls'), s.lead_speed_savings, 1200);
+          animate(document.getElementById('r-hours'), s.hours_reclaimed, 1200);
+          document.getElementById('r-payback').textContent = s.payback_months || '—';
+          // Hybrid-pricing fields
+          const netEl = document.getElementById('r-monthly-net');
+          const netAnnualEl = document.getElementById('r-annual-net');
+          if (netEl) {
+            if (s.monthly_net > 0) {
+              netEl.textContent = '$' + fmt(s.monthly_net);
+              netEl.style.color = '#FF6B35';
+            } else {
+              netEl.textContent = '($' + fmt(-s.monthly_net) + ')';
+              netEl.style.color = '#737373';
+            }
+          }
+          if (netAnnualEl) {
+            netAnnualEl.textContent = fmt(Math.max(0, s.annual_net_recurring));
+          }
         }
         if (result && result.booking_url) {
           document.getElementById('booking-link').href = result.booking_url;
