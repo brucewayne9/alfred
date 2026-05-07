@@ -103,6 +103,13 @@ class Settings(BaseSettings):
     wc_roen_key: str = ""
     wc_roen_secret: str = ""
 
+    # AI Savings Audit funnel
+    # cal_booking_link — Mike's Google Calendar appointment-schedule URL (15-min slot)
+    # brevo_ai_audit_list_id — int ID of the Brevo list new audit leads land in
+    #   (create the list in Brevo dashboard once, then paste the ID into config/.env)
+    cal_booking_link: str = "https://calendar.app.google/4b6G2vqTxmEGWgGo9"
+    brevo_ai_audit_list_id: int = 0
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"

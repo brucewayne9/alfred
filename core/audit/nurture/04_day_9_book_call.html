@@ -1,0 +1,33 @@
+<!--
+  Day 9 — book the call. Mild scarcity (real, not gimmicky).
+  Only sent if BOOKED_CALL attribute is not true.
+  Subject: Quick one — still want to plug the leak?
+-->
+<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, system-ui, 'Segoe UI', Helvetica, sans-serif; color: #111; max-width: 600px; margin: 0 auto; padding: 24px; line-height: 1.6;">
+
+  <p style="font-size: 11px; letter-spacing: 0.16em; color: #FF6B35; text-transform: uppercase; font-weight: 700; margin: 0 0 8px 0;">GroundRush</p>
+
+  <h1 style="font-size: 22px; line-height: 1.2; margin: 0 0 16px 0;">Still on the fence, {{ contact.FIRSTNAME }}?</h1>
+
+  <p>Quick check-in. Nine days ago you ran the calculator and saw <strong>${{ contact.AI_AUDIT_ANNUAL }}/yr</strong> for {{ contact.COMPANY }}. I haven't heard back yet, which is fine — you're busy running an actual business.</p>
+
+  <p>If the call slipped your mind, here's the link again:</p>
+
+  <p style="margin: 22px 0;">
+    <a href="https://calendar.app.google/4b6G2vqTxmEGWgGo9" style="display: inline-block; background: #FF6B35; color: #000; font-weight: 700; padding: 13px 22px; border-radius: 999px; text-decoration: none;">Book the 15-min audit call →</a>
+  </p>
+
+  <p>If something's actively blocking the conversation — bad timing, you talked yourself out of it, you tried HighLevel and got burned, the budget isn't there this quarter — I'd actually like to know. Reply with whatever it is. I'm not going to argue you into a call. Honest feedback helps me build a better product.</p>
+
+  <p>And if you're already past the point of needing AI agents, that's also fine. I'll move you off the list.</p>
+
+  <p style="font-size: 13px; color: #666; margin-top: 32px;">
+    — Mike Johnson<br>
+    GroundRush
+  </p>
+
+  <p style="font-size: 11px; color: #999; margin-top: 24px;">Reply STOP to unsubscribe.</p>
+</body>
+</html>

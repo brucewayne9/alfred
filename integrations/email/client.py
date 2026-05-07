@@ -6,6 +6,7 @@ import email
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from datetime import datetime
@@ -59,6 +60,18 @@ EMAIL_ACCOUNTS = {
         "smtp_port": 465,
         "use_ssl": True,
         "password_env": "EMAIL_PASS_ALFRED",
+    },
+    # Gmail-backed Alfred outbound — used by the AI Audit funnel to send PDFs
+    # from alfred@groundrushinc.com (the deliverable Google Workspace inbox).
+    "alfred-gw": {
+        "email": "alfred@groundrushinc.com",
+        "name": "Alfred",
+        "imap_server": "imap.gmail.com",
+        "imap_port": 993,
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 465,
+        "use_ssl": True,
+        "password_env": "EMAIL_PASS_ALFRED_GW",
     },
     "oracle": {
         "email": "oracle@groundrushlabs.com",
@@ -327,8 +340,23 @@ class EmailClient:
             logger.error(f"Read email error for {account}: {e}")
             return {"error": str(e)}
 
-    def send_email(self, account: str, to: str, subject: str, body: str, html: bool = False) -> dict:
-        """Send an email from an account."""
+    def send_email(
+        self,
+        account: str,
+        to: str,
+        subject: str,
+        body: str,
+        html: bool = False,
+        attachments: Optional[list[dict]] = None,
+        reply_to: Optional[str] = None,
+        cc: Optional[list[str]] = None,
+    ) -> dict:
+        """Send an email from an account.
+
+        attachments: list of {"filename": str, "content": bytes, "mimetype": str}
+            mimetype can be "application/pdf", "image/png", etc. Defaults split
+            on "/"; falls back to application/octet-stream.
+        """
         try:
             config = self._resolve_account(account)
             password = self._get_password(config)
@@ -336,8 +364,27 @@ class EmailClient:
             if not password:
                 return {"error": f"Email password not configured. Set {config.get('password_env')} in .env"}
 
-            # Create message
-            if html:
+            # Build message — wrap in mixed multipart when attachments present
+            if attachments:
+                msg = MIMEMultipart("mixed")
+                if html:
+                    alt = MIMEMultipart("alternative")
+                    alt.attach(MIMEText(body, "html"))
+                    msg.attach(alt)
+                else:
+                    msg.attach(MIMEText(body))
+                for att in attachments:
+                    mime_main = (att.get("mimetype") or "application/octet-stream").split("/", 1)
+                    if len(mime_main) == 2:
+                        part = MIMEApplication(att["content"], _subtype=mime_main[1])
+                    else:
+                        part = MIMEApplication(att["content"])
+                    part.add_header(
+                        "Content-Disposition",
+                        f'attachment; filename="{att["filename"]}"',
+                    )
+                    msg.attach(part)
+            elif html:
                 msg = MIMEMultipart("alternative")
                 msg.attach(MIMEText(body, "html"))
             else:
@@ -346,6 +393,10 @@ class EmailClient:
             msg["From"] = f"{config['name']} <{config['email']}>"
             msg["To"] = to
             msg["Subject"] = subject
+            if reply_to:
+                msg["Reply-To"] = reply_to
+            if cc:
+                msg["Cc"] = ", ".join(cc)
 
             # Connect to SMTP
             if config["use_ssl"]:
@@ -355,15 +406,20 @@ class EmailClient:
                 smtp.starttls()
 
             smtp.login(config["email"], password)
-            smtp.send_message(msg)
+            recipients = [to] + (cc or [])
+            smtp.sendmail(config["email"], recipients, msg.as_string())
             smtp.quit()
 
-            logger.info(f"Email sent from {config['email']} to {to}: {subject}")
+            logger.info(
+                f"Email sent from {config['email']} to {to}: {subject} "
+                f"({len(attachments) if attachments else 0} attachments)"
+            )
             return {
                 "status": "sent",
                 "from": config["email"],
                 "to": to,
                 "subject": subject,
+                "attachments": len(attachments) if attachments else 0,
             }
         except Exception as e:
             logger.error(f"Send email error for {account}: {e}")

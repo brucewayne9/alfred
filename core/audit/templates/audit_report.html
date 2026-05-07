@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI Savings Audit · {{ company_name }}</title>
+<style>
+  @page {
+    size: Letter;
+    margin: 0.75in 0.85in;
+    @bottom-center {
+      content: "GroundRush · AI Savings Audit · " counter(page) " / " counter(pages);
+      font-family: 'Helvetica', sans-serif;
+      font-size: 8pt;
+      color: #555;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #111;
+    line-height: 1.5;
+    font-size: 10.5pt;
+  }
+  h1, h2, h3 { font-weight: 800; letter-spacing: -0.01em; color: #0a0a0a; }
+  h1 { font-size: 32pt; line-height: 1.05; margin: 0 0 18pt 0; }
+  h2 { font-size: 16pt; margin: 28pt 0 10pt 0; padding-bottom: 6pt; border-bottom: 2pt solid #FF6B35; }
+  h3 { font-size: 12pt; margin: 16pt 0 6pt 0; color: #0a0a0a; }
+  p { margin: 0 0 8pt 0; }
+  small { color: #666; font-size: 9pt; }
+
+  .cover {
+    page-break-after: always;
+    height: 9.0in;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .cover-top { display: flex; align-items: center; gap: 14pt; }
+  .cover-top img { width: 56pt; height: 56pt; }
+  .cover-top .brand { font-size: 14pt; font-weight: 800; letter-spacing: -0.01em; }
+  .cover-headline { margin-top: 1.4in; }
+  .cover-headline .eyebrow {
+    font-size: 9pt; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #FF6B35; margin-bottom: 14pt;
+  }
+  .cover-headline h1 { font-size: 38pt; }
+  .cover-headline .for {
+    margin-top: 28pt;
+    font-size: 11pt; color: #444;
+  }
+  .cover-headline .company { font-size: 22pt; font-weight: 800; color: #0a0a0a; margin-top: 4pt; }
+
+  .cover-foot {
+    border-top: 1pt solid #e5e5e5;
+    padding-top: 14pt;
+    color: #666;
+    font-size: 9pt;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .stat-row {
+    display: flex; gap: 12pt;
+    margin: 10pt 0 22pt 0;
+  }
+  .stat {
+    flex: 1;
+    border: 1pt solid #e5e5e5;
+    border-radius: 8pt;
+    padding: 14pt;
+    background: #fafafa;
+  }
+  .stat .label { font-size: 8.5pt; color: #555; text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat .num { font-size: 22pt; font-weight: 800; color: #0a0a0a; margin-top: 4pt; }
+  .stat .num.gold { color: #FF6B35; }
+  .stat .num.crimson { color: #FF6B35; }
+  .stat .sub { font-size: 9pt; color: #666; margin-top: 2pt; }
+
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6pt 18pt;
+    border: 1pt solid #e5e5e5;
+    border-radius: 8pt;
+    padding: 14pt;
+    background: #fafafa;
+  }
+  .input-grid .k { color: #666; font-size: 9.5pt; }
+  .input-grid .v { font-weight: 700; }
+
+  .lever {
+    border: 1pt solid #e5e5e5;
+    border-radius: 8pt;
+    padding: 12pt 14pt;
+    margin-bottom: 10pt;
+  }
+  .lever .head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 4pt;
+  }
+  .lever .head h3 { margin: 0; }
+  .lever .head .amount { font-weight: 800; font-size: 14pt; color: #FF6B35; }
+  .lever p { font-size: 10pt; color: #444; margin: 0; }
+
+  .agent-card {
+    border: 1pt solid #e5e5e5;
+    border-radius: 8pt;
+    padding: 12pt 14pt;
+    margin-bottom: 8pt;
+    page-break-inside: avoid;
+  }
+  .agent-card .name { font-weight: 800; font-size: 11.5pt; color: #0a0a0a; }
+  .agent-card .pitch { font-size: 10pt; color: #444; margin-top: 3pt; }
+
+  .cta-block {
+    margin-top: 28pt;
+    border-radius: 12pt;
+    padding: 22pt 24pt;
+    background: linear-gradient(135deg, #0a0a0a 0%, #141414 100%);
+    color: #fff;
+    page-break-inside: avoid;
+  }
+  .cta-block h2 {
+    color: #fff; border: none; margin: 0 0 6pt 0; font-size: 20pt;
+  }
+  .cta-block p { color: #d9d9d9; margin: 0 0 14pt 0; font-size: 10.5pt; }
+  .cta-block .button {
+    display: inline-block;
+    background: #FF6B35;
+    color: #000;
+    font-weight: 800;
+    padding: 10pt 18pt;
+    border-radius: 999pt;
+    text-decoration: none;
+    font-size: 11pt;
+  }
+  .cta-block .url {
+    display: block;
+    margin-top: 10pt;
+    color: #FF6B35;
+    font-size: 9pt;
+    word-break: break-all;
+  }
+  .cta-block small { color: #999; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div>
+    <div class="cover-top">
+      <img src="data:image/png;base64,{{ logo_b64 }}" alt="GroundRush">
+      <div class="brand">GroundRush</div>
+    </div>
+    <div class="cover-headline">
+      <div class="eyebrow">AI Savings Audit · {{ today_human }}</div>
+      <h1>Here's exactly what you're leaving on the table.</h1>
+      <div class="for">Prepared for</div>
+      <div class="company">{{ company_name }}</div>
+      <div class="for" style="margin-top: 4pt;">{{ first_name }} {{ last_name }} · {{ email }}</div>
+    </div>
+  </div>
+  <div class="cover-foot">
+    <div>GroundRush · hello@groundrushlabs.com</div>
+    <div>Confidential — for {{ company_name }}</div>
+  </div>
+</section>
+
+<!-- ============ HEADLINE NUMBERS ============ -->
+<h2>What it's costing you</h2>
+<div class="stat-row">
+  <div class="stat">
+    <div class="label">Annual savings</div>
+    <div class="num gold">${{ "{:,.0f}".format(savings.annual_total) }}</div>
+    <div class="sub">If we plug all three leaks</div>
+  </div>
+  <div class="stat">
+    <div class="label">Per month</div>
+    <div class="num">${{ "{:,.0f}".format(savings.monthly_total) }}</div>
+    <div class="sub">Recurring</div>
+  </div>
+  <div class="stat">
+    <div class="label">Payback</div>
+    <div class="num crimson">{{ savings.payback_months }} mo</div>
+    <div class="sub">Until the build pays itself</div>
+  </div>
+</div>
+
+<!-- ============ INPUTS ECHO ============ -->
+<h2>What you told us</h2>
+<div class="input-grid">
+  <div class="k">Industry</div>           <div class="v">{{ industry_label }}</div>
+  <div class="k">Headcount on repeatable work</div> <div class="v">{{ headcount }}</div>
+  <div class="k">Loaded hourly rate</div> <div class="v">${{ "{:,.0f}".format(hourly_rate) }}</div>
+  <div class="k">Hours/week per person on automatable tasks</div> <div class="v">{{ hours_per_week }}</div>
+  <div class="k">Missed calls per month</div> <div class="v">{{ missed_calls_monthly }}</div>
+  <div class="k">Average customer value</div> <div class="v">${{ "{:,.0f}".format(avg_customer_value) }}</div>
+  {% if support_tickets_monthly %}
+  <div class="k">Support tickets / month</div> <div class="v">{{ support_tickets_monthly }}</div>
+  {% endif %}
+  {% if monthly_leads %}
+  <div class="k">Inbound leads / month</div> <div class="v">{{ monthly_leads }}</div>
+  {% endif %}
+  <div class="k">Industry multiplier applied</div> <div class="v">{{ "%.2f"|format(savings.industry_multiplier) }}×</div>
+</div>
+
+<!-- ============ THREE LEVERS ============ -->
+<h2>How we got there</h2>
+
+<div class="lever">
+  <div class="head">
+    <h3>Labor reclamation</h3>
+    <div class="amount">${{ "{:,.0f}".format(savings.labor_savings) }}/yr</div>
+  </div>
+  <p>Across {{ headcount }} people, AI absorbs ~60% of the {{ hours_per_week }} hrs/week each one spends on repeatable work — copying data between systems, drafting same-shaped replies, summarizing inbound, etc. That's <b>{{ "{:,.0f}".format(savings.hours_reclaimed) }} hours back per year</b>.</p>
+</div>
+
+{% if savings.support_savings > 0 %}
+<div class="lever">
+  <div class="head">
+    <h3>Support deflection</h3>
+    <div class="amount">${{ "{:,.0f}".format(savings.support_savings) }}/yr</div>
+  </div>
+  <p>You're handling {{ "{:,}".format(support_tickets_monthly) }} tickets a month. AI handles 55% of tier-1 — order status, "where's my X", account questions — at $4.20 per resolved ticket. Humans take the rest, faster.</p>
+</div>
+{% endif %}
+
+<div class="lever">
+  <div class="head">
+    <h3>Missed-call rescue + lead-speed lift</h3>
+    <div class="amount">${{ "{:,.0f}".format(savings.lead_speed_savings) }}/yr</div>
+  </div>
+  <p>62% of after-hours calls go unanswered industry-wide. With {{ missed_calls_monthly }} missed/month and ~30% of them being a real customer at ${{ "{:,.0f}".format(avg_customer_value) }} value, you're losing real revenue every night and weekend. AI Voice picks up in &lt;1 second, books or routes, never sleeps.</p>
+</div>
+
+<!-- ============ AGENTS ============ -->
+<h2>How AI plugs the leak</h2>
+
+<div class="agent-card">
+  <div class="name">Voice Agent — fastest setup</div>
+  <div class="pitch">Answers every inbound call 24×7. Books appointments, answers menu/pricing/hours questions, transfers to humans when it should. 0% missed calls. Industry standard cold-start: 7–14 days.</div>
+</div>
+
+<div class="agent-card">
+  <div class="name">Sales Agent — best for lead capture</div>
+  <div class="pitch">Replies to inbound leads from any channel (web form, IG DM, SMS, email) within seconds. Goal-oriented — pushes toward a booking or demo. Trained on your offer, your tone, your objections.</div>
+</div>
+
+<div class="agent-card">
+  <div class="name">Appointment Scheduler — drives more bookings</div>
+  <div class="pitch">Owns the "when can you do it" conversation. Pulls calendar, suggests slots, rebooks no-shows, sends reminders. Turns "I'll think about it" into a slot held.</div>
+</div>
+
+<div class="agent-card">
+  <div class="name">AI Reputation Manager — low effort win</div>
+  <div class="pitch">Auto-replies to every Google review with the right tone, flags negatives for your eyes, asks happy customers to post. Pushes you up the local pack on Google Search.</div>
+</div>
+
+<!-- ============ CTA ============ -->
+<div class="cta-block">
+  <h2>Your next step</h2>
+  <p>15 minutes. We walk through your numbers above, show you which agent moves the needle fastest for {{ company_name }}, and you decide if you want a custom build proposal. No pitch deck, no pressure.</p>
+  <a href="{{ booking_url }}" class="button">Book your 15-min AI Audit Call →</a>
+  <span class="url">{{ booking_url }}</span>
+  <small>Mike Johnson · GroundRush · hello@groundrushlabs.com</small>
+</div>
+
+</body>
+</html>

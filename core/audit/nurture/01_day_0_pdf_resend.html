@@ -1,0 +1,48 @@
+<!--
+  Day 0 PDF Resend — fallback for when the initial PDF email lands in spam
+  or the contact didn't open it. Sent only if Brevo sees no open within 2 hrs.
+
+  Subject (set in Brevo): Re-sending your AI Savings Audit PDF
+  Sender: alfred@groundrushinc.com (Alfred / Mike)
+  Reply-To: mjohnson@groundrushinc.com
+-->
+<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, system-ui, 'Segoe UI', Helvetica, sans-serif; color: #111; max-width: 600px; margin: 0 auto; padding: 24px; line-height: 1.55;">
+
+  <p style="font-size: 11px; letter-spacing: 0.16em; color: #FF6B35; text-transform: uppercase; font-weight: 700; margin: 0 0 8px 0;">GroundRush · AI Savings Audit</p>
+
+  <h1 style="font-size: 22px; line-height: 1.2; margin: 0 0 16px 0;">Hey {{ contact.FIRSTNAME }} — checking your audit landed.</h1>
+
+  <p>You ran the calculator a couple hours ago and the system shipped your PDF audit, but the open didn't register on my end.</p>
+
+  <p>Sometimes these get filtered. Worth a quick check of your spam folder, or just reply to this email and I'll resend the PDF directly.</p>
+
+  <p>The headline number we ran for {{ contact.COMPANY }}:</p>
+
+  <table style="border-collapse: collapse; margin: 12px 0 20px 0;">
+    <tr>
+      <td style="padding: 12px 18px; background: #fafafa; border: 1px solid #eee; border-radius: 8px;">
+        <div style="font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.08em;">Annual savings · estimated</div>
+        <div style="font-size: 22px; font-weight: 800; color: #FF6B35;">${{ contact.AI_AUDIT_ANNUAL }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <p>Want me to resend the PDF, or skip the document and grab a 15-min slot to walk through it together?</p>
+
+  <p style="margin: 26px 0;">
+    <a href="https://calendar.app.google/4b6G2vqTxmEGWgGo9" style="display: inline-block; background: #FF6B35; color: #000; font-weight: 700; padding: 13px 22px; border-radius: 999px; text-decoration: none;">Book the 15-min audit call →</a>
+  </p>
+
+  <p style="font-size: 13px; color: #666; margin-top: 32px;">
+    — Mike Johnson<br>
+    GroundRush<br>
+    <a href="mailto:mjohnson@groundrushinc.com" style="color: #666;">mjohnson@groundrushinc.com</a>
+  </p>
+
+  <p style="font-size: 11px; color: #999; margin-top: 24px;">
+    You're getting this because you ran the AI Savings Calculator at groundrushcloud.com. Reply STOP to unsubscribe.
+  </p>
+</body>
+</html>

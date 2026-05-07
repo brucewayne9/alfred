@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Savings Calculator · GroundRush</title>
+<meta name="description" content="Find out exactly what missed calls, slow lead response, and manual labor are costing your business. Free AI audit, 60 seconds." />
+<meta name="theme-color" content="#05060a" />
+<meta property="og:title" content="What's AI saving your business this year?" />
+<meta property="og:description" content="62% of after-hours calls go unanswered. 78% of inbound chats sit dead. Run the numbers." />
+<meta property="og:image" content="/static/grl-site/grl-logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink: { DEFAULT: '#000000', 1: '#0a0a0a', 2: '#141414' },
+          line: 'rgba(255,255,255,0.08)',
+          // brand
+          glow:    '#FF6B35',  // legacy alias → brand orange
+          gold:    '#FF6B35',
+          plasma:  '#737373',
+          crimson: '#FF6B35',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  :root {
+    --bg:#000; --bg-1:#0a0a0a; --bg-2:#141414;
+    --orange:#FF6B35; --orange-glow:rgba(255,107,53,0.30);
+    --line:rgba(255,255,255,0.08); --line-strong:rgba(255,255,255,0.16);
+    --text:#fafafa; --text-2:#a3a3a3; --text-3:#737373;
+    /* Legacy aliases used in places we haven't restyled — all map to neutrals/orange now */
+    --glow: var(--orange);
+    --gold: #d4a574;        /* muted warm gold, not bright yellow */
+    --plasma: var(--text-3);
+    --crimson: var(--orange);
+  }
+  html, body { background: var(--bg); color: var(--text); }
+  body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+  /* Subtle single-tone halo, not a multi-color aurora */
+  .aurora {
+    position: fixed; inset: -20%; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(50% 35% at 50% 0%, rgba(255,107,53,0.10), transparent 60%),
+      radial-gradient(40% 30% at 85% 80%, rgba(255,107,53,0.06), transparent 60%);
+    filter: blur(60px);
+  }
+
+  .grid-bg {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 80px 80px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 25%, black 30%, transparent 90%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 25%, black 30%, transparent 90%);
+    z-index: 0; pointer-events: none;
+  }
+
+  /* Spotlight removed — too "in your face" for SMB audience */
+  .spotlight { display: none; }
+
+  .border-beam {
+    position: relative;
+    border: 1px solid var(--line-strong);
+    border-radius: 20px; overflow: hidden;
+  }
+
+  .glass {
+    background: linear-gradient(180deg, rgba(20,20,20,0.88) 0%, rgba(10,10,10,0.94) 100%);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+  }
+
+  /* Subtle accent text (formerly cyan shimmer) */
+  .grad-text { color: var(--orange); }
+
+  .btn-shimmer { position: relative; isolation: isolate; overflow: hidden;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .btn-shimmer:hover { transform: translateY(-1px); }
+  .btn-shimmer::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
+    transform: translateX(-100%); transition: transform 0.8s;
+  }
+  .btn-shimmer:hover::after { transform: translateX(100%); }
+
+  .tick { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+
+  [data-reveal] { opacity: 0; transform: translateY(16px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1); }
+  [data-reveal].in { opacity: 1; transform: none; }
+
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 4px;
+    background: rgba(255,255,255,0.08); border-radius: 999px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px;
+    background: var(--orange);
+    border-radius: 50%; cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(255,107,53,0.15);
+    transition: box-shadow 0.2s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 6px rgba(255,107,53,0.22);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px; border: none;
+    background: var(--orange);
+    border-radius: 50%; cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(255,107,53,0.15);
+  }
+
+  .bento { transition: transform .35s cubic-bezier(.2,.7,.2,1), border-color .35s; }
+  .bento:hover { transform: translateY(-3px); border-color: rgba(255,107,53,0.3); }
+
+  /* === The MOMENT: results blurred until the form is submitted === */
+  .gated { position: relative; }
+  .gated.locked .gated-target {
+    filter: blur(13px) saturate(1.1);
+    user-select: none; pointer-events: none;
+    transition: filter .55s cubic-bezier(.2,.7,.2,1);
+  }
+  .gated:not(.locked) .gated-target {
+    filter: none;
+    transition: filter .8s cubic-bezier(.2,.7,.2,1);
+  }
+  .gated.locked .gated-overlay { opacity: 1; pointer-events: auto; }
+  .gated-overlay {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    background: radial-gradient(ellipse at center, rgba(5,6,10,0.45), rgba(5,6,10,0.85));
+    border-radius: inherit;
+    opacity: 0; pointer-events: none;
+    transition: opacity .35s ease;
+    z-index: 5;
+  }
+  .gated-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px;
+    border-radius: 999px;
+    background: var(--orange);
+    color: #000; font-weight: 700; font-size: 13px;
+    box-shadow: 0 14px 40px var(--orange-glow);
+    cursor: pointer;
+    transition: transform .25s;
+  }
+  .gated-pill:hover { transform: translateY(-1px); }
+
+  /* Comparison table — muted, corporate */
+  .compare {
+    border-collapse: collapse; width: 100%;
+    font-size: 14px;
+  }
+  .compare th, .compare td {
+    padding: 14px 16px; text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  .compare thead th {
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--text-2); font-weight: 700;
+  }
+  .compare td.row-label { color: var(--text); font-weight: 600; }
+  .compare td.bad { color: var(--text-3); font-family: 'JetBrains Mono', monospace; text-decoration: line-through; }
+  .compare td.good { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+  .compare td.good strong { color: var(--orange); }
+  .compare td.win { color: var(--orange); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+  /* Form */
+  .field-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .25s, background .25s;
+  }
+  .field-input:focus {
+    border-color: var(--orange);
+    background: rgba(255,255,255,0.05);
+  }
+  .field-input.invalid { border-color: rgba(255,107,53,0.5); }
+  .field-label {
+    display: block; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-2); margin-bottom: 6px;
+  }
+
+  /* Industry chip — active state (orange) */
+  .chip { transition: all .22s; }
+  .chip.active {
+    border-color: var(--orange) !important;
+    background: rgba(255,107,53,0.10) !important;
+    color: var(--text) !important;
+  }
+
+  /* Submitted state */
+  .post-submit-only { display: none; }
+  body.submitted .pre-submit-only { display: none !important; }
+  body.submitted .post-submit-only { display: block; }
+
+  /* Subtle pulsing dot */
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,53,0.7); }
+    50% { box-shadow: 0 0 0 8px rgba(255,107,53,0); }
+  }
+  .pulse-dot { animation: pulse-dot 2.4s infinite; }
+
+  /* Brand mark in nav — small logo before "GroundRush" */
+  .brand-row { display: inline-flex; align-items: center; gap: 10px; }
+  .brand-row img { width: 28px; height: 28px; display: block; }
+  .brand-row .word { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+  .brand-row.small img { width: 22px; height: 22px; }
+  .brand-row.small .word { font-size: 13px; font-weight: 700; }
+
+  /* ============ MOBILE polish (touch + smaller screens) ============ */
+  /* Bigger slider thumbs for touch — 18px is too small for fingers */
+  @media (pointer: coarse) {
+    input[type=range] { height: 6px; }
+    input[type=range]::-webkit-slider-thumb { width: 26px; height: 26px; }
+    input[type=range]::-moz-range-thumb { width: 26px; height: 26px; }
+    /* All buttons + chips meet the 44px tap-target minimum */
+    .chip { min-height: 40px; padding: 10px 14px !important; }
+    .field-input { min-height: 48px; font-size: 16px; /* iOS no-zoom on focus */ }
+    .gated-pill { min-height: 48px; padding: 14px 22px; }
+  }
+  /* Hero compresses on small screens */
+  @media (max-width: 640px) {
+    nav { padding-top: 16px !important; padding-bottom: 16px !important; }
+    .brand-row .word { font-size: 14px; }
+    /* Drop the 3-stat row to a single column on phones */
+    header > div:last-child {
+      flex-direction: column !important; align-items: flex-start;
+      max-width: 320px; margin: 28px auto 0;
+    }
+    /* Calculator card: tighter padding on mobile */
+    #calc .border-beam.glass { padding: 20px !important; }
+    /* Result-gate overlay sits cleaner on mobile */
+    .gated-overlay { padding: 12px; }
+    /* Form: tighter spacing */
+    #capture .border-beam.glass { padding: 24px !important; }
+    /* Footer stacks */
+    footer .max-w-7xl { gap: 12px !important; }
+  }
+  /* Sticky CTA on mobile when calculator is gated — keeps the conversion path
+     visible during scroll. Disappears once user submits. */
+  @media (max-width: 768px) {
+    .sticky-cta {
+      position: fixed; left: 12px; right: 12px; bottom: 12px;
+      z-index: 30;
+      padding: 14px 18px;
+      background: var(--orange);
+      color: #000; font-weight: 800; font-size: 14px;
+      border-radius: 999px; text-align: center;
+      box-shadow: 0 14px 40px var(--orange-glow);
+      text-decoration: none;
+      display: block;
+    }
+    body.submitted .sticky-cta { display: none; }
+  }
+  @media (min-width: 769px) {
+    .sticky-cta { display: none; }
+  }
+</style>
+
+<!-- ============ Tracking stubs (Phase 2: replace with real IDs) ============ -->
+<!-- Meta Pixel placeholder. Set window.__META_PIXEL_ID below to activate. -->
+<script>window.__META_PIXEL_ID = window.__META_PIXEL_ID || '';</script>
+<script>
+  // Meta Pixel — only loads if an ID is configured
+  (function(){
+    if (!window.__META_PIXEL_ID) return;
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', window.__META_PIXEL_ID);
+    fbq('track', 'PageView');
+  })();
+</script>
+<!-- Google gtag placeholder. Set window.__GTAG_ID below to activate. -->
+<script>window.__GTAG_ID = window.__GTAG_ID || '';</script>
+<script>
+  (function(){
+    if (!window.__GTAG_ID) return;
+    var s = document.createElement('script');
+    s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=' + window.__GTAG_ID;
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function(){ dataLayer.push(arguments); };
+    gtag('js', new Date()); gtag('config', window.__GTAG_ID);
+  })();
+</script>
+
+</head>
+<body class="relative min-h-screen overflow-x-hidden">
+  <div class="aurora"></div>
+  <div class="grid-bg"></div>
+  <div class="spotlight" id="spotlight"></div>
+
+  <!-- Mobile sticky CTA — visible only on small screens, until form is submitted -->
+  <a href="#capture" class="sticky-cta pre-submit-only">Reveal my AI savings →</a>
+
+  <!-- ============ NAV ============ -->
+  <nav class="relative z-20 max-w-7xl mx-auto px-6 lg:px-10 py-6 flex items-center justify-between">
+    <a href="#" class="brand-row">
+      <img src="/static/grl-site/grl-logo.png" alt="GroundRush" />
+      <span class="word">GroundRush</span>
+    </a>
+    <div class="hidden md:flex items-center gap-7 text-sm text-zinc-400">
+      <a href="#calc" class="hover:text-white transition">Calculator</a>
+      <a href="#compare" class="hover:text-white transition">Human vs AI</a>
+      <a href="#how" class="hover:text-white transition">The math</a>
+    </div>
+    <a href="#calc" class="text-sm font-medium px-4 py-2 rounded-full bg-[#FF6B35] text-black hover:brightness-105 transition">
+      Run my numbers
+    </a>
+  </nav>
+
+  <!-- ============ HERO — pain-first ============ -->
+  <header class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10 pt-10 lg:pt-16 pb-12 text-center">
+    <div data-reveal class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-medium tracking-[0.18em] uppercase text-zinc-400 mb-8">
+      <span class="w-1.5 h-1.5 rounded-full bg-[#FF6B35] pulse-dot"></span>
+      Free AI audit · 60 seconds · No signup to see your number
+    </div>
+
+    <h1 data-reveal class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05]">
+      Your business is<br/>
+      <span class="grad-text" id="hero-variant-word">losing</span> customers<br/>
+      every day.
+    </h1>
+    <p data-reveal class="mt-7 max-w-2xl mx-auto text-lg text-zinc-400 leading-relaxed">
+      Right now, you're missing <strong class="text-white">62% of your after-hours calls</strong>
+      and ignoring <strong class="text-white">78% of your inbound chats.</strong>
+      We calculate exactly what that's costing you — then we plug the leak.
+    </p>
+
+    <div data-reveal class="mt-10 flex flex-wrap items-center justify-center gap-4">
+      <a href="#calc" class="btn-shimmer inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#FF6B35] text-black font-bold shadow-[0_14px_40px_rgba(255,107,53,0.30)]">
+        Calculate my AI savings
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+      <a href="#compare" class="inline-flex items-center gap-2 px-7 py-3.5 rounded-full border border-white/15 text-zinc-300 hover:bg-white/5 transition">
+        Human vs AI · the gap
+      </a>
+    </div>
+
+    <div data-reveal class="mt-12 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-sm">
+      <div class="flex items-center gap-2.5"><div class="text-2xl font-extrabold text-white tick">62%</div><span class="text-zinc-400">of after-hours calls missed</span></div>
+      <div class="flex items-center gap-2.5"><div class="text-2xl font-extrabold text-white tick">78%</div><span class="text-zinc-400">of chats sit dead</span></div>
+      <div class="flex items-center gap-2.5"><div class="text-2xl font-extrabold text-[#FF6B35] tick">&lt;1s</div><span class="text-zinc-400">AI response, 24/7</span></div>
+    </div>
+  </header>
+
+  <!-- ============ CALCULATOR ============ -->
+  <section id="calc" class="relative z-10 max-w-7xl mx-auto px-6 lg:px-10 py-12">
+    <div class="border-beam glass rounded-3xl p-6 sm:p-10 lg:p-14">
+      <div class="grid lg:grid-cols-12 gap-10 lg:gap-14">
+
+        <!-- INPUTS -->
+        <div class="lg:col-span-6">
+          <div class="text-[11px] uppercase tracking-[0.3em] text-glow mb-3">Step 1</div>
+          <h2 class="text-3xl font-bold mb-2">Tell us about your business</h2>
+          <p class="text-zinc-400 mb-8 text-sm">Your inputs stay on this page until you submit. Pick your industry first — we auto-tune sensible defaults.</p>
+
+          <!-- Industry chip selector (controls auto-fill) -->
+          <div class="mb-8">
+            <div class="text-xs uppercase tracking-[0.18em] text-zinc-500 mb-3">Industry</div>
+            <div class="flex flex-wrap gap-2" id="industry-chips">
+              <button data-industry="services" class="chip px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-zinc-300 hover:border-glow/50 active">Professional services</button>
+              <button data-industry="ecommerce" class="chip px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-zinc-300 hover:border-glow/50">E-commerce</button>
+              <button data-industry="saas" class="chip px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-zinc-300 hover:border-glow/50">SaaS</button>
+              <button data-industry="trades" class="chip px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-zinc-300 hover:border-glow/50">Trades / Field</button>
+              <button data-industry="real_estate" class="chip px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-zinc-300 hover:border-glow/50">Real estate</button>
+              <button data-industry="agency" class="chip px-3.5 py-1.5 rounded-full text-xs border border-white/10 text-zinc-300 hover:border-glow/50">Agency</button>
+            </div>
+          </div>
+
+          <div class="space-y-7">
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium text-zinc-300">Employees on repeatable work</label>
+                <span class="font-mono text-glow font-bold tick" id="v-headcount">8</span>
+              </div>
+              <input type="range" min="1" max="200" value="8" id="i-headcount">
+            </div>
+
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium text-zinc-300">Avg fully-loaded hourly cost</label>
+                <span class="font-mono text-glow font-bold tick">$<span id="v-rate">35</span></span>
+              </div>
+              <input type="range" min="15" max="150" value="35" id="i-rate">
+            </div>
+
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium text-zinc-300">Hours/week each spends on automatable work</label>
+                <span class="font-mono text-glow font-bold tick" id="v-hours">10</span>
+              </div>
+              <input type="range" min="1" max="40" value="10" id="i-hours">
+            </div>
+
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium text-zinc-300">Missed calls per month</label>
+                <span class="font-mono text-glow font-bold tick" id="v-calls">60</span>
+              </div>
+              <input type="range" min="0" max="1500" value="60" step="5" id="i-calls">
+            </div>
+
+            <div>
+              <div class="flex justify-between items-baseline mb-2">
+                <label class="text-sm font-medium text-zinc-300">Average customer value</label>
+                <span class="font-mono text-glow font-bold tick">$<span id="v-cv">500</span></span>
+              </div>
+              <input type="range" min="50" max="10000" value="500" step="25" id="i-cv">
+            </div>
+          </div>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="lg:col-span-6 lg:border-l lg:border-white/5 lg:pl-14">
+          <div class="text-[11px] uppercase tracking-[0.3em] text-gold mb-3">Step 2 · Live results</div>
+          <h2 class="text-3xl font-bold mb-2">Here's what AI rescues</h2>
+          <p class="text-zinc-400 mb-8 text-sm">Submit your details below to see your numbers and get the full PDF audit.</p>
+
+          <div id="result-gate" class="gated locked relative">
+            <div class="gated-target">
+              <!-- Headline number -->
+              <div class="relative mb-6 p-7 rounded-2xl bg-gradient-to-br from-[#FF6B35]/10 to-transparent border border-[#FF6B35]/25">
+                <div class="text-[10px] uppercase tracking-[0.3em] text-zinc-400 mb-2">Annual savings · estimated</div>
+                <div class="font-mono text-5xl sm:text-6xl font-bold tracking-tighter text-white">
+                  <span class="text-zinc-500">$</span><span id="r-total" class="tick">127,500</span>
+                </div>
+                <div class="mt-2 text-sm text-zinc-300">
+                  that's <span class="text-[#FF6B35] font-bold tick" id="r-month">$10,625</span>/mo back in your pocket
+                </div>
+              </div>
+
+              <!-- 3-card breakdown -->
+              <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="p-4 rounded-xl bg-white/[0.03] border border-white/8">
+                  <div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Labor reclaimed</div>
+                  <div class="font-mono text-xl font-bold tick text-white">$<span id="r-labor">37,500</span></div>
+                  <div class="text-[10px] text-zinc-600 mt-1">/yr</div>
+                </div>
+                <div class="p-4 rounded-xl bg-white/[0.03] border border-white/8">
+                  <div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Calls rescued</div>
+                  <div class="font-mono text-xl font-bold tick text-white">$<span id="r-calls">90,000</span></div>
+                  <div class="text-[10px] text-zinc-600 mt-1">/yr</div>
+                </div>
+                <div class="p-4 rounded-xl bg-white/[0.03] border border-white/8">
+                  <div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Hours back</div>
+                  <div class="font-mono text-xl font-bold tick text-white" id="r-hours">2,400</div>
+                  <div class="text-[10px] text-zinc-600 mt-1">/yr</div>
+                </div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-4">
+                <div class="text-[10px] uppercase tracking-wider text-zinc-500">Payback period</div>
+                <div class="font-mono text-2xl font-bold tick text-[#FF6B35]"><span id="r-payback">2</span> mo</div>
+                <div class="text-xs text-zinc-500 ml-auto">on a GroundRush deploy</div>
+              </div>
+            </div>
+
+            <!-- Lock overlay (visible until form submit) -->
+            <div class="gated-overlay rounded-2xl">
+              <div class="text-center p-6">
+                <div class="text-2xl font-extrabold text-white mb-3">Reveal your numbers ↓</div>
+                <p class="text-sm text-zinc-300 max-w-xs mx-auto mb-4">
+                  Tell us where to send the full audit and we'll unblur your savings + email you the PDF.
+                </p>
+                <a href="#capture" class="gated-pill">
+                  See my AI savings →
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Post-submit booking CTA -->
+          <div class="post-submit-only mt-6 p-6 rounded-2xl bg-gradient-to-br from-[#FF6B35]/12 to-transparent border border-[#FF6B35]/30">
+            <div class="text-[10px] uppercase tracking-[0.3em] text-[#FF6B35] mb-2">Step 3</div>
+            <h3 class="text-xl font-bold mb-2">Book your 15-min AI Audit Call</h3>
+            <p class="text-sm text-zinc-300 mb-4">We walk through your numbers, show you which AI agent plugs the biggest leak first, and you decide if you want a custom build proposal. No pitch deck, no pressure.</p>
+            <a id="booking-link" href="https://calendar.app.google/4b6G2vqTxmEGWgGo9" target="_blank" rel="noopener"
+               class="btn-shimmer inline-flex items-center justify-center gap-2 w-full px-7 py-4 rounded-full bg-[#FF6B35] text-black font-bold shadow-[0_14px_40px_rgba(255,107,53,0.30)]">
+              Book your 15-min audit call
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+            <div class="mt-3 text-xs text-zinc-500 text-center">PDF audit also sent to <span id="post-email" class="text-zinc-300"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LEAD CAPTURE ============ -->
+  <section id="capture" class="relative z-10 max-w-3xl mx-auto px-6 lg:px-10 py-16 pre-submit-only">
+    <div class="border-beam glass rounded-3xl p-8 sm:p-12">
+      <div class="text-center mb-8">
+        <div class="text-[11px] uppercase tracking-[0.3em] text-[#FF6B35] mb-3">Free AI Audit Report</div>
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Reveal my savings</h2>
+        <p class="text-zinc-400 max-w-md mx-auto text-sm">
+          Where should we send the full audit? Numbers unblur instantly above.
+        </p>
+      </div>
+
+      <form id="lead-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto" novalidate>
+        <div>
+          <label class="field-label">First name *</label>
+          <input class="field-input" name="first_name" required maxlength="80" autocomplete="given-name" />
+        </div>
+        <div>
+          <label class="field-label">Last name *</label>
+          <input class="field-input" name="last_name" required maxlength="80" autocomplete="family-name" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="field-label">Work email *</label>
+          <input class="field-input" type="email" name="email" required maxlength="200" autocomplete="email" placeholder="you@yourcompany.com" />
+        </div>
+        <div>
+          <label class="field-label">Phone *</label>
+          <input class="field-input" type="tel" name="phone" required maxlength="30" autocomplete="tel" placeholder="+1 555 555 5555" />
+        </div>
+        <div>
+          <label class="field-label">Company *</label>
+          <input class="field-input" name="company_name" required maxlength="120" autocomplete="organization" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="field-label">Company website (optional)</label>
+          <input class="field-input" name="company_website" maxlength="200" autocomplete="url" placeholder="https://" />
+        </div>
+
+        <!-- Hidden: calculator inputs (filled by JS) -->
+        <input type="hidden" name="industry" id="f-industry" value="services">
+        <input type="hidden" name="headcount" id="f-headcount" value="8">
+        <input type="hidden" name="hourly_rate" id="f-hourly_rate" value="35">
+        <input type="hidden" name="hours_per_week" id="f-hours_per_week" value="10">
+        <input type="hidden" name="missed_calls_monthly" id="f-missed_calls_monthly" value="60">
+        <input type="hidden" name="avg_customer_value" id="f-avg_customer_value" value="500">
+
+        <!-- Hidden: tracking -->
+        <input type="hidden" name="utm_source" id="f-utm_source">
+        <input type="hidden" name="utm_medium" id="f-utm_medium">
+        <input type="hidden" name="utm_campaign" id="f-utm_campaign">
+        <input type="hidden" name="utm_term" id="f-utm_term">
+        <input type="hidden" name="utm_content" id="f-utm_content">
+        <input type="hidden" name="referrer" id="f-referrer">
+        <input type="hidden" name="page_url" id="f-page_url">
+        <input type="hidden" name="variant" id="f-variant">
+
+        <div class="sm:col-span-2 mt-2">
+          <button id="lead-submit" type="submit"
+                  class="btn-shimmer w-full inline-flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-[#FF6B35] text-black font-bold shadow-[0_14px_40px_rgba(255,107,53,0.30)] disabled:opacity-60 disabled:cursor-wait">
+            <span id="lead-submit-label">Reveal my savings →</span>
+          </button>
+          <div id="lead-form-error" class="hidden mt-3 text-sm text-[#FF6B35]/90 text-center"></div>
+          <div class="mt-3 text-[11px] text-zinc-500 text-center">
+            We'll never sell your data. One email confirmation, no spam. <span class="text-zinc-400">·</span> Privacy-friendly.
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Post-submit thanks block -->
+  <section id="thanks" class="post-submit-only relative z-10 max-w-3xl mx-auto px-6 lg:px-10 py-12 text-center">
+    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#FF6B35]/10 border border-[#FF6B35]/30 text-sm text-[#FF6B35] mb-4">
+      <span class="w-1.5 h-1.5 rounded-full bg-[#FF6B35] pulse-dot"></span>
+      Audit sent
+    </div>
+    <h2 class="text-3xl font-bold mb-3">Your numbers are unblurred above ↑</h2>
+    <p class="text-zinc-400 max-w-md mx-auto">
+      The full PDF audit is on its way to <span id="thanks-email" class="text-white font-semibold"></span>.
+      Book a 15-min call when you're ready to plug the leak.
+    </p>
+  </section>
+
+  <!-- ============ HUMAN vs AI ============ -->
+  <section id="compare" class="relative z-10 max-w-5xl mx-auto px-6 lg:px-10 py-20">
+    <div class="text-center max-w-2xl mx-auto mb-12">
+      <div class="text-[11px] uppercase tracking-[0.3em] text-[#FF6B35] mb-3">Numbers don't lie</div>
+      <h2 class="text-4xl sm:text-5xl font-bold tracking-tight">Human vs AI · the gap</h2>
+      <p class="text-zinc-400 mt-4 text-base">80% of leads are lost in the first 5 minutes. Here's where the leak is.</p>
+    </div>
+
+    <div class="border-beam glass rounded-2xl overflow-hidden">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Human only</th>
+            <th>With AI agent</th>
+            <th class="hidden sm:table-cell">Revenue impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="row-label">Missed calls / month</td>
+            <td class="bad">62%</td>
+            <td class="good"><strong>&lt;3%</strong></td>
+            <td class="hidden sm:table-cell win">+$12k–$28k/mo</td>
+          </tr>
+          <tr>
+            <td class="row-label">Missed chats</td>
+            <td class="bad">78%</td>
+            <td class="good"><strong>0%</strong></td>
+            <td class="hidden sm:table-cell win">+$8k–$18k/mo</td>
+          </tr>
+          <tr>
+            <td class="row-label">Availability</td>
+            <td class="bad">8 hrs/day</td>
+            <td class="good"><strong>24×7</strong></td>
+            <td class="hidden sm:table-cell win">+$6k–$14k/mo</td>
+          </tr>
+          <tr>
+            <td class="row-label">Response time</td>
+            <td class="bad">~34 min</td>
+            <td class="good"><strong>&lt;1 sec</strong></td>
+            <td class="hidden sm:table-cell win">+$4k–$10k/mo</td>
+          </tr>
+          <tr>
+            <td class="row-label">Review reply rate</td>
+            <td class="bad">11%</td>
+            <td class="good"><strong>98%</strong></td>
+            <td class="hidden sm:table-cell win">+$2k–$6k/mo</td>
+          </tr>
+          <tr>
+            <td class="row-label">Lead conversion</td>
+            <td class="bad">23%</td>
+            <td class="good"><strong>48%</strong></td>
+            <td class="hidden sm:table-cell win">+$15k–$40k/mo</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ INDUSTRY-AWARE EXAMPLES (swaps with chip) ============ -->
+  <section id="examples" class="relative z-10 max-w-5xl mx-auto px-6 lg:px-10 pt-16 pb-4">
+    <div class="text-center max-w-2xl mx-auto mb-10">
+      <div class="text-[11px] uppercase tracking-[0.3em] text-zinc-400 mb-3">What AI handles for <span id="ex-industry-label" class="text-[#FF6B35]">a professional services firm</span></div>
+      <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Three jobs your team won't have to do.</h2>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4" id="examples-grid">
+      <!-- populated by JS based on industry selection -->
+    </div>
+
+    <p class="mt-6 text-center text-xs text-zinc-500 max-w-xl mx-auto">
+      Examples are illustrative. We scope a custom build to your specific systems before any commitment.
+    </p>
+  </section>
+
+  <!-- ============ HOW THE MATH WORKS ============ -->
+  <section id="how" class="relative z-10 max-w-5xl mx-auto px-6 lg:px-10 py-16">
+    <div class="text-center max-w-2xl mx-auto mb-12">
+      <div class="text-[11px] uppercase tracking-[0.3em] text-zinc-400 mb-3">No hand-waving</div>
+      <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">How the math works</h2>
+      <p class="text-zinc-400 mt-3 text-sm">Three levers, conservative defaults. Adjust anything that doesn't match your reality.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="bento relative p-6 rounded-2xl bg-white/[0.03] border border-white/8">
+        <div class="w-9 h-9 rounded-lg bg-[#FF6B35]/10 border border-[#FF6B35]/20 grid place-items-center text-[#FF6B35] font-mono font-bold text-sm mb-3">01</div>
+        <h3 class="text-base font-semibold mb-1.5">Labor reclamation</h3>
+        <p class="text-sm text-zinc-400 leading-relaxed">Hours/week × 50 weeks × hourly rate × 60% automation × headcount. AI absorbs inbox triage, data entry, scheduling, summaries.</p>
+      </div>
+      <div class="bento relative p-6 rounded-2xl bg-white/[0.03] border border-white/8">
+        <div class="w-9 h-9 rounded-lg bg-[#FF6B35]/10 border border-[#FF6B35]/20 grid place-items-center text-[#FF6B35] font-mono font-bold text-sm mb-3">02</div>
+        <h3 class="text-base font-semibold mb-1.5">Missed-call rescue</h3>
+        <p class="text-sm text-zinc-400 leading-relaxed">Missed calls × 12 × 30% would-have-converted × your customer value. Voice agent picks up in &lt;1s, books or routes.</p>
+      </div>
+      <div class="bento relative p-6 rounded-2xl bg-white/[0.03] border border-white/8">
+        <div class="w-9 h-9 rounded-lg bg-[#FF6B35]/10 border border-[#FF6B35]/20 grid place-items-center text-[#FF6B35] font-mono font-bold text-sm mb-3">03</div>
+        <h3 class="text-base font-semibold mb-1.5">Industry multiplier</h3>
+        <p class="text-sm text-zinc-400 leading-relaxed">SaaS = 1.25× (more digital surface), Trades = 0.9× (truck time). Multiplier compounds against the levers above.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="relative z-10 border-t border-white/5 mt-12">
+    <div class="max-w-7xl mx-auto px-6 lg:px-10 py-10 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
+      <a href="#" class="brand-row small">
+        <img src="/static/grl-site/grl-logo.png" alt="GroundRush" />
+        <span class="word">GroundRush · 2026</span>
+      </a>
+      <div class="flex items-center gap-6">
+        <a href="mailto:hello@groundrushlabs.com" class="hover:text-white transition">hello@groundrushlabs.com</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ============ Spotlight follow + reveal ============
+    const spot = document.getElementById('spotlight');
+    document.addEventListener('mousemove', (e) => {
+      spot.style.left = e.clientX + 'px';
+      spot.style.top = e.clientY + 'px';
+    });
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('[data-reveal]').forEach(el => io.observe(el));
+
+    // ============ UTM persistence (Phase 2 #10) ============
+    // Capture UTM params from URL on first visit, stash in sessionStorage so
+    // refresh / scroll-back doesn't drop them, then hydrate hidden form fields.
+    const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+    (function captureUtms() {
+      const params = new URLSearchParams(window.location.search);
+      UTM_KEYS.forEach(k => {
+        const fromUrl = params.get(k);
+        if (fromUrl) sessionStorage.setItem('grl_' + k, fromUrl);
+      });
+      // Variant flag
+      const v = params.get('v');
+      if (v && /^[a-z0-9]{1,8}$/i.test(v)) sessionStorage.setItem('grl_variant', v);
+      // Persist referrer + page url
+      if (document.referrer && !sessionStorage.getItem('grl_referrer')) {
+        sessionStorage.setItem('grl_referrer', document.referrer.slice(0, 500));
+      }
+    })();
+    function hydrateHiddenFields() {
+      UTM_KEYS.forEach(k => {
+        const el = document.getElementById('f-' + k);
+        if (el) el.value = sessionStorage.getItem('grl_' + k) || '';
+      });
+      const variant = sessionStorage.getItem('grl_variant') || '';
+      const ref = sessionStorage.getItem('grl_referrer') || '';
+      document.getElementById('f-variant').value = variant;
+      document.getElementById('f-referrer').value = ref;
+      document.getElementById('f-page_url').value = window.location.href.slice(0, 500);
+
+      // A/B variant copy swap
+      if (variant === 'b') {
+        const word = document.getElementById('hero-variant-word');
+        if (word) word.textContent = 'bleeding';
+      }
+    }
+    hydrateHiddenFields();
+
+    // ============ CALCULATOR LOGIC ============
+    const inputs = {
+      headcount: document.getElementById('i-headcount'),
+      rate:      document.getElementById('i-rate'),
+      hours:     document.getElementById('i-hours'),
+      calls:     document.getElementById('i-calls'),
+      cv:        document.getElementById('i-cv'),
+    };
+    const labels = {
+      headcount: document.getElementById('v-headcount'),
+      rate:      document.getElementById('v-rate'),
+      hours:     document.getElementById('v-hours'),
+      calls:     document.getElementById('v-calls'),
+      cv:        document.getElementById('v-cv'),
+    };
+
+    const INDUSTRY_MULT = {
+      services: 1.0, ecommerce: 1.15, saas: 1.25,
+      trades: 0.9, real_estate: 1.1, agency: 1.2,
+    };
+    const INDUSTRY_PRESETS = {
+      services:    { headcount: 8,  rate: 35, hours: 10, calls: 60,  cv: 500 },
+      ecommerce:   { headcount: 6,  rate: 25, hours: 12, calls: 30,  cv: 120 },
+      saas:        { headcount: 10, rate: 60, hours: 12, calls: 20,  cv: 1500 },
+      trades:      { headcount: 4,  rate: 30, hours: 8,  calls: 120, cv: 850 },
+      real_estate: { headcount: 5,  rate: 40, hours: 10, calls: 80,  cv: 3500 },
+      agency:      { headcount: 8,  rate: 55, hours: 14, calls: 40,  cv: 2500 },
+    };
+    let industry = 'services';
+
+    const fmt = n => Math.round(n).toLocaleString('en-US');
+
+    function animate(el, target, dur = 700) {
+      const start = parseFloat((el.textContent || '0').replace(/[^\d.-]/g, '')) || 0;
+      const t0 = performance.now();
+      function step(t) {
+        const p = Math.min((t - t0) / dur, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        el.textContent = fmt(start + (target - start) * ease);
+        if (p < 1) requestAnimationFrame(step);
+        else el.textContent = fmt(target);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function compute() {
+      const hc = +inputs.headcount.value;
+      const rate = +inputs.rate.value;
+      const hrs = +inputs.hours.value;
+      const calls = +inputs.calls.value;
+      const cv = +inputs.cv.value;
+
+      labels.headcount.textContent = hc;
+      labels.rate.textContent = rate;
+      labels.hours.textContent = hrs;
+      labels.calls.textContent = calls.toLocaleString();
+      labels.cv.textContent = cv.toLocaleString();
+
+      // Mirror python core/audit/calculator.py exactly
+      const labor = hrs * 50 * rate * 0.60 * hc;
+      const callsValue = calls * 12 * 0.30 * cv;
+      const mult = INDUSTRY_MULT[industry] || 1.0;
+      const subtotal = (labor + callsValue) * mult;
+
+      const hoursReclaimed = hrs * 50 * 0.60 * hc;
+      const deployCost = Math.max(15000, subtotal * 0.18);
+      const payback = subtotal > 0 ? Math.max(2, Math.round((deployCost / subtotal) * 12)) : 0;
+
+      animate(document.getElementById('r-total'), subtotal);
+      document.getElementById('r-month').textContent = '$' + fmt(subtotal / 12);
+      animate(document.getElementById('r-labor'), labor * mult);
+      animate(document.getElementById('r-calls'), callsValue * mult);
+      animate(document.getElementById('r-hours'), hoursReclaimed);
+      document.getElementById('r-payback').textContent = payback;
+
+      // Sync hidden form fields so the eventual POST carries the live values
+      document.getElementById('f-headcount').value = hc;
+      document.getElementById('f-hourly_rate').value = rate;
+      document.getElementById('f-hours_per_week').value = hrs;
+      document.getElementById('f-missed_calls_monthly').value = calls;
+      document.getElementById('f-avg_customer_value').value = cv;
+      document.getElementById('f-industry').value = industry;
+    }
+
+    Object.values(inputs).forEach(i => i.addEventListener('input', compute));
+
+    // Industry-aware "What AI handles" examples (swap with chip)
+    const INDUSTRY_EXAMPLES = {
+      services: {
+        label: 'a professional services firm',
+        cards: [
+          { tag: 'After-hours intake', title: 'Picks up at 7pm on a Tuesday',
+            body: 'New prospect calls after close, your AI Voice Agent answers in &lt;1s, takes their problem, books a 15-min discovery call for tomorrow morning. You wake up to a calendar.' },
+          { tag: 'Inbound triage', title: 'First reply in 30 seconds',
+            body: 'Web form submission lands, AI replies with a personal-feeling first message + a calendar link. Average industry response time is 11 hours. Your prospect doesn\'t shop around.' },
+          { tag: 'Follow-up loop', title: 'No more "I\'ll circle back"',
+            body: 'AI nurture follow-up emails go out on the cadence you set, written in your voice, replying to actual responses — until the prospect books or opts out.' },
+        ],
+      },
+      ecommerce: {
+        label: 'an e-commerce store',
+        cards: [
+          { tag: 'Order status', title: '"Where\'s my package?"',
+            body: 'AI agent pulls tracking from your shipping integration and answers in seconds, 24/7. Cuts your support volume by ~40% on day one.' },
+          { tag: 'Sizing + product', title: 'Replaces the FAQ page',
+            body: 'Trained on your product catalog + return reasons. Handles "does this run small?", recommends sizes, suggests bundles. Conversion lift on the cart page.' },
+          { tag: 'Cart recovery', title: 'Picks up where the customer left off',
+            body: 'Personalized recovery sequence triggered by abandoned cart events. Not a generic 10% off email — a real conversation about why they paused.' },
+        ],
+      },
+      saas: {
+        label: 'a SaaS company',
+        cards: [
+          { tag: 'Demo booking', title: 'Demos requested overnight, booked by morning',
+            body: 'Demo-request form fires the AI Sales Agent. Qualifies the lead, books on your AE\'s calendar, sends the calendar link — without waiting for a human.' },
+          { tag: 'Trial onboarding', title: 'Personalized onboarding, no human SDR',
+            body: 'AI watches trial usage, sends targeted nudges based on what the user has actually done in-app. Lifts trial → paid conversion 15-30% in our experience.' },
+          { tag: 'Tier-1 support', title: 'Deflects 60% of help-desk volume',
+            body: 'Trained on your KB, your changelog, and your status page. Engineers stop being interrupted with "how do I reset my password" 8x a day.' },
+        ],
+      },
+      trades: {
+        label: 'a trades / field service business',
+        cards: [
+          { tag: 'Truck-time problem solved', title: 'Phone gets answered while you\'re under a sink',
+            body: 'AI Voice Agent answers, takes the address, the problem, the urgency. Texts you the dispatch info. You finish the job, then drive to the next one — already booked.' },
+          { tag: 'After-hours emergencies', title: '24/7 routing without an answering service',
+            body: 'Real emergencies get routed to your phone immediately. Routine "how much for X" questions get a quick answer + a quote scheduled — no overnight call to you.' },
+          { tag: 'Review pump', title: 'Gets your Google reviews to 100+',
+            body: 'After every job, AI sends a personalized review request. Replies to every Google review with a thoughtful response. Local SEO compounds.' },
+        ],
+      },
+      real_estate: {
+        label: 'a real estate operation',
+        cards: [
+          { tag: 'Lead speed', title: 'Picks up the lead before the next agent does',
+            body: 'AI replies to Zillow/inbound web leads in 30 seconds. Books showings into your calendar based on the prospect\'s schedule preferences.' },
+          { tag: 'Showing logistics', title: 'Handles the back-and-forth',
+            body: 'AI manages the "can we move it to 4:30?" reschedule loop. Sends prep instructions, parking info, address. You just show up.' },
+          { tag: 'Listing inquiries', title: 'Pre-qualifies before you spend an hour',
+            body: 'AI asks the right qualifying questions on the first message — pre-approval status, timing, motivation — so you only book showings with real buyers.' },
+        ],
+      },
+      agency: {
+        label: 'a marketing or creative agency',
+        cards: [
+          { tag: 'Inbound discovery', title: 'Booked discovery call, no SDR',
+            body: 'Web form fires the AI Sales Agent. It qualifies (size, budget range, timeline), books the discovery call on your calendar, sends the prep doc. Founder shows up to a warm conversation.' },
+          { tag: 'Client comms', title: 'Status updates without the meeting',
+            body: 'AI agent watches your project tools, drafts weekly status emails per client in your voice. You review, hit send. Saves your PMs hours per week.' },
+          { tag: 'Proposal prep', title: 'First-draft proposal in 5 minutes',
+            body: 'Discovery-call notes feed into an AI that drafts a custom proposal in your template. You edit and send. From "do we want to work with them" to delivered proposal in under an hour.' },
+        ],
+      },
+    };
+
+    function renderExamples() {
+      const data = INDUSTRY_EXAMPLES[industry] || INDUSTRY_EXAMPLES.services;
+      document.getElementById('ex-industry-label').textContent = data.label;
+      const grid = document.getElementById('examples-grid');
+      grid.innerHTML = data.cards.map(c => `
+        <div class="bento relative p-6 rounded-2xl bg-white/[0.03] border border-white/8">
+          <div class="text-[10px] uppercase tracking-wider text-[#FF6B35] mb-2">${c.tag}</div>
+          <h3 class="text-base font-semibold mb-1.5">${c.title}</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed">${c.body}</p>
+        </div>
+      `).join('');
+    }
+    renderExamples();
+
+    // Industry chip → pick + auto-fill defaults
+    document.querySelectorAll('#industry-chips .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#industry-chips .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        industry = chip.dataset.industry;
+        const p = INDUSTRY_PRESETS[industry] || INDUSTRY_PRESETS.services;
+        inputs.headcount.value = p.headcount;
+        inputs.rate.value      = p.rate;
+        inputs.hours.value     = p.hours;
+        inputs.calls.value     = p.calls;
+        inputs.cv.value        = p.cv;
+        compute();
+        renderExamples();
+      });
+    });
+
+    // Initial render
+    compute();
+
+    // ============ FORM SUBMIT ============
+    const form = document.getElementById('lead-form');
+    const submitBtn = document.getElementById('lead-submit');
+    const submitLabel = document.getElementById('lead-submit-label');
+    const formError = document.getElementById('lead-form-error');
+
+    function readForm() {
+      const data = {};
+      new FormData(form).forEach((v, k) => { data[k] = v; });
+      // Cast numeric inputs back to numbers
+      ['headcount', 'support_tickets_monthly', 'monthly_leads', 'missed_calls_monthly'].forEach(k => {
+        if (data[k] !== undefined) data[k] = parseInt(data[k], 10) || 0;
+      });
+      ['hourly_rate', 'hours_per_week', 'avg_customer_value'].forEach(k => {
+        if (data[k] !== undefined) data[k] = parseFloat(data[k]) || 0;
+      });
+      return data;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      formError.classList.add('hidden');
+      formError.textContent = '';
+      submitBtn.disabled = true;
+      submitLabel.textContent = 'Sending your audit…';
+
+      try {
+        const payload = readForm();
+        const resp = await fetch('/api/forms/ai-audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(`Submission failed (${resp.status}). Try again or email hello@groundrushlabs.com.`);
+        }
+        const result = await resp.json();
+
+        // Unblur the result
+        document.getElementById('result-gate').classList.remove('locked');
+
+        // Animate result card to the API's authoritative number
+        if (result && result.savings) {
+          animate(document.getElementById('r-total'), result.savings.annual_total, 1200);
+          document.getElementById('r-month').textContent = '$' + fmt(result.savings.monthly_total);
+          animate(document.getElementById('r-labor'), result.savings.labor_savings, 1200);
+          animate(document.getElementById('r-calls'), result.savings.lead_speed_savings, 1200);
+          animate(document.getElementById('r-hours'), result.savings.hours_reclaimed, 1200);
+          document.getElementById('r-payback').textContent = result.savings.payback_months;
+        }
+        if (result && result.booking_url) {
+          document.getElementById('booking-link').href = result.booking_url;
+        }
+        const email = payload.email || '';
+        document.getElementById('post-email').textContent = email;
+        document.getElementById('thanks-email').textContent = email;
+
+        document.body.classList.add('submitted');
+        // Scroll the unblurred result back into view
+        document.getElementById('calc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Fire conversion events
+        if (window.fbq) fbq('track', 'Lead', { content_category: payload.industry });
+        if (window.gtag) gtag('event', 'generate_lead', { industry: payload.industry });
+
+      } catch (err) {
+        formError.textContent = err.message || 'Submission failed. Try again in a moment.';
+        formError.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitLabel.textContent = 'Reveal my savings →';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -149,6 +149,20 @@ _drafts_dir = Path.home() / ".openclaw" / "workspace" / "static" / "drafts"
 if _drafts_dir.exists():
     app.mount("/drafts", StaticFiles(directory=str(_drafts_dir), html=True), name="drafts")
 
+# AI Savings Audit — public lead capture for the calculator funnel
+try:
+    from core.api.audit_endpoint import register as _register_audit
+    _register_audit(app, limiter)
+except Exception as _e:
+    logger.exception("audit_endpoint register failed: %s", _e)
+
+# AI Savings Audit — admin dashboard at /admin/leads (auth-gated)
+try:
+    from core.api.audit_admin import register as _register_audit_admin
+    _register_audit_admin(app)
+except Exception as _e:
+    logger.exception("audit_admin register failed: %s", _e)
+
 
 @app.get("/static/drafts/{file_path:path}")
 async def static_drafts_redirect(file_path: str):
