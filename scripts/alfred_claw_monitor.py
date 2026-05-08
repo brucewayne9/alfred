@@ -221,6 +221,56 @@ def check_health():
 
 
 # ============================================================
+# LUCIUS PROBE (111) — observation-only, no auto-fix
+# ============================================================
+
+def check_lucius() -> dict:
+    """Probe Lucius (Hermes Agent on 111). Observation-only — no auto-fix.
+
+    Returns {ok: bool, issues: [str], status: 'healthy' | 'down' | 'unknown'}
+    """
+    issues = []
+
+    # Health probe via SSH
+    try:
+        out = subprocess.check_output(
+            ["ssh", "-o", "ConnectTimeout=5",
+             "brucewayne9@75.43.156.111",
+             "~/.lucius/scripts/health.sh"],
+            timeout=15,
+            stderr=subprocess.STDOUT,
+        ).decode().strip()
+        if out != "ok":
+            issues.append(f"hermes-gateway not active (got: {out!r})")
+    except subprocess.CalledProcessError as e:
+        issues.append(f"ssh probe failed: {e.output.decode()[:200]}")
+    except subprocess.TimeoutExpired:
+        issues.append("ssh probe timeout")
+    except Exception as e:
+        issues.append(f"ssh probe error: {e}")
+
+    # Identity guard re-verify (cheap)
+    try:
+        guard_out = subprocess.check_output(
+            ["ssh", "-o", "ConnectTimeout=5",
+             "brucewayne9@75.43.156.111",
+             "~/.lucius/scripts/lucius_identity_guard.sh"],
+            timeout=15,
+            stderr=subprocess.STDOUT,
+        ).decode().strip()
+        if "OK" not in guard_out:
+            issues.append(f"identity-guard failed: {guard_out[:200]}")
+    except Exception as e:
+        issues.append(f"identity-guard probe error: {e}")
+
+    return {
+        "ok": not issues,
+        "issues": issues,
+        "status": "healthy" if not issues else "down",
+    }
+
+
+# ============================================================
 # AUTO-FIX
 # ============================================================
 
@@ -955,6 +1005,48 @@ def main():
 
     state = load_state()
     healthy, issues, details = check_health()
+
+    # ---- LUCIUS PROBE (111) — observation-only, runs every cycle ----
+    log("Probing Lucius (111)...")
+    try:
+        lucius_result = check_lucius()
+        log(f"Lucius: {lucius_result['status']} — issues: {lucius_result['issues']}")
+
+        # Reset on recovery, increment on failure
+        if lucius_result["ok"]:
+            state["lucius_failures"] = 0
+            state["lucius_alerted"] = False
+        else:
+            state["lucius_failures"] = state.get("lucius_failures", 0) + 1
+
+        state["lucius_status"] = lucius_result["status"]
+        state["lucius_issues"] = lucius_result["issues"]
+        state["lucius_last_check"] = datetime.now().isoformat()
+
+        # Alert on 2 consecutive failures — simple notification, no FIX IT flow
+        if state["lucius_failures"] >= CONSECUTIVE_FAILURES_BEFORE_ALERT and not state.get("lucius_alerted"):
+            issue_lines = "\n".join(f"• {i}" for i in lucius_result["issues"])
+            alert_body = f"""
+<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0f; color: #ffffff; padding: 2rem; border-radius: 12px;">
+    <h2 style="color: #e94560; margin-bottom: 1rem;">🚨 Lucius (111) is DOWN</h2>
+    <p style="color: #a0a0b0;">Detected at <strong style="color: #fff;">{datetime.now().strftime('%I:%M %p EST on %B %d, %Y')}</strong></p>
+    <div style="background: #1a1a25; padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 4px solid #e94560;">
+        <h3 style="color: #e94560; margin: 0 0 0.5rem 0;">Issues Found:</h3>
+        <pre style="color: #a0a0b0; margin: 0; white-space: pre-wrap;">{issue_lines}</pre>
+    </div>
+    <p style="color: #f39c12;">Observation-only — no auto-fix. Investigate manually on server 111.</p>
+    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); color: #6a6a7a; font-size: 0.85rem;">
+        Alfred Labs Health Monitor • 75.43.156.105
+    </div>
+</div>"""
+            sent = send_email("🚨 Lucius (111) is DOWN — observation alert", alert_body)
+            if sent:
+                state["lucius_alerted"] = True
+                log("Lucius DOWN alert sent to Mike.")
+            else:
+                log("WARNING: failed to send Lucius DOWN alert email.")
+    except Exception as e:
+        log(f"Lucius probe error (non-fatal): {e}")
 
     # ---- HEALTHY ----
     if healthy:

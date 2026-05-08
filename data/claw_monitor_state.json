@@ -1,11 +1,15 @@
 {
-  "status": "healthy",
-  "last_check": "2026-04-01T12:40:02.314909",
-  "failures": 0,
+  "status": "down",
+  "last_check": "2026-04-23T15:20:36.840749",
+  "failures": 27,
   "alert_sent": false,
-  "fix_actions": [],
-  "issues": [],
-  "down_since": "2026-03-31T16:50:02.458500",
+  "fix_actions": [
+    "Failed to clear sessions: File \"<string>\", line 1\n    import json; for p in [\"/home/aialfred/.openclaw/agents/main/sessions/sessions.json\",\"/home/aialfred/.openclaw/sessions.json\"]:  f=open(p,\"w\"); json.dump({},f); f.close(); print(\"cleared\")\n                 ^^^\nSyntaxError: invalid syntax"
+  ],
+  "issues": [
+    "Sessions at critical context: main at 105%"
+  ],
+  "down_since": "2026-04-23T11:00:03.744460",
   "awaiting_command": false,
   "command_received": null,
   "acknowledged": false,
@@ -16,5 +20,10 @@
     "Q-20250214-002",
     "Q-20250214-004",
     "Q-20250215-003"
-  ]
+  ],
+  "lucius_status": "unknown",
+  "lucius_failures": 0,
+  "lucius_last_check": null,
+  "lucius_issues": [],
+  "lucius_alerted": false
 }
