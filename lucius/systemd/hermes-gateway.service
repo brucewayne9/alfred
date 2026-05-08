@@ -1,0 +1,26 @@
+[Unit]
+Description=Hermes Agent gateway (Lucius)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStartPre=/home/brucewayne9/.lucius/scripts/lucius_identity_guard.sh
+ExecStart=/bin/bash -lc 'hermes gateway'
+Restart=on-failure
+RestartSec=15
+
+# Resource hygiene
+MemoryHigh=2G
+MemoryMax=3G
+CPUWeight=80
+
+# Logs
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hermes-gateway
+
+[Install]
+WantedBy=default.target
