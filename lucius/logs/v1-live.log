@@ -1,0 +1,10 @@
+2026-05-08T10:38:31-04:00
+
+T29 final smoke results:
+- 5/5 tools fired (memory_recall, image_generate, crm_pipeline, calendar_today, email_unread)
+- 4/5 succeeded immediately
+- Calendar fixed mid-T29 by copying google_token.json from 117:~/.openclaw/workspace/scripts/integrations/config/ to 111:~/.lucius/workspace/scripts/integrations/config/ (chmod 600), and pip-installing google-api-python-client into the MCP venv
+- Image gen via ComfyUI on 105 — Mike confirmed render was acceptable
+- "Lucius is live on 111" notification email sent via alfred-gw
+
+All 30 tasks complete. Branch feat/lucius-hermes-on-111 ready for merge whenever Mike approves.
