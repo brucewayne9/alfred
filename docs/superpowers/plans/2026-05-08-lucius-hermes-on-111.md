@@ -1092,6 +1092,21 @@ git commit -m "feat(lucius): MCP server entrypoint + smoke tests pass"
 
 ---
 
+### Task 13.5 (added during execution): Env reconciliation before T14
+
+**Why this exists:** T9 deployed an env subset based on the original plan's allowlist, which used Alfred-Labs-style keys (`LIGHTRAG_HOST`, `TWENTY_API_URL`, `COMFYUI_HOST`, etc.). Reality check during T9 showed the deployed scripts on 111 came verbatim from 117's OpenClaw and use OpenClaw-style names: `BASE_CRM_API_KEY`, `BASE_CRM_URL`, `CRM_USER_TOKEN`, `BRAVE_API_KEY`, `COMFYUI_CLOUD_API_KEY`, `COMFYUI_URL`, `KOKORO_URL`, `PEXELS_API_KEY`, `UNSPLASH_ACCESS_KEY`, `TTS_DEFAULT_CHAT_ID`, `TTS_DEFAULT_VOICE`, `TELEGRAM_BOT_TOKEN`. These values live in 117's `openclaw.json` gateway config (not in the on-disk `.env`).
+
+**Steps before T14:**
+1. SSH 117 and read `~/.openclaw/openclaw.json`'s env section to get the actual values for the OpenClaw-style keys.
+2. Update `lucius/deploy/env_subset_keys.txt` to use the correct names.
+3. Re-run the env subset Python script (T9 Step 2) to rebuild `~/.lucius/config/.env` on 111 with values keyed by their actual names.
+4. Re-spot-check via `set -a; source ~/.lucius/config/.env; set +a; echo $BASE_CRM_URL $BRAVE_API_KEY $COMFYUI_URL` etc.
+5. Commit the corrected allowlist.
+
+If openclaw.json doesn't expose them and they live elsewhere (e.g., systemd `Environment=` directives, or Mike's gateway-managed secrets), escalate — Mike may need to surface them.
+
+---
+
 ### Task 14: Deploy `mcp-claw-tools` to 111 + register with Hermes
 
 **Files:**
