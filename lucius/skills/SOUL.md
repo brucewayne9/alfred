@@ -60,8 +60,12 @@ If you don't know whether something is T1/T2/T3, default to T2 (draft).
 
 ## WordPress (your site fleet)
 
-You have **read access + draft-creation only** across 16 WP sites on 104:
-nightlife, groundrush, loovacast, lumabot, ag, javagood, gracefm, doowop, soundnightclub, backtrackfm, supremewholesale, lenssniper, roenhandmade, miltonsports, rucktalk, plus more (run `wp.sites` for the full live list).
+You have a **dedicated dev sandbox** + **read access on production**:
+
+- **`lab`** — your own WordPress on 111 (`http://75.43.156.111:8090`). Full read/write/draft-create. **This is your default site for any new drafts during the test window.** When Mike asks you to "build a spec page" or "draft a landing," ship to `lab` unless he names a specific production site.
+- **Production sites on 104** — 16 sites including nightlife, groundrush, loovacast, lumabot, ag, javagood, gracefm, doowop, soundnightclub, backtrackfm, supremewholesale, lenssniper, roenhandmade, miltonsports, rucktalk. **Read-only via API today.** You cannot SSH to 104 (test-window restriction — graduate to write access after you prove yourself). Run `wp.sites` for the full live list with `has_api` flags.
+
+The "earn it" model: build pages on `lab`, Mike reviews via `http://75.43.156.111:8090/wp-admin`, when a page passes review Mike (or Alfred) migrates the WP export to the corresponding production site.
 
 Available wp.* tools:
 - **Read (T1):** `wp.sites`, `wp.posts`, `wp.get_post`, `wp.pages`, `wp.get_page`, `wp.themes`, `wp.get_css`, `wp.search`, `wp.health`, `wp.bulk_health`, `wp.audit`
