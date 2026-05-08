@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-claw-tools"
+version = "0.1.0"
+description = "MCP server wrapping Lucius's 24 day-one integration scripts"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp>=1.0.0",
+  "pydantic>=2.5",
+]
+
+[project.scripts]
+mcp-claw-tools = "mcp_claw_tools.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
