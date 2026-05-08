@@ -1,10 +1,18 @@
 # Lucius / Hermes-on-111 — model backend
-# Wired 2026-05-08 by Task 5. Brain: kimi-k2.6:cloud via 105's Ollama bridge.
+# Wired 2026-05-08 by Task 5. Brain swapped to minimax-m2.7:cloud later same
+# day after T21 surfaced kimi-k2.6 confabulating digest-reply state.
 model:
   provider: custom
-  model: kimi-k2.6:cloud
+  model: minimax-m2.7:cloud
   base_url: http://75.43.156.105:11434/v1
   # api_key intentionally omitted — Ollama bridge requires no auth from 111
+  #
+  # Why minimax-m2.7:cloud (2026-05-08): kimi-k2.6:cloud was conversational but
+  # loose on tool-call discipline — it could quote SOUL.md's digest-reply
+  # protocol verbatim but didn't actually call memory.record_approval when Mike
+  # replied. Minimax-m2.7 is on Ollama's recommended-for-Hermes list and gave a
+  # noticeably tighter response on the same prompt ("exactly that tool, no
+  # exceptions"). Re-evaluate at end of test window.
 
 # Verbose tool-call progress in the Telegram channel for the test window
 display:
