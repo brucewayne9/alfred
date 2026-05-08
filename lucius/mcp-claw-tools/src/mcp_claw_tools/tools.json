@@ -85,6 +85,7 @@
     {"name": "mc.log_activity",         "script": "mission_control.py",    "command": "log-activity",       "description": "Log activity"},
 
     {"name": "memory.recall",           "script": "lightrag_client.py",    "command": "recall",             "description": "Recall from 117 Grey Matter (READ-ONLY)"},
-    {"name": "memory.query",            "script": "lightrag_client.py",    "command": "query",              "description": "Query 117 Grey Matter (READ-ONLY)"}
+    {"name": "memory.query",            "script": "lightrag_client.py",    "command": "query",              "description": "Query 117 Grey Matter (READ-ONLY)"},
+    {"name": "memory.record_approval",  "script": "promote_approval.py",   "command": "record",             "description": "Record Mike's approval of a promote-queue digest. Args: [digest_id, indexes] — digest_id may be 'latest' to use current digest_state.json; indexes is comma-separated digits like '1,3' or 'none'."}
   ]
 }

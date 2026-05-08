@@ -33,19 +33,30 @@ def load_env() -> dict[str, str]:
     return out
 
 
-def get_reply_text(token: str, chat_id: str, target_message_id: int) -> str | None:
-    url = f"https://api.telegram.org/bot{token}/getUpdates?timeout=2&allowed_updates=%5B%22message%22%5D"
-    with urllib.request.urlopen(url, timeout=10) as r:
-        data = json.loads(r.read())
-    if not data.get("ok"):
+APPROVALS = LUCIUS_HOME / "promote_approvals.jsonl"
+
+
+def get_recorded_approval(digest_id: str) -> list[int] | None:
+    """Read promote_approvals.jsonl for the most recent entry matching digest_id.
+
+    Returns the approved_indexes list, or None if no matching entry exists yet.
+    The applier was originally designed to poll Telegram getUpdates, but that
+    races with Hermes' running gateway long-poll (whoever calls first consumes
+    the update). The fix: Lucius captures approvals via the
+    `memory.record_approval` MCP tool when Mike replies to a digest, writing
+    to this file. The applier then reads from here — no Telegram race.
+    """
+    if not APPROVALS.exists():
         return None
-    for upd in reversed(data.get("result", [])):
-        msg = upd.get("message") or {}
-        if str(msg.get("chat", {}).get("id")) != str(chat_id):
+    for line in reversed(APPROVALS.read_text().splitlines()):
+        if not line.strip():
             continue
-        rt = (msg.get("reply_to_message") or {}).get("message_id")
-        if rt == target_message_id:
-            return msg.get("text", "").strip()
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if str(entry.get("digest_id")) == str(digest_id):
+            return entry.get("approved_indexes", [])
     return None
 
 
@@ -85,18 +96,22 @@ def main() -> int:
 
     state = json.loads(DIGEST_STATE.read_text())
     entries = state["entries"]
+    digest_id = state.get("digest_id", "")
     env = load_env()
     token = env.get("TELEGRAM_BOT_TOKEN_LUCIUS")
     chat_id = env.get("TELEGRAM_CHAT_ID", "7582976864")
     gm_host = env.get("LIGHTRAG_URL") or env.get("LIGHTRAG_HOST", "http://75.43.156.117:9621")
     gm_key = env.get("LIGHTRAG_API_KEY", "")
 
-    reply = get_reply_text(token, chat_id, state["tg_message_id"])
-    if reply is None:
-        print("no reply yet — leaving state for next run")
+    approved_idx = get_recorded_approval(digest_id)
+    if approved_idx is None:
+        print(f"no recorded approval for digest_id={digest_id} — leaving state for next run")
         return 0
 
-    approved_idx = parse_approvals(reply, len(entries))
+    # Filter to valid range [1, len(entries)] — Lucius's record_approval already
+    # parses indexes, but defensive bounds-check here keeps a corrupt approvals
+    # file from indexing past the entries list.
+    approved_idx = sorted({i for i in approved_idx if 1 <= i <= len(entries)})
     approved = [entries[i - 1] for i in approved_idx]
     rejected = [e for i, e in enumerate(entries, 1) if i not in approved_idx]
 
