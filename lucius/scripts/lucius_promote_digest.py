@@ -36,8 +36,15 @@ def load_env() -> dict[str, str]:
 
 
 def send_telegram(token: str, chat_id: str, text: str) -> dict:
+    """Send a digest message as plain text — no parse_mode.
+
+    Markdown was tempting (bold the title, italicize the reasoning) but the
+    queued content can contain technical terms with underscores (e.g.
+    `memory.record_approval`, file paths, env keys), which MarkdownV1's
+    aggressive italic parsing rejects with HTTP 400. Plain text is robust.
+    """
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode({"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}).encode()
+    data = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode()
     with urllib.request.urlopen(url, data=data, timeout=15) as r:
         return json.loads(r.read())
 
@@ -58,16 +65,16 @@ def main() -> int:
     entries = [json.loads(l) for l in QUEUE.read_text().splitlines() if l.strip()]
     today = entries[:CAP_PER_DIGEST]
 
-    lines = ["*Lucius proposes these for long-term memory:*", ""]
+    lines = ["Lucius proposes these for long-term memory:", ""]
     for i, e in enumerate(today, 1):
         snippet = e["content"][:200] + ("…" if len(e["content"]) > 200 else "")
         lines.append(f"{i}. {snippet}")
-        lines.append(f"   _{e['reasoning'][:140]}_")
+        lines.append(f"   why: {e['reasoning'][:140]}")
         lines.append("")
     if len(entries) > len(today):
-        lines.append(f"Reply with comma-separated numbers (1,3,4) to approve, or `none` to skip all. {len(entries) - len(today)} more queued behind these.")
+        lines.append(f"Reply with comma-separated numbers (1,3,4) to approve, or 'none' to skip all. {len(entries) - len(today)} more queued behind these.")
     else:
-        lines.append("Reply with comma-separated numbers (1,3,4) to approve, or `none` to skip all.")
+        lines.append("Reply with comma-separated numbers (1,3,4) to approve, or 'none' to skip all.")
 
     text = "\n".join(lines)
     resp = send_telegram(token, chat_id, text)
