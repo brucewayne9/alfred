@@ -1,40 +1,33 @@
-# CRM / Twenty
-TWENTY_API_URL
-TWENTY_API_KEY
-
-# Email (read/send for Alfred mailbox; Lucius borrows alfred-gw for sends)
+# Lucius env subset allowlist — v2 (reconciled to OpenClaw-style names actually
+# referenced by the 24 deployed scripts on 111). Updated 2026-05-08 by Task 13.5.
+#
+# 105-sourced keys (Lucius-specific, from /home/aialfred/alfred/config/.env)
+EMAIL_PASS_ALFRED
 EMAIL_PASS_ALFRED_GW
 EMAIL_PASS_GROUNDRUSH
-EMAIL_PASS_ALFRED
-
-# Google Calendar / Workspace / Analytics
-GOOGLE_CALENDAR_TOKEN_PATH
-GOOGLE_DRIVE_TOKEN_PATH
-GA4_CREDENTIALS_PATH
-
-# Social
 META_ACCESS_TOKEN
-LINKEDIN_ACCESS_TOKEN
-YOUTUBE_API_KEY
-INSTAGRAM_ACCESS_TOKEN
-
-# Web
-SEARXNG_URL
-JINA_API_KEY
-
-# Image / TTS
-COMFYUI_HOST
-KOKORO_HOST
-STOCK_PHOTO_API_KEY
-
-# Memory (read-only)
-LIGHTRAG_HOST
-LIGHTRAG_API_KEY
-
-# Mission Control
-MISSION_CONTROL_DB_PATH
-
-# Telegram (Lucius's own bot)
 TELEGRAM_BOT_TOKEN_LUCIUS
 LUCIUS_TELEGRAM_BOT_ID
-TELEGRAM_CHAT_ID
+
+# 117-sourced keys (OpenClaw-style, from 117's openclaw.json env.vars)
+BASE_CRM_API_KEY
+BASE_CRM_URL
+BASE_URL
+BRAVE_API_KEY
+BRAVE_KEY
+COMFYUI_CLOUD_API_KEY
+COMFYUI_LOCAL_URL
+COMFYUI_URL
+CRM_USER_TOKEN
+DEFAULT_CHAT_ID
+DEFAULT_VOICE
+KOKORO_URL
+PEXELS_API_KEY
+PEXELS_KEY
+TTS_DEFAULT_CHAT_ID
+TTS_DEFAULT_VOICE
+UNSPLASH_ACCESS_KEY
+UNSPLASH_KEY
+
+# Synthesized: TELEGRAM_BOT_TOKEN = LUCIUS's token (NOT OpenClaw's)
+TELEGRAM_BOT_TOKEN
