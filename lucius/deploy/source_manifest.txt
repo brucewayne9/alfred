@@ -1,0 +1,39 @@
+# Lucius day-one tool manifest (24 scripts)
+# Source: brucewayne9@75.43.156.117:~/.openclaw/workspace/scripts/integrations/
+# Driven by: lucius/deploy/sync_lucius_to_111.sh (built in Plan T8)
+# Curated from claw_tools_inventory.md; deferred / disabled scripts are intentionally omitted.
+#
+# Note: website_designer.py was originally on the day-one list (Plan §Wave 4 Task 12 still
+# references it) but it lives at ~/.openclaw/workspace/skills/website_designer.py on 117,
+# not in integrations/. The Plan's T8 deploy script reads only integrations/. Rather than
+# expand the deploy mechanic for a single heavyweight tool, we defer website_designer.py
+# to "add as needed". Lucius is butler-tier first; full website builds are project work
+# we can graduate it into later.
+#
+# Plan T12 tools.json should drop website.discover and website.redesign accordingly when
+# T12 runs. (Heads-up to that task — not yours to fix here.)
+
+crm.py
+email_client.py
+google_calendar.py
+meta_social.py
+linkedin.py
+youtube.py
+search.py
+scraper.py
+comfyui_gen.py
+flyer_designer.py
+image_fx.py
+image_tools.py
+screenshot.py
+stock_photos.py
+design_memory.py
+design_review.py
+telegram_tts.py
+auto_blogger.py
+video_render.py
+remotion_render.py
+weather.py
+google_workspace.py
+mission_control.py
+lightrag_client.py
