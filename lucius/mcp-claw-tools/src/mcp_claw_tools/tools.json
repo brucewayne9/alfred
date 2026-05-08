@@ -86,6 +86,19 @@
 
     {"name": "memory.recall",           "script": "lightrag_client.py",    "command": "recall",             "description": "Recall from 117 Grey Matter (READ-ONLY)"},
     {"name": "memory.query",            "script": "lightrag_client.py",    "command": "query",              "description": "Query 117 Grey Matter (READ-ONLY)"},
-    {"name": "memory.record_approval",  "script": "promote_approval.py",   "command": "record",             "description": "Record Mike's approval of a promote-queue digest. Args: [digest_id, indexes] — digest_id may be 'latest' to use current digest_state.json; indexes is comma-separated digits like '1,3' or 'none'."}
+    {"name": "memory.record_approval",  "script": "promote_approval.py",   "command": "record",             "description": "Record Mike's approval of a promote-queue digest. Args: [digest_id, indexes] — digest_id may be 'latest' to use current digest_state.json; indexes is comma-separated digits like '1,3' or 'none'."},
+
+    {"name": "wp.sites",                "script": "wordpress.py",          "command": "sites",              "description": "List the 16 configured WordPress sites (nightlife, groundrush, loovacast, lumabot, ag, javagood, gracefm, doowop, soundnightclub, backtrackfm, supremewholesale, lenssniper, roenhandmade, miltonsports, rucktalk, etc.)"},
+    {"name": "wp.posts",                "script": "wordpress.py",          "command": "posts",              "description": "List recent posts for a given WP site. Args: [site_name]"},
+    {"name": "wp.get_post",             "script": "wordpress.py",          "command": "get-post",           "description": "Read a single post (HTML + meta). Args: [site_name, post_id]"},
+    {"name": "wp.pages",                "script": "wordpress.py",          "command": "pages",              "description": "List pages for a given WP site. Args: [site_name]"},
+    {"name": "wp.get_page",             "script": "wordpress.py",          "command": "get-page",           "description": "Read a single page (HTML + meta). Args: [site_name, page_id]"},
+    {"name": "wp.themes",               "script": "wordpress.py",          "command": "themes",             "description": "List themes installed on a site. Args: [site_name]"},
+    {"name": "wp.get_css",              "script": "wordpress.py",          "command": "get-css",            "description": "Read the active theme's custom CSS. Args: [site_name]"},
+    {"name": "wp.search",               "script": "wordpress.py",          "command": "search",             "description": "Search posts/pages on a site. Args: [site_name, query]"},
+    {"name": "wp.health",               "script": "wordpress.py",          "command": "health",             "description": "SEO + perf health check for one site. Args: [site_name]"},
+    {"name": "wp.bulk_health",          "script": "wordpress.py",          "command": "bulk-health",        "description": "Health check across all 16 sites. No args."},
+    {"name": "wp.audit",                "script": "wordpress.py",          "command": "audit",              "description": "Design audit on a site (theme/CSS/blocks). Args: [site_name]"},
+    {"name": "wp.design_page",          "script": "wordpress.py",          "command": "design-page",        "description": "Create a new page from raw HTML — script enforces DRAFT status (Mike publishes). Args: [site_name, title, html]"}
   ]
 }
