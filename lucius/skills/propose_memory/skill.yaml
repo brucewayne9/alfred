@@ -1,0 +1,20 @@
+name: propose_memory
+version: 0.1.0
+description: |
+  Propose a fact for promotion to long-term memory (117 Grey Matter).
+  Appends to ~/.lucius/promote_queue.jsonl. The 7 AM ET daily digest
+  surfaces queued entries to Mike on Telegram for approval.
+inputs:
+  - name: content
+    type: string
+    required: true
+    description: The fact, decision, or piece of context worth promoting.
+  - name: reasoning
+    type: string
+    required: true
+    description: Why this is worth long-term memory rather than just session memory.
+  - name: track_id_hint
+    type: string
+    required: false
+    description: Optional hint for the Grey Matter track_id (will be prefixed `lucius_`).
+runner: run.py
