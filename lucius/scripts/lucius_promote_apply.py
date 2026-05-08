@@ -74,19 +74,42 @@ def parse_approvals(text: str, n: int) -> list[int]:
     return sorted(set(nums))
 
 
-def lightrag_insert(host: str, api_key: str, content: str, track_id: str) -> bool:
-    url = f"{host.rstrip('/')}/documents/text"
-    body = json.dumps({"text": content, "track_id": track_id}).encode()
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["X-API-Key"] = api_key
-    req = urllib.request.Request(url, data=body, headers=headers)
+def lightrag_insert(content: str, track_id: str) -> bool:
+    """Insert via the existing lightrag_client.py CLI (same auth + endpoint as recall).
+
+    The script handles HTTPS auth against greymatter.groundrushlabs.com via
+    LIGHTRAG_USER/PASS — we reuse that path rather than duplicating the auth
+    handshake. Track_id becomes a prefix on the content for traceability;
+    the CLI's insert() function doesn't accept a separate track_id field,
+    but a "[Lucius/<track_id>]" prefix on the text gives the same audit signal.
+    """
+    import subprocess
+    script_path = "/home/brucewayne9/.lucius/workspace/scripts/integrations/lightrag_client.py"
+    prefixed = f"[Lucius promoted / {track_id}]\n\n{content}"
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return r.status < 400
-    except Exception as e:
-        print(f"lightrag insert failed: {e}", file=sys.stderr)
+        proc = subprocess.run(
+            [sys.executable, script_path, "insert", prefixed],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env={**os.environ},
+        )
+    except subprocess.TimeoutExpired:
+        print("lightrag insert timeout (60s)", file=sys.stderr)
         return False
+    if proc.returncode != 0:
+        print(f"lightrag insert failed: exit={proc.returncode} stderr={proc.stderr[:300]}", file=sys.stderr)
+        return False
+    # The CLI prints JSON to stdout; success if it parses with no "error" key
+    try:
+        result = json.loads(proc.stdout.strip())
+        if isinstance(result, dict) and result.get("error"):
+            print(f"lightrag insert returned error: {result['error']}", file=sys.stderr)
+            return False
+    except json.JSONDecodeError:
+        # Some success responses may be non-JSON; tolerate
+        pass
+    return True
 
 
 def main() -> int:
@@ -117,7 +140,7 @@ def main() -> int:
 
     successes: list[str] = []
     for e in approved:
-        ok = lightrag_insert(gm_host, gm_key, e["content"], e["proposed_track_id"])
+        ok = lightrag_insert(e["content"], e["proposed_track_id"])
         if ok:
             successes.append(e["id"])
 
