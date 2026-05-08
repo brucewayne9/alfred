@@ -42,6 +42,9 @@ Thumbs.db
 # Logs
 *.log
 logs/
+# Lucius (Hermes Agent on 111) keeps recon/install/deploy logs in lucius/logs/
+!lucius/logs/
+!lucius/logs/**
 
 # Temp files
 *.tmp
