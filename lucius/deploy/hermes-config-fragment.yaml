@@ -1,0 +1,13 @@
+# Lucius / Hermes-on-111 — model backend
+# Wired 2026-05-08 by Task 5. Brain: kimi-k2.6:cloud via 105's Ollama bridge.
+model:
+  provider: custom
+  model: kimi-k2.6:cloud
+  base_url: http://75.43.156.105:11434/v1
+  # api_key intentionally omitted — Ollama bridge requires no auth from 111
+
+# Verbose tool-call progress in the Telegram channel for the test window
+display:
+  platforms:
+    telegram:
+      tool_progress: verbose
