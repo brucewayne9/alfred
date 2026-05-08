@@ -9,7 +9,6 @@ description = "MCP server wrapping Lucius's 24 day-one integration scripts"
 requires-python = ">=3.11"
 dependencies = [
   "mcp>=1.0.0",
-  "pydantic>=2.5",
 ]
 
 [project.scripts]
