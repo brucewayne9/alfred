@@ -1,0 +1,90 @@
+{
+  "version": "0.1.0",
+  "scripts_dir": "/home/brucewayne9/.lucius/workspace/scripts/integrations",
+  "tools": [
+    {"name": "crm.search_people",       "script": "crm.py",                "command": "search-people",      "description": "Search Twenty CRM for people by name/email"},
+    {"name": "crm.list_people",         "script": "crm.py",                "command": "list-people",        "description": "List recent people in Twenty CRM"},
+    {"name": "crm.pipeline",            "script": "crm.py",                "command": "pipeline",           "description": "Show Twenty CRM opportunity pipeline by stage"},
+    {"name": "crm.create_person",       "script": "crm.py",                "command": "create-person",      "description": "Create a person in Twenty CRM"},
+    {"name": "crm.update_person",       "script": "crm.py",                "command": "update-person",      "description": "Update a person in Twenty CRM"},
+    {"name": "crm.add_note",            "script": "crm.py",                "command": "notes",              "description": "Add note to a Twenty CRM record"},
+
+    {"name": "email.inbox",             "script": "email_client.py",       "command": "inbox",              "description": "List recent inbox messages"},
+    {"name": "email.unread",            "script": "email_client.py",       "command": "unread",             "description": "List unread messages"},
+    {"name": "email.search",            "script": "email_client.py",       "command": "search",             "description": "Search a single mailbox"},
+    {"name": "email.search_all",        "script": "email_client.py",       "command": "search-all",         "description": "Search across all mailboxes"},
+    {"name": "email.send",              "script": "email_client.py",       "command": "send",               "description": "Send email from a configured account"},
+    {"name": "email.mark_read",         "script": "email_client.py",       "command": "mark-read",          "description": "Mark a message read"},
+
+    {"name": "calendar.today",          "script": "google_calendar.py",    "command": "today",              "description": "List today's events"},
+    {"name": "calendar.events",         "script": "google_calendar.py",    "command": "events",             "description": "List events in a date range"},
+    {"name": "calendar.create",         "script": "google_calendar.py",    "command": "create",             "description": "Create a calendar event"},
+    {"name": "calendar.free_time",      "script": "google_calendar.py",    "command": "free-time",          "description": "Find free time blocks"},
+
+    {"name": "social.fb_post",          "script": "meta_social.py",        "command": "fb-post",            "description": "Post to a Facebook page"},
+    {"name": "social.ig_post",          "script": "meta_social.py",        "command": "ig-post",            "description": "Post to Instagram"},
+    {"name": "social.ig_carousel",      "script": "meta_social.py",        "command": "ig-carousel",        "description": "Post Instagram carousel"},
+
+    {"name": "linkedin.post",           "script": "linkedin.py",           "command": "post",               "description": "Personal LinkedIn post"},
+    {"name": "linkedin.org_post",       "script": "linkedin.py",           "command": "org-post",           "description": "Org-level LinkedIn post"},
+
+    {"name": "youtube.upload",          "script": "youtube.py",            "command": "upload",             "description": "Upload video to YouTube"},
+    {"name": "youtube.videos",          "script": "youtube.py",            "command": "videos",             "description": "List channel videos"},
+
+    {"name": "search.query",            "script": "search.py",             "command": "query",              "description": "SearXNG web search"},
+    {"name": "search.batch",            "script": "search.py",             "command": "batch",              "description": "Parallel SearXNG searches"},
+
+    {"name": "scraper.scrape",          "script": "scraper.py",            "command": "scrape",             "description": "Scrape a URL"},
+    {"name": "scraper.extract",         "script": "scraper.py",            "command": "extract",            "description": "Extract structured fields from a URL"},
+    {"name": "scraper.screenshot",      "script": "scraper.py",            "command": "screenshot",         "description": "Screenshot a URL via Playwright"},
+
+    {"name": "image.generate",          "script": "comfyui_gen.py",        "command": "generate",           "description": "FLUX.1 image generation via ComfyUI on 105"},
+    {"name": "image.social",            "script": "comfyui_gen.py",        "command": "social",             "description": "Generate social-format image"},
+
+    {"name": "flyer.design",            "script": "flyer_designer.py",     "command": "design",             "description": "Compose a flyer with one of 9 vibes"},
+    {"name": "flyer.quick",             "script": "flyer_designer.py",     "command": "quick",              "description": "Quick flyer with sane defaults"},
+
+    {"name": "image_fx.cinematic",      "script": "image_fx.py",           "command": "cinematic",          "description": "Apply cinematic filter to an image"},
+    {"name": "image_fx.vignette",       "script": "image_fx.py",           "command": "vignette",           "description": "Apply vignette"},
+
+    {"name": "image_tools.resize",      "script": "image_tools.py",        "command": "resize",             "description": "Resize an image"},
+    {"name": "image_tools.webp",        "script": "image_tools.py",        "command": "webp",               "description": "Convert to webp"},
+
+    {"name": "screenshot.full",         "script": "screenshot.py",         "command": "full",               "description": "Full-page screenshot"},
+    {"name": "screenshot.mobile",       "script": "screenshot.py",         "command": "mobile",             "description": "Mobile-viewport screenshot"},
+
+    {"name": "stock.search",            "script": "stock_photos.py",       "command": "search",             "description": "Search stock photo APIs"},
+    {"name": "stock.hero",              "script": "stock_photos.py",       "command": "hero",               "description": "Pull hero-format stock photo"},
+
+    {"name": "design_memory.save_feedback",   "script": "design_memory.py",  "command": "save-feedback",        "description": "Persist a design feedback note"},
+    {"name": "design_memory.get_preferences", "script": "design_memory.py", "command": "get-preferences",      "description": "Recall user design preferences"},
+
+    {"name": "design_review.review",    "script": "design_review.py",      "command": "review",             "description": "Score a design against guidelines"},
+    {"name": "design_review.audit",     "script": "design_review.py",      "command": "audit",              "description": "Audit a page against design guidelines"},
+
+    {"name": "tts.generate",            "script": "telegram_tts.py",       "command": "generate",           "description": "Kokoro TTS voice generation"},
+
+    {"name": "blog.auto",               "script": "auto_blogger.py",       "command": "--auto",             "description": "Auto-generate a blog post for a configured pillar site"},
+
+    {"name": "video.social",            "script": "video_render.py",       "command": "social",             "description": "Render a social video"},
+    {"name": "video.audiogram",         "script": "video_render.py",       "command": "audiogram",          "description": "Render an audiogram"},
+
+    {"name": "remotion.render",         "script": "remotion_render.py",    "command": "render",             "description": "Render a Remotion animated video"},
+    {"name": "remotion.brand",          "script": "remotion_render.py",    "command": "brand",              "description": "Render with a brand theme (loovacast/rucktalk)"},
+
+    {"name": "weather.current",         "script": "weather.py",            "command": "current",            "description": "Current weather for a location"},
+    {"name": "weather.forecast",        "script": "weather.py",            "command": "forecast",           "description": "Forecast for a location"},
+
+    {"name": "workspace.docs_create",   "script": "google_workspace.py",   "command": "docs-create",        "description": "Create a Google Doc"},
+    {"name": "workspace.docs_read",     "script": "google_workspace.py",   "command": "docs-read",          "description": "Read a Google Doc"},
+    {"name": "workspace.sheets_read",   "script": "google_workspace.py",   "command": "sheets-read",        "description": "Read a Google Sheet"},
+    {"name": "workspace.drive_search",  "script": "google_workspace.py",   "command": "drive-search",       "description": "Search Google Drive"},
+
+    {"name": "mc.list_projects",        "script": "mission_control.py",    "command": "list-projects",      "description": "List Mission Control projects"},
+    {"name": "mc.add_milestone",        "script": "mission_control.py",    "command": "add-milestone",      "description": "Add milestone to a project"},
+    {"name": "mc.log_activity",         "script": "mission_control.py",    "command": "log-activity",       "description": "Log activity"},
+
+    {"name": "memory.recall",           "script": "lightrag_client.py",    "command": "recall",             "description": "Recall from 117 Grey Matter (READ-ONLY)"},
+    {"name": "memory.query",            "script": "lightrag_client.py",    "command": "query",              "description": "Query 117 Grey Matter (READ-ONLY)"}
+  ]
+}
