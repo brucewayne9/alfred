@@ -34,6 +34,12 @@ require_once ALFRED_SEO_DIR . 'inc/sitemap.php';
 require_once ALFRED_SEO_DIR . 'inc/robots.php';
 require_once ALFRED_SEO_DIR . 'inc/alt-text.php';
 require_once ALFRED_SEO_DIR . 'inc/internal-links.php';
+require_once ALFRED_SEO_DIR . 'inc/rest/auth.php';
+require_once ALFRED_SEO_DIR . 'inc/rest/audit.php';
+require_once ALFRED_SEO_DIR . 'inc/rest/content.php';
+require_once ALFRED_SEO_DIR . 'inc/rest/meta.php';
+require_once ALFRED_SEO_DIR . 'inc/rest/internal-links.php';
+require_once ALFRED_SEO_DIR . 'inc/rest/sitemap-ping.php';
 // Modules added in subsequent tasks register here.
 
 register_activation_hook( __FILE__, function () {
