@@ -34,29 +34,38 @@ def _format_when(dt_val: datetime | None) -> str:
 def _render_dashboard(sites: list) -> str:
     rows = []
     for s in sites:
+        gsc = "✓" if s.gsc_property else "—"
+        ga4 = "✓" if s.ga4_property_id else "—"
+        brand = "✓" if s.brand_profile_path else "—"
         rows.append(f"""
         <tr>
-          <td><a href="/admin/seo/sites/{s.slug}">{s.display_name}</a></td>
-          <td>{s.domain}</td>
+          <td><a href="/admin/seo/sites/{s.slug}"><strong>{s.display_name}</strong></a><br><span class="muted">{s.domain}</span></td>
           <td>{s.business_type}</td>
+          <td class="status-cell">{gsc}</td>
+          <td class="status-cell">{ga4}</td>
+          <td class="status-cell">{brand}</td>
           <td>{_format_when(s.updated_at)}</td>
         </tr>""")
-    rows_html = "\n".join(rows) or "<tr><td colspan=4 class=muted>No sites registered yet.</td></tr>"
+    rows_html = "\n".join(rows) or '<tr><td colspan=6 class=muted>No sites registered yet. Run scripts/seo_init_roen.py to add the first.</td></tr>'
+
     return f"""<!doctype html>
 <html><head><meta charset=utf-8><title>SEO — sites</title>
 <style>
-  body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 980px; margin: 24px auto; padding: 0 16px; color: #1a1a1a; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; color: #1a1a1a; }}
   h1 {{ font-weight: 200; letter-spacing: 1px; }}
+  .muted {{ color: #999; font-size: 13px; }}
   table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
-  th, td {{ text-align: left; padding: 8px 12px; border-bottom: 1px solid #eee; }}
-  .muted {{ color: #999; }}
+  th, td {{ text-align: left; padding: 10px 14px; border-bottom: 1px solid #eee; vertical-align: top; }}
+  th {{ font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #666; }}
+  .status-cell {{ text-align: center; color: #2a7a4a; font-weight: 600; }}
 </style></head><body>
-<h1>seo — sites</h1>
-<p class="muted">{len(sites)} active sites · Phase 1 dashboard (Plan 1)</p>
+<h1>seo — cross-site dashboard</h1>
+<p class="muted">{len(sites)} active sites · Plan 1 foundation · live data widgets arrive in Plan 2</p>
 <table>
-  <thead><tr><th>Site</th><th>Domain</th><th>Type</th><th>Updated</th></tr></thead>
+  <thead><tr><th>Site</th><th>Type</th><th>GSC</th><th>GA4</th><th>Brand</th><th>Updated</th></tr></thead>
   <tbody>{rows_html}</tbody>
 </table>
+<p class="muted" style="margin-top:24px">Each ✓ means that integration is configured. Empty cells need OAuth (GSC/GA4) or a brand profile YAML.</p>
 </body></html>"""
 
 
