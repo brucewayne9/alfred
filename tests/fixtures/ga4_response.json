@@ -1,0 +1,7 @@
+{
+  "rows": [
+    {"dimensionValues": [{"value": "/product/red-bead-toggle-necklace/"}], "metricValues": [{"value": "47"}, {"value": "2"}]},
+    {"dimensionValues": [{"value": "/"}], "metricValues": [{"value": "123"}, {"value": "0"}]},
+    {"dimensionValues": [{"value": "/product/evil-eye-bracelet/"}], "metricValues": [{"value": "31"}, {"value": "1"}]}
+  ]
+}
