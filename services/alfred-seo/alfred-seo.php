@@ -31,6 +31,7 @@ require_once ALFRED_SEO_DIR . 'inc/schema/collection.php';
 require_once ALFRED_SEO_DIR . 'inc/open-graph.php';
 require_once ALFRED_SEO_DIR . 'inc/meta.php';
 require_once ALFRED_SEO_DIR . 'inc/sitemap.php';
+require_once ALFRED_SEO_DIR . 'inc/robots.php';
 // Modules added in subsequent tasks register here.
 
 register_activation_hook( __FILE__, function () {
