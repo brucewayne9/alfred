@@ -28,6 +28,9 @@ function alfred_seo_build_schema_for_current_page() {
         $schemas[] = alfred_seo_schema_breadcrumb();
     }
 
+    $faq = alfred_seo_schema_faq();
+    if ( $faq ) { $schemas[] = $faq; }
+
     // Strip nulls + validate each.
     $schemas = array_filter( $schemas );
     $valid   = array_filter( $schemas, 'alfred_seo_validate_jsonld' );
