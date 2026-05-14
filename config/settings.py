@@ -103,6 +103,15 @@ class Settings(BaseSettings):
     wc_roen_key: str = ""
     wc_roen_secret: str = ""
 
+    # SEO — Google API access (Search Console + GA4 + PageSpeed Insights)
+    # OAuth client for GSC + GA4 (user-consent flow). Create at console.cloud.google.com → APIs & Services → Credentials.
+    seo_google_oauth_client_id: str = ""
+    seo_google_oauth_client_secret: str = ""
+    # PageSpeed Insights uses a simple API key (no OAuth). Free tier 25k/day.
+    seo_psi_api_key: str = ""
+    # Where the OAuth refresh token gets persisted on disk after Mike consents once.
+    seo_oauth_token_path: str = "/home/aialfred/alfred/data/seo/google_oauth_token.json"
+
     # AI Savings Audit funnel
     # cal_booking_link — Mike's Google Calendar appointment-schedule URL (15-min slot)
     # brevo_ai_audit_list_id — int ID of the Brevo list new audit leads land in
