@@ -1,0 +1,9 @@
+{
+  "loadingExperience": {
+    "metrics": {
+      "LARGEST_CONTENTFUL_PAINT_MS": {"percentile": 2200},
+      "CUMULATIVE_LAYOUT_SHIFT_SCORE": {"percentile": 8},
+      "INTERACTION_TO_NEXT_PAINT": {"percentile": 180}
+    }
+  }
+}
