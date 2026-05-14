@@ -163,6 +163,13 @@ try:
 except Exception as _e:
     logger.exception("audit_admin register failed: %s", _e)
 
+# SEO admin — /admin/seo dashboard, /admin/seo/sites/<slug>
+try:
+    from core.api.seo_admin import register as _register_seo_admin
+    _register_seo_admin(app)
+except Exception as _e:
+    logger.exception("seo_admin register failed: %s", _e)
+
 
 @app.get("/static/drafts/{file_path:path}")
 async def static_drafts_redirect(file_path: str):
