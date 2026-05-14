@@ -19,6 +19,8 @@ define( 'ALFRED_SEO_URL', plugin_dir_url( __FILE__ ) );
 
 // Bootstrap: include modules. Each module registers its own hooks.
 require_once ALFRED_SEO_DIR . 'inc/settings.php';
+require_once ALFRED_SEO_DIR . 'inc/schema/validator.php';
+require_once ALFRED_SEO_DIR . 'inc/schema/builder.php';
 // Modules added in subsequent tasks register here.
 
 register_activation_hook( __FILE__, function () {
