@@ -21,6 +21,7 @@ define( 'ALFRED_SEO_URL', plugin_dir_url( __FILE__ ) );
 require_once ALFRED_SEO_DIR . 'inc/settings.php';
 require_once ALFRED_SEO_DIR . 'inc/schema/validator.php';
 require_once ALFRED_SEO_DIR . 'inc/schema/builder.php';
+require_once ALFRED_SEO_DIR . 'inc/schema/product.php';
 // Modules added in subsequent tasks register here.
 
 register_activation_hook( __FILE__, function () {
