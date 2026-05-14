@@ -1,0 +1,14 @@
+# systemd/alfred-seo-ga4-sync.service
+[Unit]
+Description=Alfred SEO — daily GA4 sync
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=aialfred
+WorkingDirectory=/home/aialfred/alfred
+Environment=PYTHONPATH=/home/aialfred/alfred
+ExecStart=/home/aialfred/alfred/venv/bin/python /home/aialfred/alfred/scripts/seo_ga4_sync.py
+EnvironmentFile=-/home/aialfred/alfred/config/.env
+StandardOutput=journal
+StandardError=journal

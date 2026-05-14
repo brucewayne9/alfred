@@ -1,0 +1,10 @@
+# systemd/alfred-seo-gsc-sync.timer
+[Unit]
+Description=Alfred SEO — daily GSC sync (4am ET)
+
+[Timer]
+OnCalendar=*-*-* 09:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

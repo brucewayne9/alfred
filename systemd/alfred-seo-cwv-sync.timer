@@ -1,0 +1,10 @@
+# systemd/alfred-seo-cwv-sync.timer
+[Unit]
+Description=Alfred SEO — daily CWV sync (5am ET)
+
+[Timer]
+OnCalendar=*-*-* 10:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

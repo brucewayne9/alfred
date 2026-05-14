@@ -1,0 +1,10 @@
+# systemd/alfred-seo-backlinks-sync.timer
+[Unit]
+Description=Alfred SEO — daily backlinks sync (6am ET)
+
+[Timer]
+OnCalendar=*-*-* 11:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
