@@ -24,6 +24,7 @@ require_once ALFRED_SEO_DIR . 'inc/schema/builder.php';
 require_once ALFRED_SEO_DIR . 'inc/schema/product.php';
 require_once ALFRED_SEO_DIR . 'inc/schema/article.php';
 require_once ALFRED_SEO_DIR . 'inc/schema/organization.php';
+require_once ALFRED_SEO_DIR . 'inc/schema/breadcrumb.php';
 // Modules added in subsequent tasks register here.
 
 register_activation_hook( __FILE__, function () {
