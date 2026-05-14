@@ -16,6 +16,16 @@ image alt text, and internal linking. All decisions come from the Alfred
 orchestrator via WP REST API. Plugin has sane local fallbacks for when the
 orchestrator is unavailable — the site never breaks.
 
+== Local Testing ==
+
+Run the WP test suite installer once:
+
+    bash bin/install-wp-tests.sh wordpress_test root '' localhost latest
+
+Then run tests:
+
+    cd services/alfred-seo && phpunit
+
 == Changelog ==
 
 = 0.1.0 =
