@@ -90,44 +90,47 @@ def _split_paragraphs(body: str) -> list[str]:
     return [p for p in body.split("\n\n") if p.strip()]
 
 
-def _image_block(img: ProductImage) -> str:
-    """Render a native Gutenberg image block.
+def _image_block(img: ProductImage, *, kind: str = "product") -> str:
+    """Render an image as a wp:html block — full responsive control.
 
-    Theme-respecting: uses .wp-block-image / .wp-element-caption classes that
-    the roen-minimal stylesheet styles globally, with no inline pixel hacks.
-    Block delimiters let WP treat this as a real image block in the editor.
+    Why wp:html instead of wp:image: WP's image block emits the image at its
+    source pixel width (e.g. 721x1280 portrait) which blows past the theme's
+    text column. Explicit wrapper + aspect-ratio crop keeps images sized to
+    the editorial layout intentionally, regardless of source dimensions.
 
-    Two render modes:
-      - PRODUCT image (img.product_url set): wraps img in <a> to product page,
-        figcaption shows "Shop: [Product Name]" linking to the product.
-      - EDITORIAL hero (img.product_url empty): no <a> wrap, no caption — the
-        image stands alone as a magazine-style hero.
+    kind="hero" — editorial standalone, ~640px max width, 4:3 aspect crop.
+    kind="product" — product callout with Shop link, ~480px max width, 4:5.
     """
     import html as _html
     alt = _html.escape(img.alt or img.product_name or "Roen handmade jewelry")
     src = _html.escape(img.src, quote=True)
     aid = int(img.attachment_id)
 
-    if img.product_url and img.product_name:
-        name = _html.escape(img.product_name)
-        href = _html.escape(img.product_url, quote=True)
+    if kind == "hero" or not (img.product_url and img.product_name):
         return (
-            f'<!-- wp:image {{"id":{aid},"sizeSlug":"large","linkDestination":"custom"}} -->\n'
-            f'<figure class="wp-block-image size-large">'
-            f'<a href="{href}"><img src="{src}" alt="{alt}" class="wp-image-{aid}"/></a>'
-            f'<figcaption class="wp-element-caption">'
-            f'Shop: <a href="{href}">{name}</a>'
-            f'</figcaption>'
-            f'</figure>\n'
-            f'<!-- /wp:image -->'
+            '<!-- wp:html -->\n'
+            '<figure class="roen-blog-figure roen-blog-figure--hero">'
+            f'<div class="roen-blog-figure__frame">'
+            f'<img src="{src}" alt="{alt}" loading="lazy" decoding="async" class="wp-image-{aid}" />'
+            '</div>'
+            '</figure>\n'
+            '<!-- /wp:html -->'
         )
 
+    name = _html.escape(img.product_name)
+    href = _html.escape(img.product_url, quote=True)
     return (
-        f'<!-- wp:image {{"id":{aid},"sizeSlug":"large"}} -->\n'
-        f'<figure class="wp-block-image size-large">'
-        f'<img src="{src}" alt="{alt}" class="wp-image-{aid}"/>'
-        f'</figure>\n'
-        f'<!-- /wp:image -->'
+        '<!-- wp:html -->\n'
+        '<figure class="roen-blog-figure roen-blog-figure--product">'
+        f'<a class="roen-blog-figure__frame" href="{href}">'
+        f'<img src="{src}" alt="{alt}" loading="lazy" decoding="async" class="wp-image-{aid}" />'
+        '</a>'
+        '<figcaption class="roen-blog-figure__caption">'
+        f'<span class="roen-blog-figure__label">Shop</span>'
+        f'<a href="{href}">{name}</a>'
+        '</figcaption>'
+        '</figure>\n'
+        '<!-- /wp:html -->'
     )
 
 
@@ -136,26 +139,26 @@ def splice_images_into_body(
     featured: ProductImage,
     inline: list[ProductImage],
 ) -> str:
-    """Render featured at the very top + inline images at ~33% and ~67% paragraph
-    boundaries. Body must be markdown without an existing H1 image.
+    """Render featured (editorial hero) after first paragraph + inline product
+    callouts at logical paragraph breaks.
+
+    featured is treated as a hero (no caption, larger crop). inline are
+    treated as product callouts (with Shop caption + product link).
     """
     paragraphs = _split_paragraphs(body)
     if not paragraphs:
-        return _image_block(featured) + "\n\n" + body
+        return _image_block(featured, kind="hero") + "\n\n" + body
 
-    # Featured image goes after the first paragraph (which is usually a hook),
-    # not literally first — that way the post reads "headline → opening → image"
-    # instead of "headline → image → opening" which feels brochure-y.
     n = len(paragraphs)
     if n <= 2 or not inline:
         slots: list[int] = [1]
     elif len(inline) == 1:
         slots = [1, max(2, int(n * 0.6))]
     else:
-        slots = [1, max(2, int(n * 0.4)), max(3, int(n * 0.75))]
+        slots = [1, max(2, int(n * 0.45)), max(3, int(n * 0.78))]
 
-    # Cap slots at len(paragraphs)
     slots = sorted(set(min(s, n) for s in slots))
+    placement_kinds = ["hero"] + ["product"] * len(inline)
     images_to_place = [featured] + inline
 
     out: list[str] = []
@@ -163,11 +166,10 @@ def splice_images_into_body(
     for i, para in enumerate(paragraphs):
         out.append(para)
         if img_idx < len(images_to_place) and (i + 1) in slots:
-            out.append(_image_block(images_to_place[img_idx]))
+            out.append(_image_block(images_to_place[img_idx], kind=placement_kinds[img_idx]))
             img_idx += 1
-    # Spill any remaining images at the end (if slots ran out due to short body)
     while img_idx < len(images_to_place):
-        out.append(_image_block(images_to_place[img_idx]))
+        out.append(_image_block(images_to_place[img_idx], kind=placement_kinds[img_idx]))
         img_idx += 1
 
     return "\n\n".join(out)

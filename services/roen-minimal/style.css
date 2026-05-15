@@ -76,66 +76,72 @@ Text Domain: roen-minimal
 
 /* =====================================================================
    Blog post (single.php / single-post)
-   Editorial layout: generous whitespace, hairline color hierarchy,
-   terracotta accent on caption links.
+   Editorial: tight column, magazine type scale, contained imagery.
+   Body is 640px on desktop, images sit even tighter inside it so the
+   layout reads like a print article — never overwhelmed by photos.
    ===================================================================== */
 .single-post .entry-content,
 .single-post .post,
-.single-post article {
-  max-width: 720px;
+.single-post article.post {
+  max-width: 640px;
   margin: 0 auto;
   padding: 0 var(--roen-content-pad-mobile);
   font-family: var(--roen-font-stack);
   font-weight: var(--roen-fw-regular);
-  font-size: 17px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.7;
   color: var(--roen-text-primary);
-  letter-spacing: var(--roen-tracking-body);
+  letter-spacing: -0.1px;
 }
 
 @media (min-width: 768px) {
   .single-post .entry-content,
   .single-post .post,
-  .single-post article {
+  .single-post article.post {
     padding: 0 var(--roen-content-pad-desktop);
-    font-size: 18px;
+    font-size: 16px;
+    line-height: 1.75;
   }
 }
 
 .single-post .entry-title,
-.single-post h1 {
+.single-post h1.entry-title {
   font-family: var(--roen-font-stack);
   font-weight: var(--roen-fw-thin);
-  font-size: 38px;
-  letter-spacing: var(--roen-tracking-hero);
-  line-height: 1.15;
-  margin: var(--roen-space-8) 0 var(--roen-space-5);
+  font-size: 26px;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+  margin: var(--roen-space-7) auto var(--roen-space-5);
+  max-width: 640px;
+  padding: 0 var(--roen-content-pad-mobile);
   text-align: center;
 }
 
 @media (min-width: 768px) {
   .single-post .entry-title,
-  .single-post h1 {
-    font-size: 52px;
+  .single-post h1.entry-title {
+    font-size: 34px;
+    letter-spacing: -0.8px;
   }
 }
 
 .single-post .entry-content h2,
 .single-post .post h2 {
   font-family: var(--roen-font-stack);
-  font-weight: var(--roen-fw-light);
-  font-size: 24px;
-  letter-spacing: var(--roen-tracking-body);
-  margin: var(--roen-space-8) 0 var(--roen-space-4);
+  font-weight: var(--roen-fw-regular);
+  font-size: 18px;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+  margin: var(--roen-space-7) 0 var(--roen-space-3);
 }
 
 .single-post .entry-content p,
 .single-post .post p {
-  margin: 0 0 var(--roen-space-5);
+  margin: 0 0 var(--roen-space-4);
 }
 
-.single-post .entry-content a:not(.wp-element-caption a),
-.single-post .post a:not(.wp-element-caption a) {
+.single-post .entry-content a:not(.roen-blog-figure *),
+.single-post .post a:not(.roen-blog-figure *) {
   color: var(--roen-text-primary);
   text-decoration: underline;
   text-decoration-color: var(--roen-accent);
@@ -144,45 +150,75 @@ Text Domain: roen-minimal
   transition: var(--roen-transition);
 }
 
-.single-post .entry-content a:hover:not(.wp-element-caption a),
-.single-post .post a:hover:not(.wp-element-caption a) {
+.single-post .entry-content a:hover:not(.roen-blog-figure *),
+.single-post .post a:hover:not(.roen-blog-figure *) {
   color: var(--roen-accent-hover);
 }
 
-/* ---------- Blog image blocks (wp-block-image) ---------- */
+/* ---------- Roen blog image figures (HTML blocks) ----------
+   Aspect-ratio cropping keeps tall product photos and wide hero shots
+   from breaking the column. The frame is the visual container; the img
+   inside is object-fit: cover so the image fills the frame edge-to-edge
+   regardless of its native dimensions. */
 
-.single-post .wp-block-image {
-  margin: var(--roen-space-8) auto;
-  max-width: 720px;
+.single-post .roen-blog-figure {
+  margin: var(--roen-space-7) auto;
+  max-width: 100%;
+  padding: 0;
 }
 
-.single-post .wp-block-image img {
-  width: 100%;
-  height: auto;
+.single-post .roen-blog-figure__frame {
   display: block;
+  width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--roen-bg-secondary);
   border-radius: 1px;
 }
 
-.single-post .wp-block-image a {
+.single-post .roen-blog-figure__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
-  text-decoration: none;
-  border: 0;
+  margin: 0;
 }
 
-.single-post .wp-element-caption,
-.single-post .wp-block-image figcaption {
+/* HERO — landscape editorial shot, slightly wider than text column */
+.single-post .roen-blog-figure--hero {
+  max-width: 720px;
+}
+
+.single-post .roen-blog-figure--hero .roen-blog-figure__frame {
+  aspect-ratio: 4 / 3;
+}
+
+/* PRODUCT — narrower, taller crop on portrait product photos */
+.single-post .roen-blog-figure--product {
+  max-width: 420px;
+}
+
+.single-post .roen-blog-figure--product .roen-blog-figure__frame {
+  aspect-ratio: 4 / 5;
+}
+
+/* Caption — Inter light, micro caps, terracotta link */
+.single-post .roen-blog-figure__caption {
+  margin: var(--roen-space-3) 0 0;
   font-family: var(--roen-font-stack);
   font-weight: var(--roen-fw-light);
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
   text-align: center;
   color: var(--roen-text-secondary);
-  margin: var(--roen-space-4) 0 0;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
 }
 
-.single-post .wp-element-caption a,
-.single-post .wp-block-image figcaption a {
+.single-post .roen-blog-figure__label {
+  margin-right: var(--roen-space-1);
+}
+
+.single-post .roen-blog-figure__caption a {
   color: var(--roen-accent);
   text-decoration: none;
   border-bottom: 1px solid currentColor;
@@ -190,29 +226,22 @@ Text Domain: roen-minimal
   transition: var(--roen-transition);
 }
 
-.single-post .wp-element-caption a:hover,
-.single-post .wp-block-image figcaption a:hover {
+.single-post .roen-blog-figure__caption a:hover {
   color: var(--roen-accent-hover);
 }
 
-/* Featured image wrapper if theme adds .post-thumbnail */
-.single-post .post-thumbnail {
-  max-width: 1080px;
-  margin: var(--roen-space-7) auto var(--roen-space-8);
-  padding: 0 var(--roen-content-pad-mobile);
+/* Storefront sidebar can crowd the post — drop it on single posts */
+.single-post #secondary,
+.single-post .widget-area {
+  display: none;
 }
 
-.single-post .post-thumbnail img {
+.single-post #primary,
+.single-post .content-area {
   width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 1px;
-}
-
-@media (min-width: 768px) {
-  .single-post .post-thumbnail {
-    padding: 0 var(--roen-content-pad-desktop);
-  }
+  max-width: 100%;
+  float: none;
+  margin: 0;
 }
 
 /* Archive / blog index */
