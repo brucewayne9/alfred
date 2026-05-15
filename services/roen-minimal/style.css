@@ -73,3 +73,152 @@ Text Domain: roen-minimal
   /* Transitions */
   --roen-transition: 200ms ease;
 }
+
+/* =====================================================================
+   Blog post (single.php / single-post)
+   Editorial layout: generous whitespace, hairline color hierarchy,
+   terracotta accent on caption links.
+   ===================================================================== */
+.single-post .entry-content,
+.single-post .post,
+.single-post article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 var(--roen-content-pad-mobile);
+  font-family: var(--roen-font-stack);
+  font-weight: var(--roen-fw-regular);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--roen-text-primary);
+  letter-spacing: var(--roen-tracking-body);
+}
+
+@media (min-width: 768px) {
+  .single-post .entry-content,
+  .single-post .post,
+  .single-post article {
+    padding: 0 var(--roen-content-pad-desktop);
+    font-size: 18px;
+  }
+}
+
+.single-post .entry-title,
+.single-post h1 {
+  font-family: var(--roen-font-stack);
+  font-weight: var(--roen-fw-thin);
+  font-size: 38px;
+  letter-spacing: var(--roen-tracking-hero);
+  line-height: 1.15;
+  margin: var(--roen-space-8) 0 var(--roen-space-5);
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .single-post .entry-title,
+  .single-post h1 {
+    font-size: 52px;
+  }
+}
+
+.single-post .entry-content h2,
+.single-post .post h2 {
+  font-family: var(--roen-font-stack);
+  font-weight: var(--roen-fw-light);
+  font-size: 24px;
+  letter-spacing: var(--roen-tracking-body);
+  margin: var(--roen-space-8) 0 var(--roen-space-4);
+}
+
+.single-post .entry-content p,
+.single-post .post p {
+  margin: 0 0 var(--roen-space-5);
+}
+
+.single-post .entry-content a:not(.wp-element-caption a),
+.single-post .post a:not(.wp-element-caption a) {
+  color: var(--roen-text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--roen-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: var(--roen-transition);
+}
+
+.single-post .entry-content a:hover:not(.wp-element-caption a),
+.single-post .post a:hover:not(.wp-element-caption a) {
+  color: var(--roen-accent-hover);
+}
+
+/* ---------- Blog image blocks (wp-block-image) ---------- */
+
+.single-post .wp-block-image {
+  margin: var(--roen-space-8) auto;
+  max-width: 720px;
+}
+
+.single-post .wp-block-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 1px;
+}
+
+.single-post .wp-block-image a {
+  display: block;
+  text-decoration: none;
+  border: 0;
+}
+
+.single-post .wp-element-caption,
+.single-post .wp-block-image figcaption {
+  font-family: var(--roen-font-stack);
+  font-weight: var(--roen-fw-light);
+  font-size: 12px;
+  text-align: center;
+  color: var(--roen-text-secondary);
+  margin: var(--roen-space-4) 0 0;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.single-post .wp-element-caption a,
+.single-post .wp-block-image figcaption a {
+  color: var(--roen-accent);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+  transition: var(--roen-transition);
+}
+
+.single-post .wp-element-caption a:hover,
+.single-post .wp-block-image figcaption a:hover {
+  color: var(--roen-accent-hover);
+}
+
+/* Featured image wrapper if theme adds .post-thumbnail */
+.single-post .post-thumbnail {
+  max-width: 1080px;
+  margin: var(--roen-space-7) auto var(--roen-space-8);
+  padding: 0 var(--roen-content-pad-mobile);
+}
+
+.single-post .post-thumbnail img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 1px;
+}
+
+@media (min-width: 768px) {
+  .single-post .post-thumbnail {
+    padding: 0 var(--roen-content-pad-desktop);
+  }
+}
+
+/* Archive / blog index */
+.blog .site-content,
+.archive .site-content {
+  max-width: var(--roen-content-max);
+  margin: 0 auto;
+  padding: var(--roen-space-7) var(--roen-content-pad-mobile);
+}

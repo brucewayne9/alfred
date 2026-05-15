@@ -91,23 +91,43 @@ def _split_paragraphs(body: str) -> list[str]:
 
 
 def _image_block(img: ProductImage) -> str:
-    """Render a WordPress-native <figure> block with image + product-link caption.
+    """Render a native Gutenberg image block.
 
-    Uses HTML (not markdown) so WP renders the image even when no markdown
-    plugin is active. Plain WP wpautop honors raw HTML inside post content.
+    Theme-respecting: uses .wp-block-image / .wp-element-caption classes that
+    the roen-minimal stylesheet styles globally, with no inline pixel hacks.
+    Block delimiters let WP treat this as a real image block in the editor.
+
+    Two render modes:
+      - PRODUCT image (img.product_url set): wraps img in <a> to product page,
+        figcaption shows "Shop: [Product Name]" linking to the product.
+      - EDITORIAL hero (img.product_url empty): no <a> wrap, no caption — the
+        image stands alone as a magazine-style hero.
     """
     import html as _html
     alt = _html.escape(img.alt or img.product_name or "Roen handmade jewelry")
-    name = _html.escape(img.product_name or "")
-    href = _html.escape(img.product_url or "", quote=True)
     src = _html.escape(img.src, quote=True)
+    aid = int(img.attachment_id)
+
+    if img.product_url and img.product_name:
+        name = _html.escape(img.product_name)
+        href = _html.escape(img.product_url, quote=True)
+        return (
+            f'<!-- wp:image {{"id":{aid},"sizeSlug":"large","linkDestination":"custom"}} -->\n'
+            f'<figure class="wp-block-image size-large">'
+            f'<a href="{href}"><img src="{src}" alt="{alt}" class="wp-image-{aid}"/></a>'
+            f'<figcaption class="wp-element-caption">'
+            f'Shop: <a href="{href}">{name}</a>'
+            f'</figcaption>'
+            f'</figure>\n'
+            f'<!-- /wp:image -->'
+        )
+
     return (
-        f'<figure style="margin: 28px 0;">\n'
-        f'  <img src="{src}" alt="{alt}" loading="lazy" style="width:100%;height:auto;border-radius:6px;" />\n'
-        f'  <figcaption style="font-size:13px;color:#666;text-align:center;margin-top:8px;font-style:italic;">'
-        f'Featured: <a href="{href}" style="color:#B85C3D;text-decoration:none;border-bottom:1px dotted;">{name}</a>'
-        f'</figcaption>\n'
-        f'</figure>'
+        f'<!-- wp:image {{"id":{aid},"sizeSlug":"large"}} -->\n'
+        f'<figure class="wp-block-image size-large">'
+        f'<img src="{src}" alt="{alt}" class="wp-image-{aid}"/>'
+        f'</figure>\n'
+        f'<!-- /wp:image -->'
     )
 
 
@@ -160,9 +180,10 @@ def add_images_to_draft(
     count: int = 3,
     rng: Optional[random.Random] = None,
 ) -> ImagedDraft:
-    """Pick `count` images for `site` and splice them into `body`.
+    """All-product version. Pick `count` images and splice them in.
 
-    If the site has no product pool, returns the body unchanged with no images.
+    Used as fallback when ComfyUI hero generation is unavailable. For the
+    primary blog flow use compose_blog_images() instead.
     """
     chosen = select_images(site, count=count, rng=rng)
     if not chosen:
@@ -182,4 +203,58 @@ def add_images_to_draft(
         featured_image_url=featured.src,
         inline_image_ids=[img.attachment_id for img in inline],
         all_image_ids=[img.attachment_id for img in chosen],
+    )
+
+
+def compose_blog_images(
+    body: str,
+    site: SeoSite,
+    *,
+    topic: str,
+    target_keyword: Optional[str] = None,
+    inline_count: int = 2,
+    use_comfyui_hero: bool = True,
+    rng: Optional[random.Random] = None,
+) -> ImagedDraft:
+    """Editorial composition for blog/cluster posts.
+
+    Hero: ComfyUI-generated editorial shot (or first product photo as fallback).
+    Inline: N product photo Gutenberg blocks with "Shop:" caption links.
+
+    Hero is used as the WP featured_image AND inserted at the top of the body.
+    Inline images splice in at logical paragraph boundaries.
+    """
+    from core.seo.images.comfyui_hero import generate_hero_for_topic
+
+    rng = rng or random.Random()
+    hero: Optional[ProductImage] = None
+    if use_comfyui_hero:
+        log.info("compose_blog_images: generating ComfyUI hero for %r", topic[:60])
+        hero = generate_hero_for_topic(site, topic=topic, target_keyword=target_keyword, rng=rng)
+        if hero:
+            log.info("compose_blog_images: hero attachment_id=%d", hero.attachment_id)
+
+    # Pick inline product photos (don't include hero in dedup since it's editorial)
+    inline = select_images(site, count=inline_count, rng=rng)
+
+    if hero is None and not inline:
+        # No imagery at all — return body unchanged
+        return ImagedDraft(
+            body=body, featured_image_id=0, featured_image_url="",
+            inline_image_ids=[], all_image_ids=[],
+        )
+
+    # Fallback: if no ComfyUI hero, promote the first product image to hero
+    if hero is None:
+        hero = inline[0]
+        inline = inline[1:]
+
+    new_body = splice_images_into_body(body, hero, inline)
+    all_ids = [hero.attachment_id] + [img.attachment_id for img in inline]
+    return ImagedDraft(
+        body=new_body,
+        featured_image_id=hero.attachment_id,
+        featured_image_url=hero.src,
+        inline_image_ids=[img.attachment_id for img in inline],
+        all_image_ids=all_ids,
     )

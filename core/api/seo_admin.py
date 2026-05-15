@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from core.security.auth import get_current_user, require_auth
 from core.seo.content.types import CONTENT_TYPE_LABELS, CONTENT_TYPES, canonicalize
 from core.seo.content.writer import Brief, generate_with_retry
-from core.seo.images.selector import add_images_to_draft
+from core.seo.images.selector import add_images_to_draft, compose_blog_images
 from core.seo.queue.pending import (
     approve_and_publish,
     enqueue_draft,
@@ -232,16 +232,19 @@ def register(app: FastAPI) -> None:
             logger.exception("manual brief generation failed")
             return HTMLResponse(_render_brief_error(brief, str(e)), status_code=500)
 
-        # Image pipeline: blog/cluster get featured + 2 inline. ad_landing
-        # gets featured only (it's short — multiple inline images crowd it).
-        # product_enrichment skips images entirely — the product page already
-        # has the gallery; this copy goes BELOW it.
+        # Image pipeline:
+        #  blog/cluster → ComfyUI editorial hero + 2 product photo inlines
+        #  ad_landing   → ComfyUI editorial hero only
+        #  product_enrichment → no images (product page already has gallery)
         ct = canonicalize(brief.content_type)
-        image_count = {"blog": 3, "cluster": 3, "ad_landing": 1}.get(ct, 0)
         image_meta = {}
-        if image_count > 0:
+        if ct in {"blog", "cluster"}:
             try:
-                imaged = add_images_to_draft(draft.body, site, count=image_count)
+                imaged = compose_blog_images(
+                    draft.body, site,
+                    topic=brief.topic, target_keyword=brief.target_keyword,
+                    inline_count=2, use_comfyui_hero=True,
+                )
                 draft.body = imaged.body
                 image_meta = {
                     "featured_image_id": imaged.featured_image_id,
@@ -249,10 +252,26 @@ def register(app: FastAPI) -> None:
                     "image_ids": imaged.all_image_ids,
                     "inline_image_ids": imaged.inline_image_ids,
                 }
-                logger.info("manual brief: spliced %d images (featured=%d) into draft",
-                            len(imaged.all_image_ids), imaged.featured_image_id)
+                logger.info("manual brief: composed blog images, hero=%d inline=%d",
+                            imaged.featured_image_id, len(imaged.inline_image_ids))
             except Exception:
-                logger.exception("image splicing failed; continuing text-only")
+                logger.exception("blog image composition failed; continuing text-only")
+        elif ct == "ad_landing":
+            try:
+                imaged = compose_blog_images(
+                    draft.body, site,
+                    topic=brief.topic, target_keyword=brief.target_keyword,
+                    inline_count=0, use_comfyui_hero=True,
+                )
+                draft.body = imaged.body
+                image_meta = {
+                    "featured_image_id": imaged.featured_image_id,
+                    "featured_image_url": imaged.featured_image_url,
+                    "image_ids": imaged.all_image_ids,
+                    "inline_image_ids": [],
+                }
+            except Exception:
+                logger.exception("ad_landing hero generation failed; continuing text-only")
 
         result = enqueue_draft(
             site.id,
