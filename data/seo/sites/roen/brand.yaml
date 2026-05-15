@@ -1,0 +1,89 @@
+slug: roen
+domain: roenhandmade.com
+display_name: Roen
+brand_one_liner: "A small Atlanta jewelry studio. Each piece sketched, soldered, set, and polished by hand."
+
+voice:
+  perspective: third_person
+  descriptors:
+    - minimal
+    - concrete
+    - material-first
+    - quiet-confidence
+    - Mejuri-Aritzia-DNA
+  energy: low
+  reading_level: 8           # Flesch-Kincaid target grade
+  flesch_target: 70          # Flesch reading ease target (60-80 = standard)
+  flesch_tolerance: 8        # ± window before validator flags
+  tagline: "decorate yourself."
+
+# Phrases the writer must never produce. Regex-scanned post-generation.
+# Word-boundary matching unless flagged anchored=true.
+never_say:
+  - "I"
+  - "we"
+  - "our"
+  - "us"
+  - "Sarah"
+  - "the maker"
+  - "handcrafted with love"
+  - "artisanal"
+  - "one-of-a-kind"
+  - "lovingly made"
+  - "passion project"
+  - "♥"
+  - "❤"
+
+always:
+  - 'Open with "Roen is…" framing in About/brand sections (third-person)'
+  - 'Lowercase wordmark in display contexts'
+  - '"Atlanta" appears when natural (anchors local SEO)'
+  - '"by hand" or "by Roen in Atlanta" in product context'
+
+target_audience: |
+  Women 25-45 buying handmade jewelry as everyday wear, gift, or
+  small indulgence. Discovers via IG, Pinterest, or Atlanta-local
+  search. Price-sensitive ($10-65), trust-signal-sensitive,
+  trend-aware but not trend-led.
+
+target_keywords:
+  primary:
+    - handmade jewelry
+    - evil eye bracelet
+    - beaded bracelet
+    - handmade bracelet
+  local:
+    - Atlanta jewelry
+    - handmade Atlanta
+    - jewelry maker Atlanta
+    - Atlanta jewelry studio
+  long_tail:
+    - evil eye bracelet meaning
+    - handmade bracelet under $30
+    - beaded bracelet with charm
+    - what does an evil eye bracelet mean
+
+locked_decisions:
+  - "Marble tabletop backdrop only — no on-model imagery v1"
+  - "Accent color terracotta #B85C3D, CTAs and hover only"
+  - "No founder photo, no surname"
+  - "Brand wordmark stays lowercase"
+  - "Care instructions live at end of product copy, never the lead"
+
+content_type_preferences:
+  product_enrichment:
+    sections: [story_section, materials_care, faq, pair_with]
+    target_words: 180        # total enrichment add-on per product
+  cluster_pages:
+    sections: [meaning_history, style_guide, gift_guide]
+    target_words: 800
+  blog:
+    sections: [seasonal, occasion_based, materials_education]
+    target_words: 600
+  ad_landing:
+    sections: [single_collection_focus, scarcity_when_real]
+    target_words: 300
+
+# Few-shot prompting: writer samples 3-4 of these per generation
+voice_examples_dir: data/seo/sites/roen/voice_examples/
+voice_examples_per_call: 4
