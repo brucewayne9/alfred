@@ -14,12 +14,16 @@ from fastapi import Depends, FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.security.auth import get_current_user, require_auth
+from core.seo.content.types import CONTENT_TYPE_LABELS, CONTENT_TYPES
+from core.seo.content.writer import Brief, generate_with_retry
 from core.seo.queue.pending import (
     approve_and_publish,
+    enqueue_draft,
     get_pending,
     list_pending,
     reject,
 )
+from core.seo.sites.profile import BrandProfileNotFound, load_profile
 from core.seo.sites.registry import get_site_by_slug, list_sites
 
 logger = logging.getLogger(__name__)
@@ -171,6 +175,76 @@ def register(app: FastAPI) -> None:
             raise HTTPException(status_code=404, detail=str(e))
         return RedirectResponse(url="/admin/seo/pending?ok=rejected", status_code=303)
 
+    @app.get("/admin/seo/new", response_class=HTMLResponse)
+    async def admin_seo_new_form(
+        site: str = "",
+        ct: str = "blog",
+        user: dict | None = Depends(get_current_user),
+    ):
+        if user is None:
+            return RedirectResponse(url="/?returnTo=/admin/seo/new", status_code=303)
+        sites = list_sites()
+        # Filter to sites that actually have a brand profile path on disk —
+        # we can't generate copy for sites without voice encoding.
+        candidate_sites = [s for s in sites if s.brand_profile_path]
+        return HTMLResponse(_render_new_brief_form(candidate_sites, default_site=site, default_ct=ct))
+
+    @app.post("/admin/seo/new", response_class=HTMLResponse)
+    async def admin_seo_new_submit(
+        site_slug: str = Form(...),
+        content_type: str = Form(...),
+        topic: str = Form(...),
+        target_keyword: str = Form(...),
+        title_hint: str = Form(""),
+        extra_keywords: str = Form(""),
+        audience: str = Form(""),
+        user: dict = Depends(require_auth),
+    ):
+        site = get_site_by_slug(site_slug)
+        if not site:
+            raise HTTPException(status_code=404, detail=f"unknown site: {site_slug}")
+        if content_type not in CONTENT_TYPES:
+            raise HTTPException(status_code=400, detail=f"unknown content_type: {content_type}")
+        try:
+            profile = load_profile(site_slug)
+        except BrandProfileNotFound:
+            raise HTTPException(status_code=400, detail=f"site {site_slug} has no brand profile yet")
+
+        extras = [k.strip() for k in extra_keywords.split(",") if k.strip()]
+        brief = Brief(
+            topic=topic.strip(),
+            content_type=content_type,
+            target_keyword=target_keyword.strip(),
+            audience=audience.strip() or None,
+            title_hint=title_hint.strip() or None,
+            extra_keywords=extras,
+            source_signal="manual_brief",
+        )
+
+        decided_by = user.get("email") or user.get("sub") or "admin"
+        logger.info("manual brief: site=%s ct=%s topic=%r by=%s",
+                    site_slug, content_type, brief.topic[:60], decided_by)
+
+        try:
+            draft = generate_with_retry(brief, profile)
+        except Exception as e:
+            logger.exception("manual brief generation failed")
+            return HTMLResponse(_render_brief_error(brief, str(e)), status_code=500)
+
+        result = enqueue_draft(
+            site.id,
+            draft=draft,
+            source_signal={
+                "manual_by": decided_by,
+                "topic": brief.topic[:120],
+                "target_keyword": brief.target_keyword,
+            },
+        )
+        return RedirectResponse(
+            url=f"/admin/seo/pending?ok=generated&pending_id={result.pending_id}",
+            status_code=303,
+        )
+
 
 def _render_pending_queue(items: list, sites_by_id: dict) -> str:
     cards: list[str] = []
@@ -244,8 +318,103 @@ def _render_pending_queue(items: list, sites_by_id: dict) -> str:
   .approve.publish {{ background: #1a5a36; }}
   .reject {{ background: #ffe5e5; color: #a02020; }}
 </style></head><body>
-<p><nav><a href="/admin/seo">&larr; sites</a></nav></p>
+<p><nav><a href="/admin/seo">&larr; sites</a> · <a href="/admin/seo/new">+ new brief</a></nav></p>
 <h1>seo — pending approvals</h1>
 <p class="muted">{len(items)} draft{'' if len(items) == 1 else 's'} awaiting Mike. Approve → WP draft is the safe default; live publish skips preview.</p>
 {cards_html}
+</body></html>"""
+
+
+def _render_new_brief_form(sites: list, *, default_site: str = "", default_ct: str = "blog") -> str:
+    site_options = []
+    for s in sites:
+        sel = " selected" if s.slug == default_site else ""
+        site_options.append(
+            f'<option value="{html.escape(s.slug)}"{sel}>{html.escape(s.display_name)} ({html.escape(s.domain)})</option>'
+        )
+    site_options_html = "\n".join(site_options) or '<option value="">No sites with brand profiles yet</option>'
+
+    ct_options = []
+    for ct in CONTENT_TYPES:
+        sel = " selected" if ct == default_ct else ""
+        label = CONTENT_TYPE_LABELS.get(ct, ct)
+        ct_options.append(f'<option value="{ct}"{sel}>{html.escape(label)}</option>')
+    ct_options_html = "\n".join(ct_options)
+
+    return f"""<!doctype html>
+<html><head><meta charset=utf-8><title>SEO — new brief</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; color: #1a1a1a; }}
+  h1 {{ font-weight: 200; letter-spacing: 1px; }}
+  .muted {{ color: #999; font-size: 13px; }}
+  nav a {{ color: #1a1a1a; text-decoration: none; border-bottom: 1px dotted #999; margin-right: 12px; }}
+  form {{ background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 24px; margin-top: 16px; }}
+  label {{ display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: #666; margin: 16px 0 6px; }}
+  input[type=text], textarea, select {{ width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; box-sizing: border-box; }}
+  textarea {{ min-height: 80px; resize: vertical; }}
+  .hint {{ color: #999; font-size: 12px; margin-top: 4px; }}
+  .row2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }}
+  button {{ font-size: 14px; padding: 10px 20px; border-radius: 4px; cursor: pointer; border: 0; background: #B85C3D; color: white; margin-top: 24px; font-weight: 600; }}
+  button:disabled {{ opacity: 0.6; cursor: wait; }}
+  .warn {{ background: #fff5e0; color: #a06700; padding: 10px 14px; border-radius: 4px; font-size: 13px; margin: 16px 0; }}
+</style></head><body>
+<p><nav><a href="/admin/seo">&larr; sites</a><a href="/admin/seo/pending">pending queue</a></nav></p>
+<h1>seo — new brief</h1>
+<p class="muted">Hand a topic to the writer. Generation runs synchronously and can take 30–180 seconds — leave the tab open. The draft lands in the pending queue when done.</p>
+
+<form method="post" action="/admin/seo/new" onsubmit="document.getElementById('go').disabled=true; document.getElementById('go').textContent='Generating… leave tab open (30-180s)';">
+  <div class="row2">
+    <div>
+      <label>Site</label>
+      <select name="site_slug" required>{site_options_html}</select>
+    </div>
+    <div>
+      <label>Content type</label>
+      <select name="content_type" required>{ct_options_html}</select>
+    </div>
+  </div>
+
+  <label>Topic</label>
+  <textarea name="topic" required placeholder="e.g. How to choose a beaded bracelet that fits your everyday style"></textarea>
+  <div class="hint">A sentence or two telling the writer what to write about. Be specific.</div>
+
+  <label>Primary target keyword</label>
+  <input type="text" name="target_keyword" required placeholder="e.g. beaded bracelet" />
+  <div class="hint">Must appear in the first 100 words (skipped automatically for product enrichment).</div>
+
+  <div class="row2">
+    <div>
+      <label>Title hint <span class="muted">(optional)</span></label>
+      <input type="text" name="title_hint" placeholder="LLM may refine this" />
+    </div>
+    <div>
+      <label>Secondary keywords <span class="muted">(optional, comma-sep)</span></label>
+      <input type="text" name="extra_keywords" placeholder="layering, gift, atlanta" />
+    </div>
+  </div>
+
+  <label>Audience override <span class="muted">(optional)</span></label>
+  <input type="text" name="audience" placeholder="defaults to brand profile audience" />
+
+  <div class="warn">⏳ Click once. The page hangs while Kimi generates — that's normal. You'll land on the pending queue when it's done.</div>
+
+  <button type="submit" id="go">Generate draft</button>
+</form>
+</body></html>"""
+
+
+def _render_brief_error(brief: Brief, err: str) -> str:
+    return f"""<!doctype html><html><head><meta charset=utf-8><title>SEO — brief error</title>
+<style>body{{font-family:-apple-system,sans-serif;max-width:720px;margin:24px auto;padding:0 16px}}
+h1{{font-weight:200}} pre{{background:#fff5e0;padding:14px;border-radius:4px;overflow:auto;font-size:12px}}</style>
+</head><body>
+<p><a href="/admin/seo/new">&larr; back to brief form</a></p>
+<h1>generation failed</h1>
+<p>The writer threw an error mid-generation. Brief details:</p>
+<pre>topic: {html.escape(brief.topic)}
+content_type: {html.escape(brief.content_type)}
+target_keyword: {html.escape(brief.target_keyword)}
+
+error: {html.escape(err)}</pre>
+<p class="muted">Try again, or check <code>journalctl -u alfred -n 50</code> for the full traceback.</p>
 </body></html>"""
