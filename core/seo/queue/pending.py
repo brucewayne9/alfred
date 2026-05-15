@@ -178,6 +178,7 @@ def approve_and_publish(
         # as WP "pages"; blog and product enrichment land as posts.
         wp_post_type = "page" if row.content_type in {"cluster", "cluster_pages", "ad_landing"} else "post"
 
+        featured_media_id = body.get("featured_image_id") or None
         try:
             published = publish_to_wp(
                 site,
@@ -187,6 +188,7 @@ def approve_and_publish(
                 slug=slug,
                 post_type=wp_post_type,
                 status=publish_status,
+                featured_media_id=int(featured_media_id) if featured_media_id else None,
             )
         except PublishError as e:
             log.error("approve_and_publish: WP publish failed for pending %d: %s", pending_id, e)

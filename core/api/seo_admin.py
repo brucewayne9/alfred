@@ -14,8 +14,9 @@ from fastapi import Depends, FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.security.auth import get_current_user, require_auth
-from core.seo.content.types import CONTENT_TYPE_LABELS, CONTENT_TYPES
+from core.seo.content.types import CONTENT_TYPE_LABELS, CONTENT_TYPES, canonicalize
 from core.seo.content.writer import Brief, generate_with_retry
+from core.seo.images.selector import add_images_to_draft
 from core.seo.queue.pending import (
     approve_and_publish,
     enqueue_draft,
@@ -231,6 +232,28 @@ def register(app: FastAPI) -> None:
             logger.exception("manual brief generation failed")
             return HTMLResponse(_render_brief_error(brief, str(e)), status_code=500)
 
+        # Image pipeline: blog/cluster get featured + 2 inline. ad_landing
+        # gets featured only (it's short — multiple inline images crowd it).
+        # product_enrichment skips images entirely — the product page already
+        # has the gallery; this copy goes BELOW it.
+        ct = canonicalize(brief.content_type)
+        image_count = {"blog": 3, "cluster": 3, "ad_landing": 1}.get(ct, 0)
+        image_meta = {}
+        if image_count > 0:
+            try:
+                imaged = add_images_to_draft(draft.body, site, count=image_count)
+                draft.body = imaged.body
+                image_meta = {
+                    "featured_image_id": imaged.featured_image_id,
+                    "featured_image_url": imaged.featured_image_url,
+                    "image_ids": imaged.all_image_ids,
+                    "inline_image_ids": imaged.inline_image_ids,
+                }
+                logger.info("manual brief: spliced %d images (featured=%d) into draft",
+                            len(imaged.all_image_ids), imaged.featured_image_id)
+            except Exception:
+                logger.exception("image splicing failed; continuing text-only")
+
         result = enqueue_draft(
             site.id,
             draft=draft,
@@ -238,8 +261,23 @@ def register(app: FastAPI) -> None:
                 "manual_by": decided_by,
                 "topic": brief.topic[:120],
                 "target_keyword": brief.target_keyword,
+                **{k: v for k, v in image_meta.items() if k in {"featured_image_id"}},
             },
+            meta_description=None,
         )
+        # Stash image metadata on the persisted body_payload so the publisher
+        # can read featured_image_id at approve time.
+        if image_meta:
+            from core.seo.db import SessionLocal
+            from core.seo.models import SeoPending
+            with SessionLocal() as s:
+                row = s.get(SeoPending, result.pending_id)
+                if row and row.body_payload is not None:
+                    payload = dict(row.body_payload)
+                    payload.update(image_meta)
+                    payload["body"] = draft.body  # body now includes spliced images
+                    row.body_payload = payload
+                    s.commit()
         return RedirectResponse(
             url=f"/admin/seo/pending?ok=generated&pending_id={result.pending_id}",
             status_code=303,

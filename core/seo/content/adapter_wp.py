@@ -96,6 +96,7 @@ def publish_to_wp(
     og_title: Optional[str] = None,
     og_description: Optional[str] = None,
     og_image: Optional[str] = None,
+    featured_media_id: Optional[int] = None,
     timeout: int = DEFAULT_TIMEOUT,
     skip_dedup: bool = False,
 ) -> PublishedPost:
@@ -146,11 +147,16 @@ def publish_to_wp(
         payload["og_description"] = og_description
     if og_image:
         payload["og_image"] = og_image
+    if featured_media_id:
+        # Plugin handler may or may not honor this — we'll patch it in via WP
+        # core endpoint below as a guaranteed-works fallback.
+        payload["featured_media"] = int(featured_media_id)
 
     endpoint = f"{site.wp_rest_url.rstrip('/')}{PLUGIN_CONTENT_PATH}"
     auth = (site.wp_username, site.wp_app_password)
 
-    log.info("publish_to_wp: POST %s slug=%s status=%s", endpoint, final_slug, status)
+    log.info("publish_to_wp: POST %s slug=%s status=%s featured=%s",
+             endpoint, final_slug, status, featured_media_id)
     try:
         r = requests.post(endpoint, json=payload, auth=auth, timeout=timeout)
     except requests.RequestException as e:
@@ -161,12 +167,48 @@ def publish_to_wp(
             f"plugin returned {r.status_code}: {r.text[:500]}"
         )
     data = r.json()
+    post_id = int(data["post_id"])
+
+    # Featured-image fallback: hit WP's native posts endpoint to set the
+    # featured_media field. Idempotent — does nothing if plugin already set it.
+    if featured_media_id:
+        try:
+            set_featured_media(
+                site, post_id=post_id,
+                attachment_id=int(featured_media_id),
+                post_type=post_type,
+                timeout=timeout,
+            )
+        except Exception as e:
+            log.warning("publish_to_wp: featured_media patch failed for post %d: %s",
+                        post_id, e)
+
     return PublishedPost(
-        post_id=int(data["post_id"]),
+        post_id=post_id,
         url=data.get("url", ""),
         status=data.get("status", status),
         deduped=False,
     )
+
+
+def set_featured_media(
+    site: SeoSite,
+    *,
+    post_id: int,
+    attachment_id: int,
+    post_type: str = "post",
+    timeout: int = DEFAULT_TIMEOUT,
+) -> None:
+    """Patch a post's featured_media via WP's native REST endpoint."""
+    base_path = "/wp/v2/pages" if post_type == "page" else WP_POSTS_PATH
+    url = f"{site.wp_rest_url.rstrip('/')}{base_path}/{post_id}"
+    auth = (site.wp_username, site.wp_app_password)
+    r = requests.post(url, json={"featured_media": attachment_id}, auth=auth, timeout=timeout)
+    if not r.ok:
+        raise PublishError(
+            f"set_featured_media({post_id}, {attachment_id}) failed: {r.status_code} {r.text[:200]}"
+        )
+    log.info("set_featured_media: post=%d attachment=%d ok", post_id, attachment_id)
 
 
 def update_post_status(
