@@ -57,14 +57,16 @@ class BrandProfile:
 
     def keywords_for(self, content_type: str) -> list[str]:
         """Return a flat dedup'd list of keywords relevant to a content type."""
+        from core.seo.content.types import canonicalize
+        ct = canonicalize(content_type)
         primary = self.target_keywords.get("primary", [])
         local = self.target_keywords.get("local", [])
         long_tail = self.target_keywords.get("long_tail", [])
-        # Cluster pages and blog favor long-tail; ad landing favors primary;
-        # product enrichment uses primary + local.
-        if content_type in {"cluster", "cluster_pages", "blog"}:
+        # Cluster and blog favor long-tail; ad_landing favors primary;
+        # product_enrichment uses primary + local.
+        if ct in {"cluster", "blog"}:
             ordered = long_tail + primary + local
-        elif content_type in {"ad_landing", "ad"}:
+        elif ct == "ad_landing":
             ordered = primary + long_tail
         else:
             ordered = primary + local + long_tail

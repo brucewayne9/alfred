@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from core.seo.content.types import canonicalize
 from core.seo.sites.profile import BrandProfile
 
 _WORD_RE = re.compile(r"\b[\w']+\b")
@@ -121,10 +122,13 @@ def validate_draft(
     if bad_phrases:
         issues.append(f"never_say violations: {', '.join(bad_phrases)}")
 
-    # 2. Flesch
+    # 2. Flesch — prefer per-content-type target/tolerance from
+    # content_type_preferences, fall back to voice-level defaults.
+    ct_for_pref = canonicalize(content_type)
+    pref_for_flesch = profile.content_type_preferences.get(ct_for_pref, {}) or {}
     flesch, word_count, sentence_count = flesch_reading_ease(text)
-    target = float(profile.voice.get("flesch_target", 70))
-    tolerance = float(profile.voice.get("flesch_tolerance", 8))
+    target = float(pref_for_flesch.get("flesch_target", profile.voice.get("flesch_target", 70)))
+    tolerance = float(pref_for_flesch.get("flesch_tolerance", profile.voice.get("flesch_tolerance", 8)))
     if word_count >= 30:  # don't grade tiny snippets
         if abs(flesch - target) > tolerance:
             direction = "too dense" if flesch < target else "too breezy"
@@ -132,7 +136,11 @@ def validate_draft(
                 f"Flesch {flesch:.1f} outside target {target}±{tolerance} ({direction})"
             )
 
-    # 3. Keyword presence in first 100 words.
+    # 3. Keyword presence in first 100 words. Skipped per content type for
+    # types where the keyword is structural (product copy serves the product
+    # name, not a head SEO term).
+    skip_keyword_check = pref_for_flesch.get("skip_keyword_check", False)
+
     #
     # Accept either:
     #   (a) the full target keyword phrase verbatim, OR
@@ -143,7 +151,7 @@ def validate_draft(
     #       "evil eye bracelet meaning".
     primary = profile.target_keywords.get("primary", [])
     keyword = target_keyword or (primary[0] if primary else None)
-    if keyword:
+    if keyword and not skip_keyword_check:
         first_100_lower = " ".join(_WORD_RE.findall(text)[:100]).lower()
         verbatim_hit = keyword.lower() in first_100_lower
         tokens = [t for t in _WORD_RE.findall(keyword.lower()) if len(t) > 2]
@@ -165,14 +173,20 @@ def validate_draft(
                 f"primary keyword '{keyword}' (or its tokens) missing from first 100 words"
             )
 
-    # 4. Length sanity vs target
-    pref = profile.content_type_preferences.get(content_type, {}) or {}
+    # 4. Length sanity vs target. Use canonical content type so brand.yaml
+    # files that still say cluster_pages still resolve.
+    ct = canonicalize(content_type)
+    pref = profile.content_type_preferences.get(ct, {}) or {}
     target_words = pref.get("target_words")
     if target_words:
-        lo, hi = int(target_words * 0.5), int(target_words * 1.5)
+        # Tighter window for short copy (ad/product), loose for long-form.
+        if target_words <= 250:
+            lo, hi = int(target_words * 0.5), int(target_words * 1.7)
+        else:
+            lo, hi = int(target_words * 0.55), int(target_words * 1.5)
         if word_count < lo or word_count > hi:
             issues.append(
-                f"length {word_count} words outside {lo}-{hi} window for {content_type}"
+                f"length {word_count} words outside {lo}-{hi} window for {ct}"
             )
 
     return ValidationResult(

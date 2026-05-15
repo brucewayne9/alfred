@@ -74,15 +74,24 @@ content_type_preferences:
   product_enrichment:
     sections: [story_section, materials_care, faq, pair_with]
     target_words: 180        # total enrichment add-on per product
-  cluster_pages:
+    flesch_target: 65        # tactile descriptive copy reads denser than ad/blog
+    flesch_tolerance: 12
+    skip_keyword_check: true # product copy serves the product name, not the head keyword
+  cluster:
     sections: [meaning_history, style_guide, gift_guide]
     target_words: 800
+    flesch_target: 62        # explanatory content reads denser by nature
+    flesch_tolerance: 10
   blog:
     sections: [seasonal, occasion_based, materials_education]
     target_words: 600
+    flesch_target: 68
+    flesch_tolerance: 10
   ad_landing:
     sections: [single_collection_focus, scarcity_when_real]
     target_words: 300
+    flesch_target: 72
+    flesch_tolerance: 10
 
 # Few-shot prompting: writer samples 3-4 of these per generation
 voice_examples_dir: data/seo/sites/roen/voice_examples/
