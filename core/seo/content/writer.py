@@ -62,11 +62,18 @@ PROMPT_HINTS: dict[str, str] = {
         "not a textbook. Keep sentences short — under 18 words on average."
     ),
     "product_enrichment": (
-        "This is product enrichment copy that will be appended to a WooCommerce "
-        "product page. DO NOT include an H1. Structure: (1) opening story "
-        "paragraph 3-4 sentences about the piece, (2) '## Materials & care' "
-        "with 3-4 sentences, (3) '## Pairs well with' with 3-4 short bullets. "
-        "Total length ~180 words. Tactile, specific, no marketing puffery."
+        "This is supplemental enrichment copy APPENDED below an existing "
+        "WooCommerce product description that already covers what the piece "
+        "is. You do NOT need to redescribe the product. Emit exactly two "
+        "sections, in this order, headings verbatim:\n"
+        "  1. '## Materials & care' — 3-4 sentences. What it's made of and how "
+        "to care for it (water, perfume, storage, cleaning).\n"
+        "  2. '## Pairs well with' — 3-4 short bullets, each one outfit or "
+        "styling suggestion. Bullets use '- '.\n"
+        "Total length 110-160 words. Write plainly — short sentences, simple "
+        "everyday words. Aim for Flesch reading ease around 65 (8th-grade "
+        "accessible). Tactile, specific, no marketing puffery. No H1, no intro "
+        "paragraph above the first heading."
     ),
     "ad_landing": (
         "This is an ad landing page (paid traffic from IG/Pinterest), ~300 "
