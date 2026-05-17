@@ -1,10 +1,11 @@
 # core/seo/models.py
-"""SQLAlchemy table definitions matching migrations/2026-05-14-seo-initial-schema.sql."""
+"""SQLAlchemy table definitions matching migrations/2026-05-14-seo-initial-schema.sql
+and migrations/2026-05-16-seo-keywords-audit-costs.sql."""
 from __future__ import annotations
 
 import datetime as dt
 from sqlalchemy import (
-    BigInteger, Column, Date, DateTime, ForeignKey, Integer, Numeric,
+    BigInteger, Column, Date, DateTime, ForeignKey, Integer, Numeric, SmallInteger,
     String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -30,14 +31,16 @@ class SeoSite(Base):
     created_at         = Column(DateTime(timezone=True), server_default=func.now())
     updated_at         = Column(DateTime(timezone=True), server_default=func.now())
 
-    queries     = relationship("SeoQuery", back_populates="site", cascade="all, delete-orphan")
-    pages       = relationship("SeoPage", back_populates="site", cascade="all, delete-orphan")
-    briefs      = relationship("SeoBrief", back_populates="site", cascade="all, delete-orphan")
-    pending     = relationship("SeoPending", back_populates="site", cascade="all, delete-orphan")
-    decided     = relationship("SeoDecided", back_populates="site", cascade="all, delete-orphan")
-    backlinks   = relationship("SeoBacklink", back_populates="site", cascade="all, delete-orphan")
-    haro_opps   = relationship("SeoHaroOpp", back_populates="site", cascade="all, delete-orphan")
-    rankings    = relationship("SeoRankingDaily", back_populates="site", cascade="all, delete-orphan")
+    queries      = relationship("SeoQuery", back_populates="site", cascade="all, delete-orphan")
+    pages        = relationship("SeoPage", back_populates="site", cascade="all, delete-orphan")
+    briefs       = relationship("SeoBrief", back_populates="site", cascade="all, delete-orphan")
+    pending      = relationship("SeoPending", back_populates="site", cascade="all, delete-orphan")
+    decided      = relationship("SeoDecided", back_populates="site", cascade="all, delete-orphan")
+    backlinks    = relationship("SeoBacklink", back_populates="site", cascade="all, delete-orphan")
+    haro_opps    = relationship("SeoHaroOpp", back_populates="site", cascade="all, delete-orphan")
+    rankings     = relationship("SeoRankingDaily", back_populates="site", cascade="all, delete-orphan")
+    keywords     = relationship("SeoKeyword", back_populates="site", cascade="all, delete-orphan")
+    audit_issues = relationship("SeoAuditIssue", back_populates="site", cascade="all, delete-orphan")
 
 
 class SeoQuery(Base):
@@ -156,3 +159,66 @@ class SeoRankingDaily(Base):
     captured_at = Column(Date, nullable=False)
     __table_args__ = (UniqueConstraint("site_id", "query", "captured_at"),)
     site = relationship("SeoSite", back_populates="rankings")
+
+
+class SeoKeyword(Base):
+    """Curated keyword punch list — the keywords we DECIDED to attack for a site.
+    Distinct from SeoQuery (raw GSC dump). Enriched with DataForSEO volumes,
+    difficulty, intent. Drives the Keywords screen on the dashboard."""
+    __tablename__ = "seo_keywords"
+    id                  = Column(BigInteger, primary_key=True)
+    site_id             = Column(Integer, ForeignKey("seo_sites.id", ondelete="CASCADE"), nullable=False)
+    keyword             = Column(Text, nullable=False)
+    target_url          = Column(Text)
+    search_volume       = Column(Integer)
+    keyword_difficulty  = Column(Integer)
+    cpc                 = Column(Numeric(10, 4))
+    competition         = Column(Numeric(6, 4))
+    competition_level   = Column(String(16))
+    search_intent       = Column(String(32))
+    current_rank        = Column(Numeric(6, 2))
+    current_rank_url    = Column(Text)
+    rank_source         = Column(String(16))
+    rank_checked_at     = Column(DateTime(timezone=True))
+    priority            = Column(SmallInteger, default=2)
+    status              = Column(String(16), default="active")
+    discovered_at       = Column(DateTime(timezone=True), server_default=func.now())
+    last_refreshed_at   = Column(DateTime(timezone=True), server_default=func.now())
+    meta_payload        = Column(JSONB)
+    __table_args__ = (UniqueConstraint("site_id", "keyword"),)
+    site = relationship("SeoSite", back_populates="keywords")
+
+
+class SeoAuditIssue(Base):
+    """Per-issue grain of site audit findings. seo_pages has rollup status;
+    this table has the actual issue list the dashboard renders + that the
+    optimizer/auto-fixers consume."""
+    __tablename__ = "seo_audit_issues"
+    id                  = Column(BigInteger, primary_key=True)
+    site_id             = Column(Integer, ForeignKey("seo_sites.id", ondelete="CASCADE"), nullable=False)
+    page_url            = Column(Text, nullable=False)
+    issue_type          = Column(String(48), nullable=False)
+    severity            = Column(String(16), nullable=False)
+    detail              = Column(Text)
+    detail_payload      = Column(JSONB)
+    first_detected_at   = Column(DateTime(timezone=True), server_default=func.now())
+    last_detected_at    = Column(DateTime(timezone=True), server_default=func.now())
+    fixed_at            = Column(DateTime(timezone=True))
+    fix_method          = Column(String(32))
+    issue_fingerprint   = Column(String(64), nullable=False)
+    __table_args__ = (UniqueConstraint("site_id", "page_url", "issue_type", "issue_fingerprint"),)
+    site = relationship("SeoSite", back_populates="audit_issues")
+
+
+class SeoApiCost(Base):
+    """Per-call cost log for paid SEO APIs (DataForSEO primarily). Drives the
+    spend widget on the dashboard + budget alerts before we run out."""
+    __tablename__ = "seo_api_costs"
+    id         = Column(BigInteger, primary_key=True)
+    api_name   = Column(String(32), nullable=False)
+    endpoint   = Column(String(128))
+    cost_usd   = Column(Numeric(10, 6), default=0)
+    site_id    = Column(Integer, ForeignKey("seo_sites.id", ondelete="SET NULL"))
+    purpose    = Column(String(64))
+    meta       = Column(JSONB)
+    called_at  = Column(DateTime(timezone=True), server_default=func.now())

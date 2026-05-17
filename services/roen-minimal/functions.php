@@ -143,3 +143,19 @@ require_once get_stylesheet_directory() . '/inc/template-helpers.php';
  * Roen Bracelet Box — server-side glue.
  */
 require_once get_stylesheet_directory() . '/inc/bracelet-box.php';
+
+/**
+ * Meta Shop checkout deep-link handler — parses /meta-checkout?products=ID:QTY,..&coupon=CODE.
+ */
+require_once get_stylesheet_directory() . '/inc/meta-checkout.php';
+
+/**
+ * SEO meta description + noindex injector. Reads assets/seo/meta_descriptions.json.
+ */
+require_once get_stylesheet_directory() . '/inc/seo-meta.php';
+
+/**
+ * Self-contained XML sitemap (WP core's /wp-sitemap.xml is 404ing on this install).
+ * Routes: /sitemap.xml (index), /sitemap-{products,content,categories}.xml.
+ */
+require_once get_stylesheet_directory() . '/inc/seo-sitemap.php';

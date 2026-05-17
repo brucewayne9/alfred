@@ -103,6 +103,27 @@ class Settings(BaseSettings):
     wc_roen_key: str = ""
     wc_roen_secret: str = ""
 
+    # Roen Handmade — WC outbound webhook → Alfred (sale notifications to Sarah).
+    # Shared secret used to HMAC-verify incoming WC webhooks at /webhooks/roen/wc-order.
+    # Generate once and register the same value on WP Admin → WooCommerce → Settings → Advanced → Webhooks.
+    roen_wc_webhook_secret: str = ""
+    # Telegram bot used to DM Sarah + Mike on new sales. Same token the Roen
+    # intake bot uses (TELEGRAM_BOT_ROENHANDMADE_TOKEN).
+    telegram_bot_roenhandmade_token: str = ""
+    # Comma-separated chat IDs to ping on new sale. First entry is Sarah.
+    roen_intake_allowed_chat_ids: str = ""
+
+    # Roen Handmade — Meta (Facebook + Instagram) dedicated app
+    # System User token is long-lived (never expires). Discovered IDs filled by setup.
+    roen_meta_app_id: str = ""
+    roen_meta_app_secret: str = ""
+    roen_meta_system_user_token: str = ""
+    roen_meta_system_user_id: str = ""
+    roen_meta_page_id: str = ""
+    roen_meta_ig_user_id: str = ""
+    roen_meta_catalog_id: str = ""
+    roen_site_base_url: str = "https://www.roenhandmade.com"
+
     # SEO — Google API access (Search Console + GA4 + PageSpeed Insights)
     # OAuth client for GSC + GA4 (user-consent flow). Create at console.cloud.google.com → APIs & Services → Credentials.
     seo_google_oauth_client_id: str = ""
@@ -111,6 +132,10 @@ class Settings(BaseSettings):
     seo_psi_api_key: str = ""
     # Where the OAuth refresh token gets persisted on disk after Mike consents once.
     seo_oauth_token_path: str = "/home/aialfred/alfred/data/seo/google_oauth_token.json"
+    # DataForSEO — paid SEO data API (keyword volumes, SERP, on-page audit, backlinks).
+    # Pay-per-call from prepaid balance. Account: alfred@groundrushlabs.com.
+    dataforseo_login: str = ""
+    dataforseo_password: str = ""
 
     # AI Savings Audit funnel
     # cal_booking_link — Mike's Google Calendar appointment-schedule URL (15-min slot)
