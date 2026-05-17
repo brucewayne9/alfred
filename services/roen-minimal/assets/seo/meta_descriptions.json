@@ -4,7 +4,7 @@
   "_notes": "Meta descriptions injected by roen-minimal/inc/seo-meta.php. Each entry: 150-160 chars, third-person voice, no first-person pronouns. Audited against brand never_say list.",
   "pages": {
     "front_page": {
-      "description": "Handmade jewelry from a small Atlanta studio. Bracelets, beaded pieces, and evil eye designs — each sketched, soldered, and polished by hand.",
+      "description": "Roen — handmade jewelry from a small Atlanta studio. Bracelets, beaded pieces, and evil eye designs, each sketched, soldered, and polished by hand.",
       "title_suffix": "Roen Handmade Jewelry — Atlanta Studio"
     },
     "pick": {
@@ -14,11 +14,14 @@
   },
   "product_categories": {
     "bracelet": {
-      "description": "Handmade bracelets from Roen — beaded, charmed, evil eye, and stretch styles. Each one strung, soldered, and finished by hand in Atlanta."
+      "description": "Bracelets from Roen — beaded, charmed, evil eye, and stretch styles. Each one strung, soldered, and finished by hand in a small Atlanta studio."
+    },
+    "necklace": {
+      "description": "Necklaces from Roen — beaded, charm, and pendant styles. Each one strung, soldered, and finished by hand in a small Atlanta studio."
     }
   },
   "shop": {
-    "description": "Shop the full Roen collection. Bracelets, beaded pieces, and evil eye jewelry — every item designed and made by hand in an Atlanta studio."
+    "description": "Shop Roen — handmade bracelets, beaded pieces, evil eye designs, and necklaces. Every item designed and made by hand in a small Atlanta studio."
   },
   "noindex_rules": {
     "product_tag_archive": true,
