@@ -17,23 +17,23 @@ Text Domain: rucktalk-minimal
  *  ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Paper-stock palette */
-  --paper:        #F4F0E6;          /* warm cream — body bg */
-  --paper-deep:   #ECE5D3;          /* sectional surfaces */
-  --paper-soft:   #FBF8F0;          /* accents, hover */
-  --ink:          #1B1815;          /* deep warm ink (NOT pure black) */
-  --ink-2:        #4A4540;          /* mid */
-  --ink-mute:     #8C857B;          /* muted */
-  --rule:         #C8C2B4;          /* warm rule lines */
+  /* Dark editorial palette — flipped from cream to warm-dark 2026-05-19 */
+  --paper:        #14110F;          /* coffee-black warm bg */
+  --paper-deep:   #1E1B17;          /* slightly lighter dark surface */
+  --paper-soft:   #2A241D;          /* mid surface — hover, panels */
+  --ink:          #F4F0E6;          /* cream text (was the paper) */
+  --ink-2:        #C8C2B4;          /* warm mid grey-cream */
+  --ink-mute:     #8C857B;          /* muted text */
+  --rule:         #3D362F;          /* warm dark rule lines */
 
-  /* Accents */
-  --clay:         #B85432;          /* primary terracotta */
-  --clay-deep:    #8B3A1F;          /* hover/active */
-  --clay-soft:    #E8C9B8;          /* surface tint */
-  --mark:         #2D6741;          /* forest green — badges, "today's take" */
-  --mark-soft:    #C8DCC3;          /* light forest tint */
-  --ink-radio:    #131110;          /* radio bar + LoovaCast block */
-  --warn:         #C9A227;          /* mustard — sparingly */
+  /* Accents — unchanged, work on both light and dark */
+  --clay:         #D4673F;          /* primary terracotta (brightened slightly for dark contrast) */
+  --clay-deep:    #B85432;          /* hover/active terracotta */
+  --clay-soft:    #5C2B17;          /* dark tint — for drop-shadows on dark bg */
+  --mark:         #4A8F62;          /* forest green — boosted for dark contrast */
+  --mark-soft:    #2D6741;          /* deeper forest */
+  --ink-radio:    #0A0907;          /* slightly darker than paper — radio bar stays distinct */
+  --warn:         #E0B23A;          /* mustard — brighter on dark */
 
   /* Typography stack */
   --f-display:   "Archivo Black", "Helvetica Neue", Impact, sans-serif;

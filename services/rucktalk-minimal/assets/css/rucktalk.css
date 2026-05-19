@@ -159,17 +159,32 @@ html { scroll-behavior: smooth; }
 .hero__media {
   position: relative; aspect-ratio: 4/5;
   background: var(--paper-deep); border-radius: 2px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  color: var(--ink-mute); font-size: var(--fs-sm); overflow: hidden;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 12px 12px 0 -2px var(--clay-soft);
+  overflow: hidden;
+  color: var(--ink-mute); font-size: var(--fs-sm);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 12px 12px 0 -2px var(--clay);
 }
-.hero__media::before {
+/* Hide the diagonal stripe pattern when a real photo is present (it was
+ * decoration for the placeholder state). */
+.hero__media:not(:has(.hero__photo))::before {
   content: ""; position: absolute; inset: 0;
-  background: repeating-linear-gradient(45deg, transparent 0, transparent 14px, rgba(0,0,0,0.025) 14px, rgba(0,0,0,0.025) 15px);
+  background: repeating-linear-gradient(45deg, transparent 0, transparent 14px, rgba(255,255,255,0.03) 14px, rgba(255,255,255,0.04) 15px);
 }
-.hero__photo { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; }
-.hero__media-label { font-family: var(--f-display); font-style: italic; font-size: var(--fs-base); color: var(--ink-2); position: relative; z-index: 1; }
-.hero__media-meta { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-mute); margin-top: var(--s-2); position: relative; z-index: 1; }
+/* Placeholder labels — centered when no photo. */
+.hero__media-label,
+.hero__media-meta { position: absolute; left: 50%; transform: translateX(-50%); z-index: 1; }
+.hero__media-label { top: 45%; }
+.hero__media-meta  { top: 55%; }
+
+/* Real photo — absolute fill, face-biased crop. */
+.hero__photo {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: 50% 25%;  /* bias toward top quarter — keeps face in frame */
+  z-index: 1;
+}
+.hero__media-label { font-family: var(--f-display); font-style: italic; font-size: var(--fs-base); color: var(--ink-2); }
+.hero__media-meta { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-mute); margin-top: var(--s-2); }
 @media (max-width: 920px) {
   .hero { padding: var(--s-7) 0 var(--s-8); }
   .hero__inner { grid-template-columns: 1fr; gap: var(--s-7); }
