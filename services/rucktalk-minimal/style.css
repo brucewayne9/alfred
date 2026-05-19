@@ -1,0 +1,71 @@
+/*
+Theme Name: RuckTalk Minimal
+Theme URI: https://rucktalk.com/
+Author: Mike Johnson / Ground Rush Labs
+Author URI: https://groundrushlabs.com/
+Description: Personal-brand child theme for rucktalk.com. Editorial Workman aesthetic — magazine-style typography, warm cream + deep ink + terracotta, asymmetric layouts. Built on Sonaar parent. Real-talk media business: podcast, blog, training, shop.
+Template: sonaar
+Version: 1.0.0
+License: GNU General Public License v2 or later
+Text Domain: rucktalk-minimal
+*/
+
+/* ═════════════════════════════════════════════════════════════════════════
+ *  DESIGN TOKENS — locked 2026-05-19
+ *  Source of truth: docs/superpowers/specs/2026-05-19-rucktalk-design-language.md
+ *  Visual reference: https://aialfred.groundrushcloud.com/static/drafts/rucktalk-homepage-mockup.html
+ *  ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Paper-stock palette */
+  --paper:        #F4F0E6;          /* warm cream — body bg */
+  --paper-deep:   #ECE5D3;          /* sectional surfaces */
+  --paper-soft:   #FBF8F0;          /* accents, hover */
+  --ink:          #1B1815;          /* deep warm ink (NOT pure black) */
+  --ink-2:        #4A4540;          /* mid */
+  --ink-mute:     #8C857B;          /* muted */
+  --rule:         #C8C2B4;          /* warm rule lines */
+
+  /* Accents */
+  --clay:         #B85432;          /* primary terracotta */
+  --clay-deep:    #8B3A1F;          /* hover/active */
+  --clay-soft:    #E8C9B8;          /* surface tint */
+  --mark:         #2D6741;          /* forest green — badges, "today's take" */
+  --mark-soft:    #C8DCC3;          /* light forest tint */
+  --ink-radio:    #131110;          /* radio bar + LoovaCast block */
+  --warn:         #C9A227;          /* mustard — sparingly */
+
+  /* Typography stack */
+  --f-display:   "Archivo Black", "Helvetica Neue", Impact, sans-serif;
+  --f-display-2: "Archivo", "Helvetica Neue", sans-serif;
+  --f-body:      "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Type scale */
+  --fs-xs:   12px;
+  --fs-sm:   14px;
+  --fs-base: 17px;
+  --fs-lg:   20px;
+  --fs-xl:   26px;
+  --fs-2xl:  34px;
+  --fs-3xl:  46px;
+  --fs-4xl:  62px;
+  --fs-hero: 88px;
+  --fs-hero-sm: 56px;
+
+  /* Spacing scale */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+  --s-9: 96px; --s-10: 128px;
+
+  /* Layout */
+  --max-w: 1240px;
+  --gutter: 32px;
+  --radio-h: 54px;
+  --radius: 4px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Component CSS layered on top of these tokens lives in assets/css/rucktalk.css.
+ * This file holds ONLY the WordPress theme header + design tokens, so the
+ * tokens are available to anything that enqueues the child stylesheet. */
