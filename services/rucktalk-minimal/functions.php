@@ -135,6 +135,21 @@ function rucktalk_enqueue_assets() {
         );
     }
 
+    // /about/ page-only structural CSS — mirrors the training enqueue.
+    // Loaded only when WP is rendering the page-about.php template so the
+    // dark-editorial overrides can't bleed onto other pages.
+    if (
+        file_exists( get_stylesheet_directory() . '/assets/css/about.css' )
+        && is_page_template( 'page-about.php' )
+    ) {
+        wp_enqueue_style(
+            'rucktalk-about',
+            get_stylesheet_directory_uri() . '/assets/css/about.css',
+            array( 'rucktalk-tokens', 'rucktalk-structure' ),
+            $v
+        );
+    }
+
     // Ecosystem strip + AIROI block — landing in Tasks 27-28 (Wave 6).
     if ( file_exists( get_stylesheet_directory() . '/assets/css/ecosystem.css' ) ) {
         wp_enqueue_style(
