@@ -26,8 +26,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
         <div class="footer__signup">
             <div class="footer__signup-copy">
-                <h3>One Sunday email. <em>That's it.</em></h3>
-                <p>Best post of the week + the episode worth your time. 8 AM ET.</p>
+                <h3>Best post of the week <em>+ the episode worth your time.</em></h3>
+                <p>8 AM ET, Sundays.</p>
             </div>
             <?php echo do_shortcode( '[rt_signup placement="footer"]' ); ?>
         </div>

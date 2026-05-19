@@ -20,9 +20,9 @@ Text Domain: rucktalk-minimal
   /* Mid-warm-dark palette — warm slate, editorial dark-mode 2026-05-19 r3.
    * Iteration: coffee-black was too dark; pulled the bg up into the
    * warm-slate range. Distinctly dark, easier on the eyes. */
-  --paper:        #2B2620;          /* warm slate — body bg */
-  --paper-deep:   #211D18;          /* darker pocket for sectional contrast */
-  --paper-soft:   #36302A;          /* lighter pocket — hover, panels, cards */
+  --paper:        #36302A;          /* warm slate — body bg (lighter still per Mike) */
+  --paper-deep:   #2B2620;          /* darker pocket for sectional contrast */
+  --paper-soft:   #423B33;          /* lighter pocket — hover, panels, cards */
   --ink:          #ECE4D2;          /* slightly warm cream text */
   --ink-2:        #B5AE9F;          /* mid grey-cream */
   --ink-mute:     #847B6C;          /* muted */
