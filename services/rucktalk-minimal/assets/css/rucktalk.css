@@ -445,7 +445,10 @@ html { scroll-behavior: smooth; }
 @media (max-width: 720px) { .about__inner { grid-template-columns: 1fr; } .about__body { font-size: var(--fs-xl); } }
 
 /* ───── Footer ───── */
-.footer { background: var(--ink); color: var(--paper); margin: 0 calc(-1 * var(--gutter)); padding: var(--s-9) var(--gutter) var(--s-5); }
+/* Footer — explicit dark coffee bg so the cream text inside stays
+ * readable after the dark-mode flip. (Originally used --ink, which is
+ * now cream itself; cream-on-cream was invisible.) */
+.footer { background: var(--ink-radio); color: var(--ink); margin: 0 calc(-1 * var(--gutter)); padding: var(--s-9) var(--gutter) var(--s-5); }
 .footer__inner { max-width: var(--max-w); margin: 0 auto; }
 .footer__signup { border-bottom: 1px solid rgba(244,240,230,0.15); padding-bottom: var(--s-7); margin-bottom: var(--s-7); display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-7); align-items: end; }
 .footer__signup-copy h3 { font-family: var(--f-display); font-size: var(--fs-3xl); line-height: 1.02; margin-bottom: var(--s-3); letter-spacing: -0.025em; }

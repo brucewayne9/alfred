@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'RUCKTALK_THEME_VERSION', '1.3.0' );
+define( 'RUCKTALK_THEME_VERSION', '1.4.0' );
 
 /**
  * Enqueue parent + child assets.
