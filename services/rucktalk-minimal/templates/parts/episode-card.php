@@ -80,27 +80,7 @@ $cat_name = ! empty( $cats ) ? $cats[0]->name : __( 'Episode', 'rucktalk-minimal
 ?>
 <section class="episode">
     <div class="wrap" style="display: contents;">
-        <div class="episode__art" style="<?php echo $cover_url ? 'background-image:url(' . esc_url( $cover_url ) . ');background-size:cover;background-position:center;' : ''; ?>">
-            <span class="episode__ep">
-                <?php
-                if ( $episode_num ) {
-                    printf( esc_html__( 'Ep. %1$d · %2$s', 'rucktalk-minimal' ), $episode_num, esc_html( $published ) );
-                } else {
-                    echo esc_html( $published );
-                }
-                ?>
-            </span>
-            <h3 class="episode__title-on-art"><?php echo esc_html( $title ); ?></h3>
-            <span class="episode__date">
-                <?php
-                if ( $duration ) {
-                    printf( esc_html__( '%1$s · %2$s', 'rucktalk-minimal' ), esc_html( $published_full ), esc_html( $duration ) );
-                } else {
-                    echo esc_html( $published_full );
-                }
-                ?>
-            </span>
-        </div>
+        <a class="episode__art episode__art--image-only" href="<?php echo esc_url( $permalink ); ?>" aria-label="<?php echo esc_attr( $title ); ?>" style="<?php echo $cover_url ? 'background-image:url(' . esc_url( $cover_url ) . ');background-size:cover;background-position:center;' : ''; ?>"></a>
         <div class="episode__copy">
             <?php if ( $episode_num ) : ?>
                 <span class="episode__num">&mdash; <?php printf( esc_html__( 'Episode No. %d', 'rucktalk-minimal' ), $episode_num ); ?></span>

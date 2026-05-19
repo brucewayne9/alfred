@@ -15,10 +15,20 @@
 .rt-main *::before,
 .rt-main *::after { box-sizing: border-box; }
 
+/* Hard override — Sonaar parent + Elementor were winning the body bg cascade.
+ * These four selectors are the ones WP adds on rucktalk.com per the audit. */
+body,
+body.home,
+body.wp-child-theme-rucktalk-minimal,
+body.elementor-page,
+body.theme-sonaar {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+}
+.rt-main, main, #main, .site, #page { background: transparent !important; }
+
 body.rt-body,
-body { /* fallback when body_class doesn't add rt-body */
-  background: var(--paper);
-  color: var(--ink);
+body {
   font-family: var(--f-body);
   font-size: var(--fs-base);
   line-height: 1.55;
@@ -104,7 +114,7 @@ html { scroll-behavior: smooth; }
   font-family: var(--f-display); font-style: italic;
   font-size: var(--fs-sm); color: var(--ink-mute); letter-spacing: 0.04em;
 }
-.hero__inner { display: grid; grid-template-columns: 5fr 7fr; gap: var(--s-8); align-items: end; }
+.hero__inner { display: grid; grid-template-columns: 7fr 5fr; gap: var(--s-8); align-items: center; }
 .hero__eyebrow {
   font-size: var(--fs-xs); text-transform: uppercase;
   letter-spacing: 0.18em; color: var(--clay);
@@ -157,11 +167,13 @@ html { scroll-behavior: smooth; }
 .platform:hover { border-color: var(--ink); color: var(--ink); background: var(--paper-soft); }
 .platform__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .hero__media {
-  position: relative; aspect-ratio: 4/5;
+  position: relative;
+  aspect-ratio: 4/3;            /* LANDSCAPE — was 4/5 portrait */
+  width: 100%;
   background: var(--paper-deep); border-radius: 2px;
   overflow: hidden;
   color: var(--ink-mute); font-size: var(--fs-sm);
-  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 12px 12px 0 -2px var(--clay);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 14px 14px 0 -2px var(--clay);
 }
 /* Hide the diagonal stripe pattern when a real photo is present (it was
  * decoration for the placeholder state). */
@@ -295,14 +307,17 @@ html { scroll-behavior: smooth; }
   border-top: 1px solid var(--rule);
 }
 .episode__art {
+  display: block;
   aspect-ratio: 1/1; background: var(--ink); border-radius: 2px;
   position: relative; overflow: hidden;
-  display: flex; flex-direction: column; justify-content: space-between;
-  padding: var(--s-5); color: var(--paper-soft);
-  font-family: var(--f-display);
   box-shadow: 14px 14px 0 -2px var(--mark);
+  transition: transform 0.25s ease-out;
 }
-.episode__art::after {
+.episode__art:hover { transform: translate(-2px, -2px); box-shadow: 16px 16px 0 -2px var(--mark); }
+/* Decorative concentric-circle overlay only renders for the empty-state
+ * card (which still uses the inner spans). Real episode covers already
+ * have their own art — no decoration on top. */
+.episode__art:not(.episode__art--image-only)::after {
   content: ""; position: absolute;
   inset: -20% -10% auto auto;
   width: 80%; height: 80%; border-radius: 50%;
