@@ -29,7 +29,7 @@
 **Mike's pillar statement (verbatim, 2026-05-13):**
 > "Stay healthy. Find my peace. Be a good partner to my wife, a good husband to my wife, a good friend to my wife. And everything else everybody else is going through. I have my political beliefs, but I'm not on a soapbox — I'm just a regular guy that wants to talk to other regular guys that are strong and how to get stronger."
 
-**Five pillars:** Health · Peace · Family · Strength · Shared experience
+**Five pillars:** Health · Business · Family · Strength · Shared experience
 
 **Tone:** Regular guys talking to other regular guys. No expert/coach posture. No soapbox. Practical, not panicked.
 
@@ -175,7 +175,7 @@ Alternatives considered (rejected for Phase 0 but available for A/B testing late
 | RuckTalk classic cap | Hat | $25 |
 | RuckTalk patch cap (alt color) | Hat | $25 |
 | RuckTalk logo tee | Tee | $30 |
-| "Health. Peace. Family. Strength." pillar tee | Tee | $30 |
+| "Health. Business. Family. Strength." pillar tee | Tee | $30 |
 
 **Source:** Hats produced on Mike's existing hat press downstairs. Tees TBD (Phase 2 picks blank vendor + print method).
 
