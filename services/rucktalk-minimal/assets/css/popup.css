@@ -1,0 +1,82 @@
+/* ═════════════════════════════════════════════════════════════════════════
+ *  rucktalk-minimal — newsletter popup CSS
+ *  The ONE allowed popup in the design system (per Phase 0 spec §12e).
+ *  Hidden by default; popup.js sets data-open="1" on scroll-depth 50% or
+ *  exit-intent, with a 14-day dismiss cookie.
+ *
+ *  Verbatim port of the mockup .popup block.
+ *  ═══════════════════════════════════════════════════════════════════════ */
+
+.popup {
+  position: fixed; inset: 0; z-index: 999;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: var(--s-5);
+}
+.popup[data-open="1"] { display: flex; }
+
+.popup__backdrop {
+  position: absolute; inset: 0;
+  background: rgba(27,24,21,0.65);
+}
+
+.popup__panel {
+  position: relative;
+  background: var(--paper); max-width: 460px; width: 100%;
+  padding: var(--s-7);
+  text-align: center;
+  border-radius: 4px;
+  box-shadow: 0 8px 40px rgba(27,24,21,0.3);
+}
+
+.popup__close {
+  position: absolute; top: var(--s-2); right: var(--s-3);
+  background: none; border: none;
+  font-size: 28px; color: var(--ink-2);
+  cursor: pointer;
+  line-height: 1;
+  padding: var(--s-2);
+}
+.popup__close:hover { color: var(--clay-deep); }
+
+.popup__cover {
+  width: 120px; height: 160px;
+  margin: 0 auto var(--s-5);
+  background: var(--paper-deep);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--ink-mute);
+  font-family: var(--f-display); font-style: italic;
+  font-size: var(--fs-sm);
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+  box-shadow: 6px 6px 0 -1px var(--clay-soft);
+  overflow: hidden;
+}
+.popup__cover img { width: 100%; height: 100%; object-fit: cover; }
+
+.popup__title {
+  font-family: var(--f-display);
+  font-size: var(--fs-2xl); line-height: 1.05;
+  margin-bottom: var(--s-3);
+  letter-spacing: -0.025em;
+}
+.popup__title em {
+  font-family: var(--f-display-2);
+  font-weight: 600; color: var(--clay);
+  font-style: italic;
+}
+
+.popup__sub {
+  font-family: var(--f-display-2); font-style: italic;
+  color: var(--ink-2);
+  margin-bottom: var(--s-5);
+}
+
+/* Re-use the inline .signup form treatment; just nudge for popup width. */
+.popup .signup { max-width: 360px; }
+
+@media (max-width: 480px) {
+  .popup__panel { padding: var(--s-5); }
+  .popup__cover { width: 96px; height: 128px; }
+}

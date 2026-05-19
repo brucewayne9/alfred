@@ -1,0 +1,133 @@
+/* ═════════════════════════════════════════════════════════════════════════
+ *  rucktalk-minimal — ecosystem strip + AIROI contextual block CSS
+ *  Two surfaces:
+ *    .eco             — sister-brand row in the dark footer (mockup port)
+ *    .rt-airoi-block  — inline post insertion (design-language §12c)
+ *
+ *  Both stay subtle: ecosystem strip greyscale-until-hover, AIROI block
+ *  appears ONLY on auto-tagged AI/business posts.
+ *  ═══════════════════════════════════════════════════════════════════════ */
+
+/* ───── Ecosystem strip (footer) ───── */
+.eco {
+  padding: var(--s-7) 0;
+  text-align: center;
+  border-bottom: 1px solid rgba(244,240,230,0.15);
+  margin-bottom: var(--s-5);
+}
+.eco__label {
+  font-family: var(--f-body); font-size: var(--fs-xs);
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: rgba(244,240,230,0.55);
+  margin-bottom: var(--s-5);
+  display: flex; align-items: center; justify-content: center; gap: var(--s-3);
+}
+.eco__label::before,
+.eco__label::after {
+  content: "";
+  width: 40px; height: 1px;
+  background: rgba(244,240,230,0.2);
+}
+.eco__list {
+  display: flex; justify-content: center;
+  gap: var(--s-8);
+  list-style: none; padding: 0; margin: 0;
+  flex-wrap: wrap;
+}
+.eco__item a {
+  display: flex; flex-direction: column; gap: 4px;
+  color: rgba(244,240,230,0.6);
+  font-family: var(--f-body); font-size: var(--fs-sm);
+  transition: color 0.2s;
+  text-decoration: none;
+}
+.eco__item a:hover { color: var(--paper-soft); }
+.eco__item img {
+  /* Sister-brand wordmark logos — greyscale until hover. */
+  max-height: 28px; width: auto;
+  filter: grayscale(1) brightness(1.3);
+  opacity: 0.7;
+  transition: filter 0.2s, opacity 0.2s;
+}
+.eco__item a:hover img {
+  filter: none;
+  opacity: 1;
+}
+.eco__name {
+  font-family: var(--f-display); font-style: italic;
+  font-size: var(--fs-lg); font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.eco__tag {
+  font-size: var(--fs-xs);
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: rgba(244,240,230,0.4);
+}
+
+@media (max-width: 720px) {
+  .eco__list { gap: var(--s-5); }
+}
+
+
+/* ───── AIROI contextual block (per design-language §12c) ─────
+ * Auto-inserted by inc/airoi-tagger.php at the end of posts whose
+ * topic matches the AI / business / efficiency tag set. Stays
+ * subtle: card with terracotta accent, single CTA, no popup.
+ * ───────────────────────────────────────────────────────────── */
+.rt-airoi-block {
+  margin: var(--s-7) 0;
+  padding: var(--s-5) var(--s-6);
+  background: var(--paper-soft);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--clay);
+  border-radius: 4px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s-5);
+  align-items: center;
+}
+.rt-airoi-block__copy { min-width: 0; }
+.rt-airoi-block__eyebrow {
+  font-family: var(--f-body); font-size: var(--fs-xs);
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--clay); font-weight: 600;
+  margin-bottom: var(--s-2);
+}
+.rt-airoi-block__title {
+  font-family: var(--f-display-2); font-weight: 700;
+  font-size: var(--fs-lg);
+  color: var(--ink);
+  margin: 0 0 var(--s-2);
+  letter-spacing: -0.01em;
+}
+.rt-airoi-block__sub {
+  font-family: var(--f-body);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  margin: 0;
+}
+.rt-airoi-block__cta {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  padding: 12px 18px;
+  background: var(--clay); color: var(--paper-soft);
+  border-radius: 4px;
+  font-family: var(--f-body); font-weight: 600; font-size: var(--fs-sm);
+  text-decoration: none;
+  transition: background 0.15s, transform 0.08s;
+  white-space: nowrap;
+}
+.rt-airoi-block__cta:hover  { background: var(--clay-deep); color: var(--paper-soft); }
+.rt-airoi-block__cta:active { transform: translateY(1px); }
+.rt-airoi-block__attrib {
+  font-size: 11px; color: var(--ink-mute);
+  margin-top: var(--s-2);
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .rt-airoi-block {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+  .rt-airoi-block__cta { width: 100%; justify-content: center; }
+}
