@@ -144,6 +144,12 @@ class Settings(BaseSettings):
     cal_booking_link: str = "https://calendar.app.google/4b6G2vqTxmEGWgGo9"
     brevo_ai_audit_list_id: int = 0
 
+    # RuckTalk WordPress (server-100 / rt-wordpress container) — REST API access
+    # Generate at WP Admin → Users → alfred → Application Passwords. Add to
+    # config/.env as RUCKTALK_WP_APP_USER and RUCKTALK_WP_APP_PASSWORD.
+    rucktalk_wp_app_user: str = "alfred"
+    rucktalk_wp_app_password: str = ""
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
