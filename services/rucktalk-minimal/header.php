@@ -68,7 +68,31 @@ if ( ! defined( 'ABSPATH' ) ) {
             }
             ?>
         </a>
-        <nav class="nav" aria-label="<?php esc_attr_e( 'Primary', 'rucktalk-minimal' ); ?>">
+        <nav class="nav nav--desktop" aria-label="<?php esc_attr_e( 'Primary', 'rucktalk-minimal' ); ?>">
+            <?php
+            wp_nav_menu( array(
+                'theme_location' => 'main-menu',
+                'container'      => false,
+                'items_wrap'     => '%3$s',
+                'fallback_cb'    => 'rucktalk_default_nav',
+                'depth'          => 1,
+            ) );
+            ?>
+        </nav>
+
+        <button class="nav-burger" type="button"
+                aria-label="<?php esc_attr_e( 'Open menu', 'rucktalk-minimal' ); ?>"
+                aria-expanded="false"
+                aria-controls="rt-mobile-nav">
+            <span class="nav-burger__bar"></span>
+            <span class="nav-burger__bar"></span>
+            <span class="nav-burger__bar"></span>
+        </button>
+    </div>
+
+    <!-- Mobile nav drawer — toggled by nav-burger above. Slides down from header. -->
+    <div id="rt-mobile-nav" class="nav-drawer" data-open="0" aria-hidden="true">
+        <nav class="nav nav--mobile" aria-label="<?php esc_attr_e( 'Mobile navigation', 'rucktalk-minimal' ); ?>">
             <?php
             wp_nav_menu( array(
                 'theme_location' => 'main-menu',

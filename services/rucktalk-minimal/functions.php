@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'RUCKTALK_THEME_VERSION', '1.4.0' );
+define( 'RUCKTALK_THEME_VERSION', '1.5.0' );
 
 /**
  * Enqueue parent + child assets.
@@ -54,6 +54,17 @@ function rucktalk_enqueue_assets() {
             get_stylesheet_directory_uri() . '/assets/css/rucktalk.css',
             array( 'rucktalk-tokens' ),
             $v
+        );
+    }
+
+    // Mobile nav drawer toggle JS.
+    if ( file_exists( get_stylesheet_directory() . '/assets/js/nav.js' ) ) {
+        wp_enqueue_script(
+            'rucktalk-nav-js',
+            get_stylesheet_directory_uri() . '/assets/js/nav.js',
+            array(),
+            $v,
+            true
         );
     }
 

@@ -93,6 +93,67 @@ html { scroll-behavior: smooth; }
   color: var(--clay-soft);
   font-style: italic;
 }
+/* ─── Mobile nav: hamburger + slide-down drawer ─────────────────────── */
+.nav-burger {
+  display: none;  /* hidden by default; surfaced below 920px */
+  background: transparent;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  width: 44px; height: 44px;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0;
+  transition: background 0.15s;
+}
+.nav-burger:hover { background: var(--paper-soft); }
+.nav-burger__bar {
+  display: block;
+  width: 22px; height: 2px;
+  background: var(--ink);
+  border-radius: 1px;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.nav-burger[aria-expanded="true"] .nav-burger__bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-burger[aria-expanded="true"] .nav-burger__bar:nth-child(2) { opacity: 0; }
+.nav-burger[aria-expanded="true"] .nav-burger__bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.nav-drawer {
+  display: none;
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  padding: var(--s-3) var(--gutter) var(--s-5);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.nav-drawer[data-open="1"] { display: block; }
+.nav-drawer .nav { flex-direction: column; gap: 0; align-items: stretch; }
+.nav-drawer .nav a {
+  display: block;
+  padding: var(--s-4) var(--s-2);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--f-display-2);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--ink);
+}
+.nav-drawer .nav a:hover { color: var(--clay); border-bottom-color: var(--clay); }
+.nav-drawer .nav a:last-child { border-bottom: none; }
+.nav-drawer .nav__cta {
+  margin-top: var(--s-3);
+  background: var(--clay);
+  color: var(--paper-soft);
+  text-align: center;
+  border-radius: 4px;
+  border-bottom: none !important;
+}
+
+/* When the drawer is open, lock body scroll so the page underneath doesn't move. */
+body.rt-nav-open { overflow: hidden; }
+
 .nav { display: flex; gap: var(--s-5); align-items: center; }
 .nav a {
   font-family: var(--f-body); font-weight: 500;
@@ -104,7 +165,16 @@ html { scroll-behavior: smooth; }
 .nav a:hover { color: var(--ink); border-bottom-color: var(--clay); }
 .nav__cta { background: var(--ink); color: var(--paper-soft); padding: var(--s-2) var(--s-4); border-radius: 4px; }
 .nav__cta:hover { background: var(--clay-deep); color: var(--paper-soft); border-bottom-color: transparent; }
-@media (max-width: 920px) { .nav { display: none; } }
+/* Mobile: swap desktop nav for hamburger + drawer. Position drawer
+ * absolute under the sticky header. */
+.head { position: sticky; }  /* already sticky from earlier rule, restate for clarity */
+@media (max-width: 920px) {
+  .nav--desktop { display: none; }
+  .nav-burger   { display: flex; }
+  .head         { position: sticky; }
+  .head .wrap   { position: relative; }
+}
+/* Drawer positioning is absolute relative to .head — works at any width. */
 
 /* ───── Hero — asymmetric editorial spread ───── */
 .hero { padding: var(--s-9) 0 var(--s-10); position: relative; overflow: hidden; }
@@ -473,6 +543,43 @@ html { scroll-behavior: smooth; }
 .reveal--4 { animation-delay: 0.42s; }
 .reveal--5 { animation-delay: 0.55s; }
 @keyframes reveal { to { opacity: 1; transform: none; } }
+/* ─── Small-phone breakpoint (<=540) — final pass ───────────────────── */
+@media (max-width: 540px) {
+  :root { --gutter: 20px; }
+  .hero { padding: var(--s-6) 0 var(--s-7); }
+  .hero__title { font-size: 38px; line-height: 1.04; }
+  .hero__strap { font-size: var(--fs-base); }
+  .hero__cta { flex-direction: column; align-items: stretch; }
+  .hero__cta .btn { text-align: center; justify-content: center; }
+  .hero__listen { gap: var(--s-2); }
+  .hero__listen-label { width: 100%; margin-bottom: var(--s-2); }
+
+  .section__title { font-size: var(--fs-xl); }
+  .episode__title { font-size: var(--fs-2xl); }
+  .episode__excerpt { font-size: var(--fs-base); }
+  .episode__actions { flex-direction: column; align-items: stretch; }
+  .episode__actions .btn { text-align: center; justify-content: center; }
+
+  .coupon__title { font-size: var(--fs-2xl); }
+  .coupon__card { padding: var(--s-5) var(--s-4); }
+  .footer__signup-copy h3 { font-size: var(--fs-2xl); }
+
+  .live__btn { width: 64px; height: 64px; font-size: 22px; }
+
+  .head__inner { padding: var(--s-3) 0; }
+  .nav-burger { width: 40px; height: 40px; }
+}
+
+/* Extra-small phones — keep type readable, no horizontal scroll. */
+@media (max-width: 380px) {
+  .hero__title { font-size: 32px; }
+  .pillar__name { font-size: var(--fs-lg); }
+  .episode__title { font-size: var(--fs-xl); }
+  .coupon__title { font-size: var(--fs-xl); }
+  .signup { flex-direction: column; align-items: stretch; }
+  .signup__btn { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal { animation: none; opacity: 1; transform: none; }
   html { scroll-behavior: auto; }
