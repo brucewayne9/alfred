@@ -600,3 +600,76 @@
         margin-bottom: var(--s-2);
     }
 }
+
+
+/* ───── §5 ON OTHER PEOPLE'S MICS (guest podcast embed) ───── */
+.about-page__guest {
+    padding: var(--s-9) var(--gutter);
+    border-top: 1px solid var(--rule);
+}
+.about-page__guest-inner {
+    max-width: 900px;
+    margin: 0 auto;
+}
+.about-page__guest-eyebrow {
+    font-family: var(--f-body);
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--clay);
+    font-weight: 600;
+    margin: 0 0 var(--s-3);
+}
+.about-page__guest-title {
+    font-family: var(--f-display);
+    font-size: var(--fs-3xl);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin: 0 0 var(--s-4);
+}
+.about-page__guest-title em {
+    font-family: var(--f-display-2);
+    font-weight: 600;
+    font-style: italic;
+    color: var(--clay);
+}
+.about-page__guest-sub {
+    font-family: var(--f-body);
+    font-size: var(--fs-lg);
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0 0 var(--s-6);
+}
+.about-page__guest-video {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--paper-deep);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 16px 16px 0 -2px var(--clay), 0 8px 32px rgba(0,0,0,0.4);
+    transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
+}
+.about-page__guest-video:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 18px 18px 0 -2px var(--clay), 0 12px 40px rgba(0,0,0,0.5);
+}
+.about-page__guest-video iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.about-page__guest-caption {
+    font-family: var(--f-display-2);
+    font-style: italic;
+    font-size: var(--fs-sm);
+    color: var(--ink-mute);
+    margin: var(--s-4) 0 0;
+    text-align: right;
+}
+@media ( max-width: 540px ) {
+    .about-page__guest-title { font-size: var(--fs-2xl); }
+    .about-page__guest-video { box-shadow: 8px 8px 0 -2px var(--clay), 0 4px 16px rgba(0,0,0,0.4); }
+}

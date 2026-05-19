@@ -189,7 +189,37 @@ $youtube_url = apply_filters(
     </section>
 
 
-    <?php /* ───────────────── 5. WATCH / VIDEO ───────────────── */ ?>
+    <?php /* ───────────────── 5. ON OTHER PEOPLE'S MICS (guest embed) ───────────────── */ ?>
+    <section class="about-page__guest" aria-labelledby="about-guest-title">
+        <div class="about-page__guest-inner">
+            <p class="about-page__guest-eyebrow"><?php esc_html_e( "Other people's mics", 'rucktalk-minimal' ); ?></p>
+            <h2 class="about-page__guest-title" id="about-guest-title">
+                <?php
+                echo wp_kses_post(
+                    sprintf( __( 'Mike on the road — %s', 'rucktalk-minimal' ), '<em>"Learning from Failure."</em>' )
+                );
+                ?>
+            </h2>
+            <p class="about-page__guest-sub">
+                <?php esc_html_e( "A long-form conversation about building Ground Rush, getting punched in the face by reality, and what got him back up. Worth the hour if you've ever shipped something and watched it land sideways.", 'rucktalk-minimal' ); ?>
+            </p>
+            <div class="about-page__guest-video">
+                <iframe
+                    src="https://www.youtube-nocookie.com/embed/8Vvi-TII8yo?rel=0&modestbranding=1"
+                    title="<?php esc_attr_e( 'Mike Johnson — Learning from Failure (guest podcast)', 'rucktalk-minimal' ); ?>"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    allowfullscreen
+                    loading="lazy"></iframe>
+            </div>
+            <p class="about-page__guest-caption">
+                <?php esc_html_e( "Catch Mike elsewhere? Send the link — we'll add it here.", 'rucktalk-minimal' ); ?>
+            </p>
+        </div>
+    </section>
+
+
+    <?php /* ───────────────── 6. WATCH / VIDEO ───────────────── */ ?>
     <section class="about-page__watch" aria-labelledby="about-watch-title">
         <div class="about-page__watch-inner">
             <p class="about-page__watch-eyebrow"><?php esc_html_e( 'On camera', 'rucktalk-minimal' ); ?></p>
