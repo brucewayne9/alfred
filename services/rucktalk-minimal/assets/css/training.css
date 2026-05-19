@@ -1,0 +1,297 @@
+/* ═════════════════════════════════════════════════════════════════════════
+ *  rucktalk-minimal — /training + /training/free structural styles
+ *
+ *  Conditionally enqueued from functions.php on:
+ *    is_page_template('page-training.php')      → /training/
+ *    is_page_template('page-training-free.php') → /training/free/
+ *
+ *  Reuses tokens from style.css (--paper, --ink, --clay, --f-display, etc.)
+ *  Reuses .btn / .btn--primary / .btn--secondary primitives from
+ *  assets/css/rucktalk.css — no button restyles in this file.
+ *
+ *  Scope is page-only on purpose: no global selectors, no overrides of
+ *  homepage components. Class names are prefixed `.training-*` so a stray
+ *  load on another page can't bleed.
+ *  ═══════════════════════════════════════════════════════════════════════ */
+
+
+/* ─── /training/ hero band ─── */
+.training-hero {
+    padding: var(--s-9) 0 var(--s-7);
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    text-align: center;
+}
+.training-hero__inner {
+    max-width: 760px;
+}
+.training-hero__title {
+    font-family: var(--f-display);
+    font-size: var(--fs-4xl);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin: 0 0 var(--s-4);
+}
+.training-hero__sub {
+    font-family: var(--f-display-2);
+    font-style: italic;
+    font-size: var(--fs-xl);
+    line-height: 1.4;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 56ch;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+/* ─── /training/ two-up card grid ─── */
+.training-cards {
+    padding: var(--s-9) 0 var(--s-10);
+    background: var(--paper);
+}
+.training-cards__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-7);
+}
+.training-card {
+    position: relative;
+    background: var(--paper-soft);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: var(--s-8) var(--s-7);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+.training-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+.training-card--paid {
+    background: var(--paper-deep);
+}
+.training-card__eyebrow {
+    font-family: var(--f-body);
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--clay);
+    font-weight: 600;
+    margin-bottom: var(--s-3);
+}
+.training-card--paid .training-card__eyebrow {
+    color: var(--mark);
+}
+.training-card__title {
+    font-family: var(--f-display);
+    font-size: var(--fs-2xl);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 0 0 var(--s-3);
+}
+.training-card__title em {
+    font-family: var(--f-display-2);
+    font-style: italic;
+    font-weight: 600;
+    color: var(--clay);
+}
+.training-card__sub {
+    font-family: var(--f-body);
+    font-size: var(--fs-base);
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0 0 var(--s-6);
+    flex: 1;
+}
+.training-card__cta {
+    align-self: flex-start;
+}
+.training-card__cta.is-disabled,
+.training-card__cta[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+
+/* ─── /training/free/ two-column landing ─── */
+.training-free {
+    padding: var(--s-9) 0 var(--s-10);
+    background: var(--paper);
+}
+.training-free__grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: var(--s-9);
+    align-items: center;
+}
+.training-free__title {
+    font-family: var(--f-display);
+    font-size: var(--fs-4xl);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin: 0 0 var(--s-5);
+}
+.training-free__sub {
+    font-family: var(--f-display-2);
+    font-style: italic;
+    font-size: var(--fs-xl);
+    line-height: 1.45;
+    color: var(--ink-2);
+    margin: 0 0 var(--s-6);
+    max-width: 52ch;
+}
+
+/* Override .signup default centering on this page — left-aligned copy
+ * reads better with the form sitting underneath. */
+.training-free .signup {
+    margin: 0;
+    max-width: 480px;
+    justify-content: flex-start;
+}
+
+.training-free__paid {
+    margin: var(--s-6) 0 0;
+    font-family: var(--f-body);
+    font-size: var(--fs-sm);
+    color: var(--ink-mute);
+}
+.training-free__paid a {
+    color: var(--ink);
+    border-bottom: 1px solid var(--rule);
+    transition: border-color 0.15s, color 0.15s;
+}
+.training-free__paid a:hover {
+    color: var(--clay-deep);
+    border-bottom-color: var(--clay);
+}
+
+
+/* ─── /training/free/ PDF cover visual ─── */
+.training-free__visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.training-free__cover {
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+}
+.training-free__cover-placeholder {
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 3 / 4;
+    background: var(--paper-deep);
+    border: 1.5px dashed var(--rule);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    color: var(--ink-mute);
+}
+.training-free__cover-label {
+    font-family: var(--f-display);
+    font-size: var(--fs-xl);
+    color: var(--ink-2);
+    letter-spacing: -0.02em;
+}
+.training-free__cover-meta {
+    font-family: var(--f-body);
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+}
+
+
+/* ─── ?confirmed=1 success state ─── */
+.training-free__confirmed {
+    padding: var(--s-6);
+    background: var(--mark-soft);
+    border-left: 4px solid var(--mark);
+    border-radius: var(--radius);
+    max-width: 480px;
+}
+.training-free__confirmed-title {
+    font-family: var(--f-display);
+    font-size: var(--fs-xl);
+    color: var(--mark);
+    margin: 0 0 var(--s-2);
+    letter-spacing: -0.01em;
+}
+.training-free__confirmed-sub {
+    font-family: var(--f-body);
+    font-size: var(--fs-base);
+    color: var(--ink);
+    margin: 0;
+}
+
+
+/* ─── shared signup-form status (when used in /training/free/) ─── */
+.training-free .rt-signup-form__status {
+    margin-top: var(--s-3);
+    font-family: var(--f-body);
+    font-size: var(--fs-sm);
+    color: var(--ink-2);
+    min-height: 1.2em;
+}
+.training-free .rt-signup-form__status[data-state="ok"] {
+    color: var(--mark);
+    font-weight: 600;
+}
+.training-free .rt-signup-form__status[data-state="err"] {
+    color: var(--clay-deep);
+    font-weight: 600;
+}
+
+
+/* ─── Responsive collapse ─── */
+@media ( max-width: 920px ) {
+    .training-cards__grid {
+        grid-template-columns: 1fr;
+        gap: var(--s-5);
+    }
+    .training-cards {
+        padding: var(--s-8) 0;
+    }
+    .training-free__grid {
+        grid-template-columns: 1fr;
+        gap: var(--s-7);
+    }
+    .training-free__visual {
+        order: -1;
+    }
+    .training-free__cover,
+    .training-free__cover-placeholder {
+        max-width: 320px;
+    }
+    .training-hero {
+        padding: var(--s-8) 0 var(--s-6);
+    }
+    .training-hero__title,
+    .training-free__title {
+        font-size: var(--fs-3xl);
+    }
+}
+
+@media ( max-width: 540px ) {
+    .training-card {
+        padding: var(--s-6) var(--s-5);
+    }
+    .training-card__title {
+        font-size: var(--fs-xl);
+    }
+    .training-free .signup {
+        max-width: none;
+    }
+}

@@ -108,6 +108,22 @@ function rucktalk_enqueue_assets() {
         ) );
     }
 
+    // /training + /training/free structural CSS — only on those templates.
+    // Both page templates ship as part of Wave 4 (Tasks 17-18). We check
+    // both is_page_template() variants because WP returns the *filename*
+    // for the active template.
+    if (
+        file_exists( get_stylesheet_directory() . '/assets/css/training.css' )
+        && ( is_page_template( 'page-training.php' ) || is_page_template( 'page-training-free.php' ) )
+    ) {
+        wp_enqueue_style(
+            'rucktalk-training',
+            get_stylesheet_directory_uri() . '/assets/css/training.css',
+            array( 'rucktalk-tokens', 'rucktalk-structure' ),
+            $v
+        );
+    }
+
     // Ecosystem strip + AIROI block — landing in Tasks 27-28 (Wave 6).
     if ( file_exists( get_stylesheet_directory() . '/assets/css/ecosystem.css' ) ) {
         wp_enqueue_style(
