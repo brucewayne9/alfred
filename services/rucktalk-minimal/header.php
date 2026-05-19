@@ -50,8 +50,17 @@ if ( ! defined( 'ABSPATH' ) ) {
     <div class="wrap head__inner">
         <a class="brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" rel="home">
             <?php
-            if ( function_exists( 'has_custom_logo' ) && has_custom_logo() ) {
-                the_custom_logo();
+            $rt_logo_id  = get_theme_mod( 'custom_logo' );
+            $rt_logo_src = $rt_logo_id ? wp_get_attachment_image_src( $rt_logo_id, 'medium' ) : false;
+            if ( $rt_logo_src ) {
+                // Render the logo ourselves (no nested <a>, no 1400×671 raw dims).
+                printf(
+                    '<img class="brand__logo" src="%s" alt="%s" width="%d" height="%d" decoding="async">',
+                    esc_url( $rt_logo_src[0] ),
+                    esc_attr( get_bloginfo( 'name' ) ),
+                    intval( $rt_logo_src[1] ),
+                    intval( $rt_logo_src[2] )
+                );
             } else {
                 ?>
                 <span class="brand__placeholder">RuckTalk <small>logo</small></span>

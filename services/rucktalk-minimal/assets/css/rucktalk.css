@@ -53,7 +53,16 @@ html { scroll-behavior: smooth; }
   letter-spacing: -0.02em;
   color: var(--ink);
 }
-.brand img { max-height: 38px; width: auto; }
+.brand img,
+.brand .brand__logo,
+.brand .custom-logo,
+.head .brand img {
+  max-height: 40px !important;
+  width: auto !important;
+  height: auto !important;
+  display: block;
+}
+.brand { line-height: 1; }
 .brand__placeholder {
   /* Placeholder block — drop the real logo image here */
   display: inline-flex; align-items: center; justify-content: center;
