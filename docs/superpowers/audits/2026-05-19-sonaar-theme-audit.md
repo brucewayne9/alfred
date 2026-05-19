@@ -6,7 +6,12 @@ Pulled via WP REST API. Auth-gated endpoints (/themes) require an app password t
 
 ## Active theme
 
-⚠️  Skipped — no WP app password configured. Set `RUCKTALK_WP_APP_PASSWORD` in /home/aialfred/alfred/config/.env.
+- **Name:** Sonaar Child
+- **Version:** 4.26
+- **Template (parent):** sonaar
+- **Stylesheet:** sonaar-child
+- **Status:** active
+- **Theme supports:** align-wide, automatic-feed-links, block-template-parts, block-templates, custom-background, custom-header, custom-logo, customize-selective-refresh-widgets, dark-editor-style, disable-custom-colors, disable-custom-font-sizes, disable-custom-gradients, disable-layout-styles, editor-color-palette, editor-font-sizes, editor-gradient-presets, editor-spacing-sizes, editor-styles, formats, html5, post-thumbnails, responsive-embeds, title-tag, wp-block-styles
 
 ## Pages + templates in use
 
@@ -132,3 +137,56 @@ ssh server-100 "docker exec rt-wordpress wp menu location list --allow-root"
 
 Task 2 of Plan 1A greps the Sonaar parent theme PHP for actionable
 hooks (`apply_filters`, `do_action`). Append findings to this doc.
+
+---
+
+## Wave 1 follow-up (server-100 wp-cli + grep)
+
+### Existing menu state
+| Menu | Slug | Locations | Items |
+|---|---|---|---|
+| Main Menu | `main-menu` | `main-menu`, `responsive-menu` | 4 |
+
+Sonaar parent registers TWO nav locations: `main-menu` + `responsive-menu` (both bound to the same Main Menu term). Our `rucktalk-minimal` child theme should NOT override these — re-use the existing menu (Plan 1A Task 6 needs adjustment).
+
+### Existing `sonaar-child` theme is EMPTY (safe to replace)
+- 3 files total: `functions.php` (29 lines, default Sonaar boilerplate — just enqueues style.css against parent handle `iron-master`), `style.css`, `screenshot.png`
+- ZERO custom code, ZERO template overrides, ZERO hooks added
+- **Cutover plan:** activate `rucktalk-minimal` directly; leave `sonaar-child` on disk but inactive as rollback insurance for 30 days, then delete
+
+### Sonaar parent — actionable hook surface
+Most parent `apply_filters` calls are for ACF / Merlin (setup wizard) — not useful for override. The **Sonaar-specific filters worth knowing about:**
+
+| Filter | Purpose | When we'd touch it |
+|---|---|---|
+| `sonaar_content` | Modify post content rendering | If we need to inject Phase 5 video embeds into episode content |
+| `sonaar_feed_slug` | Customize podcast RSS feed slug | NEVER touch — breaks Spotify/Apple subscriptions |
+| `sonaar_helper_feed_home_url` | Customize podcast feed home URL | NEVER touch — same reason |
+| `sonaar_podcast_feed_query_args` | Modify podcast feed WP_Query args | Carefully — Phase 5 if we need to filter video-only episodes from audio feed |
+
+**Critical preservation rule:** the podcast RSS feed (currently piped to Spotify/Apple/etc.) MUST keep working through cutover. Any filter touching `sonaar_feed_*` is T3 — requires Mike's go and a feed-validator test before merging.
+
+### `podcast` CPT origin
+Registered in `/var/www/html/wp-content/themes/sonaar/includes/sonaar-music/includes/posttypes.php`. The Sonaar parent ships its own "sonaar-music" suite (built-in, NOT a separate plugin). This means **keeping the Sonaar parent active is mandatory** — if we ever swap parent themes, the podcast CPT + all episodes disappear from the back end.
+
+### Existing override surface in `sonaar` parent (template hierarchy)
+The parent provides these templates that our child can override by file name (standard WP child-theme behavior):
+- `header.php`, `footer.php`, `index.php`, `404.php`
+- `archive.php` (generic post archive)
+- `archive-podcast.php` (podcast CPT archive)
+- `archive-album.php` / `archive-artist.php` / `archive-event.php` / `archive-video.php` (music-shop templates — irrelevant to RuckTalk)
+- `archive-posts-classic.php` / `archive-posts-list.php` (blog list variants)
+- `author.php`, `category.php`, `comments.php`
+
+Plan 1A's child theme creates: `header.php`, `footer.php`, `front-page.php`, `page-training.php`, `page-training-free.php`, `page-about.php`. These override the parent cleanly.
+
+### Plan 1A adjustments based on this audit
+1. **Task 5 (theme supports):** parent already declares `custom-logo`, `post-thumbnails`, `title-tag`, `html5` — we only need to declare WC support (parent doesn't). Shrink Task 5 accordingly.
+2. **Task 6 (menu locations):** parent already registers `main-menu` + `responsive-menu` and Mike already has a Main Menu attached. We should NOT register competing locations — instead, render `wp_nav_menu( theme_location => 'main-menu' )` in our header.php. Update Task 6 + header.php in Task 9.
+3. **Task 15 (theme activation):** the existing `sonaar-child` is empty — safe to flip directly to `rucktalk-minimal` with no data migration.
+4. **Task 25 (LoovaCast):** since the podcast RSS feed is fed by Sonaar's own filters, our LoovaCast station should pull from the same feed Spotify pulls from — no risk of fragmenting subscriptions.
+
+### Decisions confirmed via Mike (2026-05-19)
+- ✅ Rank Math SEO plugin → **kill at cutover** (Plan 1B replaces it)
+- ✅ Category cleanup → **rolled into Plan 1B** (39 messy categories → 5 pillars + archives)
+- ✅ Server 100 SSH access → granted for read + paired-deploy operations
