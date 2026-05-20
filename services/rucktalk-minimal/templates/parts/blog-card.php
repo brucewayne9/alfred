@@ -44,7 +44,16 @@ if ( ! $q->have_posts() ) {
                 $read_min = (int) ceil( str_word_count( wp_strip_all_tags( get_post_field( 'post_content', get_the_ID() ) ) ) / 220 );
                 $read_min = max( 1, $read_min );
                 ?>
-                <article class="card">
+                <?php
+                $thumb_url = get_the_post_thumbnail_url( get_the_ID(), 'medium_large' );
+                ?>
+                <article class="card<?php echo $thumb_url ? ' card--has-media' : ''; ?>">
+                    <a class="card__media" href="<?php echo esc_url( get_permalink() ); ?>" aria-label="<?php echo esc_attr( get_the_title() ); ?>"
+                       <?php if ( $thumb_url ) : ?>style="background-image:url('<?php echo esc_url( $thumb_url ); ?>');"<?php endif; ?>>
+                        <?php if ( ! $thumb_url ) : ?>
+                            <span class="card__media-fallback" aria-hidden="true">RuckTalk</span>
+                        <?php endif; ?>
+                    </a>
                     <?php if ( '' !== $cat_name ) : ?>
                         <span class="card__cat"><?php echo esc_html( $cat_name ); ?></span>
                     <?php endif; ?>

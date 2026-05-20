@@ -74,6 +74,11 @@ if ( ! $duration ) {
 
 $cover_url = get_the_post_thumbnail_url( $post_id, 'large' );
 
+// Sonaar's MP3 attachment ID — used to wire in-place play on the
+// "Play episode" button. Falls back to permalink navigation if no MP3.
+$ep_mp3_id  = (int) get_post_meta( $post_id, 'track_mp3_podcast', true );
+$ep_mp3_url = $ep_mp3_id ? (string) wp_get_attachment_url( $ep_mp3_id ) : '';
+
 // First category (lowercased, used as a label) — defaults to "Episode".
 $cats     = get_the_category();
 $cat_name = ! empty( $cats ) ? $cats[0]->name : __( 'Episode', 'rucktalk-minimal' );
@@ -106,7 +111,15 @@ $cat_name = ! empty( $cats ) ? $cats[0]->name : __( 'Episode', 'rucktalk-minimal
             </div>
 
             <div class="episode__actions">
-                <a class="btn btn--primary" href="<?php echo esc_url( $permalink ); ?>">&#9654; <?php esc_html_e( 'Play episode', 'rucktalk-minimal' ); ?></a>
+                <a class="btn btn--primary btn--episode-play"
+                   href="<?php echo esc_url( $permalink ); ?>"
+                   <?php if ( $ep_mp3_url ) : ?>
+                   data-episode-mp3="<?php echo esc_attr( $ep_mp3_url ); ?>"
+                   data-episode-title="<?php echo esc_attr( $title ); ?>"
+                   data-episode-permalink="<?php echo esc_attr( $permalink ); ?>"
+                   <?php endif; ?>>
+                    <span class="btn__glyph" aria-hidden="true">&#9654;</span>&nbsp;<span class="btn__label"><?php esc_html_e( 'Play episode', 'rucktalk-minimal' ); ?></span>
+                </a>
                 <a class="btn btn--ghost" href="<?php echo esc_url( home_url( '/podcast/' ) ); ?>"><?php esc_html_e( 'All episodes', 'rucktalk-minimal' ); ?></a>
             </div>
         </div>

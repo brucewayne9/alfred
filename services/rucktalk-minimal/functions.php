@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'RUCKTALK_THEME_VERSION', '1.6.0' );
+define( 'RUCKTALK_THEME_VERSION', '1.7.2' );
 
 /**
  * Enqueue parent + child assets.
@@ -130,6 +130,19 @@ function rucktalk_enqueue_assets() {
         wp_enqueue_style(
             'rucktalk-training',
             get_stylesheet_directory_uri() . '/assets/css/training.css',
+            array( 'rucktalk-tokens', 'rucktalk-structure' ),
+            $v
+        );
+    }
+
+    // /blog/ archive (home.php) card grid CSS — only on the blog index.
+    if (
+        file_exists( get_stylesheet_directory() . '/assets/css/blog-archive.css' )
+        && is_home()
+    ) {
+        wp_enqueue_style(
+            'rucktalk-blog-archive',
+            get_stylesheet_directory_uri() . '/assets/css/blog-archive.css',
             array( 'rucktalk-tokens', 'rucktalk-structure' ),
             $v
         );

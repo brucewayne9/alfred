@@ -1,0 +1,46 @@
+RuckTalk
+
+Welcome to the family, {{FIRST_NAME}}.
+
+I'm glad you're here. Genuinely.
+
+RuckTalk is a conversation for go-getters — folks figuring out work, family, strength, and what everybody else is going through. We don't pretend to have it dialed. We share notes from the road and ask what we're missing.
+
+Two things waiting for you in this email. Let's get into them.
+
+---
+
+№ 1 — YOUR 8-WEEK RUCK-THE-BLOCK PLAN
+
+It's attached to this email: fitasruck-8week.pdf
+
+Save it to your phone. Pull it up Monday morning. Eight weeks from now you'll be in a different body.
+
+Stuck on something? Just hit reply. This inbox is real and I read every one.
+
+{{TOOLKIT_BLOCK_TXT}}
+---
+
+A FAVOR, IF I MAY — HELP US BUILD THE COMMUNITY
+
+If RuckTalk hits for you, share an episode with one friend. Just one. That's how this kind of community grows — one go-getter at a time.
+
+Listen to the latest:  https://rucktalk.com/podcast/
+Read the journal:      https://rucktalk.com/blog/
+
+---
+
+HELP US GET BETTER — WHAT SHOULD RUCKTALK COVER NEXT?
+
+Hit reply and tell me. Honest take, half a sentence, doesn't matter — every reply shapes what we make next.
+
+— Mike Johnson, host
+
+---
+
+rucktalk.com · About: https://rucktalk.com/about-mike-johnson/ · Contact: https://rucktalk.com/contact/
+
+You signed up at rucktalk.com on {{SIGNUP_DATE}}.
+Unsubscribe in one click: {{UNSUBSCRIBE_URL}}
+
+© {{YEAR}} RuckTalk · Part of the Ground Rush ecosystem

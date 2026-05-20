@@ -29,6 +29,32 @@ $strap_text    = apply_filters(
     'rucktalk_hero_strap',
     "One go-getter's running commentary on health, business, family, strength, and what everybody else is going through. Tell me what I'm missing."
 );
+
+// Latest episode (for in-place "Today's episode" play button). Falls back
+// to /podcast/ archive if no episode found or no MP3 attached.
+$rt_latest_q = new WP_Query( array(
+    'post_type'           => 'podcast',
+    'posts_per_page'      => 1,
+    'post_status'         => 'publish',
+    'orderby'             => 'date',
+    'order'               => 'DESC',
+    'fields'              => 'ids',
+    'no_found_rows'       => true,
+    'ignore_sticky_posts' => true,
+) );
+$rt_latest_mp3   = '';
+$rt_latest_title = '';
+$rt_latest_link  = home_url( '/podcast/' );
+if ( ! empty( $rt_latest_q->posts ) ) {
+    $rt_latest_id    = (int) $rt_latest_q->posts[0];
+    $rt_latest_link  = get_permalink( $rt_latest_id );
+    $rt_latest_title = get_the_title( $rt_latest_id );
+    $rt_mp3_id       = (int) get_post_meta( $rt_latest_id, 'track_mp3_podcast', true );
+    if ( $rt_mp3_id ) {
+        $rt_latest_mp3 = (string) wp_get_attachment_url( $rt_mp3_id );
+    }
+}
+wp_reset_postdata();
 ?>
 <section class="hero">
     <div class="wrap hero__inner">
@@ -65,8 +91,14 @@ $strap_text    = apply_filters(
                 <a class="btn btn--primary" href="#rt-hero-signup" id="hero-signup">
                     <?php esc_html_e( 'Get the free 8-week plan', 'rucktalk-minimal' ); ?>
                 </a>
-                <a class="btn btn--secondary" href="<?php echo esc_url( home_url( '/podcast/' ) ); ?>">
-                    <?php echo wp_kses_post( '&#9654;&nbsp;&nbsp;' . esc_html__( "Today's episode", 'rucktalk-minimal' ) ); ?>
+                <a class="btn btn--secondary btn--episode-play"
+                   href="<?php echo esc_url( $rt_latest_link ); ?>"
+                   <?php if ( $rt_latest_mp3 ) : ?>
+                   data-episode-mp3="<?php echo esc_attr( $rt_latest_mp3 ); ?>"
+                   data-episode-title="<?php echo esc_attr( $rt_latest_title ); ?>"
+                   data-episode-permalink="<?php echo esc_attr( $rt_latest_link ); ?>"
+                   <?php endif; ?>>
+                    <span class="btn__glyph" aria-hidden="true">&#9654;</span>&nbsp;&nbsp;<span class="btn__label"><?php esc_html_e( "Today's episode", 'rucktalk-minimal' ); ?></span>
                 </a>
             </div>
 

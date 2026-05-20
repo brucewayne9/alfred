@@ -34,9 +34,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 <?php wp_body_open(); ?>
 
 <!-- ─── FLOATING LOOVACAST RADIO BAR ─── -->
+<?php
+$rt_lc_public = (string) get_option( 'rt_loovacast_stream_url', '' );
+$rt_lc_listen = '';
+if ( preg_match( '#^(https?://[^/]+)/public/([A-Za-z0-9_-]+)/?$#', $rt_lc_public, $rt_lc_m ) ) {
+    $rt_lc_listen = $rt_lc_m[1] . '/listen/' . $rt_lc_m[2] . '/radio.mp3';
+}
+?>
 <div class="radio" id="rt-radio-bar"
-     data-station-url="<?php echo esc_attr( get_option( 'rt_loovacast_station_url', '' ) ); ?>"
-     data-station-id="<?php echo esc_attr( get_option( 'rt_loovacast_station_id', '' ) ); ?>">
+     data-station-url="<?php echo esc_attr( $rt_lc_public ); ?>"
+     data-station-id="<?php echo esc_attr( get_option( 'rt_loovacast_station_id', '' ) ); ?>"
+     data-listen-url="<?php echo esc_attr( $rt_lc_listen ); ?>">
     <span class="radio__on" aria-hidden="true"></span>
     <span class="radio__label">Live</span>
     <span class="radio__sep"></span>

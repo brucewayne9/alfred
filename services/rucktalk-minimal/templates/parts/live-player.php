@@ -24,7 +24,12 @@ $up_next     = apply_filters( 'rucktalk_live_up_next', '' );
     <div class="live__inner">
 
         <div class="live__art" aria-hidden="true">
-            <span class="live__art-text">RuckTalk<br>Radio</span>
+            <img class="live__art-logo"
+                 src="<?php echo esc_url( get_stylesheet_directory_uri() . '/assets/img/logo-icon.png' ); ?>"
+                 alt=""
+                 width="96" height="96"
+                 loading="lazy" decoding="async">
+            <span class="live__art-label">Radio</span>
         </div>
 
         <div class="live__copy">

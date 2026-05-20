@@ -66,6 +66,25 @@ if ( ! defined( 'ABSPATH' ) ) {
     <!-- LumaBot widget embed is appended here by inc/sonaar-overrides.php (Task 26) -->
 </div>
 
+<!-- ─── MINI PLAYER (hidden until audio plays; controls live in player.js) ─── -->
+<div class="mp" id="rt-mp" data-open="0" aria-hidden="true" role="region" aria-label="Audio player">
+    <div class="mp__inner">
+        <button class="mp__play" type="button" aria-label="Play / pause">
+            <span class="mp__glyph" aria-hidden="true">&#9654;</span>
+        </button>
+        <div class="mp__meta">
+            <div class="mp__kicker"><span class="mp__source-label">Live radio</span></div>
+            <a class="mp__title" href="#" target="_self">RuckTalk</a>
+        </div>
+        <div class="mp__scrub">
+            <span class="mp__time mp__time--cur">0:00</span>
+            <input class="mp__range" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
+            <span class="mp__time mp__time--tot">--:--</span>
+        </div>
+        <button class="mp__close" type="button" aria-label="Stop and close player">&times;</button>
+    </div>
+</div>
+
 <!-- ─── NEWSLETTER POPUP (hidden by default; shown via popup.js) ─── -->
 <?php get_template_part( 'templates/parts/popup-signup' ); ?>
 
