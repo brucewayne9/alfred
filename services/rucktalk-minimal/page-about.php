@@ -122,74 +122,10 @@ $youtube_url = apply_filters(
     </section>
 
 
-    <?php /* ───────────────── 4. VISUAL GRID — magazine cuts ───────────────── */ ?>
-    <section class="about-page__grid-section" aria-labelledby="about-grid-title">
-        <div class="about-page__grid-head">
-            <span class="about-page__grid-eyebrow"><?php esc_html_e( 'Field tape', 'rucktalk-minimal' ); ?></span>
-            <h2 class="about-page__grid-title" id="about-grid-title"><?php esc_html_e( 'Where the work happens.', 'rucktalk-minimal' ); ?></h2>
-        </div>
-
-        <div class="about-page__grid">
-
-            <figure class="about-page__tile about-page__tile--lg">
-                <img src="<?php echo esc_url( $gear_src ); ?>"
-                     alt="<?php esc_attr_e( 'Mike geared up — weight vest, kettlebell, ready to ruck.', 'rucktalk-minimal' ); ?>"
-                     class="about-page__tile-img"
-                     loading="lazy"
-                     decoding="async">
-                <figcaption class="about-page__tile-caption"><?php esc_html_e( 'Geared up. Atlanta, 6 AM.', 'rucktalk-minimal' ); ?></figcaption>
-            </figure>
-
-            <figure class="about-page__tile about-page__tile--md">
-                <img src="<?php echo esc_url( $posing_src ); ?>"
-                     alt="<?php esc_attr_e( 'Mike at fifty-one — eighteen months into the work.', 'rucktalk-minimal' ); ?>"
-                     class="about-page__tile-img"
-                     loading="lazy"
-                     decoding="async">
-                <figcaption class="about-page__tile-caption"><?php esc_html_e( 'Eighteen months in.', 'rucktalk-minimal' ); ?></figcaption>
-            </figure>
-
-            <figure class="about-page__tile about-page__tile--wide">
-                <img src="<?php echo esc_url( $ruck_kb_src ); ?>"
-                     alt="<?php esc_attr_e( 'Field tape — 30-minute ruck-and-kettlebell carry.', 'rucktalk-minimal' ); ?>"
-                     class="about-page__tile-img"
-                     loading="lazy"
-                     decoding="async">
-                <figcaption class="about-page__tile-caption"><?php esc_html_e( 'Vest on. 40 lb in your hand. Walk thirty minutes. Don’t put it down.', 'rucktalk-minimal' ); ?></figcaption>
-            </figure>
-
-            <figure class="about-page__tile about-page__tile--square">
-                <img src="<?php echo esc_url( $show_up_src ); ?>"
-                     alt="<?php esc_attr_e( 'Field tape — the hill, Thursday morning.', 'rucktalk-minimal' ); ?>"
-                     class="about-page__tile-img"
-                     loading="lazy"
-                     decoding="async">
-                <figcaption class="about-page__tile-caption"><?php esc_html_e( 'Nobody’s watching. Show up anyway.', 'rucktalk-minimal' ); ?></figcaption>
-            </figure>
-
-            <figure class="about-page__tile about-page__tile--tall">
-                <img src="<?php echo esc_url( $recovery_src ); ?>"
-                     alt="<?php esc_attr_e( 'Field tape — sauna recovery between sessions.', 'rucktalk-minimal' ); ?>"
-                     class="about-page__tile-img"
-                     loading="lazy"
-                     decoding="async">
-                <figcaption class="about-page__tile-caption"><?php esc_html_e( 'Recovery is part of the work.', 'rucktalk-minimal' ); ?></figcaption>
-            </figure>
-
-            <figure class="about-page__tile about-page__tile--md">
-                <img src="<?php echo esc_url( $hero_src ); ?>"
-                     alt="<?php esc_attr_e( 'Mike portrait — Atlanta.', 'rucktalk-minimal' ); ?>"
-                     class="about-page__tile-img"
-                     loading="lazy"
-                     decoding="async">
-                <figcaption class="about-page__tile-caption"><?php esc_html_e( 'MJ · Atlanta, GA.', 'rucktalk-minimal' ); ?></figcaption>
-            </figure>
-
-        </div>
-    </section>
+    <?php /* §4 visual grid removed 2026-05-19 — Mike kept only the guest video. */ ?>
 
 
-    <?php /* ───────────────── 5. ON OTHER PEOPLE'S MICS (guest embed) ───────────────── */ ?>
+    <?php /* ───────────────── 4. ON OTHER PEOPLE'S MICS (guest embed) ───────────────── */ ?>
     <section class="about-page__guest" aria-labelledby="about-guest-title">
         <div class="about-page__guest-inner">
             <p class="about-page__guest-eyebrow"><?php esc_html_e( "Other people's mics", 'rucktalk-minimal' ); ?></p>
@@ -219,7 +155,7 @@ $youtube_url = apply_filters(
     </section>
 
 
-    <?php /* ───────────────── 6. WATCH / VIDEO ───────────────── */ ?>
+    <?php /* ───────────────── 5. WATCH / VIDEO ───────────────── */ ?>
     <section class="about-page__watch" aria-labelledby="about-watch-title">
         <div class="about-page__watch-inner">
             <p class="about-page__watch-eyebrow"><?php esc_html_e( 'On camera', 'rucktalk-minimal' ); ?></p>
