@@ -55,15 +55,6 @@ $rt_confirmed   = isset( $_GET['confirmed'] ) && '1' === sanitize_text_field( wp
                 <?php echo do_shortcode( '[rt_signup placement="training-free" button="Send me the plan"]' ); ?>
             <?php endif; ?>
 
-            <p class="training-free__paid">
-                <?php
-                printf(
-                    /* translators: %s = link to /training/ */
-                    esc_html__( 'Already done the free one? %s', 'rucktalk-minimal' ),
-                    '<a href="' . esc_url( home_url( '/training/' ) ) . '"><strong>' . esc_html__( 'Get the full PDF for $29', 'rucktalk-minimal' ) . '</strong> &rarr;</a>'
-                );
-                ?>
-            </p>
         </div>
 
         <div class="training-free__visual">
