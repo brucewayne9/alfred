@@ -14,9 +14,10 @@ function alfred_seo_default_settings() {
         'alfred_endpoint'  => 'https://aialfred.groundrushcloud.com',
         'alt_text_enabled'  => true,
         'sitemap_enabled'   => true,
-        'audio_post_type'   => 'podcast',
-        'podcast_feed_url'  => '',
-        'is_podcast_site'   => false,
+        'audio_post_type'          => 'podcast',
+        'podcast_feed_url'         => '',
+        'is_podcast_site'          => false,
+        'transcript_post_meta_key' => '_rt_transcript',
     );
 }
 
