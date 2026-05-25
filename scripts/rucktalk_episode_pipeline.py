@@ -2,7 +2,7 @@
 """
 rucktalk_episode_pipeline.py — RuckTalk Episode Pipeline Orchestrator
 
-Polls NextCloud for new MP4 files in /RuckTalk/Episodes and runs a full
+Polls NextCloud for new MP4 files in /Content/RuckTalk/Episodes/Raw and runs a full
 automation pipeline: download → transcribe → AI analysis → cover art →
 WordPress publish → YouTube upload → blog post → smart clips → social queue.
 
@@ -69,6 +69,10 @@ from scripts.rucktalk_rig_props import (
 # Task 5 flips it to "MagazineRig". Set EPISODE_RIG env var to override at runtime.
 EPISODE_RIG = os.environ.get("EPISODE_RIG", "MagazineRig")
 
+# PAUSED 2026-05-13 per Mike: clips still land in Nextcloud, but auto-posting
+# is off so he can grab them and post manually. Flip to True to resume.
+AUTO_SOCIAL_QUEUE_ENABLED = False
+
 
 # ─────────────────────────────────────────────
 # Step 1: Check NextCloud for new episodes
@@ -94,6 +98,8 @@ def check_for_new_episodes(force_file: str | None = None) -> list[dict]:
         logger.error("Failed to list NextCloud episodes: %s", exc)
         return []
 
+    import urllib.parse
+    processed_norm = {urllib.parse.unquote(p) for p in processed} | set(processed)
     new_files = []
     for f in files:
         if f.get("is_folder"):
@@ -101,7 +107,7 @@ def check_for_new_episodes(force_file: str | None = None) -> list[dict]:
         name = f.get("name", "")
         if not name.lower().endswith(".mp4"):
             continue
-        if name in processed:
+        if name in processed_norm or urllib.parse.unquote(name) in processed_norm:
             continue
         new_files.append(f)
 
@@ -276,24 +282,69 @@ TRANSCRIPT:
 # ─────────────────────────────────────────────
 
 
-def generate_cover_image(title: str, episode_number: int) -> str | None:
-    """Generate branded episode cover art — ComfyUI background + text overlay.
+def generate_cover_image(
+    title: str,
+    episode_number: int,
+    mp4_path: str | None = None,
+    analysis: dict | None = None,
+) -> str | None:
+    """Generate the RuckTalk episode cover image via ComfyUI Cloud.
 
-    Matches the RuckTalk cover style:
-    - Cinematic AI background (ComfyUI Cloud)
-    - "RUCK TALK" top left
-    - "EPISODE N" badge top right (orange)
-    - "NEW EPISODE" label in orange
-    - Episode title in huge bold text, key word in orange
-    - Dark overlay for readability
+    Default behavior (Mike's call 2026-05-20): always ComfyUI-generated,
+    topic-fit cover with the standard RuckTalk brand overlay. Analysis
+    keywords get folded into the prompt when available so the image
+    reflects the actual episode topic.
+
+    The legacy face-frame extraction path is preserved but OPT-IN ONLY —
+    set env `RUCKTALK_COVER_FACE_FRAME=1` to re-enable it.
+
+    The brand-overlay composition lives in scripts/rucktalk_cover_helpers.py
+    so Stream 3 (this) and Stream 2 (audio_worker) can converge later.
     """
+    # Opt-in legacy face-frame path
+    if mp4_path and os.environ.get(
+        "RUCKTALK_COVER_FACE_FRAME", ""
+    ).lower() in ("1", "true", "yes"):
+        try:
+            from scripts.rucktalk_face_frame import extract_best_face_frame
+            from scripts.rucktalk_cover_helpers import (
+                compose_branded_cover,
+                compose_clean_cover,
+                should_brand_episode,
+            )
+            logger.info("[opt-in] Attempting face-frame cover for Ep %d from %s",
+                        episode_number, mp4_path)
+            face_frame = extract_best_face_frame(mp4_path)
+            if face_frame is not None:
+                dest = IMAGES_DIR / f"episode_{episode_number}_cover.png"
+                if should_brand_episode(episode_number):
+                    out = compose_branded_cover(
+                        face_frame, title, episode_number, dest,
+                        canvas_size=1200,
+                    )
+                else:
+                    out = compose_clean_cover(
+                        face_frame, title, episode_number, dest,
+                        canvas_size=1200,
+                    )
+                return str(out)
+            logger.info("No face detected in MP4 — falling through to ComfyUI")
+        except Exception as exc:
+            logger.warning("Face-frame cover path failed: %s — "
+                           "falling through to ComfyUI", exc)
+
+    # ── ComfyUI topic-fit cover (default path) ──────────────────────────
     from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
-    # Step 1: Generate background image via ComfyUI Cloud
+    # Build a topic-rich prompt from the analysis when available
+    keywords = (analysis or {}).get("keywords") or []
+    keywords_str = ", ".join(str(k) for k in keywords[:6])
     prompt = (
-        f"cinematic dramatic scene related to '{title}', "
-        f"dark moody atmosphere, single person, masculine energy, "
-        f"studio or outdoor setting, professional photography, "
+        f"cinematic editorial photograph for podcast cover, theme: '{title}'. "
+        f"Visual elements: lone determined figure, masculine grit"
+        + (f", {keywords_str}" if keywords_str else "")
+        + ". Outdoor rugged setting, dramatic golden-hour or moody side "
+        f"lighting, deep shadows, atmospheric. No text, no logos, no captions. "
         f"{IMAGE_STYLE_SUFFIX}"
     )
     logger.info("Generating cover image for Episode %d...", episode_number)
@@ -408,6 +459,39 @@ def _wp_cli(cmd: str, timeout: int = 30) -> tuple[bool, str]:
         return False, str(exc)
 
 
+def _push_transcript_meta(post_id: int, text: str) -> None:
+    """POST to alfred-seo /transcript endpoint to set _rt_transcript on a podcast post.
+
+    Raises on HTTP error. Caller decides whether to make it fatal.
+    Credential resolution: RUCKTALK_WP_APP_PASSWORD env first, then orchestrator DB.
+    """
+    import os as _os
+    import sys as _sys
+    import requests
+    from requests.auth import HTTPBasicAuth
+
+    user = _os.environ.get("RUCKTALK_WP_USER", "alfred-seo")
+    pw   = _os.environ.get("RUCKTALK_WP_APP_PASSWORD", "")
+    if not pw:
+        # Fall back to orchestrator DB.
+        if "/home/aialfred/alfred" not in _sys.path:
+            _sys.path.insert(0, "/home/aialfred/alfred")
+        from core.seo.sites.registry import get_site_by_slug
+        s = get_site_by_slug("rucktalk")
+        if s:
+            user = s.wp_username or user
+            pw   = s.wp_app_password or ""
+    if not pw:
+        raise RuntimeError("no WP credential for alfred-seo on rucktalk")
+    r = requests.post(
+        "https://rucktalk.com/wp-json/alfred-seo/v1/transcript",
+        auth=HTTPBasicAuth(user, pw),
+        json={"post_id": int(post_id), "transcript": text},
+        timeout=30,
+    )
+    r.raise_for_status()
+
+
 def publish_to_wordpress(
     audio_path: Path,
     title: str,
@@ -415,11 +499,17 @@ def publish_to_wordpress(
     description: str,
     show_notes: str,
     cover_image_path: str | None,
+    post_status: str = "publish",
 ) -> dict | None:
     """
     Upload audio + cover to WordPress and create a proper Sonaar podcast episode.
     Uses the 'podcast' custom post type with correct meta fields so the episode
     appears on the show page at /show/ruck-talk/.
+
+    post_status: 'publish' (default, immediate) or 'draft' (held for Mike's
+    approval via /admin/rucktalk/pending — flipped to 'publish' by the
+    admin endpoint or by the 4h auto-publish sweep).
+
     Returns dict with 'post_link', 'post_id', 'audio_url'.
     """
     full_title = f"Episode {episode_number}: {title}"
@@ -464,10 +554,10 @@ def publish_to_wordpress(
     safe_content = content.replace("'", "'\\''")
 
     # Create as podcast post type via WP-CLI
-    logger.info("Creating podcast episode on WordPress...")
+    logger.info("Creating podcast episode on WordPress (status=%s)...", post_status)
     ok, output = _wp_cli(
         f"post create --post_type=podcast --post_title='{safe_title}' "
-        f"--post_status=publish --post_content='{safe_content}' --porcelain",
+        f"--post_status={post_status} --post_content='{safe_content}' --porcelain",
         timeout=30,
     )
 
@@ -498,6 +588,36 @@ def publish_to_wordpress(
         ok, out = _wp_cli(cmd)
         if not ok:
             logger.warning("Meta command failed: %s → %s", cmd, out)
+
+    # Push Whisper transcript to _rt_transcript post_meta if one exists on disk.
+    # Non-fatal — better to ship the episode without a transcript than to fail
+    # the whole publish over an SEO enhancement. Picked up at render-time by
+    # alfred-seo's transcript-render filter (collapsible <details> block).
+    try:
+        transcript_path = TRANSCRIPTS_DIR / f"episode_{episode_number}.json"
+        if transcript_path.exists():
+            td = json.loads(transcript_path.read_text())
+            text = (td.get("text") or "").strip() or " ".join(
+                s.get("text", "").strip() for s in td.get("segments", [])
+            )
+            if text:
+                _push_transcript_meta(post_id=int(post_id), text=text)
+                logger.info(
+                    "transcript pushed to _rt_transcript on post %s (%d chars)",
+                    post_id, len(text),
+                )
+            else:
+                logger.info(
+                    "transcript file %s parsed but had no text — _rt_transcript not pushed",
+                    transcript_path.name,
+                )
+        else:
+            logger.info(
+                "no transcript at %s — _rt_transcript not pushed (run Whisper backfill later)",
+                transcript_path.name,
+            )
+    except Exception as exc:
+        logger.warning("transcript push failed (non-fatal): %s", exc)
 
     # Get the post URL
     ok, post_url = _wp_cli(f"post get {post_id} --field=url")
@@ -825,9 +945,14 @@ def generate_clips(
             duration_frames=int(duration * 30),
         ) if (portrait_ok or landscape_ok) else False
 
-        # Use branded version for social, fall back to raw portrait
+        # Use branded version for social, fall back to raw portrait.
+        # When branding fails, name the file accordingly so the failure is visible
+        # downstream (Nextcloud, social queue) instead of silently shipping an
+        # unbranded clip under a "_branded" filename — the bug that hid the
+        # MagazineRig off-by-one through Eps 4-7.
         social_clip = branded_path if branded_ok else portrait_path
-        web_filename = f"rucktalk_ep{episode_number}_{clip_slug}_branded.mp4"
+        web_suffix = "branded" if branded_ok else "unbranded_fallback"
+        web_filename = f"rucktalk_ep{episode_number}_{clip_slug}_{web_suffix}.mp4"
         web_path = STATIC_MEDIA / "rucktalk" / web_filename
         web_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -963,7 +1088,11 @@ def _render_branded_clip(
         npx, "remotion", "render",
         "src/index.ts", composition_id,
         f"--props={str(props_file)}",
-        f"--frames=0-{min(duration_frames, 1800)}",
+        # Remotion frame range is inclusive and 0-indexed; the MagazineRig
+        # composition is registered for 1800 frames, so the last valid frame
+        # is 1799. The previous formula passed `0-1800` for any clip ≥60s
+        # and Remotion rejected the whole render.
+        f"--frames=0-{min(duration_frames, 1800) - 1}",
         str(output_path),
     ]
 
@@ -1049,6 +1178,13 @@ def _cut_clip(
 
 def queue_clips_for_social(clips: list[dict]) -> int:
     """Add generated clips to the social posting queue. Returns count added."""
+    if not AUTO_SOCIAL_QUEUE_ENABLED:
+        logger.info(
+            "Auto-social queue is PAUSED (AUTO_SOCIAL_QUEUE_ENABLED=False). "
+            "Skipping queue of %d clips — they remain in Nextcloud for manual pickup.",
+            len(clips),
+        )
+        return 0
     queue = load_clip_queue()
     clip_list = queue.get("clips", [])
     added = 0
@@ -1093,8 +1229,11 @@ def move_to_processed(filename: str, episode_number: int, title: str) -> None:
         logger.warning("Could not move %s to Processed: %s (non-fatal)", filename, exc)
 
 
-def upload_clips_to_nextcloud(clips: list[dict], episode_number: int, title: str) -> None:
-    """Upload generated clips to NextCloud under the episode's Processed folder."""
+def upload_clips_to_nextcloud(clips: list[dict], episode_number: int, title: str) -> tuple[int, str]:
+    """Upload generated clips to NextCloud under the episode's Processed folder.
+
+    Returns (uploaded_count, clips_folder_path).
+    """
     from integrations.nextcloud.client import upload_file
 
     ep_folder_name = f"Episode {episode_number} - {title}"
@@ -1136,6 +1275,7 @@ def upload_clips_to_nextcloud(clips: list[dict], episode_number: int, title: str
                 logger.warning("Failed to upload clip %d landscape: %s", clip["clip_index"], exc)
 
     logger.info("Uploaded %d clip files to NextCloud: %s", uploaded, clips_folder)
+    return uploaded, clips_folder
 
 
 # ─────────────────────────────────────────────
@@ -1198,15 +1338,25 @@ def process_episode(file_info: dict) -> bool:
         meta_path.write_text(json.dumps(analysis, indent=2))
         logger.info("Episode %d: \"%s\"", episode_number, title)
 
-        # Step 5: Generate cover image
-        cover_image_path = generate_cover_image(title, episode_number)
+        # Step 5: Generate cover image — ComfyUI topic-fit cover by default
+        # (Mike's call 2026-05-20). Face-frame extraction is opt-in only via
+        # RUCKTALK_COVER_FACE_FRAME=1. Analysis keywords drive the prompt.
+        cover_image_path = generate_cover_image(
+            title, episode_number, mp4_path=str(video_path), analysis=analysis,
+        )
 
         # Step 6: Publish to WordPress (podcast post)
+        # If approval gate is on, post as draft — admin gate flips to publish.
+        gate_on = os.environ.get("RUCKTALK_APPROVAL_REQUIRED", "").lower() in ("1", "true", "yes")
+        wp_status = "draft" if gate_on else "publish"
         wp_result = publish_to_wordpress(
-            audio_path, title, episode_number, description, show_notes, cover_image_path
+            audio_path, title, episode_number, description, show_notes, cover_image_path,
+            post_status=wp_status,
         )
         if wp_result:
             results["wp_podcast_link"] = wp_result["post_link"]
+            results["wp_post_id"] = wp_result.get("post_id")
+            results["audio_url"] = wp_result.get("audio_url")
 
         # Step 7: Upload to YouTube
         youtube_id = upload_to_youtube(video_path, title, episode_number, description, keywords)
@@ -1242,7 +1392,11 @@ def process_episode(file_info: dict) -> bool:
                 results["clips_queued"] = queued
 
                 # Step 11b: Upload clips to NextCloud
-                upload_clips_to_nextcloud(clips, episode_number, title)
+                clips_uploaded, clips_folder = upload_clips_to_nextcloud(
+                    clips, episode_number, title
+                )
+                results["clips_uploaded"] = clips_uploaded
+                results["clips_nextcloud_folder"] = clips_folder
 
         # Mark as processed
         state = load_state()
@@ -1258,8 +1412,34 @@ def process_episode(file_info: dict) -> bool:
         results_path = METADATA_DIR / f"{episode_slug}_results.json"
         results_path.write_text(json.dumps(results, indent=2))
 
-        # Notify Mike
-        _send_success_notification(results)
+        # Notify Mike — approval gate (email + admin) when enabled, otherwise
+        # the legacy Telegram notification.
+        if os.environ.get("RUCKTALK_APPROVAL_REQUIRED", "").lower() in ("1", "true", "yes"):
+            try:
+                from core.rucktalk.approval import mark_pending
+                mark_pending({
+                    "episode_number": episode_number,
+                    "title": title,
+                    "slug": episode_slug,
+                    "wp_post_id": results.get("wp_post_id"),
+                    "podcast_url": results.get("wp_podcast_link"),
+                    "audio_url": results.get("audio_url"),
+                    "blog_url": results.get("wp_blog_link"),
+                    "youtube_url": results.get("youtube_url"),
+                })
+                logger.info("Episode %d marked pending approval", episode_number)
+                # Still fire the completion email — approval gate sends its own
+                # email, but Mike asked for a single "where do I view it + clips"
+                # email on every completion.
+                try:
+                    _email_mike_complete(results)
+                except Exception:
+                    logger.exception("rucktalk completion email failed (approval-gate path)")
+            except Exception:
+                logger.exception("rucktalk approval gate failed — falling back to Telegram notification")
+                _send_success_notification(results)
+        else:
+            _send_success_notification(results)
 
         logger.info("Episode %d pipeline COMPLETE.", episode_number)
         return True
@@ -1272,7 +1452,7 @@ def process_episode(file_info: dict) -> bool:
 
 
 def _send_success_notification(results: dict) -> None:
-    """Send Telegram notification on successful episode processing."""
+    """Send Telegram + email notification on successful episode processing."""
     ep = results["episode_number"]
     title = results.get("title", "Unknown")
     lines = [
@@ -1287,10 +1467,98 @@ def _send_success_notification(results: dict) -> None:
         lines.append(f"Video page: {results['wp_video_link']}")
     if results.get("wp_blog_link"):
         lines.append(f"Blog: {results['wp_blog_link']}")
+    if results.get("clips_uploaded"):
+        lines.append(f"Clips uploaded to Nextcloud: {results['clips_uploaded']}")
     if results.get("clips_queued"):
         lines.append(f"Clips queued for social: {results['clips_queued']}")
 
     notify_telegram("\n".join(lines))
+
+    try:
+        _email_mike_complete(results)
+    except Exception:
+        logger.exception("rucktalk completion email failed (telegram still sent)")
+
+
+def _email_mike_complete(results: dict) -> None:
+    """Email Mike with the live podcast link + clip locations on completion."""
+    from integrations.email.client import email_client
+    from urllib.parse import quote
+    from config.settings import settings as _settings
+
+    ep = results["episode_number"]
+    title = results.get("title", "Unknown")
+    podcast_url = results.get("wp_podcast_link") or ""
+    youtube_url = results.get("youtube_url") or ""
+    video_page = results.get("wp_video_link") or ""
+    blog_url = results.get("wp_blog_link") or ""
+    clips_uploaded = results.get("clips_uploaded") or 0
+    clips_queued = results.get("clips_queued") or 0
+    clips_folder = results.get("clips_nextcloud_folder") or ""
+
+    nc_base = (_settings.nextcloud_url or "").rstrip("/")
+    clips_web_url = (
+        f"{nc_base}/apps/files/?dir={quote(clips_folder)}"
+        if nc_base and clips_folder else ""
+    )
+
+    def _row(label: str, url: str) -> str:
+        return (
+            f'<li style="margin:6px 0;"><strong>{label}:</strong> '
+            f'<a href="{url}">{url}</a></li>'
+        ) if url else ""
+
+    subject = f"RuckTalk Ep {ep} LIVE — {title[:70]}"
+    html = f"""<html><body style="font-family:-apple-system,system-ui,sans-serif;max-width:680px;line-height:1.55;color:#1c1c1c;">
+<p>Sir,</p>
+<p>RuckTalk Episode {ep} finished processing and is live.</p>
+<h2 style="margin:0 0 6px 0;">{title}</h2>
+
+<h3 style="margin-top:22px;">View on the site</h3>
+<ul style="padding-left:18px;">
+{_row("Podcast post", podcast_url)}
+{_row("Blog post", blog_url)}
+{_row("Video page", video_page)}
+{_row("YouTube", youtube_url)}
+</ul>
+
+<h3 style="margin-top:22px;">Clips</h3>
+<ul style="padding-left:18px;">
+<li><strong>Uploaded to Nextcloud:</strong> {clips_uploaded} file(s){f" — queued for social: {clips_queued}" if clips_queued else ""}</li>
+{_row("Open Clips folder", clips_web_url)}
+{f'<li><strong>Path:</strong> <code>{clips_folder}</code></li>' if clips_folder else ''}
+</ul>
+
+<p style="font-size:12px;color:#888;margin-top:24px;">— Alfred</p>
+</body></html>"""
+
+    plain_lines = [f"RuckTalk Ep {ep} live — {title}", ""]
+    if podcast_url:    plain_lines.append(f"Podcast: {podcast_url}")
+    if blog_url:       plain_lines.append(f"Blog: {blog_url}")
+    if video_page:     plain_lines.append(f"Video page: {video_page}")
+    if youtube_url:    plain_lines.append(f"YouTube: {youtube_url}")
+    plain_lines.append("")
+    plain_lines.append(f"Clips uploaded to Nextcloud: {clips_uploaded}")
+    if clips_web_url:  plain_lines.append(f"Open folder: {clips_web_url}")
+    if clips_folder:   plain_lines.append(f"Path: {clips_folder}")
+    plain = "\n".join(plain_lines)
+
+    res = email_client.send_email(
+        account="alfred-gw",
+        to="mjohnson@groundrushinc.com",
+        subject=subject,
+        body=html,
+        html=True,
+    )
+    if isinstance(res, dict) and res.get("error"):
+        logger.warning("html completion email failed (%s) — sending plain fallback",
+                       res.get("error"))
+        email_client.send_email(
+            account="alfred-gw",
+            to="mjohnson@groundrushinc.com",
+            subject=subject,
+            body=plain,
+        )
 
 
 def _send_failure_notification(filename: str, episode_number: int, exc: Exception) -> None:
