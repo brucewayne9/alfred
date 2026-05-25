@@ -12,8 +12,11 @@ function alfred_seo_default_settings() {
         'local_address'    => array(),               // LocalBusiness only: streetAddress, addressLocality, etc.
         'internal_links'   => array(),               // ['phrase' => 'url', ...]
         'alfred_endpoint'  => 'https://aialfred.groundrushcloud.com',
-        'alt_text_enabled' => true,
-        'sitemap_enabled'  => true,
+        'alt_text_enabled'  => true,
+        'sitemap_enabled'   => true,
+        'audio_post_type'   => 'podcast',
+        'podcast_feed_url'  => '',
+        'is_podcast_site'   => false,
     );
 }
 

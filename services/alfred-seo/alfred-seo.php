@@ -4,7 +4,7 @@
  * Plugin URI: https://aialfred.groundrushcloud.com
  * Description: SEO foundation — schema, OG, meta, sitemap, alt text, internal linking.
  *              Controlled remotely by Alfred orchestrator on 105.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Requires PHP: 8.0
  * Requires at least: 6.0
  * Author: Alfred Labs
@@ -13,7 +13,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'ALFRED_SEO_VERSION', '0.1.0' );
+define( 'ALFRED_SEO_VERSION', '0.2.0' );
 define( 'ALFRED_SEO_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ALFRED_SEO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -28,6 +28,9 @@ require_once ALFRED_SEO_DIR . 'inc/schema/breadcrumb.php';
 require_once ALFRED_SEO_DIR . 'inc/schema/faq.php';
 require_once ALFRED_SEO_DIR . 'inc/schema/website.php';
 require_once ALFRED_SEO_DIR . 'inc/schema/collection.php';
+require_once ALFRED_SEO_DIR . 'inc/schema/podcast-series.php';
+require_once ALFRED_SEO_DIR . 'inc/schema/podcast-episode.php';
+require_once ALFRED_SEO_DIR . 'inc/schema/audio-object.php';
 require_once ALFRED_SEO_DIR . 'inc/open-graph.php';
 require_once ALFRED_SEO_DIR . 'inc/meta.php';
 require_once ALFRED_SEO_DIR . 'inc/sitemap.php';
