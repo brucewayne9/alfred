@@ -130,6 +130,51 @@ function roen_product_eyebrow() {
 add_action( 'woocommerce_single_product_summary', 'roen_product_eyebrow', 4 );
 
 /**
+ * Mobile: inline the long product description directly inside the summary
+ * panel, right after the short description and before add-to-cart. On mobile
+ * the default tabs widget pushes the real description below meta + tab chrome,
+ * so the section reads as photo → title → short-desc → meta → tabs → desc,
+ * which is the wrong order. We emit the description inline here and hide the
+ * tabs widget on mobile via CSS (desktop keeps the tabs panel for breathing room).
+ *
+ * Priority 25 sits between woocommerce_template_single_excerpt (20) and
+ * woocommerce_template_single_add_to_cart (30).
+ */
+function roen_inject_mobile_description() {
+    if ( ! function_exists( 'is_product' ) || ! is_product() ) {
+        return;
+    }
+    global $product;
+    if ( ! $product instanceof WC_Product ) {
+        return;
+    }
+    $raw = $product->get_description();
+    if ( ! trim( wp_strip_all_tags( $raw ) ) ) {
+        return;
+    }
+    $content = apply_filters( 'the_content', $raw );
+    echo '<div class="roen-mobile-desc">' . $content . '</div>';
+}
+add_action( 'woocommerce_single_product_summary', 'roen_inject_mobile_description', 25 );
+
+/**
+ * Rename the related-products heading so the section reads as a continuation
+ * of the same page, not a navigation jump (especially on mobile, where the
+ * 2-col grid otherwise looks identical to the shop archive).
+ */
+function roen_related_products_args( $args ) {
+    $args['heading'] = __( 'You might also like', 'roen-minimal' );
+    return $args;
+}
+add_filter( 'woocommerce_output_related_products_args', 'roen_related_products_args', 20 );
+
+// Fallback: the related.php template still calls this filter directly in
+// current WC versions, so set it here too in case the args route is bypassed.
+add_filter( 'woocommerce_product_related_products_heading', function () {
+    return __( 'You might also like', 'roen-minimal' );
+}, 20 );
+
+/**
  * Storefront cleanup (header credits, default homepage components, etc.)
  */
 require_once get_stylesheet_directory() . '/inc/theme-cleanup.php';

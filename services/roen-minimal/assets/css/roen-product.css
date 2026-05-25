@@ -43,21 +43,23 @@
 /* Storefront's parent CSS floats .summary right via the right-sidebar body
    class. Our grid wins on display, but the parent *also* sets float that
    re-arranges grid items. Lock placement explicitly so our gallery is
-   always column-1 (left) and summary column-2 (right). */
+   always column-1 (left) and summary column-2 (right).
+   NOTE: do NOT set `order:` on these — CSS `order` outranks source position in
+   grid auto-placement, so any non-zero order would shove related/tabs (default
+   order:0) above gallery/summary on mobile single-column stacks. Grid-column
+   and grid-row are enough to lock desktop placement. */
 .roen-single > .product > .roen-gallery,
 .roen-single > .product > .woocommerce-product-gallery {
     grid-column: 1;
     grid-row: 1;
     width: auto;
     float: none;
-    order: 1;
 }
 .roen-single > .product > .summary {
     grid-column: 2;
     grid-row: 1;
     width: auto;
     float: none;
-    order: 2;
     margin: 0;
 }
 @media (max-width: 1023px) {
@@ -275,6 +277,31 @@
 .roen-single .product_meta .posted_in,
 .roen-single .product_meta .tagged_as { letter-spacing: 0.2px; }
 
+/* ---------- Mobile inline description ----------
+   Injected by roen_inject_mobile_description() at priority 25 inside .summary,
+   so on mobile the order is: gallery → title → price → short-desc → long-desc
+   → ATC → meta → related. Hidden on desktop (tabs widget below grid takes over).
+   Paired with `.woocommerce-tabs { display: none }` on mobile to avoid a
+   duplicate description block. */
+.roen-mobile-desc { display: none; }
+
+@media (max-width: 1023px) {
+    .roen-mobile-desc {
+        display: block;
+        font-size: var(--roen-fs-pdp-desc);
+        line-height: 1.7;
+        color: var(--roen-text-primary);
+        margin: 0 0 var(--roen-space-5) 0;
+    }
+    .roen-mobile-desc p { margin: 0 0 var(--roen-space-3) 0; }
+    .roen-mobile-desc p:last-child { margin-bottom: 0; }
+    .roen-mobile-desc ul,
+    .roen-mobile-desc ol { margin: 0 0 var(--roen-space-3) var(--roen-space-5); }
+
+    /* Tabs widget redundant on mobile — description is inlined above. */
+    .woocommerce-tabs { display: none; }
+}
+
 /* ---------- Tabs (full-width, below grid) ---------- */
 .woocommerce-tabs {
     grid-column: 1 / -1;
@@ -318,25 +345,28 @@
 /* ---------- Related products ---------- */
 /* Storefront ships these as a floated multi-column blob with its own column
    classes (.columns-3, .columns-4 etc). Override to match our shop archive
-   grid aesthetic — same card silhouette, same hairline-clean treatment. */
+   grid aesthetic — same card silhouette, same hairline-clean treatment.
+   The heading is rendered as a prominent section break (rules above and below,
+   tagline-sized) so mobile shoppers don't mistake the grid for a page change. */
 
 .roen-single .related.products,
 .roen-single .upsells.products {
     grid-column: 1 / -1;
-    border-top: 1px solid var(--roen-hairline);
-    padding-top: var(--roen-space-7);
-    margin-top: var(--roen-space-7);
+    margin-top: var(--roen-space-8);
 }
 
 .roen-single .related.products > h2,
 .roen-single .upsells.products > h2 {
-    font-size: var(--roen-fs-pdp-eyebrow);
-    font-weight: var(--roen-fw-medium);
-    letter-spacing: var(--roen-tracking-eyebrow);
-    text-transform: uppercase;
-    color: var(--roen-text-secondary);
-    margin: 0 0 var(--roen-space-5) 0;
+    font-size: var(--roen-fs-tagline);
+    font-weight: var(--roen-fw-thin);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--roen-text-primary);
     text-align: center;
+    margin: 0 0 var(--roen-space-6) 0;
+    padding: var(--roen-space-5) 0;
+    border-top: 1px solid var(--roen-text-secondary);
+    border-bottom: 1px solid var(--roen-text-secondary);
 }
 
 /* The theme overrides content-product.php and renders each loop item as
