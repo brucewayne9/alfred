@@ -1,0 +1,75 @@
+slug: rucktalk
+domain: rucktalk.com
+display_name: RuckTalk
+brand_one_liner: "A podcast for entrepreneur dads about tactical living — clarity, presence, and the small daily choices that compound into a life you actually want."
+
+voice:
+  perspective: first_person_plural  # the show is "we" (host + guest dyad)
+  descriptors:
+    - direct
+    - tactical
+    - lived-experience
+    - no-fluff
+    - warrior-poet
+  energy: medium-high
+  reading_level: 8
+  flesch_target: 65
+  flesch_tolerance: 8
+  tagline: "Exploring together the art of tactical living."
+
+never_say:
+  - "literally"
+  - "at the end of the day"
+  - "circle back"
+  - "leverage"  # corporate-speak
+  - "synergy"
+  - "game-changer"
+  - "deep dive"
+  - "unpack"
+  - "let's be real"
+  - "rockstar"
+  - "ninja"
+  - "guru"
+  - "hustle harder"
+  - "grind"   # overused; Mike has banned this register
+
+always:
+  - 'Open episode summaries with the specific tactic or insight, not "In this episode…"'
+  - 'Name the guest by first name + role in first sentence when one exists'
+  - 'Use second-person ("you") when addressing the listener directly'
+  - '"Ruck" stays capitalised when used as a brand reference'
+
+target_audience: |
+  Men 28-50, entrepreneurs / operators / fathers. Listen during commutes
+  or training. Discover via podcast directories, organic search on specific
+  problems ("how do I switch off after work", "morning routine entrepreneur
+  dad"), and word-of-mouth. Trust signal-sensitive, skeptical of generic
+  self-help language.
+
+target_keywords:
+  # Loader (core/seo/sites/profile.py:62-64) keys on {primary, local, long_tail}.
+  # RuckTalk isn't a local business, but "local" is the loader's name for the
+  # mid-tier topical bucket. Don't rename without also updating the loader for
+  # all sites — outside this plan's scope.
+  primary:
+    - tactical living
+    - entrepreneur dad
+    - work life balance entrepreneur
+    - presence as a leader
+  local:
+    - morning routine entrepreneur
+    - switching off after work
+    - leadership at home
+    - mental clarity dad
+    - high performance fatherhood
+  long_tail:
+    - how to transition from CEO mode to dad mode
+    - entrepreneur father work life integration
+    - podcast for entrepreneur dads
+    - tactical living for high performers
+
+# content_type_preferences is the loader's per-type tuning dict (sections,
+# target_words, flesch_target overrides). Leave empty for RuckTalk on day one
+# — global voice settings cover all content types. Populate later if a specific
+# content type needs distinct treatment.
+content_type_preferences: {}
