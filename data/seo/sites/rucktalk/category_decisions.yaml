@@ -1,0 +1,29 @@
+# RuckTalk taxonomy cleanup decisions
+# Generated from audit data/seo/sites/rucktalk/audit/categories-2026-05-25-0053.md
+# Mike-approved scope 2026-05-24: only obviously-safe deletions (empty terms in
+# Sonaar music taxonomies + dead podcast-category leftovers).
+#
+# NOT touching:
+# - product_type, product_visibility, product_cat (WooCommerce system taxonomies — required by WC)
+# - elementor_library_type (Elementor template-type system)
+# - podcast-category terms with content (184/health-wellness/183/mindset — left for content-IA pass)
+
+playlist-category:
+  - { term_id: 32, slug: drum-and-bass, action: delete }
+  - { term_id: 31, slug: electro,       action: delete }
+  - { term_id: 29, slug: hip-hop,       action: delete }
+  - { term_id: 30, slug: indie,         action: delete }
+
+artist-category:
+  - { term_id: 24, slug: electronic,            action: delete }
+  - { term_id: 25, slug: featured-on-homepage,  action: delete }
+  - { term_id: 23, slug: hip-hop,               action: delete }
+  - { term_id: 26, slug: indie,                 action: delete }
+  - { term_id: 13, slug: my-artists,            action: delete }
+  - { term_id: 27, slug: pop,                   action: delete }
+  - { term_id: 28, slug: rock,                  action: delete }
+
+podcast-category:
+  - { term_id: 40, slug: raw-uncut,                          action: delete }
+  - { term_id: 41, slug: the-relentless-voices-of-self-doubt, action: delete }
+  - { term_id: 36, slug: the-story-must-be-told,             action: delete }
