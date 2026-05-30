@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Mainstay Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0d; --bg2:#101015; --panel:#15151b; --panel2:#1b1a22;
+    --line:#2a2a33; --line2:#36343f;
+    --gold:#c9a14a; --gold-hi:#e7c574; --gold-dim:#8a7333;
+    --ink:#edeae3; --mute:#9a958c; --mute2:#6f6b63;
+    --pending:#d9a441; --running:#5b8bd0; --done:#5fae7e; --error:#d0635b;
+    --serif:"Fraunces",Georgia,serif; --sans:"Hanken Grotesk",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+    background-image:
+      radial-gradient(1100px 600px at 12% -8%, rgba(201,161,74,.16), transparent 60%),
+      radial-gradient(900px 500px at 110% 0%, rgba(91,139,208,.07), transparent 55%);
+  }
+  /* film grain */
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:90;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+  .app{display:grid;grid-template-columns:248px 1fr;height:100vh;}
+  /* ===== rail ===== */
+  .rail{border-right:1px solid var(--line);background:linear-gradient(180deg,#0e0e12,#0b0b0d);display:flex;flex-direction:column;padding:22px 16px;gap:6px;position:relative;z-index:5}
+  .brand{padding:6px 8px 18px}
+  .brand .kicker{font:700 10px/1 var(--sans);letter-spacing:.32em;text-transform:uppercase;color:var(--mute2)}
+  .brand .word{font:900 30px/0.95 var(--serif);letter-spacing:-.01em;margin-top:9px}
+  .brand .word b{color:var(--gold);font-weight:900}
+  .navitem{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:11px;color:var(--mute);cursor:pointer;border:1px solid transparent;transition:.18s;font-weight:600;font-size:14.5px}
+  .navitem .ic{width:18px;height:18px;flex:0 0 18px;opacity:.8}
+  .navitem:hover{color:var(--ink);background:#16161c}
+  .navitem.active{color:var(--ink);background:linear-gradient(180deg,#1d1b16,#171511);border-color:var(--gold-dim)}
+  .navitem.active .ic{opacity:1;color:var(--gold)}
+  .navitem .tag{margin-left:auto;font:600 10px/1 var(--mono);color:var(--mute2)}
+  .navitem.active .tag{color:var(--gold)}
+  .rail .foot{margin-top:auto;padding:12px 10px 2px;border-top:1px solid var(--line);font:500 11.5px/1.5 var(--sans);color:var(--mute2)}
+  .rail .foot b{color:var(--mute);font-weight:600}
+
+  /* ===== main ===== */
+  .main{overflow:hidden;display:flex;flex-direction:column;min-width:0}
+  .topbar{display:flex;align-items:center;gap:14px;padding:18px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(17,17,21,.7),rgba(11,11,13,.2))}
+  .crumb{font:600 12px/1 var(--mono);letter-spacing:.06em;color:var(--mute);text-transform:uppercase}
+  .campaign{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--line2);border-radius:999px;font:600 12px/1 var(--sans);color:var(--ink);background:#14141a}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(201,161,74,.18)}
+  .count{font-family:var(--mono);color:var(--gold-hi)}
+  .scroll{overflow:auto;padding:26px 28px 40px;flex:1}
+  .scroll::-webkit-scrollbar{width:10px}.scroll::-webkit-scrollbar-thumb{background:#23232b;border-radius:8px;border:3px solid var(--bg)}
+
+  h1.page{font:900 30px/1 var(--serif);margin:2px 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--mute);font-size:14px;margin-bottom:22px;max-width:64ch}
+  .panel{background:linear-gradient(180deg,var(--panel),#121218);border:1px solid var(--line);border-radius:var(--r)}
+  .soon{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border:1px solid var(--gold-dim);color:var(--gold-hi);background:rgba(201,161,74,.07);border-radius:999px;font:600 11px/1 var(--sans);letter-spacing:.04em;text-transform:uppercase}
+
+  /* ===== CREATE ===== */
+  .fmts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+  .fmt{padding:18px;border-radius:var(--r);border:1px solid var(--line);background:linear-gradient(180deg,#16151b,#111016);cursor:pointer;transition:.16s;position:relative;overflow:hidden}
+  .fmt:hover{border-color:var(--line2);transform:translateY(-2px)}
+  .fmt.sel{border-color:var(--gold);background:linear-gradient(180deg,#1d1b14,#15130e)}
+  .fmt .px{font:900 14px/1 var(--serif);color:var(--gold);position:absolute;top:14px;right:16px;opacity:.5}
+  .fmt.sel .px{opacity:1}
+  .fmt h3{font:600 16px/1.2 var(--sans);margin:0 0 6px}
+  .fmt p{margin:0;color:var(--mute);font-size:12.5px;line-height:1.5}
+  .fmt .glyph{font-size:22px;margin-bottom:12px;display:block}
+  .form{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .field{display:flex;flex-direction:column;gap:8px}
+  .field.full{grid-column:1/-1}
+  label{font:600 11px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  input,select,textarea{background:#0e0e13;border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:12px 13px;font:500 14px/1.4 var(--sans);outline:none;transition:.15s}
+  input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,161,74,.12)}
+  textarea{resize:vertical;min-height:64px;font-family:var(--serif);font-size:17px}
+  .rangewrap{display:flex;align-items:center;gap:14px}
+  input[type=range]{accent-color:var(--gold);padding:0}
+  .rangeval{font:600 15px/1 var(--mono);color:var(--gold-hi);min-width:28px;text-align:right}
+  .actions{grid-column:1/-1;display:flex;align-items:center;gap:14px;margin-top:6px}
+  .btn{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:11px;border:1px solid var(--gold);background:linear-gradient(180deg,var(--gold-hi),var(--gold));color:#1a1408;font:700 14.5px/1 var(--sans);cursor:pointer;transition:.15s;letter-spacing:.01em}
+  .btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+  .btn .k{font-size:16px}
+  .hint{color:var(--mute2);font-size:12.5px}
+
+  /* ===== QUEUE ===== */
+  .qhead{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .qstat{display:flex;gap:8px}
+  .pill{font:600 12px/1 var(--sans);padding:7px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute);background:#14141a;cursor:default}
+  .live{margin-left:auto;display:inline-flex;align-items:center;gap:8px;color:var(--mute);font:600 12px/1 var(--sans)}
+  .live .b{width:8px;height:8px;border-radius:50%;background:var(--done);animation:bp 1.6s infinite}
+  @keyframes bp{0%,100%{opacity:1}50%{opacity:.35}}
+  .jobs{display:flex;flex-direction:column;gap:10px}
+  .job{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;padding:16px 18px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,#15151b,#111016)}
+  .job .type{font:900 15px/1 var(--serif)}
+  .job .meta{color:var(--mute);font:500 12.5px/1.5 var(--sans)}
+  .job .id{font-family:var(--mono);color:var(--mute2);font-size:11px}
+  .st{display:inline-flex;align-items:center;gap:8px;font:600 12.5px/1 var(--sans);padding:8px 13px;border-radius:999px;border:1px solid}
+  .st .d{width:8px;height:8px;border-radius:50%}
+  .st.pending{color:var(--pending);border-color:rgba(217,164,65,.4);background:rgba(217,164,65,.08)} .st.pending .d{background:var(--pending)}
+  .st.running{color:var(--running);border-color:rgba(91,139,208,.4);background:rgba(91,139,208,.08)} .st.running .d{background:var(--running);animation:bp 1s infinite}
+  .st.done{color:var(--done);border-color:rgba(95,174,126,.4);background:rgba(95,174,126,.08)} .st.done .d{background:var(--done)}
+  .st.error{color:var(--error);border-color:rgba(208,99,91,.4);background:rgba(208,99,91,.08)} .st.error .d{background:var(--error)}
+  .empty{padding:56px;text-align:center;color:var(--mute2);font-size:14px}
+
+  /* ===== LIBRARY ===== */
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{padding:9px 15px;border-radius:999px;border:1px solid var(--line);background:#14141a;color:var(--mute);font:600 13px/1 var(--sans);cursor:pointer}
+  .tab.on{color:#1a1408;background:linear-gradient(180deg,var(--gold-hi),var(--gold));border-color:var(--gold)}
+  .moods{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+  .mood{font:500 12px/1 var(--sans);padding:6px 11px;border-radius:8px;border:1px solid var(--line);color:var(--mute);background:#101015}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .vessel{aspect-ratio:9/16;border-radius:12px;border:1px solid var(--line);position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:12px;cursor:pointer;transition:.16s}
+  .vessel:hover{transform:translateY(-3px);border-color:var(--gold-dim)}
+  .vessel span{font:600 12px/1.3 var(--sans);position:relative;z-index:2;text-shadow:0 1px 6px rgba(0,0,0,.7)}
+  .vessel .tagm{position:absolute;top:10px;left:10px;z-index:2;font:600 10px/1 var(--mono);color:#eee;background:rgba(0,0,0,.4);padding:4px 7px;border-radius:6px;backdrop-filter:blur(4px)}
+
+  /* ===== DISTRIBUTION ===== */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+  .group{padding:16px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,#15151b,#111016)}
+  .group h4{margin:0 0 4px;font:600 14px/1 var(--sans);display:flex;align-items:center;gap:9px}
+  .group .gsub{color:var(--mute2);font-size:11.5px;margin-bottom:14px}
+  .acct{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  .av{width:30px;height:30px;border-radius:50%;flex:0 0 30px;border:1px solid var(--line2)}
+  .acct .h{font:600 13px/1 var(--sans)} .acct .f{color:var(--mute2);font:500 11px/1 var(--mono);margin-top:4px}
+  .acct .pin{margin-left:auto;font:600 11px/1 var(--mono);color:var(--mute)}
+  .badge-safe{display:inline-flex;gap:9px;align-items:center;padding:12px 15px;border-radius:11px;border:1px solid rgba(95,174,126,.35);background:rgba(95,174,126,.06);color:#a9d8bd;font:500 13px/1.4 var(--sans)}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:16px}
+  .day{border:1px solid var(--line);border-radius:10px;padding:10px 9px;min-height:88px;background:#101015}
+  .day .dn{font:600 10px/1 var(--mono);color:var(--mute2);text-transform:uppercase}
+  .slot{margin-top:7px;font:600 10px/1.2 var(--sans);padding:5px 6px;border-radius:6px;background:rgba(201,161,74,.13);color:var(--gold-hi);border:1px solid var(--gold-dim)}
+  .slot.blue{background:rgba(91,139,208,.14);color:#a8c4ea;border-color:rgba(91,139,208,.4)}
+
+  /* ===== INTELLIGENCE ===== */
+  .winner{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;padding:20px;border-radius:14px;border:1px solid var(--gold-dim);background:linear-gradient(110deg,#1c1812,#141118);margin-bottom:18px}
+  .winner .trophy{font-size:32px}
+  .winner .wl{font:600 11px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+  .winner .wn{font:900 22px/1.1 var(--serif);margin-top:7px}
+  .winner .wd{color:var(--mute);font-size:13px;margin-top:6px}
+  .board{width:100%;border-collapse:collapse}
+  .board th{text-align:left;font:600 10.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--mute2);padding:0 12px 12px}
+  .board th.num,.board td.num{text-align:right;font-family:var(--mono)}
+  .board td{padding:14px 12px;border-top:1px solid var(--line);font-size:13.5px}
+  .board tr td:first-child{font-weight:600}
+  .bar{height:7px;border-radius:5px;background:#1d1d24;overflow:hidden;min-width:90px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-hi))}
+  .rec{margin-top:18px;padding:16px 18px;border-radius:12px;border:1px dashed var(--gold-dim);background:rgba(201,161,74,.05);color:var(--ink);font-size:13.5px;line-height:1.6}
+  .rec b{color:var(--gold-hi)}
+
+  /* toast */
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:linear-gradient(180deg,#1c1a14,#15130e);border:1px solid var(--gold);color:var(--ink);padding:14px 20px;border-radius:12px;font:600 14px/1 var(--sans);box-shadow:0 16px 40px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.3s;z-index:100;display:flex;gap:11px;align-items:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast .k{color:var(--gold)}
+
+  /* mobile nav */
+  .mobnav{display:none}
+  .reveal{animation:rv .5s both}
+  @keyframes rv{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  @media(max-width:900px){
+    body{overflow:auto}
+    .app{grid-template-columns:1fr;height:auto;min-height:100vh}
+    .rail{display:none}
+    .topbar{position:sticky;top:0;z-index:20;padding:14px 16px;backdrop-filter:blur(10px)}
+    .campaign .chip:nth-child(2){display:none}
+    .scroll{overflow:visible;padding:18px 16px 96px}
+    .fmts{grid-template-columns:1fr}
+    .form,.cols{grid-template-columns:1fr}
+    .cal{grid-template-columns:repeat(3,1fr)}
+    h1.page{font-size:25px}
+    .mobnav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:linear-gradient(180deg,#0e0e12,#070708);border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom));justify-content:space-around}
+    .mobnav .mi{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mute2);font:600 10px/1 var(--sans);padding:6px 8px;cursor:pointer;border-radius:10px}
+    .mobnav .mi .ic{width:20px;height:20px}
+    .mobnav .mi.active{color:var(--gold)}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- RAIL -->
+  <aside class="rail">
+    <div class="brand">
+      <div class="kicker">Mainstay Tech</div>
+      <div class="word">Mainstay <b>Forge</b></div>
+    </div>
+    <div class="navitem active" data-tab="create"><span class="ic">✦</span> Create <span class="tag">live</span></div>
+    <div class="navitem" data-tab="library"><span class="ic">▦</span> Library <span class="tag">soon</span></div>
+    <div class="navitem" data-tab="queue"><span class="ic">≋</span> Queue <span class="tag" id="qbadge">0</span></div>
+    <div class="navitem" data-tab="distribution"><span class="ic">⊞</span> Distribute <span class="tag">soon</span></div>
+    <div class="navitem" data-tab="intelligence"><span class="ic">◔</span> Intel <span class="tag">soon</span></div>
+    <div class="foot"><b>Campaign:</b> Rod Wave —<br>Don't Look Down · <span class="count" id="dday">21d</span> to drop</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <span class="crumb" id="crumb">Create</span>
+      <div class="campaign">
+        <span class="chip"><span class="dot"></span> Rod Wave · Don't Look Down</span>
+        <span class="chip">June 19 · <span class="count" id="dday2">21d</span></span>
+      </div>
+    </div>
+    <div class="scroll">
+
+      <!-- CREATE -->
+      <section data-panel="create">
+        <h1 class="page">Forge a drop</h1>
+        <p class="sub">Pick a format, drop the hook, set the caption. Forge spins it into a master and multiplies it into non-duplicate variants ready to seed across the pages.</p>
+        <div class="fmts">
+          <div class="fmt sel" data-fmt="kinetic_lyric"><span class="px">A</span><span class="glyph">𝄞</span><h3>Kinetic Lyric</h3><p>Aesthetic vessel + the hook, lyric building word-by-word in time with the vocal.</p></div>
+          <div class="fmt" data-fmt="film_montage"><span class="px">B</span><span class="glyph">▶</span><h3>Film Montage</h3><p>Emotional movie clips stitched to the hook, branded follow-card outro.</p></div>
+          <div class="fmt" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>Fake cover + tracklist still. The "is this real?" engagement bait.</p></div>
+        </div>
+        <form class="form panel" style="padding:22px" id="createForm">
+          <div class="field full">
+            <label>Caption / lyric</label>
+            <textarea id="caption" placeholder="still waiting for that new album…">I ain't mad at you</textarea>
+          </div>
+          <div class="field">
+            <label>Caption font</label>
+            <select id="font"><option>Elegant Serif (yellow)</option><option>Bold Condensed</option><option>Handwritten Script</option><option>Clean Sans</option><option>Two-tier · Setup / Punchline</option><option>No caption</option></select>
+          </div>
+          <div class="field">
+            <label>Deliver to</label>
+            <select id="subfolder"><option>Viral Album Videos / Processed</option><option>Podcast &amp; Episode Clips / Processed</option><option>Ideas</option></select>
+          </div>
+          <div class="field full">
+            <label>Variations (anti-suppression)</label>
+            <div class="rangewrap"><input type="range" id="vars" min="1" max="30" value="18" style="flex:1"><span class="rangeval" id="varsval">18</span></div>
+          </div>
+          <div class="actions">
+            <button class="btn" type="submit"><span class="k">✦</span> Forge it</button>
+            <span class="hint">→ queues a render job, multiplies into variants, drops them in Nextcloud.</span>
+          </div>
+        </form>
+      </section>
+
+      <!-- QUEUE -->
+      <section data-panel="queue" style="display:none">
+        <h1 class="page">Render queue</h1>
+        <p class="sub">Jobs run one at a time on the GPU. Live status, straight from the engine.</p>
+        <div class="qhead">
+          <div class="qstat">
+            <span class="pill" id="pc-running">running 0</span>
+            <span class="pill" id="pc-pending">pending 0</span>
+            <span class="pill" id="pc-done">done 0</span>
+          </div>
+          <span class="live"><span class="b"></span> live · auto-refresh</span>
+        </div>
+        <div class="jobs" id="jobs"><div class="empty">No jobs yet — forge one from the Create tab.</div></div>
+      </section>
+
+      <!-- LIBRARY -->
+      <section data-panel="library" style="display:none">
+        <h1 class="page" style="display:flex;align-items:center;gap:14px">Vessel library <span class="soon">Coming online</span></h1>
+        <p class="sub">The mood vessels you drop a hook under. Upload your own, generate with Higgsfield, or pull from the stock + cinematic banks. Tagged by feeling.</p>
+        <div class="tabs"><span class="tab on">Higgsfield ✦</span><span class="tab">Upload</span><span class="tab">Stock (clean)</span><span class="tab">Fan GIFs</span></div>
+        <div class="moods"><span class="mood">heartbreak</span><span class="mood">night drive</span><span class="mood">crying</span><span class="mood">city dusk</span><span class="mood">empty room</span><span class="mood">rain</span><span class="mood">alone</span></div>
+        <div class="grid" id="vgrid"></div>
+      </section>
+
+      <!-- DISTRIBUTION -->
+      <section data-panel="distribution" style="display:none">
+        <h1 class="page" style="display:flex;align-items:center;gap:14px">Distribution war-room <span class="soon">Coming online</span></h1>
+        <p class="sub">Organize the seed without pulling the trigger. Group accounts, assign variants, schedule the push. A human always taps post.</p>
+        <div class="cols">
+          <div class="group"><h4><span style="color:var(--running)">●</span> Burner / pilot pages</h4><div class="gsub">Warm-up &amp; sound-testing — safe to experiment</div>
+            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#3a2f4a,#1a1622)"></div><div><div class="h">teen diaries</div><div class="f">@diariesofateengal</div></div><div class="pin">3 queued</div></div>
+            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#4a3a2f,#221a16)"></div><div><div class="h">sleep / latte</div><div class="f">@sleepalatte</div></div><div class="pin">2 queued</div></div>
+            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#2f4a3a,#16221a)"></div><div><div class="h">imposter fanpage</div><div class="f">@thisisanimposterr</div></div><div class="pin">4 queued</div></div>
+          </div>
+          <div class="group"><h4><span style="color:var(--gold)">●</span> Established pages</h4><div class="gsub">Protected — only proven, winning content</div>
+            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#4a4030,#26211a)"></div><div><div class="h">Rod Wave Daily</div><div class="f">@rodwavedaily</div></div><div class="pin">locked</div></div>
+            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#30404a,#1a2126)"></div><div><div class="h">Hot New Hip Hop</div><div class="f">@rw.nation</div></div><div class="pin">locked</div></div>
+          </div>
+        </div>
+        <div class="badge-safe">🛡 No auto-posting. Forge arms the operator with a ready-to-post package; a human taps the button. Burner pages stay human-shaped, established pages stay protected.</div>
+        <div class="cal">
+          <div class="day"><div class="dn">Mon</div><div class="slot blue">@teen · Kinetic #7</div></div>
+          <div class="day"><div class="dn">Tue</div><div class="slot">@sleep · Montage #2</div><div class="slot blue">@imp · Leak</div></div>
+          <div class="day"><div class="dn">Wed</div><div class="slot">@imp · Kinetic #3</div></div>
+          <div class="day"><div class="dn">Thu</div><div class="slot blue">@teen · Montage #5</div></div>
+          <div class="day"><div class="dn">Fri</div><div class="slot">@sleep · Kinetic #11</div></div>
+          <div class="day"><div class="dn">Sat</div></div>
+          <div class="day"><div class="dn">Sun</div><div class="slot" style="background:rgba(95,174,126,.14);color:#a9d8bd;border-color:rgba(95,174,126,.4)">winner → @rodwavedaily</div></div>
+        </div>
+      </section>
+
+      <!-- INTELLIGENCE -->
+      <section data-panel="intelligence" style="display:none">
+        <h1 class="page" style="display:flex;align-items:center;gap:14px">Intelligence <span class="soon">Coming online</span></h1>
+        <p class="sub">Sound-test first, scale the proven one. Track every sound and every variant, then funnel the big pages onto the winner.</p>
+        <div class="winner">
+          <div class="trophy">🏆</div>
+          <div><div class="wl">Winning sound</div><div class="wn">"Letter From Houston" — hook</div><div class="wd">68% avg retention · 41k saves across 6 pilot pages · pulling 3.2× the field on shares.</div></div>
+        </div>
+        <div class="panel" style="padding:8px 14px 6px">
+          <table class="board">
+            <thead><tr><th>Sound</th><th class="num">Plays</th><th class="num">Retention</th><th class="num">Saves</th><th>Momentum</th></tr></thead>
+            <tbody>
+              <tr><td>Letter From Houston (hook)</td><td class="num">412k</td><td class="num">68%</td><td class="num">41.0k</td><td><div class="bar"><i style="width:92%"></i></div></td></tr>
+              <tr><td>Still Broke (snippet)</td><td class="num">288k</td><td class="num">59%</td><td class="num">24.3k</td><td><div class="bar"><i style="width:71%"></i></div></td></tr>
+              <tr><td>I Ain't Mad (bridge)</td><td class="num">196k</td><td class="num">54%</td><td class="num">18.1k</td><td><div class="bar"><i style="width:58%"></i></div></td></tr>
+              <tr><td>Tears In The Dark (intro)</td><td class="num">133k</td><td class="num">47%</td><td class="num">9.6k</td><td><div class="bar"><i style="width:39%"></i></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="rec">▲ <b>Funnel call:</b> "Letter From Houston" hook is the clear winner. Push <b>Variant #7</b> (the @diariesofateengal montage cut) to the established pages now — it's converting saves at 1.7× the next best variant.</div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="mobnav">
+  <div class="mi active" data-tab="create"><span class="ic">✦</span>Create</div>
+  <div class="mi" data-tab="library"><span class="ic">▦</span>Library</div>
+  <div class="mi" data-tab="queue"><span class="ic">≋</span>Queue</div>
+  <div class="mi" data-tab="distribution"><span class="ic">⊞</span>Distribute</div>
+  <div class="mi" data-tab="intelligence"><span class="ic">◔</span>Intel</div>
+</nav>
+
+<div class="toast" id="toast"><span class="k">✦</span><span id="toastmsg">Forged.</span></div>
+
+<script>
+const API = ""; // same origin as the demo/prod server
+const LABELS = {create:"Create",library:"Library",queue:"Queue",distribution:"Distribute",intelligence:"Intelligence"};
+let curFmt = "kinetic_lyric";
+
+// d-day countdown to 2026-06-19 (computed from a fixed render baseline; demo uses 21d)
+function tabTo(name){
+  document.querySelectorAll('[data-panel]').forEach(p=>p.style.display = p.dataset.panel===name?'':'none');
+  document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('active',n.dataset.tab===name));
+  document.querySelectorAll('.mobnav .mi').forEach(n=>n.classList.toggle('active',n.dataset.tab===name));
+  document.getElementById('crumb').textContent = LABELS[name];
+  if(location.hash.slice(1)!==name) history.replaceState(null,'','#'+name);
+  const sec=document.querySelector(`[data-panel="${name}"]`); if(sec){sec.classList.remove('reveal');void sec.offsetWidth;sec.classList.add('reveal');}
+  if(name==='queue') refreshJobs();
+}
+window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(LABELS[h])tabTo(h);});
+document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>tabTo(el.dataset.tab)));
+
+document.querySelectorAll('.fmt').forEach(f=>f.addEventListener('click',()=>{
+  document.querySelectorAll('.fmt').forEach(x=>x.classList.remove('sel'));
+  f.classList.add('sel'); curFmt=f.dataset.fmt;
+}));
+const vars=document.getElementById('vars'), varsval=document.getElementById('varsval');
+vars.addEventListener('input',()=>varsval.textContent=vars.value);
+
+function toast(msg){const t=document.getElementById('toast');document.getElementById('toastmsg').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+
+document.getElementById('createForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const payload={job_type:curFmt,params:{
+    caption:document.getElementById('caption').value,
+    font:document.getElementById('font').value,
+    subfolder:document.getElementById('subfolder').value,
+    variations:Number(vars.value)
+  }};
+  try{
+    const r=await fetch(API+'/forge/jobs',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error(r.status);
+    toast('Forged — '+vars.value+' variants queued');
+    refreshJobs();
+  }catch(err){toast('Could not reach the engine ('+err.message+')');}
+});
+
+const FMTNAME={kinetic_lyric:"Kinetic Lyric",film_montage:"Film Montage",leak_graphic:"Leak Graphic",echo:"Test job"};
+function ago(ts){const s=Math.max(0,Math.floor(Date.now()/1000)-ts);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';return Math.floor(s/3600)+'h ago';}
+
+async function refreshJobs(){
+  try{
+    const r=await fetch(API+'/forge/jobs',{credentials:'include'});
+    if(!r.ok) return;
+    const {jobs}=await r.json();
+    const counts={running:0,pending:0,done:0,error:0};
+    jobs.forEach(j=>counts[j.status]=(counts[j.status]||0)+1);
+    document.getElementById('pc-running').textContent='running '+(counts.running||0);
+    document.getElementById('pc-pending').textContent='pending '+(counts.pending||0);
+    document.getElementById('pc-done').textContent='done '+(counts.done||0);
+    document.getElementById('qbadge').textContent=jobs.length;
+    const el=document.getElementById('jobs');
+    if(!jobs.length){el.innerHTML='<div class="empty">No jobs yet — forge one from the Create tab.</div>';return;}
+    el.innerHTML=jobs.map(j=>{
+      const cap=(j.params&&j.params.caption)?('“'+j.params.caption+'”'):'';
+      const nv=(j.params&&j.params.variations)?(' · '+j.params.variations+' variants'):'';
+      return `<div class="job"><div><span class="st ${j.status}"><span class="d"></span>${j.status}</span></div>
+        <div><div class="type">${FMTNAME[j.job_type]||j.job_type}</div>
+        <div class="meta">${cap}${nv}</div><div class="id">${j.id.slice(0,12)}</div></div>
+        <div class="meta" style="text-align:right">${ago(j.created_at)}</div></div>`;
+    }).join('');
+  }catch(e){}
+}
+setInterval(()=>{const q=document.querySelector('[data-panel="queue"]');if(q&&q.style.display!=='none')refreshJobs();},2200);
+
+// library vessels (designed placeholders)
+const VESS=[["heartbreak","linear-gradient(160deg,#3a2740,#140e1a)"],["night drive","linear-gradient(160deg,#1d2740,#0d0f1a)"],["crying","linear-gradient(160deg,#2a2a2e,#121214)"],["city dusk","linear-gradient(160deg,#42301f,#1a120c)"],["empty room","linear-gradient(160deg,#26323a,#10161a)"],["rain","linear-gradient(160deg,#23303a,#0e1418)"],["alone","linear-gradient(160deg,#332533,#140f14)"],["sunset drive","linear-gradient(160deg,#48291f,#1c0f0c)"]];
+document.getElementById('vgrid').innerHTML=VESS.map(([m,g])=>`<div class="vessel" style="background:${g}"><span class="tagm">✦ AI</span><span>${m}</span></div>`).join('');
+
+const _init=location.hash.slice(1); tabTo(LABELS[_init]?_init:'create');
+</script>
+</body>
+</html>
