@@ -52,6 +52,7 @@ def get_job(job_id: str) -> Optional[dict]:
 
 
 def list_jobs(status: Optional[str] = None, limit: int = 100) -> list[dict]:
+    init_db()
     with _conn() as c:
         if status:
             rows = c.execute(
@@ -109,7 +110,11 @@ def _execute(job_id: str, now: Optional[int] = None) -> dict:
 
 
 def run_job(job_id: str, now: Optional[int] = None) -> dict:
-    """Synchronous run (mark running, execute handler). Used by tests + worker."""
+    """Synchronous run: mark running, then execute the handler. Used by tests.
+
+    Caller is responsible for only invoking this on a 'pending' job — it does not
+    guard against re-running an already running/done job (would re-execute the handler).
+    """
     _update(job_id, status="running", now=now)
     return _execute(job_id, now=now)
 
@@ -117,7 +122,7 @@ def run_job(job_id: str, now: Optional[int] = None) -> dict:
 async def worker_loop(poll_interval: float = 2.0) -> None:
     """Background loop: claim one pending job at a time, run it off the event loop."""
     init_db()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     while True:
         job = claim_next_pending()
         if job is None:

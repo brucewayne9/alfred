@@ -72,3 +72,7 @@ def test_claim_next_pending_marks_running_and_is_fifo(forge):
 
 def test_claim_next_pending_returns_none_when_empty(forge):
     assert forge.claim_next_pending(now=5) is None
+
+
+def test_list_jobs_on_fresh_db_returns_empty(forge):
+    assert forge.list_jobs() == []
