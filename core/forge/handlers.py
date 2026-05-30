@@ -20,6 +20,10 @@ and in the lifespan startup / shutdown:
     forge_worker = asyncio.create_task(_forge_jobs.worker_loop())   # startup, before yield
     forge_worker.cancel()                                           # shutdown, after yield
 """
+import tempfile
+import time
+from pathlib import Path
+
 from core.forge import jobs as forge_jobs
 
 
@@ -27,6 +31,44 @@ def _echo_handler(params: dict) -> dict:
     return {"echo": params}
 
 
+def _leak_graphic_handler(params: dict) -> dict:
+    """Forge it (Leak Graphic): ComfyUI-Cloud cover art -> N variants -> Nextcloud."""
+    from core.forge.renderers.leak_graphic import render
+    from core.forge.multiply import multiply
+    from core.forge import delivery
+
+    label = f"leak_{int(time.time())}"
+    work = Path(tempfile.mkdtemp(prefix="forge_"))
+    master = render(params, work / f"{label}_master.png")
+
+    n = int(params.get("variations", 18) or 18)
+    variants = multiply(master, n, work / "variants", base_name=label)
+
+    # "Viral Album Videos / Processed" (dashboard label) -> real WebDAV subpath
+    subfolder = (params.get("subfolder") or "Viral Album Videos/Processed").replace(" / ", "/").strip()
+    dest = f"{subfolder}/{label}"
+
+    delivered = []
+    try:
+        delivered.append(delivery.deliver(master, dest, filename=f"{label}_master.png"))
+    except Exception as e:  # noqa: BLE001 — record but keep going
+        delivered.append(f"ERROR master: {e}")
+    for v in variants:
+        try:
+            delivered.append(delivery.deliver(v, dest))
+        except Exception:  # noqa: BLE001
+            pass
+
+    return {
+        "format": "leak_graphic",
+        "master": str(master),
+        "variant_count": len(variants),
+        "delivered_dir": f"Content/Mainstay-RodWave/{dest}",
+        "delivered": len([d for d in delivered if not str(d).startswith("ERROR")]),
+    }
+
+
 def register_default_handlers() -> None:
     """Register all built-in Forge job handlers into the queue."""
     forge_jobs.register_handler("echo", _echo_handler)
+    forge_jobs.register_handler("leak_graphic", _leak_graphic_handler)

@@ -73,6 +73,9 @@
   .fmt h3{font:600 16px/1.2 var(--sans);margin:0 0 6px}
   .fmt p{margin:0;color:var(--mute);font-size:12.5px;line-height:1.5}
   .fmt .glyph{font-size:22px;margin-bottom:12px;display:block}
+  .fstat{display:inline-block;margin-top:11px;font:600 10px/1 var(--sans);letter-spacing:.05em;text-transform:uppercase;padding:5px 9px;border-radius:7px}
+  .fstat.livep{color:#1a1408;background:var(--gold-hi)}
+  .fstat.soon2{color:var(--mute);background:#15151a;border:1px solid var(--line)}
   .form{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .field{display:flex;flex-direction:column;gap:8px}
   .field.full{grid-column:1/-1}
@@ -213,9 +216,9 @@
         <h1 class="page">Forge a drop</h1>
         <p class="sub">Pick a format, drop the hook, set the caption. Forge spins it into a master and multiplies it into non-duplicate variants ready to seed across the pages.</p>
         <div class="fmts">
-          <div class="fmt sel" data-fmt="kinetic_lyric"><span class="px">A</span><span class="glyph">𝄞</span><h3>Kinetic Lyric</h3><p>Aesthetic vessel + the hook, lyric building word-by-word in time with the vocal.</p></div>
-          <div class="fmt" data-fmt="film_montage"><span class="px">B</span><span class="glyph">▶</span><h3>Film Montage</h3><p>Emotional movie clips stitched to the hook, branded follow-card outro.</p></div>
-          <div class="fmt" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>Fake cover + tracklist still. The "is this real?" engagement bait.</p></div>
+          <div class="fmt" data-fmt="kinetic_lyric"><span class="px">A</span><span class="glyph">𝄞</span><h3>Kinetic Lyric</h3><p>Aesthetic vessel + the hook, lyric building word-by-word in time with the vocal.</p><span class="fstat soon2">needs audio · soon</span></div>
+          <div class="fmt" data-fmt="film_montage"><span class="px">B</span><span class="glyph">▶</span><h3>Film Montage</h3><p>Emotional movie clips stitched to the hook, branded follow-card outro.</p><span class="fstat soon2">needs audio · soon</span></div>
+          <div class="fmt sel" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>AI cover art from your caption — generated on ComfyUI Cloud, then multiplied.</p><span class="fstat livep">live now</span></div>
         </div>
         <form class="form panel" style="padding:22px" id="createForm">
           <div class="field full">
@@ -332,7 +335,7 @@
 <script>
 const API = ""; // same origin as the demo/prod server
 const LABELS = {create:"Create",library:"Library",queue:"Queue",distribution:"Distribute",intelligence:"Intelligence"};
-let curFmt = "kinetic_lyric";
+let curFmt = "leak_graphic";
 
 // d-day countdown to 2026-06-19 (computed from a fixed render baseline; demo uses 21d)
 function tabTo(name){
