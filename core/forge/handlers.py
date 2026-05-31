@@ -20,11 +20,6 @@ and in the lifespan startup / shutdown:
     forge_worker = asyncio.create_task(_forge_jobs.worker_loop())   # startup, before yield
     forge_worker.cancel()                                           # shutdown, after yield
 """
-import shutil
-import tempfile
-import time
-from pathlib import Path
-
 from core.forge import jobs as forge_jobs
 
 
@@ -32,121 +27,61 @@ def _echo_handler(params: dict) -> dict:
     return {"echo": params}
 
 
-def _leak_graphic_handler(params: dict) -> dict:
-    """Forge it (Leak Graphic): ComfyUI-Cloud cover art -> N variants -> Nextcloud."""
-    from core.forge.renderers.leak_graphic import render
+def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str) -> dict:
+    """Render R remix looks, stealth-multiply each by `variations`, deliver per-look."""
+    import tempfile, time, shutil
+    from pathlib import Path
+    from core.forge.remix import build_remixes
     from core.forge.multiply import multiply
     from core.forge import delivery
 
-    label = f"leak_{int(time.time())}"
-    work = Path(tempfile.mkdtemp(prefix="forge_"))
-    master = render(params, work / f"{label}_master.png")
-
+    remixes = build_remixes(params, int(params.get("remix", 1) or 1))
     n = int(params.get("variations", 18) or 18)
-    variants = multiply(master, n, work / "variants", base_name=label)
-
-    # "Viral Album Videos / Processed" (dashboard label) -> real WebDAV subpath
-    subfolder = (params.get("subfolder") or "Viral Album Videos/Processed").replace(" / ", "/").strip()
-    dest = f"{subfolder}/{label}"
-
-    delivered = []
+    base = (params.get("subfolder") or default_subfolder).strip()
+    stamp = int(time.time())
+    ext = ".png" if fmt == "leak_graphic" else ".mp4"
+    total_delivered, look_dirs = 0, []
+    work = Path(tempfile.mkdtemp(prefix=f"forge_{fmt}_"))
     try:
-        delivered.append(delivery.deliver(master, dest, filename=f"{label}_master.png"))
-    except Exception as e:  # noqa: BLE001 — record but keep going
-        delivered.append(f"ERROR master: {e}")
-    for v in variants:
-        try:
-            delivered.append(delivery.deliver(v, dest))
-        except Exception:  # noqa: BLE001
-            pass
+        for rp in remixes:
+            ri = rp.get("remix_index", 0)
+            label = f"{fmt}_{stamp}_look{ri:02d}" if len(remixes) > 1 else f"{fmt}_{stamp}"
+            master = render(rp, work / f"{label}_master{ext}")
+            variants = multiply(master, n, work / f"v{ri}", base_name=label) if n else []
+            dest = f"{base}/{label}"
+            look_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+            try:
+                delivery.deliver(master, dest, filename=master.name)
+                total_delivered += 1
+            except Exception:  # noqa: BLE001
+                pass
+            for v in variants:
+                try:
+                    delivery.deliver(v, dest); total_delivered += 1
+                except Exception:  # noqa: BLE001
+                    pass
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return {"format": fmt, "remix_looks": len(remixes), "variations_each": n,
+            "delivered": total_delivered, "delivered_dirs": look_dirs}
 
-    return {
-        "format": "leak_graphic",
-        "master": str(master),
-        "variant_count": len(variants),
-        "delivered_dir": f"Content/Mainstay-RodWave/{dest}",
-        "delivered": len([d for d in delivered if not str(d).startswith("ERROR")]),
-    }
+
+def _leak_graphic_handler(params: dict) -> dict:
+    from core.forge.renderers.leak_graphic import render
+    return _run_remix_format(render, params, fmt="leak_graphic",
+                             default_subfolder="Viral Album Videos/Processed")
 
 
 def _kinetic_lyric_handler(params: dict) -> dict:
-    """Forge it (Kinetic Lyric): hook audio -> word-timed lyric vertical -> N variants -> Nextcloud."""
-    import tempfile, time
-    from pathlib import Path
     from core.forge.renderers.kinetic_lyric import render
-    from core.forge.multiply import multiply
-    from core.forge import delivery
-
-    label = f"kinetic_{int(time.time())}"
-    work = Path(tempfile.mkdtemp(prefix="forge_kin_"))
-    try:
-        master = render(params, work / f"{label}_master.mp4")
-
-        n = int(params.get("variations", 18) or 18)
-        variants = multiply(master, n, work / "variants", base_name=label) if n else []
-
-        subfolder = (params.get("subfolder") or "Viral Music Verticals/Kinetic Lyric").strip()
-        dest = f"{subfolder}/{label}"
-        delivered = []
-        try:
-            delivered.append(delivery.deliver(master, dest, filename=f"{label}_master.mp4"))
-        except Exception as e:  # noqa: BLE001
-            delivered.append(f"ERROR master: {e}")
-        for v in variants:
-            try:
-                delivered.append(delivery.deliver(v, dest))
-            except Exception:  # noqa: BLE001
-                pass
-        result = {
-            "format": "kinetic_lyric",
-            "master": str(master),
-            "variant_count": len(variants),
-            "delivered_dir": f"Content/Mainstay-RodWave/{dest}",
-            "delivered": len([d for d in delivered if not str(d).startswith("ERROR")]),
-        }
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-    return result
+    return _run_remix_format(render, params, fmt="kinetic_lyric",
+                             default_subfolder="Viral Music Verticals/Kinetic Lyric")
 
 
 def _film_montage_handler(params: dict) -> dict:
-    """Forge it (Film Montage): hook audio + b-roll sources -> branded vertical -> N variants -> Nextcloud."""
-    import tempfile, time
-    from pathlib import Path
     from core.forge.renderers.film_montage import render
-    from core.forge.multiply import multiply
-    from core.forge import delivery
-
-    label = f"montage_{int(time.time())}"
-    work = Path(tempfile.mkdtemp(prefix="forge_mon_"))
-    try:
-        master = render(params, work / f"{label}_master.mp4")
-
-        n = int(params.get("variations", 18) or 18)
-        variants = multiply(master, n, work / "variants", base_name=label) if n else []
-
-        subfolder = (params.get("subfolder") or "Viral Music Verticals/Film Montage").strip()
-        dest = f"{subfolder}/{label}"
-        delivered = []
-        try:
-            delivered.append(delivery.deliver(master, dest, filename=f"{label}_master.mp4"))
-        except Exception as e:  # noqa: BLE001
-            delivered.append(f"ERROR master: {e}")
-        for v in variants:
-            try:
-                delivered.append(delivery.deliver(v, dest))
-            except Exception:  # noqa: BLE001
-                pass
-        result = {
-            "format": "film_montage",
-            "master": str(master),
-            "variant_count": len(variants),
-            "delivered_dir": f"Content/Mainstay-RodWave/{dest}",
-            "delivered": len([d for d in delivered if not str(d).startswith("ERROR")]),
-        }
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-    return result
+    return _run_remix_format(render, params, fmt="film_montage",
+                             default_subfolder="Viral Music Verticals/Film Montage")
 
 
 def register_default_handlers() -> None:
