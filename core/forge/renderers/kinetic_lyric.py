@@ -15,6 +15,28 @@ REPO = Path(__file__).resolve().parent.parent.parent.parent
 REMOTION = Path("/home/aialfred/remotion")
 
 
+def _node_env() -> dict:
+    """Env for the Remotion subprocess with a modern Node on PATH.
+
+    Under systemd the service PATH has no nvm, so `npx` falls back to the
+    system Node (v12), which Remotion can't run. Prepend the newest nvm
+    Node >= 18 so the renderer works regardless of ambient PATH.
+    """
+    import os
+    env = dict(os.environ)
+    candidates = []
+    nvm = Path("/home/aialfred/.nvm/versions/node")
+    if nvm.is_dir():
+        for d in nvm.iterdir():
+            m = re.match(r"v(\d+)\.", d.name)
+            if m and int(m.group(1)) >= 18 and (d / "bin" / "node").exists():
+                candidates.append((int(m.group(1)), d / "bin"))
+    if candidates:
+        best = max(candidates)[1]
+        env["PATH"] = f"{best}:{env.get('PATH', '')}"
+    return env
+
+
 def _is_marker(t: str) -> bool:
     return re.fullmatch(r"2[0-9],?", t.strip()) is not None
 
@@ -153,7 +175,8 @@ def render(params: dict, out_path: str | Path) -> Path:
             rr = subprocess.run(
                 ["npx", "remotion", "render", "src/index.ts", "KineticTypeRig",
                  str(silent), f"--props={props_path}"],
-                cwd=str(REMOTION), capture_output=True, text=True, timeout=1200)
+                cwd=str(REMOTION), capture_output=True, text=True, timeout=1200,
+                env=_node_env())
             if rr.returncode != 0 or not silent.exists():
                 raise RuntimeError(f"remotion render failed: {rr.stderr[-800:]}")
 
