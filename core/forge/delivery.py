@@ -16,11 +16,14 @@ def deliver(local_path: Path, subfolder: str, filename: str | None = None) -> st
     """
     local_path = Path(local_path)
     remote_dir = f"{DELIVERY_ROOT}/{subfolder.strip('/')}".rstrip("/")
-    try:
-        create_folder(remote_dir)
-    except Exception:
-        # Folder almost certainly already exists (MKCOL 405); not fatal.
-        pass
+    parts = [p for p in subfolder.strip("/").split("/") if p]
+    accum = DELIVERY_ROOT
+    for seg in parts:
+        accum = f"{accum}/{seg}"
+        try:
+            create_folder(accum)
+        except Exception:  # noqa: BLE001 — folder may already exist (405)
+            pass
     name = filename or local_path.name
     remote_path = f"{remote_dir}/{name}"
     try:

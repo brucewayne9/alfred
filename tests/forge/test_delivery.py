@@ -18,7 +18,8 @@ def test_deliver_creates_folder_and_uploads(monkeypatch, tmp_path):
     local.write_bytes(b"data")
     remote = delivery.deliver(local, "Viral Album Videos/Processed")
     assert remote == "Content/Mainstay-RodWave/Viral Album Videos/Processed/clip.mp4"
-    assert calls["folders"] == ["Content/Mainstay-RodWave/Viral Album Videos/Processed"]
+    assert "Content/Mainstay-RodWave/Viral Album Videos" in calls["folders"]
+    assert "Content/Mainstay-RodWave/Viral Album Videos/Processed" in calls["folders"]
     assert calls["uploads"] == [
         ("Content/Mainstay-RodWave/Viral Album Videos/Processed/clip.mp4", b"data")
     ]
