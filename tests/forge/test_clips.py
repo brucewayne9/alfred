@@ -1,3 +1,5 @@
+from unittest import mock
+
 from core.forge import clips
 
 
@@ -26,3 +28,23 @@ def test_ytdlp_cmd_requests_mp4_into_outdir(tmp_path):
     assert any("-o" == c for c in cmd)
     assert any(str(tmp_path) in c for c in cmd)
     assert "mp4" in " ".join(cmd)
+
+
+def test_two_fetches_same_outdir_dont_collide(tmp_path):
+    """Regression: each fetch must land in an isolated dir so a second source's
+    file can't be skipped as 'already downloaded' (the autonumber-collision bug
+    that broke every multi-source montage on the 2nd source onward)."""
+    # Simulate yt-dlp always writing the SAME filename into its -o directory.
+    def fake_run(cmd, **kw):
+        out_idx = cmd.index("-o") + 1
+        out_dir = __import__("pathlib").Path(cmd[out_idx]).parent
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "src_00001.mp4").write_bytes(b"fake")
+        return mock.Mock(returncode=0, stdout="", stderr="")
+
+    with mock.patch.object(clips.subprocess, "run", side_effect=fake_run):
+        first = clips.fetch_source("https://youtube.com/shorts/AAA", tmp_path)
+        second = clips.fetch_source("https://youtube.com/shorts/BBB", tmp_path)
+
+    assert first and second, "both fetches must return a file"
+    assert set(first).isdisjoint(set(second)), "fetched paths must be distinct"

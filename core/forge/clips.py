@@ -29,14 +29,22 @@ def ytdlp_cmd(target: str, out_dir: Path) -> list[str]:
 
 
 def fetch_source(spec: str, out_dir: Path, timeout: int = 300) -> list[Path]:
-    """Fetch a source spec; return the downloaded mp4 paths (may be several for a search)."""
+    """Fetch a source spec; return the downloaded mp4 paths (may be several for a search).
+
+    Each call downloads into its OWN subdirectory. yt-dlp's autonumber resets per
+    invocation, so without isolation a second source maps to the first's filename
+    and gets skipped as 'already downloaded' — which silently broke every
+    multi-source montage on the 2nd source onward.
+    """
     out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
+    call_dir = out_dir / f"s_{uuid.uuid4().hex[:8]}"
+    call_dir.mkdir(parents=True, exist_ok=True)
     target, _kind = resolve_source(spec)
-    before = set(out_dir.glob("*.mp4"))
-    proc = subprocess.run(ytdlp_cmd(target, out_dir), capture_output=True, text=True, timeout=timeout)
-    new = sorted(set(out_dir.glob("*.mp4")) - before)
+    proc = subprocess.run(ytdlp_cmd(target, call_dir), capture_output=True, text=True, timeout=timeout)
+    new = sorted(call_dir.glob("*.mp4"))
     if not new:
-        raise RuntimeError(f"yt-dlp fetched nothing for {spec!r}: {proc.stderr[-300:]}")
+        detail = (proc.stderr or proc.stdout or "").strip()[-300:]
+        raise RuntimeError(f"yt-dlp fetched nothing for {spec!r}: {detail}")
     return new
 
 
