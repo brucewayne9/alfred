@@ -47,7 +47,8 @@ def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str)
             ri = rp.get("remix_index", 0)
             label = f"{fmt}_{stamp}_look{ri:02d}" if len(remixes) > 1 else f"{fmt}_{stamp}"
             master = render(rp, work / f"{label}_master{ext}")
-            variants = multiply(master, n, work / f"v{ri}", base_name=label) if n else []
+            variants = multiply(master, n, work / f"v{ri}", base_name=label,
+                                 allow_flip=(fmt != "leak_graphic")) if n else []
             dest = f"{base}/{label}"
             look_dirs.append(f"Content/Mainstay-RodWave/{dest}")
             try:
