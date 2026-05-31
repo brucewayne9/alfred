@@ -117,61 +117,64 @@ def render(params: dict, out_path: str | Path) -> Path:
     if not img.exists():
         raise RuntimeError(f"vessel image missing on disk: {img}")
 
-    # 5. Ken-burns the still into a 9:16 motion mp4
-    secs = math.ceil(audio.duration_seconds(hook)) + 1
-    vessel_mp4 = work / "vessel.mp4"
-    kb = subprocess.run(
-        ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "30",
-         "-i", str(img), "-t", str(secs),
-         "-vf", ("scale=1620:2880:force_original_aspect_ratio=increase,crop=1620:2880,"
-                 "zoompan=z='min(1.0+0.00010*in,1.12)':x='iw/2-(iw/zoom/2)':"
-                 "y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30"),
-         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30", "-an", str(vessel_mp4)],
-        capture_output=True, text=True)
-    if kb.returncode != 0 or not vessel_mp4.exists():
-        raise RuntimeError(f"ken-burns ffmpeg failed: {kb.stderr[-500:]}")
-
-    # 6. Copy vessel into Remotion public dir under a unique name (always cleaned up)
-    pub_name = f"forge_vessel_{uuid.uuid4().hex}.mp4"
-    pub_path = REMOTION / "public" / pub_name
     try:
-        shutil.copyfile(vessel_mp4, pub_path)
-
-        # 7. Props
-        props = {
-            "brand": "mainstay",
-            "bgClip": pub_name,
-            "karaokeLines": lines,
-            "gradePreset": "teal-orange-crushed",
-        }
-        props_path = work / "props.json"
-        props_path.write_text(json.dumps(props))
-
-        # 8. Render silent video via Remotion
-        silent = work / "silent.mp4"
-        rr = subprocess.run(
-            ["npx", "remotion", "render", "src/index.ts", "KineticTypeRig",
-             str(silent), f"--props={props_path}"],
-            cwd=str(REMOTION), capture_output=True, text=True, timeout=1200)
-        if rr.returncode != 0 or not silent.exists():
-            raise RuntimeError(f"remotion render failed: {rr.stderr[-800:]}")
-
-        # 9. Mux hook audio with EXPLICIT stream mapping (the critical fix)
-        mux = subprocess.run(
-            ["ffmpeg", "-y", "-v", "error", "-i", str(silent), "-i", str(hook),
-             "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac",
-             "-b:a", "192k", "-shortest", str(out_path)],
+        # 5. Ken-burns the still into a 9:16 motion mp4
+        secs = math.ceil(audio.duration_seconds(hook)) + 1
+        vessel_mp4 = work / "vessel.mp4"
+        kb = subprocess.run(
+            ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "30",
+             "-i", str(img), "-t", str(secs),
+             "-vf", ("scale=1620:2880:force_original_aspect_ratio=increase,crop=1620:2880,"
+                     "zoompan=z='min(1.0+0.00010*in,1.12)':x='iw/2-(iw/zoom/2)':"
+                     "y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30"),
+             "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30", "-an", str(vessel_mp4)],
             capture_output=True, text=True)
-        if mux.returncode != 0 or not out_path.exists():
-            raise RuntimeError(f"mux ffmpeg failed: {mux.stderr[-500:]}")
+        if kb.returncode != 0 or not vessel_mp4.exists():
+            raise RuntimeError(f"ken-burns ffmpeg failed: {kb.stderr[-500:]}")
 
-        # 10. Guard: hook audio must be present
-        audio.assert_audible(out_path)
-    finally:
+        # 6. Copy vessel into Remotion public dir under a unique name (always cleaned up)
+        pub_name = f"forge_vessel_{uuid.uuid4().hex}.mp4"
+        pub_path = REMOTION / "public" / pub_name
         try:
-            pub_path.unlink()
-        except OSError:
-            pass
+            shutil.copyfile(vessel_mp4, pub_path)
+
+            # 7. Props
+            props = {
+                "brand": "mainstay",
+                "bgClip": pub_name,
+                "karaokeLines": lines,
+                "gradePreset": "teal-orange-crushed",
+            }
+            props_path = work / "props.json"
+            props_path.write_text(json.dumps(props))
+
+            # 8. Render silent video via Remotion
+            silent = work / "silent.mp4"
+            rr = subprocess.run(
+                ["npx", "remotion", "render", "src/index.ts", "KineticTypeRig",
+                 str(silent), f"--props={props_path}"],
+                cwd=str(REMOTION), capture_output=True, text=True, timeout=1200)
+            if rr.returncode != 0 or not silent.exists():
+                raise RuntimeError(f"remotion render failed: {rr.stderr[-800:]}")
+
+            # 9. Mux hook audio with EXPLICIT stream mapping (the critical fix)
+            mux = subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-i", str(silent), "-i", str(hook),
+                 "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac",
+                 "-b:a", "192k", "-shortest", str(out_path)],
+                capture_output=True, text=True)
+            if mux.returncode != 0 or not out_path.exists():
+                raise RuntimeError(f"mux ffmpeg failed: {mux.stderr[-500:]}")
+
+            # 10. Guard: hook audio must be present
+            audio.assert_audible(out_path)
+        finally:
+            try:
+                pub_path.unlink()
+            except OSError:
+                pass
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
     # 11.
     return Path(out_path)

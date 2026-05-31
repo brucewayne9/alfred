@@ -20,6 +20,7 @@ and in the lifespan startup / shutdown:
     forge_worker = asyncio.create_task(_forge_jobs.worker_loop())   # startup, before yield
     forge_worker.cancel()                                           # shutdown, after yield
 """
+import shutil
 import tempfile
 import time
 from pathlib import Path
@@ -78,30 +79,34 @@ def _kinetic_lyric_handler(params: dict) -> dict:
 
     label = f"kinetic_{int(time.time())}"
     work = Path(tempfile.mkdtemp(prefix="forge_kin_"))
-    master = render(params, work / f"{label}_master.mp4")
-
-    n = int(params.get("variations", 18) or 18)
-    variants = multiply(master, n, work / "variants", base_name=label) if n else []
-
-    subfolder = (params.get("subfolder") or "Viral Music Verticals/Kinetic Lyric").strip()
-    dest = f"{subfolder}/{label}"
-    delivered = []
     try:
-        delivered.append(delivery.deliver(master, dest, filename=f"{label}_master.mp4"))
-    except Exception as e:  # noqa: BLE001
-        delivered.append(f"ERROR master: {e}")
-    for v in variants:
+        master = render(params, work / f"{label}_master.mp4")
+
+        n = int(params.get("variations", 18) or 18)
+        variants = multiply(master, n, work / "variants", base_name=label) if n else []
+
+        subfolder = (params.get("subfolder") or "Viral Music Verticals/Kinetic Lyric").strip()
+        dest = f"{subfolder}/{label}"
+        delivered = []
         try:
-            delivered.append(delivery.deliver(v, dest))
-        except Exception:  # noqa: BLE001
-            pass
-    return {
-        "format": "kinetic_lyric",
-        "master": str(master),
-        "variant_count": len(variants),
-        "delivered_dir": f"Content/Mainstay-RodWave/{dest}",
-        "delivered": len([d for d in delivered if not str(d).startswith("ERROR")]),
-    }
+            delivered.append(delivery.deliver(master, dest, filename=f"{label}_master.mp4"))
+        except Exception as e:  # noqa: BLE001
+            delivered.append(f"ERROR master: {e}")
+        for v in variants:
+            try:
+                delivered.append(delivery.deliver(v, dest))
+            except Exception:  # noqa: BLE001
+                pass
+        result = {
+            "format": "kinetic_lyric",
+            "master": str(master),
+            "variant_count": len(variants),
+            "delivered_dir": f"Content/Mainstay-RodWave/{dest}",
+            "delivered": len([d for d in delivered if not str(d).startswith("ERROR")]),
+        }
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return result
 
 
 def register_default_handlers() -> None:
