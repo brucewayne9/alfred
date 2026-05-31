@@ -13,14 +13,27 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent.parent.parent
 
 
-def build_prompt(caption: str) -> str:
-    """Turn the user's caption into a cover-art prompt (no literal text in the image)."""
+def build_prompt(caption: str, override: str | None = None) -> str:
+    """Turn the user's caption into a cover-art prompt (no literal text in the image).
+
+    Args:
+        caption: The post caption used to theme the cover art.
+        override: Optional vessel-mood string (e.g. from Remix). When non-empty,
+            the override drives the primary visual theme; caption is included as
+            secondary context. When absent, caption alone drives the theme.
+    """
     caption = (caption or "").strip()
     base = (
         "cinematic melancholic rap album cover, moody dramatic low-key lighting, "
         "deep shadows, film grain, 35mm, emotional portrait energy, lonely night mood, "
         "muted gold and charcoal palette, vertical poster composition, high detail, no text"
     )
+    vessel = (override or "").strip()
+    if vessel:
+        suffix = f", vessel mood: {vessel}"
+        if caption:
+            suffix += f", themed around: {caption}"
+        return f"{base}{suffix}"
     return f"{base}, themed around: {caption}" if caption else base
 
 
@@ -30,7 +43,7 @@ def render(params: dict, out_path: str | Path) -> Path:
         sys.path.insert(0, str(REPO))
     from scripts.rucktalk_common import run_comfyui_cloud  # lazy: heavy import
 
-    prompt = build_prompt(params.get("caption", ""))
+    prompt = build_prompt(params.get("caption", ""), override=params.get("vessel_prompt"))
     result = run_comfyui_cloud(prompt, width=768, height=1344)  # ~9:16 portrait
     if not result:
         raise RuntimeError("ComfyUI Cloud returned no image")
