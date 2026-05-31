@@ -303,6 +303,14 @@
             <label>Clip end (sec) <span style="color:var(--mute);font-weight:400">optional</span></label>
             <input type="number" id="clipEnd" min="0" step="1" placeholder="e.g. 135" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
           </div>
+          <div class="field full leakfield" style="display:none">
+            <label>Album / release title <span style="color:var(--mute);font-weight:400">— baked onto the cover</span></label>
+            <input type="text" id="leakTitle" placeholder="Don't Look Down" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
+          </div>
+          <div class="field full leakfield" style="display:none">
+            <label>Tracklist <span style="color:var(--mute);font-weight:400">— baked onto the cover, one track per line</span></label>
+            <textarea id="leakTracklist" placeholder="Same Old Pain&#10;25&#10;Houston&#10;Letter From the Bottom" style="min-height:84px;width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 13px/1.4 var(--sans)"></textarea>
+          </div>
           <div class="field full montagefield" style="display:none">
             <label>Clip sources <span style="color:var(--mute);font-weight:400">— one per line: a YouTube/TikTok/IG URL, or <code>search: rainy night city</code></span></label>
             <textarea id="sources" placeholder="search: cinematic rainy night city b-roll
@@ -450,6 +458,7 @@ function syncAudioFields(){
   document.getElementById('audioField').style.display = needsAudio?'':'none';
   document.querySelectorAll('.clipfield').forEach(el=>el.style.display = needsAudio?'':'none');
   document.querySelectorAll('.montagefield').forEach(el=>el.style.display = (curFmt==='film_montage')?'':'none');
+  document.querySelectorAll('.leakfield').forEach(el=>el.style.display=(curFmt==='leak_graphic')?'':'none');
 }
 document.querySelectorAll('.fmt').forEach(f=>f.addEventListener('click',()=>{
   document.querySelectorAll('.fmt').forEach(x=>x.classList.remove('sel'));
@@ -491,6 +500,12 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
         params.generate=Number(document.getElementById('genN').value)||0;
         if(!params.sources.length && !params.generate){toast('Add a clip source or set generate ≥ 1');return;}
       }
+    }
+    if(curFmt==='leak_graphic'){
+      const lt=document.getElementById('leakTitle').value.trim();
+      if(lt) params.title=lt;
+      const tl=document.getElementById('leakTracklist').value.split('\n').map(s=>s.trim()).filter(Boolean);
+      if(tl.length) params.tracklist=tl;
     }
     const r=await fetch(API+'/forge/jobs',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({job_type:curFmt,params})});
     if(!r.ok) throw new Error(r.status);
