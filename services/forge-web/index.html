@@ -171,6 +171,40 @@
   .day .dn{font:600 10px/1 var(--mono);color:var(--mute2);text-transform:uppercase}
   .slot{margin-top:7px;font:600 10px/1.2 var(--sans);padding:5px 6px;border-radius:6px;background:rgba(201,161,74,.13);color:var(--gold-hi);border:1px solid var(--gold-dim)}
   .slot.blue{background:rgba(91,139,208,.14);color:#a8c4ea;border-color:rgba(91,139,208,.4)}
+  /* ---- live distribution ---- */
+  .dsec{margin-bottom:26px}
+  .dsec>.dhead{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+  .dsec>.dhead h2{font:900 18px/1 var(--serif);margin:0}
+  .dsec>.dhead .dsub{color:var(--mute);font-size:12.5px;margin-left:auto}
+  .roster{padding:14px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,#15151b,#111016)}
+  .rrow{display:grid;grid-template-columns:1.4fr 1fr .9fr auto;gap:10px;align-items:center;margin-bottom:10px}
+  .rrow input,.rrow select{padding:10px 11px;font-size:13px}
+  .rx{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid var(--line2);background:#14141a;color:var(--mute);cursor:pointer;font-size:15px;transition:.15s}
+  .rx:hover{border-color:var(--error);color:var(--error)}
+  .rtools{display:flex;align-items:center;gap:12px;margin-top:6px}
+  .btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:10px;border:1px solid var(--line2);background:#14141a;color:var(--ink);font:600 13px/1 var(--sans);cursor:pointer;transition:.15s}
+  .btn-ghost:hover{border-color:var(--gold);color:var(--gold-hi)}
+  .jpick{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+  .jpick select{min-width:340px;max-width:100%;padding:11px 13px}
+  .packhdr{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:12px 15px;border-radius:11px;border:1px solid var(--gold-dim);background:rgba(201,161,74,.07)}
+  .packhdr .pcount{font:900 18px/1 var(--serif);color:var(--gold-hi)}
+  .packhdr .plabel{font:600 11px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+  .packhdr .pcap{margin-left:auto;color:var(--mute);font-size:12.5px;font-style:italic;max-width:46ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .post{display:flex;align-items:center;gap:14px;padding:13px 15px;border:1px solid var(--line);border-top:none;background:#101015;flex-wrap:wrap}
+  .post:first-of-type{border-top:1px solid var(--line);border-radius:11px 11px 0 0}
+  .post:last-of-type{border-radius:0 0 11px 11px}
+  .post.done{background:rgba(95,174,126,.06);border-color:rgba(95,174,126,.3)}
+  .post .pacct{font:600 13px/1 var(--sans);min-width:130px}
+  .pbadge{font:600 10px/1 var(--mono);padding:5px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--mute);background:#14141a;white-space:nowrap}
+  .pbadge.plat{color:#a8c4ea;border-color:rgba(91,139,208,.4);background:rgba(91,139,208,.12)}
+  .pbadge.stag{color:var(--gold-hi);border-color:var(--gold-dim);background:rgba(201,161,74,.1)}
+  .post .pfile{font:500 12px/1 var(--mono);color:var(--mute);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .post .pacts{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .pmini{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;border:1px solid var(--line2);background:#14141a;color:var(--ink);font:600 12px/1 var(--sans);cursor:pointer;text-decoration:none;transition:.15s}
+  .pmini:hover{border-color:var(--gold);color:var(--gold-hi)}
+  .pcheck{display:inline-flex;align-items:center;gap:8px;font:600 12px/1 var(--sans);color:var(--mute);cursor:pointer;user-select:none}
+  .pcheck input{width:17px;height:17px;accent-color:var(--done);cursor:pointer}
+  .post.done .pcheck{color:var(--done)}
 
   /* ===== INTELLIGENCE ===== */
   .winner{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;padding:20px;border-radius:14px;border:1px solid var(--gold-dim);background:linear-gradient(110deg,#1c1812,#141118);margin-bottom:18px}
@@ -227,7 +261,7 @@
     <div class="navitem active" data-tab="create"><span class="ic">✦</span> Create <span class="tag">live</span></div>
     <div class="navitem" data-tab="library"><span class="ic">▦</span> Library</div>
     <div class="navitem" data-tab="queue"><span class="ic">≋</span> Queue <span class="tag" id="qbadge">0</span></div>
-    <div class="navitem" data-tab="distribution"><span class="ic">⊞</span> Distribute <span class="tag">soon</span></div>
+    <div class="navitem" data-tab="distribution"><span class="ic">⊞</span> Distribute</div>
     <div class="navitem" data-tab="intelligence"><span class="ic">◔</span> Intel <span class="tag">soon</span></div>
     <div class="foot"><b>Campaign:</b> Rod Wave —<br>Don't Look Down · <span class="count" id="dday">21d</span> to drop</div>
   </aside>
@@ -329,28 +363,28 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 
       <!-- DISTRIBUTION -->
       <section data-panel="distribution" style="display:none">
-        <h1 class="page" style="display:flex;align-items:center;gap:14px">Distribution war-room <span class="soon">Coming online</span></h1>
-        <p class="sub">Organize the seed without pulling the trigger. Group accounts, assign variants, schedule the push. A human always taps post.</p>
-        <div class="cols">
-          <div class="group"><h4><span style="color:var(--running)">●</span> Burner / pilot pages</h4><div class="gsub">Warm-up &amp; sound-testing — safe to experiment</div>
-            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#3a2f4a,#1a1622)"></div><div><div class="h">teen diaries</div><div class="f">@diariesofateengal</div></div><div class="pin">3 queued</div></div>
-            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#4a3a2f,#221a16)"></div><div><div class="h">sleep / latte</div><div class="f">@sleepalatte</div></div><div class="pin">2 queued</div></div>
-            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#2f4a3a,#16221a)"></div><div><div class="h">imposter fanpage</div><div class="f">@thisisanimposterr</div></div><div class="pin">4 queued</div></div>
-          </div>
-          <div class="group"><h4><span style="color:var(--gold)">●</span> Established pages</h4><div class="gsub">Protected — only proven, winning content</div>
-            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#4a4030,#26211a)"></div><div><div class="h">Rod Wave Daily</div><div class="f">@rodwavedaily</div></div><div class="pin">locked</div></div>
-            <div class="acct"><div class="av" style="background:linear-gradient(135deg,#30404a,#1a2126)"></div><div><div class="h">Hot New Hip Hop</div><div class="f">@rw.nation</div></div><div class="pin">locked</div></div>
+        <h1 class="page">Distribution war-room</h1>
+        <p class="sub">Organize the seed without pulling the trigger. Manage your roster, build a ready-to-post pack from any delivered batch, then check each post off as a human taps it live.</p>
+
+        <div class="dsec">
+          <div class="dhead"><h2>Account roster</h2><span class="dsub">Who the pack gets staggered across</span></div>
+          <div class="roster">
+            <div id="rosterRows"><div class="libloading">Loading roster…</div></div>
+            <div class="rtools">
+              <button class="btn-ghost" type="button" onclick="addRosterRow()">+ Add account</button>
+              <button class="btn" type="button" onclick="saveRoster()">Save roster</button>
+            </div>
           </div>
         </div>
-        <div class="badge-safe">🛡 No auto-posting. Forge arms the operator with a ready-to-post package; a human taps the button. Burner pages stay human-shaped, established pages stay protected.</div>
-        <div class="cal">
-          <div class="day"><div class="dn">Mon</div><div class="slot blue">@teen · Kinetic #7</div></div>
-          <div class="day"><div class="dn">Tue</div><div class="slot">@sleep · Montage #2</div><div class="slot blue">@imp · Leak</div></div>
-          <div class="day"><div class="dn">Wed</div><div class="slot">@imp · Kinetic #3</div></div>
-          <div class="day"><div class="dn">Thu</div><div class="slot blue">@teen · Montage #5</div></div>
-          <div class="day"><div class="dn">Fri</div><div class="slot">@sleep · Kinetic #11</div></div>
-          <div class="day"><div class="dn">Sat</div></div>
-          <div class="day"><div class="dn">Sun</div><div class="slot" style="background:rgba(95,174,126,.14);color:#a9d8bd;border-color:rgba(95,174,126,.4)">winner → @rodwavedaily</div></div>
+
+        <div class="badge-safe">🛡 No auto-posting. Forge arms the operator with a ready-to-post package; a human taps the button.</div>
+
+        <div class="dsec" style="margin-top:26px">
+          <div class="dhead"><h2>Build a pack</h2><span class="dsub">Pick a delivered batch → ready-to-post checklist</span></div>
+          <div class="jpick">
+            <select id="packJob" onchange="loadPack(this.value)"><option value="">Loading delivered batches…</option></select>
+          </div>
+          <div id="packBox"><div class="empty">Pick a delivered batch above to build its post pack.</div></div>
         </div>
       </section>
 
@@ -406,6 +440,7 @@ function tabTo(name){
   const sec=document.querySelector(`[data-panel="${name}"]`); if(sec){sec.classList.remove('reveal');void sec.offsetWidth;sec.classList.add('reveal');}
   if(name==='queue') refreshJobs();
   if(name==='library') loadLibrary();
+  if(name==='distribution') loadDistribution();
 }
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(LABELS[h])tabTo(h);});
 document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>tabTo(el.dataset.tab)));
@@ -566,6 +601,119 @@ document.getElementById('libRefresh').addEventListener('click',()=>{
   document.querySelectorAll('.libcard .libassets').forEach(b=>{b.dataset.loaded='';});
   loadLibrary();
 });
+
+// ===== DISTRIBUTION =====
+const PLATFORMS=["TikTok","Instagram Reels","YouTube Shorts"];
+const TIERS=["burner","official"];
+
+function loadDistribution(){ loadRoster(); loadJobPicker(); }
+
+async function loadRoster(){
+  const box=document.getElementById('rosterRows');
+  box.innerHTML='<div class="libloading">Loading roster…</div>';
+  try{
+    const r=await fetch(API+'/forge/distribution/accounts',{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const {accounts}=await r.json();
+    box.innerHTML='';
+    (accounts||[]).forEach(a=>box.appendChild(rosterRow(a)));
+    if(!box.children.length) box.appendChild(rosterRow({}));
+  }catch(e){box.innerHTML='<div class="liberr">Could not load roster ('+esc(e.message)+').</div>';}
+}
+function opts(list,sel){return list.map(v=>'<option value="'+esc(v)+'"'+(v===sel?' selected':'')+'>'+esc(v)+'</option>').join('');}
+function rosterRow(a){
+  const d=document.createElement('div'); d.className='rrow';
+  d.innerHTML='<input class="r-handle" type="text" placeholder="@handle" value="'+esc(a.handle||'')+'">'
+    +'<select class="r-plat">'+opts(PLATFORMS,a.platform||PLATFORMS[0])+'</select>'
+    +'<select class="r-tier">'+opts(TIERS,a.tier||TIERS[0])+'</select>'
+    +'<button class="rx" type="button" title="Remove">✕</button>';
+  d.querySelector('.rx').addEventListener('click',()=>d.remove());
+  return d;
+}
+function addRosterRow(){document.getElementById('rosterRows').appendChild(rosterRow({}));}
+async function saveRoster(){
+  const accounts=[...document.querySelectorAll('#rosterRows .rrow')].map(r=>({
+    handle:r.querySelector('.r-handle').value.trim(),
+    platform:r.querySelector('.r-plat').value,
+    tier:r.querySelector('.r-tier').value
+  })).filter(a=>a.handle);
+  try{
+    const r=await fetch(API+'/forge/distribution/accounts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({accounts})});
+    if(!r.ok) throw new Error(r.status);
+    toast('Roster saved — '+accounts.length+' account'+(accounts.length===1?'':'s'));
+  }catch(e){toast('Could not save roster ('+e.message+')');}
+}
+
+async function loadJobPicker(){
+  const sel=document.getElementById('packJob');
+  try{
+    const r=await fetch(API+'/forge/library',{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const {jobs}=await r.json();
+    const ready=(jobs||[]).filter(j=>(j.dirs&&j.dirs.length));
+    if(!ready.length){sel.innerHTML='<option value="">No delivered batches yet</option>';return;}
+    const cur=sel.value;
+    sel.innerHTML='<option value="">Pick a delivered batch…</option>'+ready.map(j=>{
+      const fmt=FMTNAME[j.format]||j.format;
+      const cap=j.caption?(' — “'+j.caption.slice(0,42)+(j.caption.length>42?'…':'')+'”'):'';
+      return '<option value="'+esc(j.id)+'">'+esc(fmt+cap+' · '+ago(j.created_at))+'</option>';
+    }).join('');
+    if(cur) sel.value=cur;
+  }catch(e){sel.innerHTML='<option value="">Could not load batches</option>';}
+}
+
+async function loadPack(jobId){
+  const box=document.getElementById('packBox');
+  if(!jobId){box.innerHTML='<div class="empty">Pick a delivered batch above to build its post pack.</div>';return;}
+  box.innerHTML='<div class="libloading">Building pack…</div>';
+  try{
+    const r=await fetch(API+'/forge/distribution/pack?job_id='+encodeURIComponent(jobId),{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const d=await r.json();
+    renderPack(d);
+  }catch(e){box.innerHTML='<div class="liberr">Could not build pack ('+esc(e.message)+').</div>';}
+}
+function renderPack(d){
+  const box=document.getElementById('packBox');
+  const posts=d.posts||[], counts=d.counts||{posts:posts.length,posted:0};
+  if(!posts.length){box.innerHTML='<div class="empty">This batch has no deliverable files to pack.</div>';return;}
+  let html='<div class="packhdr"><span class="pcount" id="packCount">'+(counts.posted||0)+' / '+counts.posts+'</span>'
+    +'<span class="plabel">posted</span>'
+    +(d.caption?'<span class="pcap" title="'+esc(d.caption)+'">“'+esc(d.caption)+'”</span>':'')+'</div>';
+  html+=posts.map(p=>{
+    const url=FILEURL(p.file_path);
+    const stag=(p.stagger_minutes>0)?'<span class="pbadge stag">+'+p.stagger_minutes+' min</span>':'<span class="pbadge stag">now</span>';
+    return '<div class="post'+(p.posted?' done':'')+'" data-pid="'+esc(p.post_id)+'">'
+      +'<span class="pacct">'+esc(p.account||'—')+'</span>'
+      +'<span class="pbadge plat">'+esc(p.platform||'')+'</span>'+stag
+      +'<span class="pfile" title="'+esc(p.file_name)+'">'+esc(p.file_name)+'</span>'
+      +'<div class="pacts">'
+        +'<a class="pmini" href="'+url+'" download="'+esc(p.file_name)+'" title="Download">⤓ Download</a>'
+        +'<button class="pmini" type="button" onclick="copyCaption(this)" data-cap="'+esc(p.caption||'')+'">⧉ Copy caption</button>'
+        +'<label class="pcheck"><input type="checkbox"'+(p.posted?' checked':'')+' onchange="markPosted(this)"> Posted</label>'
+      +'</div></div>';
+  }).join('');
+  box.innerHTML=html;
+}
+function copyCaption(btn){
+  const cap=btn.getAttribute('data-cap')||'';
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(cap).then(()=>toast('caption copied'),()=>toast('copy failed'));
+  } else { toast('clipboard unavailable'); }
+}
+async function markPosted(cb){
+  const row=cb.closest('.post');
+  const pid=row.dataset.pid, posted=cb.checked;
+  cb.disabled=true;
+  try{
+    const r=await fetch(API+'/forge/distribution/posted',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({post_id:pid,posted})});
+    if(!r.ok) throw new Error(r.status);
+    row.classList.toggle('done',posted);
+    const hdr=document.getElementById('packCount');
+    if(hdr){const n=document.querySelectorAll('#packBox .post.done').length, tot=document.querySelectorAll('#packBox .post').length; hdr.textContent=n+' / '+tot;}
+  }catch(e){cb.checked=!posted;toast('Could not save ('+e.message+')');}
+  finally{cb.disabled=false;}
+}
 
 const _init=location.hash.slice(1); tabTo(LABELS[_init]?_init:'create');
 </script>
