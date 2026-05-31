@@ -41,10 +41,19 @@ def list_done_jobs(limit: int = 100) -> list[dict]:
 
 def list_dir_files(dir_path: str) -> list[dict]:
     """Media files directly inside a delivery dir (path-guarded)."""
+    import requests
     from integrations.nextcloud import client as nc
     safe = _safe_library_path(dir_path)
     files: list[dict] = []
-    for f in nc.list_files(safe, depth=1):
+    try:
+        listing = nc.list_files(safe, depth=1)
+    except requests.exceptions.HTTPError as e:
+        # Folder gone (e.g. a job recorded a dir whose delivery failed) -> empty,
+        # not a 500. Re-raise anything that isn't a clean "not found".
+        if getattr(e.response, "status_code", None) == 404:
+            return []
+        raise
+    for f in listing:
         path = f.get("path") or ""
         name = f.get("name") or path.rstrip("/").split("/")[-1]
         if not name or path.rstrip("/").endswith(safe.rstrip("/")):

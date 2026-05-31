@@ -39,3 +39,33 @@ def test_list_done_jobs_handles_singular_delivered_dir(tmp_path, monkeypatch):
                '"delivered_dir":"Content/Mainstay-RodWave/Viral Album Videos/Processed/leak_1"}')
     j = [r for r in library.list_done_jobs() if r["id"] == jid][0]
     assert j["dirs"] == ["Content/Mainstay-RodWave/Viral Album Videos/Processed/leak_1"]
+
+
+def test_list_dir_files_missing_folder_returns_empty(monkeypatch):
+    # A job recorded a delivered dir that never got created on Nextcloud
+    # (delivery failed). Listing it must degrade to [], not raise a 500.
+    import requests
+    from integrations.nextcloud import client as nc
+
+    def _raise_404(path, depth=1):
+        resp = requests.Response()
+        resp.status_code = 404
+        raise requests.exceptions.HTTPError("404 Not Found", response=resp)
+
+    monkeypatch.setattr(nc, "list_files", _raise_404)
+    assert library.list_dir_files("Content/Mainstay-RodWave/Viral Album Videos/Processed/gone") == []
+
+
+def test_list_dir_files_real_error_propagates(monkeypatch):
+    # A genuine server error (500) should NOT be silently swallowed.
+    import requests
+    from integrations.nextcloud import client as nc
+
+    def _raise_500(path, depth=1):
+        resp = requests.Response()
+        resp.status_code = 500
+        raise requests.exceptions.HTTPError("500 Server Error", response=resp)
+
+    monkeypatch.setattr(nc, "list_files", _raise_500)
+    with pytest.raises(requests.exceptions.HTTPError):
+        library.list_dir_files("Content/Mainstay-RodWave/x/y")

@@ -50,17 +50,22 @@ def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str)
             variants = multiply(master, n, work / f"v{ri}", base_name=label,
                                  allow_flip=(fmt != "leak_graphic")) if n else []
             dest = f"{base}/{label}"
-            look_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+            look_delivered = 0
             try:
                 delivery.deliver(master, dest, filename=master.name)
-                total_delivered += 1
+                look_delivered += 1
             except Exception:  # noqa: BLE001
                 pass
             for v in variants:
                 try:
-                    delivery.deliver(v, dest); total_delivered += 1
+                    delivery.deliver(v, dest); look_delivered += 1
                 except Exception:  # noqa: BLE001
                     pass
+            # Only record a delivered dir if something actually landed — otherwise
+            # the Library points at a folder Nextcloud never created (→ 404/500).
+            if look_delivered:
+                look_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+                total_delivered += look_delivered
     finally:
         shutil.rmtree(work, ignore_errors=True)
     return {"format": fmt, "remix_looks": len(remixes), "variations_each": n,
