@@ -254,8 +254,12 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <label>Deliver to</label>
             <select id="subfolder"><option>Viral Album Videos / Processed</option><option>Podcast &amp; Episode Clips / Processed</option><option>Ideas</option></select>
           </div>
+          <div class="field">
+            <label>Remix looks <span style="color:var(--mute);font-weight:400">— distinct versions (different vessel each)</span></label>
+            <input type="number" id="remix" min="1" max="6" step="1" value="1" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
+          </div>
           <div class="field full">
-            <label>Variations (anti-suppression)</label>
+            <label>Variations per look <span style="color:var(--mute);font-weight:400">— anti-suppression copies of each look (same look, different fingerprint)</span></label>
             <div class="rangewrap"><input type="range" id="vars" min="1" max="30" value="18" style="flex:1"><span class="rangeval" id="varsval">18</span></div>
           </div>
           <div class="actions">
@@ -394,7 +398,8 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
     caption:document.getElementById('caption').value,
     font:document.getElementById('font').value,
     subfolder:document.getElementById('subfolder').value.replace(/ \/ /g,'/'),
-    variations:Number(vars.value)
+    variations:Number(vars.value),
+    remix:Number(document.getElementById('remix').value)||1
   };
   try{
     if(needsAudio){
