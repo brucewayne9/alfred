@@ -140,6 +140,84 @@ def posted_map(post_ids: list[str]) -> dict:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Postiz drafts — push a pack into Postiz as DRAFTS (a human hits send)
+# ---------------------------------------------------------------------------
+
+_POSTIZ_SCRIPT_DIR = Path(
+    os.environ.get("POSTIZ_SCRIPT_DIR",
+                   "/home/aialfred/.openclaw/workspace/scripts/integrations")
+)
+
+
+def push_to_postiz(job_id: str, accounts: list[dict] | None = None) -> dict:
+    """Push a job's pack into Postiz as DRAFTS — nothing auto-publishes.
+
+    Each account in the roster must carry a ``postiz_id`` (its connected Postiz
+    integration). Accounts without one are reported as ``skipped`` so the gap
+    (un-connected Mainstay accounts) is visible, never silently swallowed.
+    """
+    import subprocess
+    import tempfile
+    from datetime import datetime, timedelta
+    from core.forge import library
+
+    pack = build_pack(job_id, accounts)
+    posts = pack.get("posts", [])
+    roster = {a.get("handle"): a for a in pack.get("accounts", [])}
+
+    script = _POSTIZ_SCRIPT_DIR / "postiz.py"
+    if not script.exists():
+        return {"job_id": job_id, "error": f"postiz script missing: {script}",
+                "pushed": [], "skipped": [], "counts": {"pushed": 0, "skipped": len(posts)}}
+
+    pushed, skipped = [], []
+    base = datetime.utcnow()
+    for p in posts:
+        acct = roster.get(p["account"], {})
+        integration_id = acct.get("postiz_id")
+        if not integration_id:
+            skipped.append({"post_id": p["post_id"], "account": p["account"],
+                            "reason": "account not connected to Postiz (no postiz_id)"})
+            continue
+
+        tmp = None
+        try:
+            data, _mime = library.read_file(p["file_path"])
+            suffix = Path(p["file_name"]).suffix or ".mp4"
+            fd, tmp = tempfile.mkstemp(suffix=suffix, prefix="forge_postiz_")
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(data)
+            when = (base + timedelta(minutes=p.get("stagger_minutes", 0))) \
+                .replace(microsecond=0).isoformat()
+            proc = subprocess.run(
+                ["python3", str(script), "create-draft",
+                 p["caption"], integration_id, tmp, when],
+                cwd=str(_POSTIZ_SCRIPT_DIR), capture_output=True, text=True, timeout=180)
+            out = (proc.stdout or "").strip().splitlines()
+            parsed = json.loads(out[-1]) if out else {"ok": False, "error": "no output"}
+            entry = {"post_id": p["post_id"], "account": p["account"],
+                     "platform": p["platform"], "ok": bool(parsed.get("ok")),
+                     "draft": parsed.get("result")}
+            if not parsed.get("ok"):
+                entry["error"] = parsed.get("error") or proc.stderr[-300:]
+            pushed.append(entry)
+        except Exception as exc:
+            pushed.append({"post_id": p["post_id"], "account": p["account"],
+                           "ok": False, "error": str(exc)})
+        finally:
+            if tmp and os.path.exists(tmp):
+                os.unlink(tmp)
+
+    ok = sum(1 for e in pushed if e.get("ok"))
+    return {
+        "job_id": job_id,
+        "pushed": pushed,
+        "skipped": skipped,
+        "counts": {"drafts_created": ok, "failed": len(pushed) - ok, "skipped": len(skipped)},
+    }
+
+
 def build_pack(job_id: str, accounts: list[dict] | None = None) -> dict:
     """Assemble a ready-to-post pack for a delivered job (hits Nextcloud for files)."""
     from core.forge import jobs as fj, library

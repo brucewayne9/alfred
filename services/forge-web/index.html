@@ -202,6 +202,9 @@
   .post .pacts{margin-left:auto;display:flex;align-items:center;gap:10px}
   .pmini{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;border:1px solid var(--line2);background:#14141a;color:var(--ink);font:600 12px/1 var(--sans);cursor:pointer;text-decoration:none;transition:.15s}
   .pmini:hover{border-color:var(--gold);color:var(--gold-hi)}
+  .pmini.postiz{margin-left:auto;border-color:var(--gold);color:var(--gold-hi)}
+  .pmini.postiz:disabled{opacity:.5;cursor:default}
+  .pzstatus{font:500 11px/1 var(--sans);color:var(--ink-mut);margin-left:10px}
   .pcheck{display:inline-flex;align-items:center;gap:8px;font:600 12px/1 var(--sans);color:var(--mute);cursor:pointer;user-select:none}
   .pcheck input{width:17px;height:17px;accent-color:var(--done);cursor:pointer}
   .post.done .pcheck{color:var(--done)}
@@ -677,7 +680,9 @@ async function loadJobPicker(){
   }catch(e){sel.innerHTML='<option value="">Could not load batches</option>';}
 }
 
+let currentPackJob='';
 async function loadPack(jobId){
+  currentPackJob=jobId||'';
   const box=document.getElementById('packBox');
   if(!jobId){box.innerHTML='<div class="empty">Pick a delivered batch above to build its post pack.</div>';return;}
   box.innerHTML='<div class="libloading">Building pack…</div>';
@@ -694,7 +699,9 @@ function renderPack(d){
   if(!posts.length){box.innerHTML='<div class="empty">This batch has no deliverable files to pack.</div>';return;}
   let html='<div class="packhdr"><span class="pcount" id="packCount">'+(counts.posted||0)+' / '+counts.posts+'</span>'
     +'<span class="plabel">posted</span>'
-    +(d.caption?'<span class="pcap" title="'+esc(d.caption)+'">“'+esc(d.caption)+'”</span>':'')+'</div>';
+    +(d.caption?'<span class="pcap" title="'+esc(d.caption)+'">“'+esc(d.caption)+'”</span>':'')
+    +'<button class="pmini postiz" type="button" onclick="pushPostiz(this)" title="Create drafts in Postiz — nothing publishes until a human hits send">⇪ Push to Postiz (drafts)</button>'
+    +'<span class="pzstatus" id="pzStatus"></span></div>';
   html+=posts.map(p=>{
     const url=FILEURL(p.file_path);
     const stag=(p.stagger_minutes>0)?'<span class="pbadge stag">+'+p.stagger_minutes+' min</span>':'<span class="pbadge stag">now</span>';
@@ -709,6 +716,23 @@ function renderPack(d){
       +'</div></div>';
   }).join('');
   box.innerHTML=html;
+}
+async function pushPostiz(btn){
+  if(!currentPackJob){toast('no batch selected');return;}
+  const st=document.getElementById('pzStatus');
+  btn.disabled=true; if(st) st.textContent='pushing drafts…';
+  try{
+    const r=await fetch(API+'/forge/distribution/postiz',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({job_id:currentPackJob})});
+    if(!r.ok) throw new Error(r.status);
+    const d=await r.json();
+    const c=d.counts||{};
+    let msg=(c.drafts_created||0)+' drafts created';
+    if(c.failed) msg+=', '+c.failed+' failed';
+    if(c.skipped) msg+=', '+c.skipped+' skipped (account not connected to Postiz)';
+    if(st) st.textContent=msg;
+    toast(msg);
+  }catch(e){ if(st) st.textContent='push failed ('+esc(e.message)+')'; toast('Postiz push failed'); }
+  finally{ btn.disabled=false; }
 }
 function copyCaption(btn){
   const cap=btn.getAttribute('data-cap')||'';

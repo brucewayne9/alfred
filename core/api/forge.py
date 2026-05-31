@@ -83,3 +83,11 @@ def register(app: FastAPI) -> None:
             raise HTTPException(status_code=400, detail="post_id required")
         distribution.mark_posted(pid, bool(payload.get("posted", True)))
         return {"ok": True}
+
+    @app.post("/forge/distribution/postiz")
+    async def dist_postiz(payload: dict = Body(...), user: dict = Depends(require_auth)):
+        from core.forge import distribution
+        job_id = payload.get("job_id")
+        if not job_id:
+            raise HTTPException(status_code=400, detail="job_id required")
+        return distribution.push_to_postiz(job_id)
