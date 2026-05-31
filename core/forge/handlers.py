@@ -68,7 +68,44 @@ def _leak_graphic_handler(params: dict) -> dict:
     }
 
 
+def _kinetic_lyric_handler(params: dict) -> dict:
+    """Forge it (Kinetic Lyric): hook audio -> word-timed lyric vertical -> N variants -> Nextcloud."""
+    import tempfile, time
+    from pathlib import Path
+    from core.forge.renderers.kinetic_lyric import render
+    from core.forge.multiply import multiply
+    from core.forge import delivery
+
+    label = f"kinetic_{int(time.time())}"
+    work = Path(tempfile.mkdtemp(prefix="forge_kin_"))
+    master = render(params, work / f"{label}_master.mp4")
+
+    n = int(params.get("variations", 18) or 18)
+    variants = multiply(master, n, work / "variants", base_name=label) if n else []
+
+    subfolder = (params.get("subfolder") or "Viral Music Verticals/Kinetic Lyric").strip()
+    dest = f"{subfolder}/{label}"
+    delivered = []
+    try:
+        delivered.append(delivery.deliver(master, dest, filename=f"{label}_master.mp4"))
+    except Exception as e:  # noqa: BLE001
+        delivered.append(f"ERROR master: {e}")
+    for v in variants:
+        try:
+            delivered.append(delivery.deliver(v, dest))
+        except Exception:  # noqa: BLE001
+            pass
+    return {
+        "format": "kinetic_lyric",
+        "master": str(master),
+        "variant_count": len(variants),
+        "delivered_dir": f"Content/Mainstay-RodWave/{dest}",
+        "delivered": len([d for d in delivered if not str(d).startswith("ERROR")]),
+    }
+
+
 def register_default_handlers() -> None:
     """Register all built-in Forge job handlers into the queue."""
     forge_jobs.register_handler("echo", _echo_handler)
     forge_jobs.register_handler("leak_graphic", _leak_graphic_handler)
+    forge_jobs.register_handler("kinetic_lyric", _kinetic_lyric_handler)
