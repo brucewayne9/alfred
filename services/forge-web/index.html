@@ -124,6 +124,38 @@
   .vessel span{font:600 12px/1.3 var(--sans);position:relative;z-index:2;text-shadow:0 1px 6px rgba(0,0,0,.7)}
   .vessel .tagm{position:absolute;top:10px;left:10px;z-index:2;font:600 10px/1 var(--mono);color:#eee;background:rgba(0,0,0,.4);padding:4px 7px;border-radius:6px;backdrop-filter:blur(4px)}
 
+  /* ===== LIVE LIBRARY ===== */
+  #libGrid{display:flex;flex-direction:column;gap:14px}
+  .libcard{padding:16px 18px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,#15151b,#111016);transition:.16s}
+  .libcard:hover{border-color:var(--line2)}
+  .libhead{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px}
+  .libfmt{display:inline-flex;align-items:center;font:700 11px/1 var(--sans);letter-spacing:.05em;text-transform:uppercase;padding:7px 12px;border-radius:999px;color:var(--gold-hi);background:rgba(201,161,74,.08);border:1px solid var(--gold-dim);white-space:nowrap}
+  .libcap{font:600 16px/1.3 var(--serif);color:var(--ink)}
+  .libcap.none{color:var(--mute2);font-style:italic;font-weight:400}
+  .libmeta{color:var(--mute);font:500 12.5px/1.6 var(--sans);margin-top:5px}
+  .libmeta b{color:var(--gold-hi);font-weight:600}
+  .libtime{color:var(--mute2);font:500 12px/1 var(--mono);text-align:right;white-space:nowrap}
+  .libview{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:10px;border:1px solid var(--gold);background:linear-gradient(180deg,var(--gold-hi),var(--gold));color:#1a1408;font:700 13px/1 var(--sans);cursor:pointer;transition:.15s}
+  .libview:hover{filter:brightness(1.07)}
+  .libview.open{background:#14141a;color:var(--gold-hi);border-color:var(--gold-dim)}
+  .libassets{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  .libdirlbl{font:600 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute2);margin:6px 0 10px}
+  .libdirlbl:first-child{margin-top:0}
+  .libthumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;margin-bottom:6px}
+  .thumb{position:relative;aspect-ratio:9/16;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#0c0c10}
+  .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer;background:#0c0c10}
+  .thumb .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;color:rgba(255,255,255,.92);text-shadow:0 1px 8px rgba(0,0,0,.7);pointer-events:none;transition:.15s}
+  .thumb.playing .play{opacity:0}
+  .thumb .dl{position:absolute;bottom:7px;right:7px;z-index:3;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(0,0,0,.62);color:var(--gold-hi);font-size:14px;text-decoration:none;border:1px solid rgba(201,161,74,.4);backdrop-filter:blur(4px);transition:.15s}
+  .thumb .dl:hover{background:var(--gold);color:#1a1408}
+  .thumb .nm{position:absolute;bottom:0;left:0;right:0;padding:14px 8px 6px;font:500 9.5px/1.2 var(--mono);color:#ddd;background:linear-gradient(0deg,rgba(0,0,0,.78),transparent);pointer-events:none;word-break:break-all}
+  .libloading,.liberr{color:var(--mute2);font-size:13px;padding:8px 0}
+  @media(max-width:640px){
+    .libhead{grid-template-columns:1fr auto}
+    .libtime{display:none}
+    .libthumbs{grid-template-columns:repeat(auto-fill,minmax(108px,1fr))}
+  }
+
   /* ===== DISTRIBUTION ===== */
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
   .group{padding:16px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,#15151b,#111016)}
@@ -193,7 +225,7 @@
       <div class="word">Mainstay <b>Forge</b></div>
     </div>
     <div class="navitem active" data-tab="create"><span class="ic">✦</span> Create <span class="tag">live</span></div>
-    <div class="navitem" data-tab="library"><span class="ic">▦</span> Library <span class="tag">soon</span></div>
+    <div class="navitem" data-tab="library"><span class="ic">▦</span> Library</div>
     <div class="navitem" data-tab="queue"><span class="ic">≋</span> Queue <span class="tag" id="qbadge">0</span></div>
     <div class="navitem" data-tab="distribution"><span class="ic">⊞</span> Distribute <span class="tag">soon</span></div>
     <div class="navitem" data-tab="intelligence"><span class="ic">◔</span> Intel <span class="tag">soon</span></div>
@@ -286,11 +318,13 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 
       <!-- LIBRARY -->
       <section data-panel="library" style="display:none">
-        <h1 class="page" style="display:flex;align-items:center;gap:14px">Vessel library <span class="soon">Coming online</span></h1>
-        <p class="sub">The mood vessels you drop a hook under. Upload your own, generate with Higgsfield, or pull from the stock + cinematic banks. Tagged by feeling.</p>
-        <div class="tabs"><span class="tab on">Higgsfield ✦</span><span class="tab">Upload</span><span class="tab">Stock (clean)</span><span class="tab">Fan GIFs</span></div>
-        <div class="moods"><span class="mood">heartbreak</span><span class="mood">night drive</span><span class="mood">crying</span><span class="mood">city dusk</span><span class="mood">empty room</span><span class="mood">rain</span><span class="mood">alone</span></div>
-        <div class="grid" id="vgrid"></div>
+        <h1 class="page" style="display:flex;align-items:center;gap:14px">Vessel library</h1>
+        <p class="sub">Every batch you've forged — delivered straight to Nextcloud. Open a job to preview each variant and pull it down for posting.</p>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+          <button class="tab on" id="libRefresh" type="button" style="cursor:pointer">↻ Refresh</button>
+          <span id="libCount" class="libdirlbl" style="margin:0"></span>
+        </div>
+        <div id="libGrid"></div>
       </section>
 
       <!-- DISTRIBUTION -->
@@ -371,6 +405,7 @@ function tabTo(name){
   if(location.hash.slice(1)!==name) history.replaceState(null,'','#'+name);
   const sec=document.querySelector(`[data-panel="${name}"]`); if(sec){sec.classList.remove('reveal');void sec.offsetWidth;sec.classList.add('reveal');}
   if(name==='queue') refreshJobs();
+  if(name==='library') loadLibrary();
 }
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(LABELS[h])tabTo(h);});
 document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>tabTo(el.dataset.tab)));
@@ -457,9 +492,80 @@ async function refreshJobs(){
 }
 setInterval(()=>{const q=document.querySelector('[data-panel="queue"]');if(q&&q.style.display!=='none')refreshJobs();},2200);
 
-// library vessels (designed placeholders)
-const VESS=[["heartbreak","linear-gradient(160deg,#3a2740,#140e1a)"],["night drive","linear-gradient(160deg,#1d2740,#0d0f1a)"],["crying","linear-gradient(160deg,#2a2a2e,#121214)"],["city dusk","linear-gradient(160deg,#42301f,#1a120c)"],["empty room","linear-gradient(160deg,#26323a,#10161a)"],["rain","linear-gradient(160deg,#23303a,#0e1418)"],["alone","linear-gradient(160deg,#332533,#140f14)"],["sunset drive","linear-gradient(160deg,#48291f,#1c0f0c)"]];
-document.getElementById('vgrid').innerHTML=VESS.map(([m,g])=>`<div class="vessel" style="background:${g}"><span class="tagm">✦ AI</span><span>${m}</span></div>`).join('');
+// ===== LIVE LIBRARY =====
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+const FILEURL=p=>API+'/forge/library/file?path='+p; // job.dirs come raw; file.path comes pre-encoded from the API
+
+async function loadLibrary(){
+  const grid=document.getElementById('libGrid');
+  const cnt=document.getElementById('libCount');
+  grid.innerHTML='<div class="libloading">Pulling delivered batches from Nextcloud…</div>';
+  try{
+    const r=await fetch(API+'/forge/library',{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const {jobs}=await r.json();
+    if(cnt) cnt.textContent=jobs.length?(jobs.length+' batch'+(jobs.length===1?'':'es')+' delivered'):'';
+    if(!jobs.length){grid.innerHTML='<div class="empty">Nothing forged yet — your delivered batches will land here.</div>';return;}
+    grid.innerHTML=jobs.map(j=>{
+      const fmt=esc(FMTNAME[j.format]||j.format);
+      const cap=j.caption?('<div class="libcap">“'+esc(j.caption)+'”</div>'):'<div class="libcap none">No caption</div>';
+      const looks=(j.remix_looks||1), each=(j.variations_each||1);
+      const meta='<div class="libmeta"><b>'+looks+'</b> look'+(looks===1?'':'s')+' × <b>'+each+'</b> each · <b>'+(j.delivered||0)+'</b> delivered</div>';
+      const dirs=(j.dirs||[]).map(d=>esc(d)).join('|');
+      return '<div class="libcard" data-dirs="'+dirs+'">'
+        +'<div class="libhead">'
+          +'<span class="libfmt">'+fmt+'</span>'
+          +'<div>'+cap+meta+'</div>'
+          +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">'
+            +'<div class="libtime">'+ago(j.created_at)+'</div>'
+            +'<button class="libview" type="button" onclick="toggleView(this)">View</button>'
+          +'</div>'
+        +'</div>'
+        +'<div class="libassets" style="display:none"></div>'
+      +'</div>';
+    }).join('');
+  }catch(e){grid.innerHTML='<div class="liberr">Could not reach the library ('+esc(e.message)+'). Try refresh.</div>';}
+}
+
+async function toggleView(btn){
+  const card=btn.closest('.libcard');
+  const box=card.querySelector('.libassets');
+  if(box.style.display!=='none'){ box.style.display='none'; btn.textContent='View'; btn.classList.remove('open'); return; }
+  box.style.display=''; btn.textContent='Hide'; btn.classList.add('open');
+  if(box.dataset.loaded) return;
+  box.innerHTML='<div class="libloading">Loading assets…</div>';
+  const dirs=(card.dataset.dirs||'').split('|').filter(Boolean);
+  try{
+    let html='';
+    for(const dir of dirs){
+      const rr=await fetch(API+'/forge/library/files?dir='+encodeURIComponent(dir),{credentials:'include'});
+      const {files}=rr.ok?await rr.json():{files:[]};
+      const looklbl=esc(dir.split('/').pop());
+      html+='<div class="libdirlbl">'+looklbl+' · '+files.length+' file'+(files.length===1?'':'s')+'</div>';
+      if(!files.length){html+='<div class="liberr">No files in this look.</div>';continue;}
+      html+='<div class="libthumbs">'+files.map(f=>{
+        const url=FILEURL(f.path), nm=esc(f.name), dl='<a class="dl" href="'+url+'" download="'+nm+'" title="Download" onclick="event.stopPropagation()">⤓</a>';
+        const cap='<span class="nm">'+nm+'</span>';
+        if(f.kind==='image'){
+          return '<div class="thumb"><img loading="lazy" src="'+url+'" alt="'+nm+'">'+dl+cap+'</div>';
+        }
+        return '<div class="thumb" onclick="playClip(this)"><video muted preload="metadata" playsinline src="'+url+'"></video><span class="play">▶</span>'+dl+cap+'</div>';
+      }).join('')+'</div>';
+    }
+    box.innerHTML=html; box.dataset.loaded='1';
+  }catch(e){box.innerHTML='<div class="liberr">Could not load assets ('+esc(e.message)+').</div>';}
+}
+
+function playClip(t){
+  const v=t.querySelector('video'); if(!v) return;
+  if(v.paused){ document.querySelectorAll('.thumb.playing video').forEach(o=>{o.pause();o.closest('.thumb').classList.remove('playing');});
+    v.play(); t.classList.add('playing'); v.onended=()=>t.classList.remove('playing');
+  } else { v.pause(); t.classList.remove('playing'); }
+}
+document.getElementById('libRefresh').addEventListener('click',()=>{
+  document.querySelectorAll('.libcard .libassets').forEach(b=>{b.dataset.loaded='';});
+  loadLibrary();
+});
 
 const _init=location.hash.slice(1); tabTo(LABELS[_init]?_init:'create');
 </script>
