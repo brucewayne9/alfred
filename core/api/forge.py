@@ -59,3 +59,27 @@ def register(app: FastAPI) -> None:
             raise HTTPException(status_code=400, detail="empty upload")
         uid = uploads.save_upload(content, file.filename or "upload.bin")
         return {"upload_id": uid, "filename": file.filename}
+
+    @app.get("/forge/distribution/accounts")
+    async def dist_accounts(user: dict = Depends(require_auth)):
+        from core.forge import distribution
+        return {"accounts": distribution.get_accounts()}
+
+    @app.post("/forge/distribution/accounts")
+    async def dist_set_accounts(payload: dict = Body(...), user: dict = Depends(require_auth)):
+        from core.forge import distribution
+        return {"accounts": distribution.set_accounts(payload.get("accounts") or [])}
+
+    @app.get("/forge/distribution/pack")
+    async def dist_pack(job_id: str = Query(...), user: dict = Depends(require_auth)):
+        from core.forge import distribution
+        return distribution.build_pack(job_id)
+
+    @app.post("/forge/distribution/posted")
+    async def dist_posted(payload: dict = Body(...), user: dict = Depends(require_auth)):
+        from core.forge import distribution
+        pid = payload.get("post_id")
+        if not pid:
+            raise HTTPException(status_code=400, detail="post_id required")
+        distribution.mark_posted(pid, bool(payload.get("posted", True)))
+        return {"ok": True}
