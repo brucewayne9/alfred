@@ -1,5 +1,5 @@
 """Mainstay Forge — job API router. Wired via register(app) in core/api/main.py."""
-from fastapi import Body, Depends, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, File, HTTPException, UploadFile
 
 from core.forge import jobs as forge_jobs
 from core.security.auth import require_auth
@@ -28,3 +28,12 @@ def register(app: FastAPI) -> None:
         if not job:
             raise HTTPException(status_code=404, detail="job not found")
         return job
+
+    @app.post("/forge/uploads")
+    async def create_upload(file: UploadFile = File(...), user: dict = Depends(require_auth)):
+        from core.forge import uploads
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="empty upload")
+        uid = uploads.save_upload(content, file.filename or "upload.bin")
+        return {"upload_id": uid, "filename": file.filename}
