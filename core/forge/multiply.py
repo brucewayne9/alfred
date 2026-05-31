@@ -105,8 +105,13 @@ def _has_audio(path: Path) -> bool:
 # Each entry: (base_vf, speed_k_or_None)
 # W and H placeholders are filled at call time.
 
-def _make_structural_pool(W: int, H: int) -> list[tuple[str, float | None]]:
-    """Return the ordered list of (vf, speed_k) base recipes for WxH masters."""
+def _make_structural_pool(W: int, H: int, allow_flip: bool = True) -> list[tuple[str, float | None]]:
+    """Return the ordered list of (vf, speed_k) base recipes for WxH masters.
+
+    When *allow_flip* is False the flipped hemisphere is omitted entirely,
+    which is required for text-bearing leak covers where hflip produces
+    backwards/mirrored text.
+    """
     # Zoom levels that produce observably different 8x8 dHash on regular patterns
     z_factors = [0.90, 0.80, 0.70, 0.95, 0.85, 0.75]
 
@@ -131,11 +136,13 @@ def _make_structural_pool(W: int, H: int) -> list[tuple[str, float | None]]:
         pool.append((cv, None))
 
     # --- FLIPPED hemisphere (guaranteed ~50+ bits from normal) ---
-    for zf in z_factors:
-        pool.append((f"hflip,crop=iw*{zf:.2f}:ih*{zf:.2f},scale={W}:{H}", None))
+    # Skipped when allow_flip=False so text-bearing covers are never mirrored.
+    if allow_flip:
+        for zf in z_factors:
+            pool.append((f"hflip,crop=iw*{zf:.2f}:ih*{zf:.2f},scale={W}:{H}", None))
 
-    for cv in crop_variants[1:]:
-        pool.append((f"hflip,{cv}", None))
+        for cv in crop_variants[1:]:
+            pool.append((f"hflip,{cv}", None))
 
     return pool
 
@@ -301,8 +308,12 @@ def multiply(
     out_dir: Union[str, Path],
     *,
     base_name: str = "variant",
+    allow_flip: bool = True,
 ) -> list[Path]:
     """Produce `count` non-duplicate variants of `master_path` into `out_dir`.
+
+    Set *allow_flip=False* for text-bearing masters (leak covers, etc.) so
+    that no hflip variants are generated and text is never rendered backwards.
 
     Returns the list of variant file paths (same extension as master).
     """
@@ -319,7 +330,7 @@ def multiply(
         raise ValueError(f"Unsupported extension: {ext}")
 
     W, H = _get_dimensions(master)
-    pool = _make_structural_pool(W, H)
+    pool = _make_structural_pool(W, H, allow_flip=allow_flip)
     pool_size = len(pool)
 
     # Pre-assign pool slots: spread count variants evenly across the pool,
