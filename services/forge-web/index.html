@@ -216,14 +216,26 @@
         <h1 class="page">Forge a drop</h1>
         <p class="sub">Pick a format, drop the hook, set the caption. Forge spins it into a master and multiplies it into non-duplicate variants ready to seed across the pages.</p>
         <div class="fmts">
-          <div class="fmt" data-fmt="kinetic_lyric"><span class="px">A</span><span class="glyph">𝄞</span><h3>Kinetic Lyric</h3><p>Aesthetic vessel + the hook, lyric building word-by-word in time with the vocal.</p><span class="fstat soon2">needs audio · soon</span></div>
+          <div class="fmt" data-fmt="kinetic_lyric"><span class="px">A</span><span class="glyph">𝄞</span><h3>Kinetic Lyric</h3><p>Aesthetic vessel + the hook, lyric building word-by-word in time with the vocal.</p><span class="fstat livep">live now</span></div>
           <div class="fmt" data-fmt="film_montage"><span class="px">B</span><span class="glyph">▶</span><h3>Film Montage</h3><p>Emotional movie clips stitched to the hook, branded follow-card outro.</p><span class="fstat soon2">needs audio · soon</span></div>
           <div class="fmt sel" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>AI cover art from your caption — generated on ComfyUI Cloud, then multiplied.</p><span class="fstat livep">live now</span></div>
         </div>
         <form class="form panel" style="padding:22px" id="createForm">
           <div class="field full">
-            <label>Caption / lyric</label>
+            <label>Caption / lyric <span style="color:var(--mute);font-weight:400">— for Kinetic, this is the vessel mood</span></label>
             <textarea id="caption" placeholder="still waiting for that new album…">I ain't mad at you</textarea>
+          </div>
+          <div class="field full" id="audioField" style="display:none">
+            <label>Audio hook <span style="color:var(--mute);font-weight:400">— required for Kinetic / Montage (mp3, wav…)</span></label>
+            <input type="file" id="audio" accept="audio/*" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 13px/1.2 var(--sans)">
+          </div>
+          <div class="field clipfield" style="display:none">
+            <label>Clip start (sec) <span style="color:var(--mute);font-weight:400">optional</span></label>
+            <input type="number" id="clipStart" min="0" step="1" placeholder="e.g. 105" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
+          </div>
+          <div class="field clipfield" style="display:none">
+            <label>Clip end (sec) <span style="color:var(--mute);font-weight:400">optional</span></label>
+            <input type="number" id="clipEnd" min="0" step="1" placeholder="e.g. 135" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
           </div>
           <div class="field">
             <label>Caption font</label>
@@ -350,10 +362,16 @@ function tabTo(name){
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(LABELS[h])tabTo(h);});
 document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>tabTo(el.dataset.tab)));
 
+function syncAudioFields(){
+  const needsAudio = (curFmt==='kinetic_lyric'||curFmt==='film_montage');
+  document.getElementById('audioField').style.display = needsAudio?'':'none';
+  document.querySelectorAll('.clipfield').forEach(el=>el.style.display = needsAudio?'':'none');
+}
 document.querySelectorAll('.fmt').forEach(f=>f.addEventListener('click',()=>{
   document.querySelectorAll('.fmt').forEach(x=>x.classList.remove('sel'));
-  f.classList.add('sel'); curFmt=f.dataset.fmt;
+  f.classList.add('sel'); curFmt=f.dataset.fmt; syncAudioFields();
 }));
+syncAudioFields();
 const vars=document.getElementById('vars'), varsval=document.getElementById('varsval');
 vars.addEventListener('input',()=>varsval.textContent=vars.value);
 
@@ -361,17 +379,33 @@ function toast(msg){const t=document.getElementById('toast');document.getElement
 
 document.getElementById('createForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const payload={job_type:curFmt,params:{
+  const needsAudio = (curFmt==='kinetic_lyric'||curFmt==='film_montage');
+  const params={
     caption:document.getElementById('caption').value,
     font:document.getElementById('font').value,
-    subfolder:document.getElementById('subfolder').value,
+    subfolder:document.getElementById('subfolder').value.replace(/ \/ /g,'/'),
     variations:Number(vars.value)
-  }};
+  };
   try{
-    const r=await fetch(API+'/forge/jobs',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(payload)});
+    if(needsAudio){
+      const fileEl=document.getElementById('audio');
+      if(!fileEl.files.length){toast('Pick an audio hook for this format');return;}
+      // Kinetic/Montage land in their own folder regardless of the leak-graphic picker.
+      params.subfolder = (curFmt==='kinetic_lyric') ? 'Viral Music Verticals/Kinetic Lyric'
+                                                    : 'Viral Music Verticals/Film Montage';
+      toast('Uploading hook…');
+      const fd=new FormData(); fd.append('file', fileEl.files[0]);
+      const up=await fetch(API+'/forge/uploads',{method:'POST',credentials:'include',body:fd});
+      if(!up.ok) throw new Error('upload '+up.status);
+      params.audio_upload_id=(await up.json()).upload_id;
+      const cs=document.getElementById('clipStart').value, ce=document.getElementById('clipEnd').value;
+      if(cs!=='') params.clip_start=Number(cs);
+      if(ce!=='') params.clip_end=Number(ce);
+    }
+    const r=await fetch(API+'/forge/jobs',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({job_type:curFmt,params})});
     if(!r.ok) throw new Error(r.status);
-    toast('Forged — '+vars.value+' variants queued');
-    refreshJobs();
+    toast(needsAudio ? 'Forged — hook queued, '+vars.value+' variants' : 'Forged — '+vars.value+' variants queued');
+    refreshJobs(); tabTo('queue');
   }catch(err){toast('Could not reach the engine ('+err.message+')');}
 });
 
