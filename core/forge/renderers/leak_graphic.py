@@ -125,6 +125,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             "title": title,
             "tracklist": tracklist,
             "tag": tag,
+            "font": params.get("font"),  # UI font label → title typeface (e.g. script)
         }
         props_path = work / "props.json"
         props_path.write_text(json.dumps(props))

@@ -137,6 +137,9 @@
   .libtime{color:var(--mute2);font:500 12px/1 var(--mono);text-align:right;white-space:nowrap}
   .libview{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:10px;border:1px solid var(--gold);background:linear-gradient(180deg,var(--gold-hi),var(--gold));color:#1a1408;font:700 13px/1 var(--sans);cursor:pointer;transition:.15s}
   .libview:hover{filter:brightness(1.07)}
+  .libsend{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;border:1px solid var(--gold-dim);background:#14141a;color:var(--gold-hi);font:700 13px/1 var(--sans);cursor:pointer;transition:.15s}
+  .libsend:hover{border-color:var(--gold);background:#1b1810}
+  .libsend:disabled{opacity:.6;cursor:default}
   .libdel{display:inline-flex;align-items:center;justify-content:center;width:38px;padding:9px 0;border-radius:10px;border:1px solid var(--line2);background:#1a1014;color:#e8a0a0;font-size:14px;cursor:pointer;transition:.15s}
   .libdel:hover{border-color:#c0444a;background:#2a1418;color:#ff8e8e}
   .jacts{display:flex;gap:7px;justify-content:flex-end;margin-top:8px}
@@ -601,6 +604,7 @@ async function loadLibrary(){
             +'<div class="libtime">'+ago(j.created_at)+'</div>'
             +'<div style="display:flex;gap:8px">'
               +'<button class="libview" type="button" onclick="toggleView(this)">View</button>'
+              +'<button class="libsend" type="button" title="Send this batch to Postiz as drafts — nothing publishes until a human hits send" onclick="sendBatchPostiz(this)">⇪ Send</button>'
               +'<button class="libdel" type="button" title="Delete this whole batch" onclick="deleteBatch(this)">🗑</button>'
             +'</div>'
           +'</div>'
@@ -641,6 +645,22 @@ async function toggleView(btn){
   }catch(e){box.innerHTML='<div class="liberr">Could not load assets ('+esc(e.message)+').</div>';}
 }
 
+async function sendBatchPostiz(btn){
+  const job=btn.closest('.libcard').dataset.job;
+  if(!job){toast('no job id on this batch');return;}
+  const old=btn.textContent; btn.disabled=true; btn.textContent='sending…';
+  try{
+    const r=await fetch(API+'/forge/distribution/postiz',{method:'POST',
+      headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({job_id:job})});
+    if(!r.ok) throw new Error(r.status);
+    const res=await r.json(); const c=res.counts||{};
+    let msg=(c.drafts_created||0)+' drafts created';
+    if(c.skipped) msg+=', '+c.skipped+' skipped (account not connected to Postiz)';
+    toast(msg); btn.textContent='⇪ Sent';
+    setTimeout(()=>{btn.textContent=old;btn.disabled=false;},2500);
+  }catch(e){toast('Postiz send failed'); btn.textContent=old; btn.disabled=false;}
+}
 async function deleteBatch(btn){
   if(!confirm('Move this entire batch to the trash? You can undo it from the library.')) return;
   const card=btn.closest('.libcard');
