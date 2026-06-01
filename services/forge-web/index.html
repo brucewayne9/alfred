@@ -140,6 +140,15 @@
   .libsend{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;border:1px solid var(--gold-dim);background:#14141a;color:var(--gold-hi);font:700 13px/1 var(--sans);cursor:pointer;transition:.15s}
   .libsend:hover{border-color:var(--gold);background:#1b1810}
   .libsend:disabled{opacity:.6;cursor:default}
+  .wavewrap{background:#101015;border:1px solid var(--line);border-radius:12px;padding:12px 13px}
+  .waveempty{color:var(--mute2);font:500 13px/1.4 var(--sans);padding:18px 4px;text-align:center}
+  #waveform{cursor:ew-resize}
+  .wavebar{display:flex;align-items:center;gap:14px;margin-top:11px;flex-wrap:wrap}
+  .wavebtn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:1px solid var(--gold-dim);background:#14141a;color:var(--gold-hi);font:700 12.5px/1 var(--sans);cursor:pointer;transition:.15s}
+  .wavebtn:hover{border-color:var(--gold);background:#1b1810}
+  .wavereadout{font:600 13px/1 var(--mono);color:var(--ink)}
+  .wavereadout b{color:var(--gold-hi)}
+  .wavehint{margin-left:auto;font:600 10px/1 var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--mute2)}
   .libdel{display:inline-flex;align-items:center;justify-content:center;width:38px;padding:9px 0;border-radius:10px;border:1px solid var(--line2);background:#1a1014;color:#e8a0a0;font-size:14px;cursor:pointer;transition:.15s}
   .libdel:hover{border-color:#c0444a;background:#2a1418;color:#ff8e8e}
   .jacts{display:flex;gap:7px;justify-content:flex-end;margin-top:8px}
@@ -309,13 +318,19 @@
             <label>Audio hook <span style="color:var(--mute);font-weight:400">— required for Kinetic / Montage (mp3, wav…)</span></label>
             <input type="file" id="audio" accept="audio/*" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 13px/1.2 var(--sans)">
           </div>
-          <div class="field clipfield" style="display:none">
-            <label>Clip start (sec) <span style="color:var(--mute);font-weight:400">optional</span></label>
-            <input type="number" id="clipStart" min="0" step="1" placeholder="e.g. 105" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
-          </div>
-          <div class="field clipfield" style="display:none">
-            <label>Clip end (sec) <span style="color:var(--mute);font-weight:400">optional</span></label>
-            <input type="number" id="clipEnd" min="0" step="1" placeholder="e.g. 135" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
+          <div class="field full clipfield" style="display:none">
+            <label>Hook selection <span style="color:var(--mute);font-weight:400">— drag across the waveform to pick the clip (10–60s)</span></label>
+            <div id="wavewrap" class="wavewrap">
+              <div id="waveEmpty" class="waveempty">Pick an audio hook above to trim it here.</div>
+              <div id="waveform" style="display:none"></div>
+              <div id="waveBar" class="wavebar" style="display:none">
+                <button type="button" id="wavePlay" class="wavebtn">▶ Preview</button>
+                <span id="waveReadout" class="wavereadout">0:00 → 0:00 · <b>0s</b></span>
+                <span class="wavehint">min 10s · max 60s</span>
+              </div>
+            </div>
+            <!-- region drives these; submit handler reads them unchanged -->
+            <input type="hidden" id="clipStart"><input type="hidden" id="clipEnd">
           </div>
           <div class="field full leakfield" style="display:none">
             <label>Album / release title <span style="color:var(--mute);font-weight:400">— baked onto the cover</span></label>
@@ -847,6 +862,73 @@ async function markPosted(cb){
 }
 
 const _init=location.hash.slice(1); tabTo(LABELS[_init]?_init:'create');
+</script>
+
+<!-- Waveform hook trimmer: drag a 10–60s window instead of typing start/end seconds -->
+<script type="module">
+import WaveSurfer from '/forge/vendor/wavesurfer.esm.js';
+import RegionsPlugin from '/forge/vendor/regions.esm.js';
+
+const MIN=10, MAX=60;           // clip length rail (seconds)
+const elWrap=document.getElementById('waveform');
+const elEmpty=document.getElementById('waveEmpty');
+const elBar=document.getElementById('waveBar');
+const elPlay=document.getElementById('wavePlay');
+const elRead=document.getElementById('waveReadout');
+const hidStart=document.getElementById('clipStart');
+const hidEnd=document.getElementById('clipEnd');
+let ws=null, regions=null, region=null, objUrl=null, prev=null;
+
+const fmt=s=>{s=Math.max(0,s);const m=Math.floor(s/60),x=Math.round(s%60);return m+':'+String(x).padStart(2,'0');};
+function sync(){
+  if(!region) return;
+  const a=region.start, b=region.end, d=b-a;
+  hidStart.value=a.toFixed(1); hidEnd.value=b.toFixed(1);
+  elRead.innerHTML=fmt(a)+' → '+fmt(b)+' · <b>'+Math.round(d)+'s</b>';
+}
+function clamp(){
+  if(!region) return;
+  const total=ws.getDuration();
+  let {start:a,end:b}=region;
+  // figure out which handle the user dragged (compare to previous)
+  const movedStart = prev ? Math.abs(a-prev.start) > Math.abs(b-prev.end) : false;
+  let d=b-a;
+  if(d>MAX){ if(movedStart) a=b-MAX; else b=a+MAX; }
+  if(total>=MIN && d<MIN){ if(movedStart) a=b-MIN; else b=a+MIN; }
+  a=Math.max(0,a); b=Math.min(total,b);
+  if(b-a>MAX) a=b-MAX;                 // re-resolve if clamping to edges broke the cap
+  if(a<0){a=0; b=Math.min(total,a+Math.min(MAX,Math.max(MIN,d)));}
+  if(Math.abs(a-region.start)>1e-3 || Math.abs(b-region.end)>1e-3){
+    region.setOptions({start:a, end:b});
+  }
+  prev={start:a,end:b}; sync();
+}
+async function loadWaveform(file){
+  if(ws){ ws.destroy(); ws=null; region=null; prev=null; }
+  if(objUrl){ URL.revokeObjectURL(objUrl); objUrl=null; }
+  if(!file){ elWrap.style.display='none'; elBar.style.display='none'; elEmpty.style.display=''; hidStart.value=''; hidEnd.value=''; return; }
+  elEmpty.style.display='none'; elWrap.style.display=''; elBar.style.display='';
+  objUrl=URL.createObjectURL(file);
+  ws=WaveSurfer.create({container:elWrap, height:76, url:objUrl,
+    waveColor:'#3a3a44', progressColor:'#c9a14a', cursorColor:'#E8B84B', barWidth:2, barGap:1, barRadius:2});
+  regions=ws.registerPlugin(RegionsPlugin.create());
+  ws.on('decode', ()=>{
+    const total=ws.getDuration();
+    const end=Math.min(total, total>=MIN?Math.min(MAX,30):total);
+    region=regions.addRegion({start:0, end, color:'rgba(201,161,74,0.16)', drag:true, resize:true});
+    prev={start:region.start, end:region.end};
+    clamp();
+  });
+  regions.on('region-updated', r=>{ region=r; clamp(); });
+  ws.on('finish', ()=>{ elPlay.textContent='▶ Preview'; });
+}
+elPlay.addEventListener('click', ()=>{
+  if(!ws||!region) return;
+  if(ws.isPlaying()){ ws.pause(); elPlay.textContent='▶ Preview'; }
+  else { region.play(); elPlay.textContent='⏸ Pause'; }
+});
+const audioEl=document.getElementById('audio');
+if(audioEl) audioEl.addEventListener('change', e=>loadWaveform(e.target.files[0]||null));
 </script>
 </body>
 </html>

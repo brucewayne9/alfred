@@ -50,6 +50,19 @@ async def dashboard():
     return FileResponse(HERE / "index.html")
 
 
+@app.get("/forge/vendor/{name}")
+async def vendor_asset(name: str):
+    """Serve vendored front-end libs (wavesurfer ESM) — kept local, no runtime CDN."""
+    from fastapi import HTTPException
+    if "/" in name or ".." in name:
+        raise HTTPException(status_code=400, detail="bad name")
+    path = HERE / "vendor" / name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="not found")
+    media = "application/javascript" if name.endswith(".js") else None
+    return FileResponse(path, media_type=media)
+
+
 def _seed_if_empty():
     if forge_jobs.list_jobs():
         return
