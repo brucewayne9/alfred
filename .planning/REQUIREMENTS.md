@@ -57,8 +57,6 @@ Deferred — acknowledged but not in the v1.2 roadmap.
 
 ## Traceability
 
-Populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INGEST-01 | Phase 10 | Pending |
@@ -83,4 +81,4 @@ Populated during roadmap creation.
 
 ---
 *Requirements defined: 2026-06-01*
-*Last updated: 2026-06-01 after initial definition*
+*Last updated: 2026-06-01 — traceability confirmed during roadmap creation*

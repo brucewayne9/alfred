@@ -4,6 +4,7 @@
 
 - ✅ **v1.0 Ops Ready** — Phases 1-5 (shipped 2026-02-21)
 - ✅ **v1.1 Infrastructure Resilience** — Phases 6-9 (shipped 2026-02-26)
+- 🔄 **v1.2 Forge Intelligent Clipping** — Phases 10-13 (in progress)
 
 ## Phases
 
@@ -32,6 +33,57 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 
 </details>
 
+### v1.2 Forge Intelligent Clipping
+
+- [ ] **Phase 10: Long-form Ingest & Transcription** — Upload or URL-ingest a source up to 12 GB and get a timestamped, speaker-attributed transcript
+- [ ] **Phase 11: Topic-targeted Segment Retrieval** — Query the transcript by topic and get ranked, previewable segment matches the operator can curate
+- [ ] **Phase 12: Variant Montage Assembly** — Cut matched segments into multiple distinct branded 9:16 verticals and deliver them to the library and Postiz
+- [ ] **Phase 13: Operator Self-serve Intelligent Clip Flow** — Wire the full pipeline into one Forge UI format Jordan can run solo end-to-end
+
+## Phase Details
+
+### Phase 10: Long-form Ingest & Transcription
+**Goal:** The operator can get a complete, restart-safe, speaker-attributed transcript out of any long-form source — file or URL — without Alfred's involvement
+**Depends on:** Nothing (builds on existing RuckTalk Whisper + bge-m3 pipeline)
+**Requirements:** INGEST-01, INGEST-02, INGEST-03, INGEST-04
+**Success Criteria** (what must be TRUE):
+  1. Operator can upload a source file up to ~12 GB via the Forge UI and see it enter the processing queue
+  2. Operator can supply a YouTube (or other supported) URL in place of a file upload and processing begins from that source
+  3. Operator can restart the Forge service mid-transcription and the job resumes where it left off rather than starting over
+  4. The finished transcript shows each segment labelled with a speaker identifier so the operator can distinguish who is speaking
+**Plans:** TBD
+
+### Phase 11: Topic-targeted Segment Retrieval
+**Goal:** The operator can describe a topic in plain language and see exactly which segments of the source cover it, ranked and previewable — before building anything
+**Depends on:** Phase 10 (transcript + embeddings must exist)
+**Requirements:** TOPIC-01, TOPIC-02, TOPIC-03
+**Success Criteria** (what must be TRUE):
+  1. Operator types a topic or theme into the Forge UI and receives a ranked list of matching source segments with in/out timestamps and relevance scores
+  2. Operator can read the transcript text of each matched segment in the UI without leaving the page to verify it is genuinely on-topic
+  3. Operator can uncheck or trim matched segments so only the ones they want go forward to assembly
+**Plans:** TBD
+
+### Phase 12: Variant Montage Assembly
+**Goal:** The operator can turn their curated segment list into multiple distinct, on-brand vertical clips ready to hand to the social team
+**Depends on:** Phase 11 (curated segment list with timestamps)
+**Requirements:** CLIP-01, CLIP-02, CLIP-03, CLIP-04
+**Success Criteria** (what must be TRUE):
+  1. Each assembled clip plays back with audio and video correctly synced to the original source
+  2. Forge produces multiple variants from the same segment set — differing in segment order, cut points, or caption timing — so no two are identical
+  3. Every variant is formatted as a 9:16 vertical with the Mainstay logo and styled captions applied
+  4. Finished variants appear in the Forge library and the operator can push them to Postiz as drafts in one action
+**Plans:** TBD
+
+### Phase 13: Operator Self-serve Intelligent Clip Flow
+**Goal:** Jordan can open Forge, run the full pipeline from source to delivered variants, and never need to ping Alfred for help
+**Depends on:** Phase 12 (all pipeline stages must be functional)
+**Requirements:** FLOW-01, FLOW-02, FLOW-03
+**Success Criteria** (what must be TRUE):
+  1. A single "Intelligent Clip" format in the Forge UI walks the operator through source → topic → variant count → Forge it in one continuous flow
+  2. The running job is visible in the render queue with progress indicators, and the operator receives a notification when the job completes
+  3. The operator can complete the full flow from a cold start with no guidance from Alfred, achieving a usable Postiz-ready clip set
+**Plans:** TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -45,3 +97,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 7. Backup System | v1.1 | 3/3 | Complete | 2026-02-26 |
 | 8. Recovery & Alerting | v1.1 | 3/3 | Complete | 2026-02-26 |
 | 9. Ad Intelligence | v1.1 | 2/2 | Complete | 2026-02-26 |
+| 10. Long-form Ingest & Transcription | v1.2 | 0/? | Not started | - |
+| 11. Topic-targeted Segment Retrieval | v1.2 | 0/? | Not started | - |
+| 12. Variant Montage Assembly | v1.2 | 0/? | Not started | - |
+| 13. Operator Self-serve Intelligent Clip Flow | v1.2 | 0/? | Not started | - |
