@@ -8,6 +8,12 @@ from pathlib import Path
 
 SEARCH_N = 3
 
+# A montage only samples a few short slices per clip, so we never need a full
+# (potentially multi-minute) video. Capping each result to a 90s window is what
+# keeps a 3-result search comfortably under the fetch timeout instead of trying
+# to pull three whole 1080p videos and blowing past it.
+SECTION_WINDOW = "*0:00-01:30"
+
 
 def _node_path() -> str | None:
     """Locate a Node >=18 binary for yt-dlp's JS runtime.
@@ -41,7 +47,11 @@ def ytdlp_cmd(target: str, out_dir: Path) -> list[str]:
         "yt-dlp", "--no-warnings", "--no-playlist" if target.startswith("http") else "--yes-playlist",
         "-f", "bv*[height<=1080][ext=mp4]+ba/b[height<=1080]/b",
         "--merge-output-format", "mp4",
+        # Only pull a short window of each result — a montage samples slices, not
+        # whole videos. This is the main guard against the fetch timing out.
+        "--download-sections", SECTION_WINDOW,
         "--retries", "5", "--fragment-retries", "5",
+        "--socket-timeout", "30", "-N", "4",
         # Widen the YouTube player-client pool so extraction survives Google rotating
         # which clients serve formats — the cause of intermittent 'fetched nothing'.
         "--extractor-args", "youtube:player_client=default,web_safari,android_vr,tv",
@@ -53,7 +63,7 @@ def ytdlp_cmd(target: str, out_dir: Path) -> list[str]:
     return cmd
 
 
-def fetch_source(spec: str, out_dir: Path, timeout: int = 300) -> list[Path]:
+def fetch_source(spec: str, out_dir: Path, timeout: int = 480) -> list[Path]:
     """Fetch a source spec; return the downloaded mp4 paths (may be several for a search).
 
     Each call downloads into its OWN subdirectory. yt-dlp's autonumber resets per
