@@ -149,6 +149,14 @@
   .wavereadout{font:600 13px/1 var(--mono);color:var(--ink)}
   .wavereadout b{color:var(--gold-hi)}
   .wavehint{margin-left:auto;font:600 10px/1 var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--mute2)}
+  .srcdrop{display:flex;align-items:center;gap:15px;margin:0 0 22px;padding:14px 18px;border:1px dashed var(--gold-dim);border-radius:13px;background:linear-gradient(180deg,rgba(201,161,74,.06),rgba(201,161,74,.02));text-decoration:none;color:var(--ink);transition:.16s}
+  .srcdrop:hover{border-color:var(--gold);background:rgba(201,161,74,.09)}
+  .srcdrop-ic{font-size:24px;line-height:1}
+  .srcdrop-tx{display:flex;flex-direction:column;gap:3px}
+  .srcdrop-tx b{font:700 14px/1.2 var(--sans);color:#f5f0e6}
+  .srcdrop-sub{font:500 12px/1.4 var(--sans);color:var(--mute)}
+  .srcdrop-go{margin-left:auto;flex:none;font:700 12.5px/1 var(--sans);color:var(--gold-hi);border:1px solid var(--gold-dim);border-radius:9px;padding:9px 14px;white-space:nowrap}
+  .srcdrop:hover .srcdrop-go{border-color:var(--gold);background:#1b1810}
   .libdel{display:inline-flex;align-items:center;justify-content:center;width:38px;padding:9px 0;border-radius:10px;border:1px solid var(--line2);background:#1a1014;color:#e8a0a0;font-size:14px;cursor:pointer;transition:.15s}
   .libdel:hover{border-color:#c0444a;background:#2a1418;color:#ff8e8e}
   .jacts{display:flex;gap:7px;justify-content:flex-end;margin-top:8px}
@@ -309,6 +317,11 @@
           <div class="fmt" data-fmt="film_montage"><span class="px">B</span><span class="glyph">▶</span><h3>Film Montage</h3><p>Emotional clips stitched to the hook — pull from YouTube, a search, or generate. Branded outro.</p><span class="fstat livep">live now</span></div>
           <div class="fmt sel" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>AI cover art from your caption — generated on ComfyUI Cloud, then multiplied.</p><span class="fstat livep">live now</span></div>
         </div>
+        <a class="srcdrop" href="https://groundrushcloud.com/s/aC9WRESZegKryke" target="_blank" rel="noopener">
+          <span class="srcdrop-ic">📁</span>
+          <span class="srcdrop-tx"><b>Drop a documentary or interview to clip</b><span class="srcdrop-sub">Opens the shared source folder — drag the file straight in (handles big files). Intelligent topic-clipping is coming; this stages your long-form sources for it.</span></span>
+          <span class="srcdrop-go">Open folder ↗</span>
+        </a>
         <form class="form panel" style="padding:22px" id="createForm">
           <div class="field full">
             <label>Caption / lyric <span style="color:var(--mute);font-weight:400">— for Kinetic, this is the vessel mood</span></label>
