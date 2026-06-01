@@ -10,8 +10,10 @@ from core.forge.db import _conn, init_db
 
 DELIVERY_ROOT = "Content/Mainstay-RodWave"
 TRASH_ROOT = f"{DELIVERY_ROOT}/.forge-trash"
+SOURCES_ROOT = f"{DELIVERY_ROOT}/Sources"
 VIDEO_EXT = {".mp4", ".mov", ".webm"}
 IMAGE_EXT = {".png", ".jpg", ".jpeg"}
+AUDIO_EXT = {".mp3", ".m4a", ".aac", ".wav", ".flac", ".ogg"}
 MEDIA_EXT = VIDEO_EXT | IMAGE_EXT
 
 # How many delete actions we keep recoverable. Beyond this the oldest are purged
@@ -85,6 +87,47 @@ def list_dir_files(dir_path: str) -> list[dict]:
             "path": path,
             "size": f.get("size"),
             "kind": "video" if ext in VIDEO_EXT else "image",
+        })
+    return files
+
+
+def list_source_files() -> list[dict]:
+    """List media files directly under SOURCES_ROOT (the shared Nextcloud drop folder).
+
+    Returns each file as {name, path, size, kind}. Returns [] if the folder
+    doesn't exist yet (404 degrade, same as list_dir_files). Ensures the
+    folder exists as a best-effort side-effect.
+    """
+    import requests
+    from integrations.nextcloud import client as nc
+    _ensure_folder(SOURCES_ROOT)
+    files: list[dict] = []
+    try:
+        listing = nc.list_files(SOURCES_ROOT, depth=1)
+    except requests.exceptions.HTTPError as e:
+        if getattr(e.response, "status_code", None) == 404:
+            return []
+        raise
+    ingestable = VIDEO_EXT | AUDIO_EXT
+    for f in listing:
+        path = f.get("path") or ""
+        name = f.get("name") or path.rstrip("/").split("/")[-1]
+        if not name or path.rstrip("/").endswith(SOURCES_ROOT.rstrip("/")):
+            continue
+        ext = os.path.splitext(name)[1].lower()
+        if ext not in ingestable:
+            continue
+        if ext in VIDEO_EXT:
+            kind = "video"
+        elif ext in AUDIO_EXT:
+            kind = "audio"
+        else:
+            kind = "file"
+        files.append({
+            "name": name,
+            "path": path,
+            "size": f.get("size"),
+            "kind": kind,
         })
     return files
 

@@ -118,6 +118,29 @@ def register(app: FastAPI) -> None:
             "filename": file.filename,
         }
 
+    @app.get("/forge/ingest/cloud-sources")
+    async def ingest_cloud_sources(user: dict = Depends(require_auth)):
+        from core.forge import library
+        return {"files": library.list_source_files()}
+
+    @app.post("/forge/ingest/cloud")
+    async def ingest_cloud(payload: dict = Body(...), user: dict = Depends(require_auth)):
+        from core.forge import library, ingest
+        from core.forge import jobs as _forge_jobs
+        path = (payload.get("path") or "").strip()
+        if not path:
+            raise HTTPException(status_code=400, detail="path is required")
+        try:
+            safe = library._safe_library_path(path)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        if not safe.startswith(library.SOURCES_ROOT):
+            raise HTTPException(status_code=400, detail="path must be inside Sources folder")
+        name = path.rstrip("/").split("/")[-1]
+        source_id = ingest.create_source("cloud", name, path)
+        job_id = _forge_jobs.enqueue("ingest_transcribe", {"source_id": source_id, "cloud_path": path})
+        return {"source_id": source_id, "job_id": job_id}
+
     @app.post("/forge/ingest/url")
     async def ingest_url(payload: dict = Body(...), user: dict = Depends(require_auth)):
         from core.forge import clips, ingest
