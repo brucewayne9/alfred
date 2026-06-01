@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26)
+See: .planning/PROJECT.md (updated 2026-06-01)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** Planning next milestone
+**Current focus:** v1.2 Forge Intelligent Clipping — defining requirements
 
 ## Current Position
 
-Phase: — (between milestones)
+Phase: Not started (defining requirements)
 Plan: —
-Status: v1.1 Infrastructure Resilience shipped. Ready for next milestone.
-Progress: [##########] 100% (v1.1 complete)
+Status: Defining requirements
+Progress: [░░░░░░░░░░] 0% (v1.2 starting)
 
-Last activity: 2026-02-26 — v1.1 milestone archived
+Last activity: 2026-06-01 — Milestone v1.2 Forge Intelligent Clipping started
 
 ## Performance Metrics
 
@@ -44,6 +44,6 @@ Last activity: 2026-02-26 — v1.1 milestone archived
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: v1.1 milestone archived
-Resume at: Run `/gsd:new-milestone` to start next milestone
+Last session: 2026-06-01
+Stopped at: v1.2 milestone started — requirements + roadmap being defined
+Resume at: `/gsd:plan-phase 10` to plan the first phase (long-form ingest & transcription)

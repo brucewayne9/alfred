@@ -8,6 +8,20 @@ A stabilization and feature project for the Alfred dual-system AI assistant plat
 
 Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
 
+## Current Milestone: v1.2 Forge Intelligent Clipping
+
+**Goal:** Turn a long-form source (documentary, interview, podcast) into topic-targeted, multi-variant vertical clips for the Mainstay social team — the differentiator Jordan Welch asked for on the 2026-06-01 Forge review call ("drop a documentary in, find every clip where he talks about X, spin uniques in different orders").
+
+**Target features:**
+- Large-source ingest: upload a multi-GB (≤12 GB) documentary/interview (or URL) and transcribe it async, restart-safe
+- Topic-targeted retrieval: type a theme, get back the exact source segments where it's discussed, ranked + previewable
+- Variant assembly: cut matched segments into N distinct on-brand verticals (different order/cuts/captions), delivered to the library + Postiz handoff
+- Operator self-serve: one "Intelligent Clip" flow Jordan runs end-to-end without Alfred
+
+**Reuses:** RuckTalk transcript pipeline (Whisper + bge-m3 embeddings), existing Forge montage renderer + Multiply variant engine, Nextcloud delivery, Postiz-drafts handoff.
+
+**Hard rules (operating agreement):** no calendar deadlines — phases gate on capability/metrics; human-in-the-loop distribution only (no auto-post); targets Meta (IG+FB) + TikTok; YouTube is a clip *source* only.
+
 ## Requirements
 
 ### Validated
@@ -45,7 +59,12 @@ Alfred must be a reliable daily operations tool — every integration works corr
 
 ### Active
 
-(None — next milestone requirements to be defined via `/gsd:new-milestone`)
+<!-- v1.2 Forge Intelligent Clipping — see REQUIREMENTS.md for REQ-IDs -->
+
+- [ ] Long-form source ingest + async transcription (INGEST-01..04)
+- [ ] Topic-targeted segment retrieval (TOPIC-01..03)
+- [ ] Variant montage assembly from matched segments (CLIP-01..04)
+- [ ] Operator self-serve "Intelligent Clip" flow (FLOW-01..03)
 
 ### Out of Scope
 
@@ -98,4 +117,4 @@ Ad campaigns (Rod Wave tours, One Music Festival) fully manageable conversationa
 | Programmatic guardrail enforcement | Code-level block, not LLM description hints | ✓ Good — confirmed=True required for all 12 mutation tools |
 
 ---
-*Last updated: 2026-02-26 after v1.1 milestone*
+*Last updated: 2026-06-01 — started v1.2 Forge Intelligent Clipping milestone*
