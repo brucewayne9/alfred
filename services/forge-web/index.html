@@ -374,7 +374,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
         <h1 class="page" style="display:flex;align-items:center;gap:14px">Vessel library</h1>
         <p class="sub">Every batch you've forged — delivered straight to Nextcloud. Open a job to preview each variant and pull it down for posting.</p>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-          <button class="tab on" id="libRefresh" type="button" style="cursor:pointer">↻ Refresh</button>
+          <button class="tab on" id="libUndo" type="button" style="cursor:pointer" disabled>↶ Undo</button>
           <span id="libCount" class="libdirlbl" style="margin:0"></span>
         </div>
         <div id="libGrid"></div>
@@ -583,7 +583,8 @@ async function loadLibrary(){
   try{
     const r=await fetch(API+'/forge/library',{credentials:'include'});
     if(!r.ok) throw new Error(r.status);
-    const {jobs}=await r.json();
+    const {jobs,undo}=await r.json();
+    setUndo(undo);
     if(cnt) cnt.textContent=jobs.length?(jobs.length+' batch'+(jobs.length===1?'':'es')+' delivered'):'';
     if(!jobs.length){grid.innerHTML='<div class="empty">Nothing forged yet — your delivered batches will land here.</div>';return;}
     grid.innerHTML=jobs.map(j=>{
@@ -592,7 +593,7 @@ async function loadLibrary(){
       const looks=(j.remix_looks||1), each=(j.variations_each||1);
       const meta='<div class="libmeta"><b>'+looks+'</b> look'+(looks===1?'':'s')+' × <b>'+each+'</b> each · <b>'+(j.delivered||0)+'</b> delivered</div>';
       const dirs=(j.dirs||[]).map(d=>esc(d)).join('|');
-      return '<div class="libcard" data-dirs="'+dirs+'">'
+      return '<div class="libcard" data-dirs="'+dirs+'" data-job="'+esc(j.id)+'" data-cap="'+esc(j.caption||fmt)+'">'
         +'<div class="libhead">'
           +'<span class="libfmt">'+fmt+'</span>'
           +'<div>'+cap+meta+'</div>'
@@ -641,25 +642,28 @@ async function toggleView(btn){
 }
 
 async function deleteBatch(btn){
-  if(!confirm('Delete this entire batch from the library? This removes the files from Nextcloud and cannot be undone.')) return;
+  if(!confirm('Move this entire batch to the trash? You can undo it from the library.')) return;
   const card=btn.closest('.libcard');
   const dirs=(card.dataset.dirs||'').split('|').filter(Boolean);
   btn.disabled=true;
   try{
-    for(const dir of dirs){
-      await fetch(API+'/forge/library/file?path='+encodeURIComponent(dir),{method:'DELETE',credentials:'include'});
-    }
-    toast('batch deleted'); card.remove();
+    const r=await fetch(API+'/forge/library/batch-delete',{method:'POST',
+      headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({job_id:card.dataset.job,dirs,label:card.dataset.cap||'batch'})});
+    if(!r.ok) throw new Error(r.status);
+    const {undo}=await r.json(); setUndo(undo);
+    toast('batch moved to trash — Undo to restore'); card.remove();
   }catch(e){toast('delete failed'); btn.disabled=false;}
 }
 async function deleteAsset(ev,btn,path){
   ev.stopPropagation();
-  if(!confirm('Delete this file from Nextcloud? This cannot be undone.')) return;
+  if(!confirm('Move this file to the trash? You can undo it from the library.')) return;
   btn.disabled=true;
   try{
     const r=await fetch(API+'/forge/library/file?path='+path,{method:'DELETE',credentials:'include'});
     if(!r.ok) throw new Error(r.status);
-    toast('file deleted'); btn.closest('.thumb').remove();
+    const {undo}=await r.json(); setUndo(undo);
+    toast('moved to trash — Undo to restore'); btn.closest('.thumb').remove();
   }catch(e){toast('delete failed'); btn.disabled=false;}
 }
 function playClip(t){
@@ -668,10 +672,25 @@ function playClip(t){
     v.play(); t.classList.add('playing'); v.onended=()=>t.classList.remove('playing');
   } else { v.pause(); t.classList.remove('playing'); }
 }
-document.getElementById('libRefresh').addEventListener('click',()=>{
-  document.querySelectorAll('.libcard .libassets').forEach(b=>{b.dataset.loaded='';});
-  loadLibrary();
-});
+function setUndo(undo){
+  const b=document.getElementById('libUndo'); if(!b) return;
+  const n=(undo&&undo.count)||0;
+  b.disabled=!n;
+  b.textContent=n?('↶ Undo ('+n+')'):'↶ Undo';
+  b.title=n?('Restore last delete: '+((undo&&undo.label)||'')):'Nothing to undo';
+}
+async function undoLast(){
+  const b=document.getElementById('libUndo'); if(b.disabled) return;
+  b.disabled=true;
+  try{
+    const r=await fetch(API+'/forge/library/undo',{method:'POST',credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    toast('restored');
+    document.querySelectorAll('.libcard .libassets').forEach(x=>{x.dataset.loaded='';});
+    loadLibrary();
+  }catch(e){toast('undo failed'); setUndo({count:0});}
+}
+document.getElementById('libUndo').addEventListener('click',undoLast);
 
 // ===== DISTRIBUTION =====
 const PLATFORMS=["TikTok","Instagram Reels","YouTube Shorts"];

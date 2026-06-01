@@ -13,8 +13,18 @@ def _client():
 def test_library_index_ok(monkeypatch):
     import core.forge.library as lib
     monkeypatch.setattr(lib, "list_done_jobs", lambda limit=100: [{"id": "x", "format": "leak_graphic"}])
+    monkeypatch.setattr(lib, "trash_state", lambda: {"count": 0, "label": None})
     r = _client().get("/forge/library")
-    assert r.status_code == 200 and r.json()["jobs"][0]["id"] == "x"
+    body = r.json()
+    assert r.status_code == 200 and body["jobs"][0]["id"] == "x"
+    assert body["undo"] == {"count": 0, "label": None}
+
+
+def test_undo_empty_is_404(monkeypatch):
+    import core.forge.library as lib
+    monkeypatch.setattr(lib, "undo_last", lambda: None)
+    r = _client().post("/forge/library/undo")
+    assert r.status_code == 404
 
 
 def test_library_file_rejects_escape():
