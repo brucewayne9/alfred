@@ -92,9 +92,20 @@ def _film_montage_handler(params: dict) -> dict:
                              default_subfolder="Viral Music Verticals/Film Montage")
 
 
+def _ingest_transcribe_handler(params: dict) -> dict:
+    """Thin wrapper around ingest.transcribe_handler.
+
+    Lazy import keeps faster-whisper and CUDA initialisation out of module
+    import time, consistent with the renderer-handler pattern above.
+    """
+    from core.forge import ingest
+    return ingest.transcribe_handler(params)
+
+
 def register_default_handlers() -> None:
     """Register all built-in Forge job handlers into the queue."""
     forge_jobs.register_handler("echo", _echo_handler)
     forge_jobs.register_handler("leak_graphic", _leak_graphic_handler)
     forge_jobs.register_handler("kinetic_lyric", _kinetic_lyric_handler)
     forge_jobs.register_handler("film_montage", _film_montage_handler)
+    forge_jobs.register_handler("ingest_transcribe", _ingest_transcribe_handler)

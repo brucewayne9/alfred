@@ -153,6 +153,32 @@ def register(app: FastAPI) -> None:
         job_id = _forge_jobs.enqueue("ingest_transcribe", {"source_id": source_id, "url": url})
         return {"source_id": source_id, "job_id": job_id, "resolved": target}
 
+    @app.get("/forge/sources/{source_id}")
+    async def get_source_status(source_id: str, user: dict = Depends(require_auth)):
+        """Return the source row (status, duration_s, language, error, …).
+
+        Lets the UI poll status: pending → extracting → transcribing → done/error.
+        """
+        from core.forge import ingest
+        source = ingest.get_source(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="source not found")
+        return source
+
+    @app.get("/forge/sources/{source_id}/transcript")
+    async def get_source_transcript(source_id: str, user: dict = Depends(require_auth)):
+        """Return ordered, speaker-labelled transcript segments for a source.
+
+        Returns an empty segments list if the source exists but transcription is
+        not yet complete.  404 if the source_id is unknown.
+        """
+        from core.forge import ingest
+        source = ingest.get_source(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="source not found")
+        segments = ingest.get_segments(source_id)
+        return {"source_id": source_id, "segments": segments}
+
     @app.get("/forge/distribution/accounts")
     async def dist_accounts(user: dict = Depends(require_auth)):
         from core.forge import distribution
