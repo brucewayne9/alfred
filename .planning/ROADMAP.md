@@ -52,7 +52,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
   3. Operator can restart the Forge service mid-transcription and the job resumes where it left off rather than starting over
   4. The finished transcript shows each segment labelled with a speaker identifier so the operator can distinguish who is speaking
   5. Operator can pick a source already dropped in the shared Nextcloud Sources/ folder and ingest it without uploading (the reliable big-file path)
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 - [ ] 10-01-PLAN.md — Storage + ingest foundation (sources/transcript_segments tables, ingest.py, extract_audio)
 - [ ] 10-02-PLAN.md — Streaming 12GB upload + URL ingest + shared-cloud-folder pick (INGEST-01, INGEST-02, INGEST-05)
 - [ ] 10-03-PLAN.md — Checkpointed faster-whisper transcription + speaker attribution (INGEST-03, INGEST-04)
@@ -101,7 +101,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 7. Backup System | v1.1 | 3/3 | Complete | 2026-02-26 |
 | 8. Recovery & Alerting | v1.1 | 3/3 | Complete | 2026-02-26 |
 | 9. Ad Intelligence | v1.1 | 2/2 | Complete | 2026-02-26 |
-| 10. Long-form Ingest & Transcription | v1.2 | 0/3 | Planned | - |
+| 10. Long-form Ingest & Transcription | 1/3 | In Progress|  | - |
 | 11. Topic-targeted Segment Retrieval | v1.2 | 0/? | Not started | - |
 | 12. Variant Montage Assembly | v1.2 | 0/? | Not started | - |
 | 13. Operator Self-serve Intelligent Clip Flow | v1.2 | 0/? | Not started | - |

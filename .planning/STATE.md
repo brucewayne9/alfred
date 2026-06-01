@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-06-01)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** v1.2 Forge Intelligent Clipping — Phase 10 ready to plan
+**Current focus:** v1.2 Forge Intelligent Clipping — Phase 10 executing
 
 ## Current Position
 
 Phase: 10 — Long-form Ingest & Transcription
-Plan: 3 plans in 2 waves (verified ✓)
-Status: Planned — ready to execute
-Progress: [░░░░░░░░░░] 0% (v1.2 — 0/4 phases; Phase 10 planned)
+Plan: 10-02 (1 of 3 complete)
+Status: In Progress
+Progress: [█░░░░░░░░░] 8% (v1.2 — 1/4 phases; Phase 10 plan 1/3 done)
 
-Last activity: 2026-06-01 — Phase 10 planned + verified (10-01..10-03)
+Last activity: 2026-06-01 — 10-01 complete (sources/transcript_segments tables, ingest.py, extract_audio)
 
 ## Performance Metrics
 
@@ -29,7 +29,8 @@ Last activity: 2026-06-01 — Phase 10 planned + verified (10-01..10-03)
 - 1 day (2026-02-26)
 
 **v1.2 Running:**
-- 4 phases defined, 0 plans written, 0 commits
+- 4 phases defined, 3 plans written (Phase 10), 3 commits (Phase 10 Plan 01)
+- Phase 10 Plan 01: 3 tasks, 3 files, ~6 min
 - Target: 14 requirements across Phases 10-13
 
 ## Accumulated Context
@@ -53,5 +54,5 @@ Last activity: 2026-06-01 — Phase 10 planned + verified (10-01..10-03)
 ## Session Continuity
 
 Last session: 2026-06-01
-Stopped at: v1.2 roadmap written — Phases 10-13 defined
-Resume at: `/gsd:plan-phase 10` to plan Long-form Ingest & Transcription
+Stopped at: Phase 10 Plan 01 complete — foundation (sources table, ingest.py, extract_audio)
+Resume at: `/gsd:execute-phase 10` — execute 10-02 (ingest paths: streaming upload + URL)

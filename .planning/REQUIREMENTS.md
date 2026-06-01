@@ -9,10 +9,10 @@ Requirements for the v1.2 milestone. Each maps to exactly one roadmap phase.
 
 ### Ingest & Transcription
 
-- [ ] **INGEST-01**: Operator can upload a long-form source file up to ~12 GB into Forge for processing
-- [ ] **INGEST-02**: Operator can supply a source by URL instead of uploading a file
-- [ ] **INGEST-03**: Forge transcribes a long-form source into a timestamped transcript, processed asynchronously and surviving a service restart
-- [ ] **INGEST-04**: Forge attributes transcript segments to speakers so the operator can target one person's moments
+- [x] **INGEST-01**: Operator can upload a long-form source file up to ~12 GB into Forge for processing
+- [x] **INGEST-02**: Operator can supply a source by URL instead of uploading a file
+- [x] **INGEST-03**: Forge transcribes a long-form source into a timestamped transcript, processed asynchronously and surviving a service restart
+- [x] **INGEST-04**: Forge attributes transcript segments to speakers so the operator can target one person's moments
 - [ ] **INGEST-05**: Operator can pick a long-form source already dropped in the shared Nextcloud folder (Sources/) and ingest it without uploading — the reliable path for very large files
 
 ### Topic Retrieval
@@ -60,10 +60,10 @@ Deferred — acknowledged but not in the v1.2 roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INGEST-01 | Phase 10 | Pending |
-| INGEST-02 | Phase 10 | Pending |
-| INGEST-03 | Phase 10 | Pending |
-| INGEST-04 | Phase 10 | Pending |
+| INGEST-01 | Phase 10 | Complete |
+| INGEST-02 | Phase 10 | Complete |
+| INGEST-03 | Phase 10 | Complete |
+| INGEST-04 | Phase 10 | Complete |
 | INGEST-05 | Phase 10 | Pending |
 | TOPIC-01 | Phase 11 | Pending |
 | TOPIC-02 | Phase 11 | Pending |
