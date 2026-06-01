@@ -118,6 +118,18 @@ def register(app: FastAPI) -> None:
             "filename": file.filename,
         }
 
+    @app.post("/forge/ingest/url")
+    async def ingest_url(payload: dict = Body(...), user: dict = Depends(require_auth)):
+        from core.forge import clips, ingest
+        from core.forge import jobs as _forge_jobs
+        url = (payload.get("url") or "").strip()
+        if not url:
+            raise HTTPException(status_code=400, detail="url is required")
+        target, kind = clips.resolve_source(url)
+        source_id = ingest.create_source("url", url, None)
+        job_id = _forge_jobs.enqueue("ingest_transcribe", {"source_id": source_id, "url": url})
+        return {"source_id": source_id, "job_id": job_id, "resolved": target}
+
     @app.get("/forge/distribution/accounts")
     async def dist_accounts(user: dict = Depends(require_auth)):
         from core.forge import distribution
