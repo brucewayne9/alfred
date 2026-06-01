@@ -13,6 +13,26 @@ def duration_seconds(path: str | Path) -> float:
     return float(out.stdout.strip())
 
 
+def extract_audio(src: str | Path, out_path: str | Path) -> Path:
+    """Demux *src* to a 16 kHz mono PCM WAV at *out_path*.
+
+    16 kHz mono is what faster-whisper expects natively. Works on any
+    video or audio container that ffmpeg can decode; callers do not need
+    to branch on file type.
+
+    Returns the output path as a :class:`~pathlib.Path`.
+    """
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error", "-i", str(src),
+            "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le",
+            str(out_path),
+        ],
+        check=True,
+    )
+    return Path(out_path)
+
+
 def clip_audio(src: str | Path, start: float, end: float, out_path: str | Path) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
