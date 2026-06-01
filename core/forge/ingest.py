@@ -349,21 +349,20 @@ def transcribe_handler(params: dict) -> dict:
             # nc.download_file() buffers the entire file in RAM; for 11 GB sources
             # that causes OOM.  We use the underlying WebDAV session directly.
             cloud_path = params["cloud_path"]
-            from integrations.nextcloud.client import NextcloudClient
+            import requests as _rq
+            from integrations.nextcloud import client as nc
             from core.forge.uploads import _root as _upload_root
-            import urllib.parse as _ul
 
-            nc = NextcloudClient()
             dl_dir = _upload_root() / source_id
             dl_dir.mkdir(parents=True, exist_ok=True)
             filename = cloud_path.rstrip("/").split("/")[-1] or "source.bin"
             local_path = dl_dir / filename
 
-            # Build the WebDAV URL from the client's base URL.
-            encoded = _ul.quote(cloud_path, safe="/")
-            webdav_url = f"{nc.base_url}/remote.php/dav/files/{nc.username}/{encoded}"
-
-            with nc.session.get(webdav_url, stream=True, timeout=(30, 300)) as resp:
+            # Mirror nc.download_file() but stream in 8MB chunks (download_file
+            # buffers the whole file in RAM — OOM on an 11 GB source). The client
+            # is module-level functions: _webdav_url(path) + _auth().
+            webdav_url = nc._webdav_url(cloud_path.lstrip("/"))
+            with _rq.get(webdav_url, auth=nc._auth(), stream=True, timeout=(30, 600)) as resp:
                 resp.raise_for_status()
                 with local_path.open("wb") as fout:
                     for chunk in resp.iter_content(chunk_size=8 * 1024 * 1024):
