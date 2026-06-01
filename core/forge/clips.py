@@ -1,10 +1,27 @@
 """Forge clip ingest — fetch footage (yt-dlp: YouTube/TikTok/IG) or generate (LTX cloud)."""
 from __future__ import annotations
+import glob
+import os
 import subprocess
 import uuid
 from pathlib import Path
 
 SEARCH_N = 3
+
+
+def _node_path() -> str | None:
+    """Locate a Node >=18 binary for yt-dlp's JS runtime.
+
+    yt-dlp without a JS runtime falls back to limited YouTube player clients and
+    intermittently returns *no* formats ('fetched nothing'). Pointing it at Node
+    (EJS) restores full web-client extraction. systemd's PATH has no Node, so we
+    discover the nvm binary explicitly.
+    """
+    p = os.environ.get("FORGE_NODE_BIN")
+    if p and os.path.exists(p):
+        return p
+    cands = sorted(glob.glob(os.path.expanduser("~/.nvm/versions/node/v*/bin/node")), reverse=True)
+    return cands[0] if cands else None
 
 
 def resolve_source(spec: str) -> tuple[str, str]:
@@ -20,12 +37,20 @@ def resolve_source(spec: str) -> tuple[str, str]:
 def ytdlp_cmd(target: str, out_dir: Path) -> list[str]:
     """yt-dlp command: best <=1080p mp4, no playlists beyond the search N, into out_dir."""
     out_tmpl = str(Path(out_dir) / "src_%(autonumber)s.%(ext)s")
-    return [
+    cmd = [
         "yt-dlp", "--no-warnings", "--no-playlist" if target.startswith("http") else "--yes-playlist",
         "-f", "bv*[height<=1080][ext=mp4]+ba/b[height<=1080]/b",
         "--merge-output-format", "mp4",
+        "--retries", "5", "--fragment-retries", "5",
+        # Widen the YouTube player-client pool so extraction survives Google rotating
+        # which clients serve formats — the cause of intermittent 'fetched nothing'.
+        "--extractor-args", "youtube:player_client=default,web_safari,android_vr,tv",
         "-o", out_tmpl, target,
     ]
+    node = _node_path()
+    if node:
+        cmd[1:1] = ["--js-runtimes", f"node:{node}"]
+    return cmd
 
 
 def fetch_source(spec: str, out_dir: Path, timeout: int = 300) -> list[Path]:
