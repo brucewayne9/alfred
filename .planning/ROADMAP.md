@@ -45,15 +45,16 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 ### Phase 10: Long-form Ingest & Transcription
 **Goal:** The operator can get a complete, restart-safe, speaker-attributed transcript out of any long-form source — file or URL — without Alfred's involvement
 **Depends on:** Nothing (builds on existing RuckTalk Whisper + bge-m3 pipeline)
-**Requirements:** INGEST-01, INGEST-02, INGEST-03, INGEST-04
+**Requirements:** INGEST-01, INGEST-02, INGEST-03, INGEST-04, INGEST-05
 **Success Criteria** (what must be TRUE):
   1. Operator can upload a source file up to ~12 GB via the Forge UI and see it enter the processing queue
   2. Operator can supply a YouTube (or other supported) URL in place of a file upload and processing begins from that source
   3. Operator can restart the Forge service mid-transcription and the job resumes where it left off rather than starting over
   4. The finished transcript shows each segment labelled with a speaker identifier so the operator can distinguish who is speaking
+  5. Operator can pick a source already dropped in the shared Nextcloud Sources/ folder and ingest it without uploading (the reliable big-file path)
 **Plans:** 3 plans
 - [ ] 10-01-PLAN.md — Storage + ingest foundation (sources/transcript_segments tables, ingest.py, extract_audio)
-- [ ] 10-02-PLAN.md — Streaming 12GB upload + URL ingest entry points (INGEST-01, INGEST-02)
+- [ ] 10-02-PLAN.md — Streaming 12GB upload + URL ingest + shared-cloud-folder pick (INGEST-01, INGEST-02, INGEST-05)
 - [ ] 10-03-PLAN.md — Checkpointed faster-whisper transcription + speaker attribution (INGEST-03, INGEST-04)
 
 ### Phase 11: Topic-targeted Segment Retrieval

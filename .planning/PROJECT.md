@@ -61,7 +61,7 @@ Alfred must be a reliable daily operations tool — every integration works corr
 
 <!-- v1.2 Forge Intelligent Clipping — see REQUIREMENTS.md for REQ-IDs -->
 
-- [ ] Long-form source ingest + async transcription (INGEST-01..04)
+- [ ] Long-form source ingest (upload / URL / shared-cloud-folder pick) + async transcription (INGEST-01..05)
 - [ ] Topic-targeted segment retrieval (TOPIC-01..03)
 - [ ] Variant montage assembly from matched segments (CLIP-01..04)
 - [ ] Operator self-serve "Intelligent Clip" flow (FLOW-01..03)
