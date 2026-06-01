@@ -36,6 +36,11 @@ app.dependency_overrides[require_auth] = lambda: {"username": "mainstay", "role"
 @app.on_event("startup")
 async def _start_worker():
     import asyncio
+    # Any job left 'running' belongs to a worker that died with the previous
+    # process — fail those ghosts so the queue reflects reality.
+    n = forge_jobs.reconcile_orphans()
+    if n:
+        print(f"[forge] reconciled {n} orphaned running job(s) on startup")
     asyncio.create_task(forge_jobs.worker_loop(poll_interval=2.0))
 
 

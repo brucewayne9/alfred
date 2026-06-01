@@ -76,3 +76,65 @@ def test_claim_next_pending_returns_none_when_empty(forge):
 
 def test_list_jobs_on_fresh_db_returns_empty(forge):
     assert forge.list_jobs() == []
+
+
+# ── cancel / delete / reconcile ───────────────────────────────────────────
+
+def test_cancel_pending_marks_cancelled(forge):
+    jid = forge.enqueue("echo", {}, now=1)
+    out = forge.cancel_job(jid, now=2)
+    assert out["status"] == "cancelled"
+    assert forge.get_job(jid)["status"] == "cancelled"
+
+
+def test_cancel_running_requests_cancellation(forge):
+    jid = forge.enqueue("echo", {}, now=1)
+    forge._update(jid, status="running", now=2)
+    out = forge.cancel_job(jid, now=3)
+    assert out["status"] == "cancelling"
+    assert forge.is_cancel_requested(jid)
+
+
+def test_cancel_unknown_returns_none(forge):
+    assert forge.cancel_job("nope") is None
+
+
+def test_cancel_done_job_is_noop(forge):
+    forge.register_handler("echo", lambda p: {"ok": True})
+    jid = forge.enqueue("echo", {}, now=1)
+    forge.run_job(jid, now=2)
+    out = forge.cancel_job(jid, now=3)
+    assert out["status"] == "done"
+
+
+def test_delete_job_removes_row(forge):
+    jid = forge.enqueue("echo", {}, now=1)
+    assert forge.delete_job(jid) is True
+    assert forge.get_job(jid) is None
+    assert forge.delete_job(jid) is False  # already gone
+
+
+def test_reconcile_orphans_fails_running_jobs(forge):
+    a = forge.enqueue("echo", {}, now=1)
+    b = forge.enqueue("echo", {}, now=2)
+    forge._update(a, status="running", now=3)
+    forge._update(b, status="pending", now=3)
+    n = forge.reconcile_orphans(now=10)
+    assert n == 1
+    ja = forge.get_job(a)
+    assert ja["status"] == "error"
+    assert "interrupted" in (ja["error"] or "")
+    assert forge.get_job(b)["status"] == "pending"  # untouched
+
+
+def test_execute_marks_cancelled_when_requested_mid_run(forge):
+    # Handler that requests its own cancellation while running.
+    def slow(params):
+        forge.request_cancel(forge.current_job_id())
+        return {"ok": True}
+
+    forge.register_handler("slow", slow)
+    jid = forge.enqueue("slow", {}, now=1)
+    forge._update(jid, status="running", now=2)
+    forge._execute(jid, now=3)
+    assert forge.get_job(jid)["status"] == "cancelled"

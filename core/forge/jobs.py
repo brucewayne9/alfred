@@ -5,6 +5,7 @@ and runs its handler in a thread executor. No Celery/RQ — matches the repo's
 asyncio-only job pattern (see core/audit/lead_router.py).
 """
 import asyncio
+import contextvars
 import json
 import time
 import uuid
@@ -15,9 +16,48 @@ from core.forge.db import _conn, init_db
 # job_type -> handler(params: dict) -> dict
 _HANDLERS: dict[str, Callable[[dict], dict]] = {}
 
+# job_ids for which cancellation has been requested (in-memory; survives a single
+# process only — orphaned 'running' rows are reconciled on startup instead).
+_CANCEL_REQUESTED: set[str] = set()
+
+
+# Set for the duration of each handler run so handlers can checkpoint without
+# threading the job_id through their signature (keeps params clean).
+_CURRENT_JOB: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "forge_current_job", default=None
+)
+
+
+def current_job_id() -> Optional[str]:
+    return _CURRENT_JOB.get()
+
+
+class JobCancelled(Exception):
+    """Raised by check_cancel() so a long handler can abort cooperatively."""
+
 
 def register_handler(job_type: str, fn: Callable[[dict], dict]) -> None:
     _HANDLERS[job_type] = fn
+
+
+def request_cancel(job_id: str) -> None:
+    _CANCEL_REQUESTED.add(job_id)
+
+
+def is_cancel_requested(job_id: str) -> bool:
+    return job_id in _CANCEL_REQUESTED
+
+
+def clear_cancel(job_id: str) -> None:
+    _CANCEL_REQUESTED.discard(job_id)
+
+
+def check_cancel(job_id: str | None = None) -> None:
+    """Handlers call this at step boundaries; raises if a stop was requested.
+    With no argument it uses the current job's id."""
+    jid = job_id or _CURRENT_JOB.get()
+    if jid and jid in _CANCEL_REQUESTED:
+        raise JobCancelled(jid)
 
 
 def _now() -> int:
@@ -101,11 +141,28 @@ def _execute(job_id: str, now: Optional[int] = None) -> dict:
     if handler is None:
         _update(job_id, status="error", error=f"no handler for '{job['job_type']}'", now=now)
         return get_job(job_id)
+    # Stopped before it even started running.
+    if is_cancel_requested(job_id):
+        _update(job_id, status="cancelled", error="cancelled before start", now=now)
+        clear_cancel(job_id)
+        return get_job(job_id)
+    # Expose job_id to the handler (via contextvar) so long renders can checkpoint
+    # with check_cancel() without polluting their params.
+    token = _CURRENT_JOB.set(job_id)
     try:
         result = handler(job["params"])
-        _update(job_id, status="done", result=json.dumps(result or {}), error=None, now=now)
+        if is_cancel_requested(job_id):
+            _update(job_id, status="cancelled", error="cancelled", now=now)
+        else:
+            _update(job_id, status="done", result=json.dumps(result or {}), error=None, now=now)
+    except JobCancelled:
+        _update(job_id, status="cancelled", error="cancelled", now=now)
     except Exception as e:  # noqa: BLE001 — record any handler failure
-        _update(job_id, status="error", error=str(e), now=now)
+        status = "cancelled" if is_cancel_requested(job_id) else "error"
+        _update(job_id, status=status, error=str(e), now=now)
+    finally:
+        clear_cancel(job_id)
+        _CURRENT_JOB.reset(token)
     return get_job(job_id)
 
 
@@ -117,6 +174,45 @@ def run_job(job_id: str, now: Optional[int] = None) -> dict:
     """
     _update(job_id, status="running", now=now)
     return _execute(job_id, now=now)
+
+
+def cancel_job(job_id: str, now: Optional[int] = None) -> Optional[dict]:
+    """Stop a job. Pending -> cancelled instantly; running -> request cooperative
+    cancel (handler halts at its next checkpoint). Finished jobs are left as-is."""
+    init_db()
+    job = get_job(job_id)
+    if job is None:
+        return None
+    if job["status"] == "pending":
+        _update(job_id, status="cancelled", error="cancelled", now=now)
+    elif job["status"] in ("running", "cancelling"):
+        request_cancel(job_id)
+        _update(job_id, status="cancelling", now=now)
+    return get_job(job_id)
+
+
+def delete_job(job_id: str) -> bool:
+    """Remove a job row entirely. If it's running, also request cancellation so the
+    worker stops touching it. Returns False if the job didn't exist."""
+    init_db()
+    request_cancel(job_id)
+    with _conn() as c:
+        cur = c.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+    return cur.rowcount > 0
+
+
+def reconcile_orphans(now: Optional[int] = None) -> int:
+    """On startup, fail any job left 'running'/'cancelling' — its worker died with
+    the previous process. Returns how many were reconciled."""
+    init_db()
+    ts = now if now is not None else _now()
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE jobs SET status = 'error', error = 'interrupted (service restart)', "
+            "updated_at = ? WHERE status IN ('running', 'cancelling')",
+            (ts,),
+        )
+    return cur.rowcount
 
 
 async def worker_loop(poll_interval: float = 2.0) -> None:

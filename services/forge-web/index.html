@@ -137,6 +137,14 @@
   .libtime{color:var(--mute2);font:500 12px/1 var(--mono);text-align:right;white-space:nowrap}
   .libview{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:10px;border:1px solid var(--gold);background:linear-gradient(180deg,var(--gold-hi),var(--gold));color:#1a1408;font:700 13px/1 var(--sans);cursor:pointer;transition:.15s}
   .libview:hover{filter:brightness(1.07)}
+  .libdel{display:inline-flex;align-items:center;justify-content:center;width:38px;padding:9px 0;border-radius:10px;border:1px solid var(--line2);background:#1a1014;color:#e8a0a0;font-size:14px;cursor:pointer;transition:.15s}
+  .libdel:hover{border-color:#c0444a;background:#2a1418;color:#ff8e8e}
+  .jacts{display:flex;gap:7px;justify-content:flex-end;margin-top:8px}
+  .jbtn{padding:6px 11px;border-radius:8px;border:1px solid var(--line2);background:#14141a;color:var(--ink);font:600 11px/1 var(--sans);cursor:pointer;transition:.15s}
+  .jbtn.stop:hover{border-color:var(--gold);color:var(--gold-hi)}
+  .jbtn.del:hover{border-color:#c0444a;color:#ff8e8e;background:#2a1418}
+  .thumb .thumbdel{position:absolute;bottom:7px;right:41px;z-index:3;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(0,0,0,.62);color:#e8a0a0;font-size:13px;cursor:pointer;border:1px solid rgba(192,68,74,.4);backdrop-filter:blur(4px);transition:.15s}
+  .thumb .thumbdel:hover{background:#c0444a;color:#fff}
   .libview.open{background:#14141a;color:var(--gold-hi);border-color:var(--gold-dim)}
   .libassets{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
   .libdirlbl{font:600 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute2);margin:6px 0 10px}
@@ -536,12 +544,31 @@ async function refreshJobs(){
     el.innerHTML=jobs.map(j=>{
       const cap=(j.params&&j.params.caption)?('“'+j.params.caption+'”'):'';
       const nv=(j.params&&j.params.variations)?(' · '+j.params.variations+' variants'):'';
+      const active=(j.status==='pending'||j.status==='running'||j.status==='cancelling');
+      const stopBtn=active?`<button class="jbtn stop" title="Stop this job" onclick="cancelJob('${j.id}')">■ Stop</button>`:'';
+      const delBtn=`<button class="jbtn del" title="Delete from queue" onclick="deleteJob('${j.id}')">🗑 Delete</button>`;
       return `<div class="job"><div><span class="st ${j.status}"><span class="d"></span>${j.status}</span></div>
         <div><div class="type">${FMTNAME[j.job_type]||j.job_type}</div>
         <div class="meta">${cap}${nv}</div><div class="id">${j.id.slice(0,12)}</div></div>
-        <div class="meta" style="text-align:right">${ago(j.created_at)}</div></div>`;
+        <div style="text-align:right"><div class="meta">${ago(j.created_at)}</div>
+        <div class="jacts">${stopBtn}${delBtn}</div></div></div>`;
     }).join('');
   }catch(e){}
+}
+async function cancelJob(id){
+  try{
+    const r=await fetch(API+'/forge/jobs/'+encodeURIComponent(id)+'/cancel',{method:'POST',credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const j=await r.json(); toast('stopping ('+j.status+')'); refreshJobs();
+  }catch(e){toast('stop failed');}
+}
+async function deleteJob(id){
+  if(!confirm('Delete this job from the queue? This cannot be undone.')) return;
+  try{
+    const r=await fetch(API+'/forge/jobs/'+encodeURIComponent(id),{method:'DELETE',credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    toast('job deleted'); refreshJobs();
+  }catch(e){toast('delete failed');}
 }
 setInterval(()=>{const q=document.querySelector('[data-panel="queue"]');if(q&&q.style.display!=='none')refreshJobs();},2200);
 
@@ -571,7 +598,10 @@ async function loadLibrary(){
           +'<div>'+cap+meta+'</div>'
           +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">'
             +'<div class="libtime">'+ago(j.created_at)+'</div>'
-            +'<button class="libview" type="button" onclick="toggleView(this)">View</button>'
+            +'<div style="display:flex;gap:8px">'
+              +'<button class="libview" type="button" onclick="toggleView(this)">View</button>'
+              +'<button class="libdel" type="button" title="Delete this whole batch" onclick="deleteBatch(this)">🗑</button>'
+            +'</div>'
           +'</div>'
         +'</div>'
         +'<div class="libassets" style="display:none"></div>'
@@ -598,17 +628,40 @@ async function toggleView(btn){
       if(!files.length){html+='<div class="liberr">No files in this look.</div>';continue;}
       html+='<div class="libthumbs">'+files.map(f=>{
         const url=FILEURL(f.path), nm=esc(f.name), dl='<a class="dl" href="'+url+'" download="'+nm+'" title="Download" onclick="event.stopPropagation()">⤓</a>';
+        const del='<button class="thumbdel" title="Delete this file" onclick="deleteAsset(event,this,\''+f.path+'\')">🗑</button>';
         const cap='<span class="nm">'+nm+'</span>';
         if(f.kind==='image'){
-          return '<div class="thumb"><img loading="lazy" src="'+url+'" alt="'+nm+'">'+dl+cap+'</div>';
+          return '<div class="thumb"><img loading="lazy" src="'+url+'" alt="'+nm+'">'+dl+del+cap+'</div>';
         }
-        return '<div class="thumb" onclick="playClip(this)"><video muted preload="metadata" playsinline src="'+url+'"></video><span class="play">▶</span>'+dl+cap+'</div>';
+        return '<div class="thumb" onclick="playClip(this)"><video muted preload="metadata" playsinline src="'+url+'"></video><span class="play">▶</span>'+dl+del+cap+'</div>';
       }).join('')+'</div>';
     }
     box.innerHTML=html; box.dataset.loaded='1';
   }catch(e){box.innerHTML='<div class="liberr">Could not load assets ('+esc(e.message)+').</div>';}
 }
 
+async function deleteBatch(btn){
+  if(!confirm('Delete this entire batch from the library? This removes the files from Nextcloud and cannot be undone.')) return;
+  const card=btn.closest('.libcard');
+  const dirs=(card.dataset.dirs||'').split('|').filter(Boolean);
+  btn.disabled=true;
+  try{
+    for(const dir of dirs){
+      await fetch(API+'/forge/library/file?path='+encodeURIComponent(dir),{method:'DELETE',credentials:'include'});
+    }
+    toast('batch deleted'); card.remove();
+  }catch(e){toast('delete failed'); btn.disabled=false;}
+}
+async function deleteAsset(ev,btn,path){
+  ev.stopPropagation();
+  if(!confirm('Delete this file from Nextcloud? This cannot be undone.')) return;
+  btn.disabled=true;
+  try{
+    const r=await fetch(API+'/forge/library/file?path='+path,{method:'DELETE',credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    toast('file deleted'); btn.closest('.thumb').remove();
+  }catch(e){toast('delete failed'); btn.disabled=false;}
+}
 function playClip(t){
   const v=t.querySelector('video'); if(!v) return;
   if(v.paused){ document.querySelectorAll('.thumb.playing video').forEach(o=>{o.pause();o.closest('.thumb').classList.remove('playing');});

@@ -29,6 +29,19 @@ def register(app: FastAPI) -> None:
             raise HTTPException(status_code=404, detail="job not found")
         return job
 
+    @app.post("/forge/jobs/{job_id}/cancel")
+    async def cancel_job(job_id: str, user: dict = Depends(require_auth)):
+        job = forge_jobs.cancel_job(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="job not found")
+        return job
+
+    @app.delete("/forge/jobs/{job_id}")
+    async def delete_job(job_id: str, user: dict = Depends(require_auth)):
+        if not forge_jobs.delete_job(job_id):
+            raise HTTPException(status_code=404, detail="job not found")
+        return {"ok": True, "deleted": job_id}
+
     @app.get("/forge/library")
     async def library_index(user: dict = Depends(require_auth)):
         from core.forge import library
@@ -50,6 +63,15 @@ def register(app: FastAPI) -> None:
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return Response(content=data, media_type=ctype)
+
+    @app.delete("/forge/library/file")
+    async def library_delete(path: str = Query(...), user: dict = Depends(require_auth)):
+        from core.forge import library
+        try:
+            res = library.delete_path(path)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return {"ok": True, **(res if isinstance(res, dict) else {})}
 
     @app.post("/forge/uploads")
     async def create_upload(file: UploadFile = File(...), user: dict = Depends(require_auth)):

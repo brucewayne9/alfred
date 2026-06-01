@@ -44,9 +44,11 @@ def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str)
     work = Path(tempfile.mkdtemp(prefix=f"forge_{fmt}_"))
     try:
         for rp in remixes:
+            forge_jobs.check_cancel()  # stop between looks if the user hit Stop
             ri = rp.get("remix_index", 0)
             label = f"{fmt}_{stamp}_look{ri:02d}" if len(remixes) > 1 else f"{fmt}_{stamp}"
             master = render(rp, work / f"{label}_master{ext}")
+            forge_jobs.check_cancel()  # and again after the (slow) render, before delivery
             variants = multiply(master, n, work / f"v{ri}", base_name=label,
                                  allow_flip=(fmt != "leak_graphic")) if n else []
             dest = f"{base}/{label}"

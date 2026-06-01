@@ -78,3 +78,15 @@ def read_file(path: str) -> tuple[bytes, str]:
     data = nc.download_file(safe)
     ctype = mimetypes.guess_type(safe)[0] or "application/octet-stream"
     return data, ctype
+
+
+def delete_path(path: str) -> dict:
+    """Delete a library file or whole batch folder from Nextcloud (path-guarded).
+
+    Refuses to delete the delivery root itself — only things beneath it.
+    """
+    from integrations.nextcloud import client as nc
+    safe = _safe_library_path(path)
+    if safe.rstrip("/") == DELIVERY_ROOT:
+        raise ValueError("refusing to delete the delivery root")
+    return nc.delete_file(safe)
