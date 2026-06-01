@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-06-01)
 ## Current Position
 
 Phase: 10 — Long-form Ingest & Transcription
-Plan: —
-Status: Not started
-Progress: [░░░░░░░░░░] 0% (v1.2 — 0/4 phases)
+Plan: 3 plans in 2 waves (verified ✓)
+Status: Planned — ready to execute
+Progress: [░░░░░░░░░░] 0% (v1.2 — 0/4 phases; Phase 10 planned)
 
-Last activity: 2026-06-01 — v1.2 roadmap created (Phases 10-13)
+Last activity: 2026-06-01 — Phase 10 planned + verified (10-01..10-03)
 
 ## Performance Metrics
 
