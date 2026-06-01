@@ -103,12 +103,20 @@ def register(app: FastAPI) -> None:
 
     @app.post("/forge/uploads")
     async def create_upload(file: UploadFile = File(...), user: dict = Depends(require_auth)):
-        from core.forge import uploads
-        content = await file.read()
-        if not content:
+        from core.forge import uploads, ingest
+        from core.forge import jobs as _forge_jobs
+        uid = await uploads.save_upload_stream(file, file.filename or "upload.bin")
+        path = uploads.get_upload_path(uid)
+        if path is None or path.stat().st_size == 0:
             raise HTTPException(status_code=400, detail="empty upload")
-        uid = uploads.save_upload(content, file.filename or "upload.bin")
-        return {"upload_id": uid, "filename": file.filename}
+        source_id = ingest.create_source("upload", file.filename or "upload.bin", str(path))
+        job_id = _forge_jobs.enqueue("ingest_transcribe", {"source_id": source_id})
+        return {
+            "upload_id": uid,
+            "source_id": source_id,
+            "job_id": job_id,
+            "filename": file.filename,
+        }
 
     @app.get("/forge/distribution/accounts")
     async def dist_accounts(user: dict = Depends(require_auth)):

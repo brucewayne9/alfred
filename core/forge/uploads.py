@@ -22,6 +22,25 @@ def save_upload(content: bytes, filename: str) -> str:
     return uid
 
 
+async def save_upload_stream(file, filename: str) -> str:
+    """Stream a Starlette UploadFile to disk in 8MB chunks; return the new id.
+
+    Never holds the whole file in memory — safe for files up to ~12 GB.
+    """
+    ext = Path(filename or "").suffix.lower()[:12]
+    uid = uuid.uuid4().hex
+    dest_dir = _root() / uid
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / f"file{ext}"
+    with dest.open("wb") as out:
+        while True:
+            chunk = await file.read(8 * 1024 * 1024)
+            if not chunk:
+                break
+            out.write(chunk)
+    return uid
+
+
 def get_upload_path(uid: str) -> Optional[Path]:
     """Resolve the stored file for an id, or None. Ignores any path separators in uid."""
     safe = Path(uid).name
