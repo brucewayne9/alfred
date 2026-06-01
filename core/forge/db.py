@@ -50,5 +50,37 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_trash_created
                 ON trash(created_at);
+
+            -- Long-form ingest: one row per source file / URL (stable across
+            -- multiple job enqueue attempts — survives reconcile_orphans).
+            CREATE TABLE IF NOT EXISTS sources (
+                id           TEXT PRIMARY KEY,
+                kind         TEXT NOT NULL,
+                spec         TEXT NOT NULL,
+                file_path    TEXT,
+                status       TEXT NOT NULL DEFAULT 'pending',
+                duration_s   REAL,
+                language     TEXT,
+                error        TEXT,
+                created_at   INTEGER NOT NULL,
+                updated_at   INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_sources_status
+                ON sources(status, created_at);
+
+            -- Whisper segments keyed to a source; persists after the ingest job
+            -- is gone. 'words' is JSON: [{"word","start","end"}, ...].
+            CREATE TABLE IF NOT EXISTS transcript_segments (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id    TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+                seq          INTEGER NOT NULL,
+                start_s      REAL NOT NULL,
+                end_s        REAL NOT NULL,
+                text         TEXT NOT NULL,
+                speaker      TEXT,
+                words        TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_segments_source
+                ON transcript_segments(source_id, seq);
             """
         )
