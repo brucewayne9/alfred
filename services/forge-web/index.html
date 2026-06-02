@@ -422,7 +422,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
                   </div>
                   <div class="field">
                     <label>Min relevance threshold <span style="color:var(--mute);font-weight:400">(0–1)</span></label>
-                    <input type="number" id="topicThreshold" value="0.45" min="0" max="1" step="0.05" style="width:100%">
+                    <input type="number" id="topicThreshold" value="0.70" min="0" max="1" step="0.05" style="width:100%">
                   </div>
                 </div>
               </details>
@@ -975,7 +975,7 @@ async function runTopicSearch(){
   if(!id){ toast('Pick a source first'); return; }
   if(!q){ toast('Enter a topic to search for'); return; }
   const k = parseInt(document.getElementById('topicTopK').value) || 10;
-  const t = parseFloat(document.getElementById('topicThreshold').value) || 0.45;
+  const t = parseFloat(document.getElementById('topicThreshold').value) || 0.70;
   const spk = document.getElementById('topicSpeaker').value;
   const box = document.getElementById('topicResults');
   box.innerHTML = '<div class="empty">Searching…</div>';
