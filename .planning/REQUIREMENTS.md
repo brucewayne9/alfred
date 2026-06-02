@@ -18,8 +18,8 @@ Requirements for the v1.2 milestone. Each maps to exactly one roadmap phase.
 ### Topic Retrieval
 
 - [x] **TOPIC-01**: Operator can enter a topic/theme and get back the source segments where it is discussed, ranked by relevance with in/out timestamps
-- [ ] **TOPIC-02**: Operator can preview the matched segments (timestamps + transcript text) before building anything
-- [ ] **TOPIC-03**: Operator can deselect or adjust matched segments before assembly
+- [x] **TOPIC-02**: Operator can preview the matched segments (timestamps + transcript text) before building anything
+- [x] **TOPIC-03**: Operator can deselect or adjust matched segments before assembly
 
 ### Variant Assembly
 
@@ -66,8 +66,8 @@ Deferred — acknowledged but not in the v1.2 roadmap.
 | INGEST-04 | Phase 10 | Complete |
 | INGEST-05 | Phase 10 | Complete |
 | TOPIC-01 | Phase 11 | Complete |
-| TOPIC-02 | Phase 11 | Pending |
-| TOPIC-03 | Phase 11 | Pending |
+| TOPIC-02 | Phase 11 | Complete |
+| TOPIC-03 | Phase 11 | Complete |
 | CLIP-01 | Phase 12 | Pending |
 | CLIP-02 | Phase 12 | Pending |
 | CLIP-03 | Phase 12 | Pending |

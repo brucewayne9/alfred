@@ -36,7 +36,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 ### v1.2 Forge Intelligent Clipping
 
 - [x] **Phase 10: Long-form Ingest & Transcription** — Upload or URL-ingest a source up to 12 GB and get a timestamped, speaker-attributed transcript (completed 2026-06-01)
-- [ ] **Phase 11: Topic-targeted Segment Retrieval** — Query the transcript by topic and get ranked, previewable segment matches the operator can curate
+- [x] **Phase 11: Topic-targeted Segment Retrieval** — Query the transcript by topic and get ranked, previewable segment matches the operator can curate (completed 2026-06-02)
 - [ ] **Phase 12: Variant Montage Assembly** — Cut matched segments into multiple distinct branded 9:16 verticals and deliver them to the library and Postiz
 - [ ] **Phase 13: Operator Self-serve Intelligent Clip Flow** — Wire the full pipeline into one Forge UI format Jordan can run solo end-to-end
 
@@ -65,10 +65,10 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
   1. Operator types a topic or theme into the Forge UI and receives a ranked list of matching source segments with in/out timestamps and relevance scores
   2. Operator can read the transcript text of each matched segment in the UI without leaving the page to verify it is genuinely on-topic
   3. Operator can uncheck or trim matched segments so only the ones they want go forward to assembly
-**Plans:** 2/3 plans executed
-- [ ] 11-01-PLAN.md — Retrieval core: windowing + bge-m3 embedding + source-scoped query, inline embed at transcription (TOPIC-01)
-- [ ] 11-02-PLAN.md — Search + list-sources API endpoints with inline text preview + lazy backfill (TOPIC-01, TOPIC-02)
-- [ ] 11-03-PLAN.md — Topic tab UI: pick source, query, ranked previewable curatable results + real-transcript precision check (TOPIC-01/02/03)
+**Plans:** 3/3 plans complete
+- [x] 11-01-PLAN.md — Retrieval core: windowing + bge-m3 embedding + source-scoped query, inline embed at transcription (TOPIC-01)
+- [x] 11-02-PLAN.md — Search + list-sources API endpoints with inline text preview + lazy backfill (TOPIC-01, TOPIC-02)
+- [x] 11-03-PLAN.md — Topic tab UI: pick source, query, ranked previewable curatable results + real-transcript precision check (TOPIC-01/02/03)
 
 ### Phase 12: Variant Montage Assembly
 **Goal:** The operator can turn their curated segment list into multiple distinct, on-brand vertical clips ready to hand to the social team
@@ -105,6 +105,6 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 8. Recovery & Alerting | v1.1 | 3/3 | Complete | 2026-02-26 |
 | 9. Ad Intelligence | v1.1 | 2/2 | Complete | 2026-02-26 |
 | 10. Long-form Ingest & Transcription | 1/3 | Complete    | 2026-06-01 | - |
-| 11. Topic-targeted Segment Retrieval | 2/3 | In Progress|  | - |
+| 11. Topic-targeted Segment Retrieval | v1.2 | 3/3 | Complete | 2026-06-02 |
 | 12. Variant Montage Assembly | v1.2 | 0/? | Not started | - |
 | 13. Operator Self-serve Intelligent Clip Flow | v1.2 | 0/? | Not started | - |

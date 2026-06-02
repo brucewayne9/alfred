@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-06-01)
 ## Current Position
 
 Phase: 11 — Topic-Targeted Segment Retrieval
-Plan: 11-03 (2 of 3 complete)
-Status: In Progress
-Progress: [████░░░░░░] 40% (v1.2 — 2/4 phases; Phase 10 done; Phase 11 plans 1-2/3 done)
+Plan: 11-03 (3 of 3 complete)
+Status: Phase Complete
+Progress: [█████░░░░░] 50% (v1.2 — 2/4 phases; Phase 10 done; Phase 11 done)
 
-Last activity: 2026-06-02 — 11-02 complete (search API: GET /forge/sources + GET /forge/sources/{id}/search, lazy backfill, 7 tests passing)
+Last activity: 2026-06-02 — 11-03 complete (Topic tab UI + precision checkpoint: threshold 0.72, real RuckTalk interview validated)
 
 ## Performance Metrics
 
@@ -45,7 +45,9 @@ Last activity: 2026-06-02 — 11-02 complete (search API: GET /forge/sources + G
 - **Single shared forge_segments ChromaDB collection** — sources scoped via source_id metadata, not one collection per source
 - **Duration-only windowing** — no speaker-boundary splits; short interjections flip speaker not topic; duration guard absorbs them
 
-- **sys.modules stub injection** — API tests stub core.forge.search via sys.modules autouse fixture to avoid chromadb dep in test env; pre-existing test_search.py failure deferred to Phase 11-03+
+- **sys.modules stub injection** — API tests stub core.forge.search via sys.modules autouse fixture to avoid chromadb dep in test env; Wave-2 test isolation leak fixed in 11-03 (0b417f4); 106/106 passing
+- **Topic default threshold 0.72** — Calibrated against real RuckTalk interview (episode_5.mp3); 0.45 plan default too low; 0.70 let floor-scraper through; 0.72 cuts it cleanly — Mike-approved at precision checkpoint
+- **Precision checkpoint retired** — On real RuckTalk source, "sleep and recovery" returns 3 genuine hits at 79%; "cooking recipes food preparation" returns 0 — Phase 11 make-or-break risk retired
 
 ### Pending Todos
 
@@ -58,5 +60,5 @@ Last activity: 2026-06-02 — 11-02 complete (search API: GET /forge/sources + G
 ## Session Continuity
 
 Last session: 2026-06-02
-Stopped at: Phase 11 Plan 02 complete — GET /forge/sources + GET /forge/sources/{id}/search + lazy backfill + 7 API tests
-Resume at: `/gsd:execute-phase 11` — execute 11-03 (precision validation checkpoint)
+Stopped at: Phase 11 Plan 03 complete — Topic tab UI + precision checkpoint approved (threshold 0.72, 106/106 tests)
+Resume at: `/gsd:plan-phase 12` — Phase 12 Variant Montage Assembly (consumes Phase 11 Copy-selection JSON hand-off)
