@@ -35,17 +35,33 @@ def _make_search_stub():
 
 @pytest.fixture(autouse=True)
 def stub_search_module():
-    """Ensure core.forge.search resolves to our stub for every test."""
+    """Ensure core.forge.search resolves to our stub for every test.
+
+    The endpoint resolves the module via ``from core.forge import search``,
+    which reads the ``search`` *attribute* on the ``core.forge`` package — not
+    ``sys.modules``. If another test file imported the real submodule first, the
+    package attribute is already bound to it, so patching ``sys.modules`` alone
+    leaks the real module into the endpoint. Patch both.
+    """
+    import core.forge as _forge_pkg
+
     stub = _make_search_stub()
     # Replace (or insert) the module in sys.modules for the duration of the test.
-    original = sys.modules.get("core.forge.search")
+    original_mod = sys.modules.get("core.forge.search")
+    original_attr = getattr(_forge_pkg, "search", None)
     sys.modules["core.forge.search"] = stub
+    _forge_pkg.search = stub
     yield stub
     # Restore the original (or remove if it wasn't there before).
-    if original is None:
+    if original_mod is None:
         sys.modules.pop("core.forge.search", None)
     else:
-        sys.modules["core.forge.search"] = original
+        sys.modules["core.forge.search"] = original_mod
+    if original_attr is None:
+        if hasattr(_forge_pkg, "search"):
+            delattr(_forge_pkg, "search")
+    else:
+        _forge_pkg.search = original_attr
 
 
 @pytest.fixture
