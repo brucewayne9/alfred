@@ -105,6 +105,6 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 8. Recovery & Alerting | v1.1 | 3/3 | Complete | 2026-02-26 |
 | 9. Ad Intelligence | v1.1 | 2/2 | Complete | 2026-02-26 |
 | 10. Long-form Ingest & Transcription | 1/3 | Complete    | 2026-06-01 | - |
-| 11. Topic-targeted Segment Retrieval | v1.2 | 3/3 | Complete | 2026-06-02 |
+| 11. Topic-targeted Segment Retrieval | v1.2 | Complete    | 2026-06-02 | 2026-06-02 |
 | 12. Variant Montage Assembly | v1.2 | 0/? | Not started | - |
 | 13. Operator Self-serve Intelligent Clip Flow | v1.2 | 0/? | Not started | - |
