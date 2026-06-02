@@ -386,39 +386,169 @@ def _build_caption_events(
     return events
 
 
-def _write_ass_file(
-    events: list[tuple[float, float, str]],
-    out_path: Path,
-    font_size: int = 56,
-) -> Path:
-    """Write a styled ASS subtitle file (white bold, black outline, lower-third)."""
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    header = (
-        "[Script Info]\n"
-        "ScriptType: v4.00+\n"
-        "PlayResX: 1080\n"
-        "PlayResY: 1920\n"
-        "WrapStyle: 0\n"
-        "ScaledBorderAndShadow: yes\n\n"
+# Caption style presets — pick via params["caption_style"].
+#   clean   — phrase-by-phrase white bold lower-third (default; reads anywhere)
+#   bold    — big ALL-CAPS white, heavier outline (punchy / meme look)
+#   karaoke — word-by-word gold highlight that fills as he speaks (TikTok look)
+# ASS colours are &HAABBGGRR.  Gold = RGB(255,215,0) -> &H0000D7FF.
+CAPTION_STYLES = {
+    "clean":   {"font_size": 56, "primary": "&H00FFFFFF", "secondary": "&H00FFFFFF",
+                "outline": 4, "upper": False, "karaoke": False},
+    "bold":    {"font_size": 82, "primary": "&H00FFFFFF", "secondary": "&H00FFFFFF",
+                "outline": 6, "upper": True,  "karaoke": False},
+    "karaoke": {"font_size": 70, "primary": "&H0000D7FF", "secondary": "&H00FFFFFF",
+                "outline": 5, "upper": True,  "karaoke": True},
+}
+DEFAULT_CAPTION_STYLE = "clean"
+
+# Position presets — pick via params["caption_position"].  (alignment, marginV)
+CAPTION_POSITIONS = {
+    "lower":  (2, 300),   # bottom-centre, 300px up (default lower-third)
+    "center": (5, 0),     # screen middle
+    "upper":  (8, 220),   # top-centre, 220px down
+}
+DEFAULT_CAPTION_POSITION = "lower"
+
+
+def _style_block(style_cfg: dict, alignment: int, margin_v: int) -> str:
+    """Build the ASS [V4+ Styles] block for a caption style + position."""
+    return (
         "[V4+ Styles]\n"
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
         "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
         "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
         "MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Cap,DejaVu Sans,{font_size},&H00FFFFFF,&H000000FF,&H00000000,"
-        "&H64000000,1,0,0,0,100,100,0,0,1,4,1,2,80,80,300,1\n\n"
-        "[Events]\n"
-        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+        f"Style: Cap,DejaVu Sans,{style_cfg['font_size']},{style_cfg['primary']},"
+        f"{style_cfg['secondary']},&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,"
+        f"{style_cfg['outline']},1,{alignment},80,80,{margin_v},1\n\n"
     )
-    lines = [header]
+
+
+_ASS_HEADER = (
+    "[Script Info]\n"
+    "ScriptType: v4.00+\n"
+    "PlayResX: 1080\n"
+    "PlayResY: 1920\n"
+    "WrapStyle: 0\n"
+    "ScaledBorderAndShadow: yes\n\n"
+)
+
+
+def _write_ass_file(
+    events: list[tuple[float, float, str]],
+    out_path: Path,
+    font_size: int = 56,
+    style: str = DEFAULT_CAPTION_STYLE,
+    position: str = DEFAULT_CAPTION_POSITION,
+) -> Path:
+    """Write a phrase-level styled ASS file (clean / bold).  Karaoke is separate."""
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg = dict(CAPTION_STYLES.get(style, CAPTION_STYLES[DEFAULT_CAPTION_STYLE]))
+    cfg["font_size"] = font_size or cfg["font_size"]
+    align, margin_v = CAPTION_POSITIONS.get(position, CAPTION_POSITIONS[DEFAULT_CAPTION_POSITION])
+    lines = [
+        _ASS_HEADER,
+        _style_block(cfg, align, margin_v),
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
+    ]
     for (s, e, text) in events:
         if e <= s:
             continue
+        if cfg["upper"]:
+            text = text.upper()
         lines.append(
             f"Dialogue: 0,{_format_ass_time(s)},{_format_ass_time(e)},Cap,,0,0,0,,{_ass_escape(text)}\n"
         )
     out_path.write_text("".join(lines), encoding="utf-8")
+    return out_path
+
+
+def _group_karaoke_lines(
+    words: list[dict],
+    max_words: int = 5,
+    gap_break: float = 0.6,
+) -> list[list[dict]]:
+    """Group word-timing dicts ({'word','start','end'}) into short caption lines.
+
+    New line on a >gap_break pause or once a line reaches max_words.
+    """
+    lines: list[list[dict]] = []
+    cur: list[dict] = []
+    prev_end = None
+    for w in words:
+        if not (w.get("word") or "").strip():
+            continue
+        gap = (w["start"] - prev_end) if prev_end is not None else 0.0
+        if cur and (gap > gap_break or len(cur) >= max_words):
+            lines.append(cur)
+            cur = []
+        cur.append(w)
+        prev_end = w["end"]
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def _write_karaoke_ass(
+    words: list[dict],
+    out_path: Path,
+    style: str = "karaoke",
+    position: str = DEFAULT_CAPTION_POSITION,
+) -> Path:
+    """Write a word-by-word karaoke ASS file.
+
+    *words* must be in OUTPUT (clip-local) time.  Each grouped line becomes one
+    Dialogue using ASS ``\\kf`` karaoke tags so libass sweeps the highlight
+    colour across each word in sync with speech (TikTok-style fill).
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg = CAPTION_STYLES.get(style, CAPTION_STYLES["karaoke"])
+    align, margin_v = CAPTION_POSITIONS.get(position, CAPTION_POSITIONS[DEFAULT_CAPTION_POSITION])
+    out = [
+        _ASS_HEADER,
+        _style_block(cfg, align, margin_v),
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
+    ]
+    for line in _group_karaoke_lines(words):
+        if not line:
+            continue
+        start = float(line[0]["start"])
+        end = float(line[-1]["end"])
+        if end <= start:
+            continue
+        parts = []
+        for w in line:
+            dur_cs = max(1, int(round((float(w["end"]) - float(w["start"])) * 100)))
+            tok = _ass_escape(w["word"].upper() if cfg["upper"] else w["word"]).replace("\\N", " ")
+            parts.append(f"{{\\kf{dur_cs}}}{tok} ")
+        out.append(
+            f"Dialogue: 0,{_format_ass_time(start)},{_format_ass_time(end)},Cap,,0,0,0,,{''.join(parts).rstrip()}\n"
+        )
+    out_path.write_text("".join(out), encoding="utf-8")
+    return out_path
+
+
+def _burn_ass(body_path: Path, ass_path: Path, out_path: Path) -> Path:
+    """Burn an ASS subtitle file onto *body_path* via libass (single re-encode pass)."""
+    esc = str(ass_path).replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
+    proc = subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error",
+            "-i", str(body_path),
+            "-vf", f"ass='{esc}'",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "192k",
+            str(out_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0 or not out_path.exists():
+        raise RuntimeError(f"_burn_ass failed: {proc.stderr[-500:]}")
     return out_path
 
 
@@ -428,39 +558,34 @@ def overlay_timed_captions(
     out_path: Path,
     work_dir: Path,
     font_size: int = 56,
+    style: str = DEFAULT_CAPTION_STYLE,
+    position: str = DEFAULT_CAPTION_POSITION,
+    words: list[dict] | None = None,
 ) -> Path:
     """Burn a rolling, speech-synced caption track onto an already-9:16 video.
 
-    Builds an ASS file from *events* and renders it with libass (the ``ass``
-    filter).  If *events* is empty the body is re-encoded through unchanged so
-    the output codec parameters stay uniform.  Raises RuntimeError on failure.
+    *style* selects a CAPTION_STYLES preset; *position* a CAPTION_POSITIONS one.
+    For the ``karaoke`` style, *words* (output-time word timings) drives a
+    word-by-word highlight; if absent it falls back to phrase events.
+    If *events* is empty the body is re-encoded through unchanged.
     """
     body_path = Path(body_path)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    work_dir = Path(work_dir)
+    work_dir.mkdir(parents=True, exist_ok=True)
 
-    if not events:
+    cfg = CAPTION_STYLES.get(style, CAPTION_STYLES[DEFAULT_CAPTION_STYLE])
+    if cfg["karaoke"] and words:
+        ass_path = _write_karaoke_ass(words, work_dir / "captions.ass", style=style, position=position)
+    elif events:
+        ass_path = _write_ass_file(
+            events, work_dir / "captions.ass", font_size=font_size, style=style, position=position
+        )
+    else:
         return overlay_captions(body_path, "", out_path)
 
-    ass_path = _write_ass_file(events, Path(work_dir) / "captions.ass", font_size=font_size)
-    # ass filter path: single-quote and escape filtergraph specials.
-    esc = str(ass_path).replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
-    vf = f"ass='{esc}'"
-    proc = subprocess.run(
-        [
-            "ffmpeg", "-y", "-v", "error",
-            "-i", str(body_path),
-            "-vf", vf,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-            "-c:a", "aac", "-b:a", "192k",
-            str(out_path),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode != 0 or not out_path.exists():
-        raise RuntimeError(f"overlay_timed_captions failed: {proc.stderr[-500:]}")
-    return out_path
+    return _burn_ass(body_path, ass_path, out_path)
 
 
 # ---------------------------------------------------------------------------
@@ -623,6 +748,8 @@ def assemble_variant(
     out_path: str | Path,
     work_dir: str | Path,
     fine_segments: list[dict] | None = None,
+    caption_style: str = DEFAULT_CAPTION_STYLE,
+    caption_position: str = DEFAULT_CAPTION_POSITION,
 ) -> Path:
     """Assemble one structural variant into a branded 9:16 master.
 
@@ -674,14 +801,24 @@ def assemble_variant(
             work_dir,
         )
 
-    # 4. Captions — rolling speech-synced track when fine segments are available.
+    # 4. Captions — style-aware rolling track.
+    #    karaoke: word-by-word highlight (transcribe the assembled body for
+    #    output-time word timings); clean/bold: phrase events from fine segments.
     captioned = work_dir / f"captioned_{label}.mp4"
-    events = (
-        _build_caption_events(segments, fine_segments)
-        if fine_segments else []
-    )
-    if events:
-        overlay_timed_captions(body, events, captioned, work_dir / f"caps_{label}")
+    cfg = CAPTION_STYLES.get(caption_style, CAPTION_STYLES[DEFAULT_CAPTION_STYLE])
+    words = None
+    if cfg["karaoke"]:
+        try:
+            from core.forge import audio
+            words = audio.transcribe_words(body)
+        except Exception:  # noqa: BLE001 — fall back to phrase events
+            words = None
+    events = _build_caption_events(segments, fine_segments) if fine_segments else []
+    if (cfg["karaoke"] and words) or events:
+        overlay_timed_captions(
+            body, events, captioned, work_dir / f"caps_{label}",
+            style=caption_style, position=caption_position, words=words,
+        )
     else:
         overlay_captions(body, caption_text, captioned)
 
@@ -753,6 +890,8 @@ def render(params: dict, out_path: str | Path) -> Path:
     segments = params["segments"]
     variant_index = int(params.get("variant_index", 0))
     caption = params.get("caption", "")
+    caption_style = params.get("caption_style", DEFAULT_CAPTION_STYLE)
+    caption_position = params.get("caption_position", DEFAULT_CAPTION_POSITION)
 
     # Resolve source file path.
     src_row = ingest.get_source(source_id)
@@ -791,6 +930,8 @@ def render(params: dict, out_path: str | Path) -> Path:
             out_path=out_path,
             work_dir=work,
             fine_segments=fine_segments,
+            caption_style=caption_style,
+            caption_position=caption_position,
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)

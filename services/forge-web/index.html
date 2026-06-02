@@ -440,6 +440,17 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
           <span id="topicSelected" style="font:600 14px/1 var(--sans);color:var(--mute)">0 segments selected</span>
           <button class="btn-ghost" type="button" onclick="copyTopicSelection()" style="margin-left:auto">⧉ Copy selection</button>
           <button class="btn-ghost" type="button" onclick="printTopicSelection()">⎙ Print selection</button>
+          <label style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">Caption</label>
+          <select id="topicCaptionStyle" style="padding:8px 10px;font-size:13px" title="Caption style">
+            <option value="clean">Clean (phrase)</option>
+            <option value="karaoke">Karaoke (word-by-word)</option>
+            <option value="bold">Bold caps</option>
+          </select>
+          <select id="topicCaptionPos" style="padding:8px 10px;font-size:13px" title="Caption position">
+            <option value="lower">Lower</option>
+            <option value="center">Center</option>
+            <option value="upper">Upper</option>
+          </select>
           <label style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">Variants</label>
           <input id="topicVariantCount" type="number" value="3" min="1" max="10" style="width:64px;padding:8px 10px;font-size:13px">
           <button class="btn" type="button" onclick="assembleVariants()"><span class="k">&#x29C9;</span> Assemble variants</button>
@@ -1105,6 +1116,8 @@ async function assembleVariants(){
   }));
   if(!segments.length){ toast('No segments selected'); return; }
   const variantCount = parseInt(document.getElementById('topicVariantCount').value) || 3;
+  const captionStyle = (document.getElementById('topicCaptionStyle')||{}).value || 'clean';
+  const captionPos = (document.getElementById('topicCaptionPos')||{}).value || 'lower';
   const caption = (segments[0] && segments[0].text)
     ? segments[0].text.split('. ')[0].slice(0, 120)
     : '';
@@ -1115,7 +1128,7 @@ async function assembleVariants(){
       credentials: 'include',
       body: JSON.stringify({
         job_type: 'topic_clip',
-        params: {source_id: sourceId, segments, variant_count: variantCount, caption}
+        params: {source_id: sourceId, segments, variant_count: variantCount, caption, caption_style: captionStyle, caption_position: captionPos}
       })
     });
     if(!r.ok) throw new Error(r.status);

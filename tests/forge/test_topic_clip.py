@@ -12,13 +12,17 @@ import subprocess
 import pytest
 
 from core.forge.renderers.topic_clip import (
+    CAPTION_POSITIONS,
+    CAPTION_STYLES,
     _ass_escape,
     _build_caption_events,
     _concat_segments,
     _cut_segment,
     _detect_has_video,
     _format_ass_time,
+    _group_karaoke_lines,
     _write_ass_file,
+    _write_karaoke_ass,
     enforce_duration,
 )
 from core.forge import audio
@@ -432,3 +436,59 @@ def test_write_ass_file_has_styled_events(tmp_path):
     # Two Dialogue lines, one per event
     assert body.count("Dialogue:") == 2
     assert "0:00:00.00" in body and "0:00:02.00" in body
+
+
+# ---------------------------------------------------------------------------
+# Caption style presets + karaoke (style picker)
+# ---------------------------------------------------------------------------
+
+
+def test_caption_style_presets_exist():
+    for key in ("clean", "bold", "karaoke"):
+        assert key in CAPTION_STYLES
+    for key in ("lower", "center", "upper"):
+        assert key in CAPTION_POSITIONS
+    # only karaoke flips the word-by-word switch
+    assert CAPTION_STYLES["karaoke"]["karaoke"] is True
+    assert CAPTION_STYLES["clean"]["karaoke"] is False
+
+
+def test_write_ass_bold_uppercases(tmp_path):
+    events = [(0.0, 2.0, "hello world")]
+    out = _write_ass_file(events, tmp_path / "b.ass", style="bold")
+    body = out.read_text()
+    assert "HELLO WORLD" in body          # bold preset uppercases
+    assert "Dialogue:" in body
+
+
+def test_write_ass_position_changes_alignment(tmp_path):
+    events = [(0.0, 2.0, "x")]
+    lower = _write_ass_file(events, tmp_path / "l.ass", position="lower").read_text()
+    upper = _write_ass_file(events, tmp_path / "u.ass", position="upper").read_text()
+    # alignment is the 19th Style field; lower=2, upper=8 — files must differ
+    assert lower != upper
+    assert ",8,80,80,220," in upper       # upper alignment + marginV
+
+
+def test_group_karaoke_lines_breaks_on_pause_and_count():
+    words = [
+        {"word": "a", "start": 0.0, "end": 0.3},
+        {"word": "b", "start": 0.3, "end": 0.6},
+        {"word": "c", "start": 2.0, "end": 2.3},   # >0.6s gap -> new line
+    ]
+    lines = _group_karaoke_lines(words, max_words=5, gap_break=0.6)
+    assert len(lines) == 2
+    assert [w["word"] for w in lines[0]] == ["a", "b"]
+    assert [w["word"] for w in lines[1]] == ["c"]
+
+
+def test_write_karaoke_ass_has_kf_tags(tmp_path):
+    words = [
+        {"word": "first", "start": 0.0, "end": 0.5},
+        {"word": "second", "start": 0.5, "end": 1.1},
+    ]
+    out = _write_karaoke_ass(words, tmp_path / "k.ass")
+    body = out.read_text()
+    assert "\\kf" in body                 # libass karaoke fill tags
+    assert "FIRST" in body and "SECOND" in body   # karaoke preset uppercases
+    assert body.count("Dialogue:") == 1   # both words on one line
