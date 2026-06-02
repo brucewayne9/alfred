@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-06-01)
 ## Current Position
 
 Phase: 12 — Variant Montage Assembly
-Plan: 12-01 (1 of 3 complete)
+Plan: 12-02 (2 of 3 complete)
 Status: In Progress
-Progress: [██████░░░░] 60% (v1.2 — 2/4 phases done + Phase 12 started; Phase 10 done; Phase 11 done)
+Progress: [███████░░░] 65% (v1.2 — 2/4 phases done + Phase 12 at 2/3 plans; Phase 10 done; Phase 11 done)
 
-Last activity: 2026-06-02 — 12-01 complete (segment cut+concat engine: _detect_has_video, _cut_segment, _concat_segments, enforce_duration; 13 tests passing)
+Last activity: 2026-06-02 — 12-02 complete (_safe_drawtext, overlay_captions, _build_variant_assemblies, _synthesise_visual, assemble_variant, render(); 22 tests passing; 122/122 forge suite green)
 
 ## Performance Metrics
 
@@ -51,6 +51,11 @@ Last activity: 2026-06-02 — 12-01 complete (segment cut+concat engine: _detect
 - **Re-encode on every topic_clip cut (no -c copy)** — keyframe seek bleeds 1-2s of prior segment without re-encode; libx264 veryfast crf23 / aac 192k 44100 2ch is the safe baseline
 - **enforce_duration runs before cutting** — duration guard trims last segment end_s before any ffmpeg I/O (pitfall: guard-after-concat is too late)
 - **Concat demuxer over filter_complex** — all inputs share identical params post-cut; demuxer is safe and avoids A/V drift
+- **overlay_captions re-encodes audio (no -c:a copy)** — consistent with project no-copy rule; AST guard in test_cut_segment_no_copy_codec scans all list literals
+- **FONT_PATH = DejaVuSans-Bold.ttf** — Hanken Grotesk not installed on 105; DejaVuSans-Bold confirmed present
+- **Single first-sentence caption overlay (Phase 12)** — per-segment timed word-level captions deferred to Phase 13
+- **render() matches film_montage.render() signature** — both renderers callable uniformly from plan-03 handler
+- **_build_variant_assemblies: deep copy per variant** — independent mutation safety; enforce_duration on base before deriving variants
 
 ### Pending Todos
 
@@ -63,5 +68,5 @@ Last activity: 2026-06-02 — 12-01 complete (segment cut+concat engine: _detect
 ## Session Continuity
 
 Last session: 2026-06-02
-Stopped at: Phase 12 Plan 01 complete — cut+concat engine implemented and tested (13/13, 104 existing unaffected)
-Resume at: Phase 12 Plan 02 — structural variants (full/highlights/soundbite) on top of topic_clip engine
+Stopped at: Phase 12 Plan 02 complete — caption/branding/variant/render pipeline implemented and tested (22/22, 122/122 forge suite)
+Resume at: Phase 12 Plan 03 — handler wiring (calls render() per structural variant, feeds each to multiply.py for pixel-level Tier 2)

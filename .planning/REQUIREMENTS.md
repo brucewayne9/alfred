@@ -24,8 +24,8 @@ Requirements for the v1.2 milestone. Each maps to exactly one roadmap phase.
 ### Variant Assembly
 
 - [x] **CLIP-01**: Forge cuts the matched segments out of the source into clips with audio and video in sync
-- [ ] **CLIP-02**: Forge generates multiple distinct variants from the matched segments (different segment order, cut points, and captions)
-- [ ] **CLIP-03**: Each variant is branded in the Mainstay style (logo + caption) as a 9:16 vertical
+- [x] **CLIP-02**: Forge generates multiple distinct variants from the matched segments (different segment order, cut points, and captions)
+- [x] **CLIP-03**: Each variant is branded in the Mainstay style (logo + caption) as a 9:16 vertical
 - [ ] **CLIP-04**: Variants deliver to the library and can be handed to Postiz as drafts
 
 ### Operator Workflow
@@ -69,8 +69,8 @@ Deferred — acknowledged but not in the v1.2 roadmap.
 | TOPIC-02 | Phase 11 | Complete |
 | TOPIC-03 | Phase 11 | Complete |
 | CLIP-01 | Phase 12 | Complete |
-| CLIP-02 | Phase 12 | Pending |
-| CLIP-03 | Phase 12 | Pending |
+| CLIP-02 | Phase 12 | Complete |
+| CLIP-03 | Phase 12 | Complete |
 | CLIP-04 | Phase 12 | Pending |
 | FLOW-01 | Phase 13 | Pending |
 | FLOW-02 | Phase 13 | Pending |
