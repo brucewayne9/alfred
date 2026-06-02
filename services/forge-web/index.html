@@ -440,6 +440,9 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
           <span id="topicSelected" style="font:600 14px/1 var(--sans);color:var(--mute)">0 segments selected</span>
           <button class="btn-ghost" type="button" onclick="copyTopicSelection()" style="margin-left:auto">⧉ Copy selection</button>
           <button class="btn-ghost" type="button" onclick="printTopicSelection()">⎙ Print selection</button>
+          <label style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">Variants</label>
+          <input id="topicVariantCount" type="number" value="3" min="1" max="10" style="width:64px;padding:8px 10px;font-size:13px">
+          <button class="btn" type="button" onclick="assembleVariants()"><span class="k">&#x29C9;</span> Assemble variants</button>
         </div>
       </section>
 
@@ -1088,6 +1091,37 @@ function copyTopicSelection(){
       () => toast('Clipboard write failed')
     );
   } else { toast('Clipboard unavailable'); }
+}
+
+async function assembleVariants(){
+  const sourceId = document.getElementById('topicSource').value;
+  if(!sourceId){ toast('Pick a source first'); return; }
+  const segments = Object.values(topicState.selected).filter(s => s.kept).map(s => ({
+    start_s: s.trimIn,
+    end_s: s.trimOut,
+    text: s.text,
+    speaker: s.speaker || null,
+    score: s.score
+  }));
+  if(!segments.length){ toast('No segments selected'); return; }
+  const variantCount = parseInt(document.getElementById('topicVariantCount').value) || 3;
+  const caption = (segments[0] && segments[0].text)
+    ? segments[0].text.split('. ')[0].slice(0, 120)
+    : '';
+  try {
+    const r = await fetch(API + '/forge/jobs', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      credentials: 'include',
+      body: JSON.stringify({
+        job_type: 'topic_clip',
+        params: {source_id: sourceId, segments, variant_count: variantCount, caption}
+      })
+    });
+    if(!r.ok) throw new Error(r.status);
+    toast('Assembling ' + variantCount + ' variants — watch the queue');
+    refreshJobs(); tabTo('queue');
+  } catch(e) { toast('Could not start assembly (' + e.message + ')'); }
 }
 
 function printTopicSelection(){
