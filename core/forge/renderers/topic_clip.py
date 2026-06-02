@@ -199,14 +199,21 @@ def enforce_duration(
     if total <= max_s:
         return [dict(s) for s in segments]
 
-    # Trim the last segment's end_s by the overage.
-    overage = total - max_s
+    # Trim segments from the tail until total <= max_s.
+    # A single pass trimming only the last segment fails when the overage is
+    # larger than the last segment's duration (the floor at start_s+1s leaves
+    # the total still above max_s). Iterate from last to first.
     result = [dict(s) for s in segments]
-    last = result[-1]
-    new_end = last["end_s"] - overage
-    # Floor: segment must be at least 1 s long.
-    new_end = max(last["start_s"] + 1.0, new_end)
-    last["end_s"] = new_end
+    for idx in range(len(result) - 1, -1, -1):
+        current_total = sum(s["end_s"] - s["start_s"] for s in result)
+        if current_total <= max_s:
+            break
+        overage = current_total - max_s
+        seg = result[idx]
+        new_end = seg["end_s"] - overage
+        # Floor: each segment must be at least 1 s long.
+        new_end = max(seg["start_s"] + 1.0, new_end)
+        seg["end_s"] = new_end
     return result
 
 
@@ -307,6 +314,152 @@ def overlay_captions(
         raise RuntimeError(
             f"overlay_captions failed: {proc.stderr[-500:]}"
         )
+    return out_path
+
+
+# ---------------------------------------------------------------------------
+# Timed rolling captions — follow the speaker's words (CLIP-03, phase-13 pull-forward)
+# ---------------------------------------------------------------------------
+
+
+def _format_ass_time(t: float) -> str:
+    """Format *t* seconds as an ASS timestamp ``H:MM:SS.cc`` (centiseconds)."""
+    if t < 0:
+        t = 0.0
+    cs = int(round(t * 100))
+    h, cs = divmod(cs, 360000)
+    m, cs = divmod(cs, 6000)
+    s, cs = divmod(cs, 100)
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def _ass_escape(text: str) -> str:
+    """Escape + wrap *text* for an ASS Dialogue line.
+
+    ASS uses ``\\N`` for hard line breaks and treats ``{ }`` as override blocks,
+    so curly braces are neutralised.  Lines are wrapped to ≤24 chars (≤2 lines)
+    so a phrase reads as a tight lower-third, not a full-width paragraph.
+    """
+    text = " ".join((text or "").split())            # collapse whitespace
+    text = text.replace("{", "(").replace("}", ")")   # kill override blocks
+    text = text.replace("\\", "")                      # drop stray backslashes
+    wrapped = textwrap.wrap(text, width=24)[:2]        # ≤2 lines
+    return "\\N".join(wrapped)
+
+
+def _build_caption_events(
+    variant_segments: list[dict],
+    fine_segments: list[dict],
+    min_event_s: float = 0.3,
+) -> list[tuple[float, float, str]]:
+    """Map fine (≈2 s) transcript phrases onto the OUTPUT timeline.
+
+    The assembled clip is the variant's window segments concatenated in order.
+    For each window we pull the fine transcript phrases that overlap it and
+    rebase their timings to clip-local output time (accounting for window
+    reorder/trim).  The result is a rolling caption track that follows speech.
+
+    Falls back to one window-spanning event when a window has no fine phrases.
+    Returns ``[(out_start, out_end, text), ...]`` in output order.
+    """
+    events: list[tuple[float, float, str]] = []
+    offset = 0.0
+    for w in variant_segments:
+        w_start = float(w["start_s"])
+        w_end = float(w["end_s"])
+        w_dur = max(0.0, w_end - w_start)
+        subs = [
+            f for f in fine_segments
+            if float(f["end_s"]) > w_start and float(f["start_s"]) < w_end
+            and (f.get("text") or "").strip()
+        ]
+        if subs:
+            for f in subs:
+                ls = max(0.0, float(f["start_s"]) - w_start)
+                le = min(w_dur, float(f["end_s"]) - w_start)
+                if le - ls < min_event_s:
+                    continue
+                events.append((offset + ls, offset + le, (f.get("text") or "").strip()))
+        elif (w.get("text") or "").strip():
+            events.append((offset, offset + w_dur, (w.get("text") or "").strip()))
+        offset += w_dur
+    return events
+
+
+def _write_ass_file(
+    events: list[tuple[float, float, str]],
+    out_path: Path,
+    font_size: int = 56,
+) -> Path:
+    """Write a styled ASS subtitle file (white bold, black outline, lower-third)."""
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        "PlayResX: 1080\n"
+        "PlayResY: 1920\n"
+        "WrapStyle: 0\n"
+        "ScaledBorderAndShadow: yes\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+        "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
+        "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
+        "MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Cap,DejaVu Sans,{font_size},&H00FFFFFF,&H000000FF,&H00000000,"
+        "&H64000000,1,0,0,0,100,100,0,0,1,4,1,2,80,80,300,1\n\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+    lines = [header]
+    for (s, e, text) in events:
+        if e <= s:
+            continue
+        lines.append(
+            f"Dialogue: 0,{_format_ass_time(s)},{_format_ass_time(e)},Cap,,0,0,0,,{_ass_escape(text)}\n"
+        )
+    out_path.write_text("".join(lines), encoding="utf-8")
+    return out_path
+
+
+def overlay_timed_captions(
+    body_path: Path,
+    events: list[tuple[float, float, str]],
+    out_path: Path,
+    work_dir: Path,
+    font_size: int = 56,
+) -> Path:
+    """Burn a rolling, speech-synced caption track onto an already-9:16 video.
+
+    Builds an ASS file from *events* and renders it with libass (the ``ass``
+    filter).  If *events* is empty the body is re-encoded through unchanged so
+    the output codec parameters stay uniform.  Raises RuntimeError on failure.
+    """
+    body_path = Path(body_path)
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not events:
+        return overlay_captions(body_path, "", out_path)
+
+    ass_path = _write_ass_file(events, Path(work_dir) / "captions.ass", font_size=font_size)
+    # ass filter path: single-quote and escape filtergraph specials.
+    esc = str(ass_path).replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
+    vf = f"ass='{esc}'"
+    proc = subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error",
+            "-i", str(body_path),
+            "-vf", vf,
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "192k",
+            str(out_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0 or not out_path.exists():
+        raise RuntimeError(f"overlay_timed_captions failed: {proc.stderr[-500:]}")
     return out_path
 
 
@@ -469,6 +622,7 @@ def assemble_variant(
     caption_text: str,
     out_path: str | Path,
     work_dir: str | Path,
+    fine_segments: list[dict] | None = None,
 ) -> Path:
     """Assemble one structural variant into a branded 9:16 master.
 
@@ -476,7 +630,9 @@ def assemble_variant(
       1. Cut each segment from source_path into work_dir.
       2. Concat all cut segments -> body (video) OR audio-only track.
       3. If audio-only: _synthesise_visual to get a picture for the body.
-      4. overlay_captions on the body.
+      4. Captions: if *fine_segments* are supplied, burn a rolling speech-synced
+         caption track (follows the words); otherwise fall back to the single
+         static *caption_text* line.
       5. Extract concat audio as hook file.
       6. make_branded(captioned, hook_audio, "", out_path) — logo + final mux.
 
@@ -518,9 +674,16 @@ def assemble_variant(
             work_dir,
         )
 
-    # 4. Overlay captions.
+    # 4. Captions — rolling speech-synced track when fine segments are available.
     captioned = work_dir / f"captioned_{label}.mp4"
-    overlay_captions(body, caption_text, captioned)
+    events = (
+        _build_caption_events(segments, fine_segments)
+        if fine_segments else []
+    )
+    if events:
+        overlay_timed_captions(body, events, captioned, work_dir / f"caps_{label}")
+    else:
+        overlay_captions(body, caption_text, captioned)
 
     # 5. Extract concatenated audio as hook file for make_branded mux.
     hook_audio = work_dir / f"hook_{label}.m4a"
@@ -601,6 +764,13 @@ def render(params: dict, out_path: str | Path) -> Path:
 
     has_video = _detect_has_video(source_path)
 
+    # Fine-grained transcript phrases for rolling speech-synced captions.
+    # Falls back to a single static caption if unavailable.
+    try:
+        fine_segments = ingest.get_segments(source_id)
+    except Exception:  # noqa: BLE001
+        fine_segments = []
+
     # Derive caption from first segment if not provided.
     if not caption and segments:
         raw_text = segments[0].get("text", "")
@@ -620,6 +790,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             caption_text=caption,
             out_path=out_path,
             work_dir=work,
+            fine_segments=fine_segments,
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)

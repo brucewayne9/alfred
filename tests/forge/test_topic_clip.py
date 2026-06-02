@@ -12,9 +12,13 @@ import subprocess
 import pytest
 
 from core.forge.renderers.topic_clip import (
+    _ass_escape,
+    _build_caption_events,
     _concat_segments,
     _cut_segment,
     _detect_has_video,
+    _format_ass_time,
+    _write_ass_file,
     enforce_duration,
 )
 from core.forge import audio
@@ -354,3 +358,77 @@ def test_build_variant_assemblies_labels():
     assert len(set(labels)) == 4, "duplicate labels in variants"
     for lbl in labels:
         assert isinstance(lbl, str) and lbl, "empty label"
+
+
+# ---------------------------------------------------------------------------
+# Timed rolling captions (CLIP-03 — follow the speaker's words)
+# ---------------------------------------------------------------------------
+
+
+def test_format_ass_time():
+    assert _format_ass_time(0) == "0:00:00.00"
+    assert _format_ass_time(65.37) == "0:01:05.37"
+    assert _format_ass_time(3661.5) == "1:01:01.50"
+    # negative clamps to zero
+    assert _format_ass_time(-5) == "0:00:00.00"
+
+
+def test_ass_escape_neutralises_overrides_and_wraps():
+    out = _ass_escape("hello {world} this is a fairly long caption line here")
+    assert "{" not in out and "}" not in out
+    # wrapped into <=2 lines joined by ASS hard-break
+    assert out.count("\\N") <= 1
+
+
+def test_build_caption_events_rebases_to_output_time():
+    # One window [100,110]; two fine phrases inside it.
+    window = [{"start_s": 100.0, "end_s": 110.0, "text": "full window text"}]
+    fine = [
+        {"start_s": 100.0, "end_s": 103.0, "text": "first phrase"},
+        {"start_s": 103.0, "end_s": 108.0, "text": "second phrase"},
+    ]
+    ev = _build_caption_events(window, fine)
+    assert len(ev) == 2
+    # first event starts at output t=0 (rebased), not source t=100
+    assert ev[0][0] == 0.0
+    assert abs(ev[0][1] - 3.0) < 1e-6
+    assert ev[0][2] == "first phrase"
+    assert abs(ev[1][0] - 3.0) < 1e-6
+
+
+def test_build_caption_events_reorder_follows_variant_order():
+    # Two windows; variant order is reversed. Output offsets must follow
+    # the GIVEN order, not source time.
+    windows = [
+        {"start_s": 200.0, "end_s": 205.0, "text": "B"},
+        {"start_s": 100.0, "end_s": 105.0, "text": "A"},
+    ]
+    fine = [
+        {"start_s": 100.0, "end_s": 105.0, "text": "alpha"},
+        {"start_s": 200.0, "end_s": 205.0, "text": "beta"},
+    ]
+    ev = _build_caption_events(windows, fine)
+    # First output event is from the FIRST given window (200-205 -> "beta")
+    assert ev[0][2] == "beta"
+    assert ev[0][0] == 0.0
+    # Second window starts at output t=5
+    assert abs(ev[1][0] - 5.0) < 1e-6
+    assert ev[1][2] == "alpha"
+
+
+def test_build_caption_events_fallback_when_no_fine():
+    window = [{"start_s": 0.0, "end_s": 10.0, "text": "whole window caption"}]
+    ev = _build_caption_events(window, [])
+    assert len(ev) == 1
+    assert ev[0] == (0.0, 10.0, "whole window caption")
+
+
+def test_write_ass_file_has_styled_events(tmp_path):
+    events = [(0.0, 2.0, "first"), (2.0, 4.0, "second")]
+    out = _write_ass_file(events, tmp_path / "c.ass")
+    body = out.read_text()
+    assert "[V4+ Styles]" in body
+    assert "Style: Cap,DejaVu Sans" in body
+    # Two Dialogue lines, one per event
+    assert body.count("Dialogue:") == 2
+    assert "0:00:00.00" in body and "0:00:02.00" in body
