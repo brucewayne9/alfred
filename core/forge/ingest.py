@@ -213,6 +213,21 @@ def assign_speakers(segments: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+def list_sources(status: str | None = None) -> list[dict]:
+    """Return source rows newest-first, optionally filtered by status."""
+    with _conn() as c:
+        if status:
+            rows = c.execute(
+                "SELECT * FROM sources WHERE status = ? ORDER BY rowid DESC",
+                (status,),
+            ).fetchall()
+        else:
+            rows = c.execute(
+                "SELECT * FROM sources ORDER BY rowid DESC"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def get_segments(source_id: str) -> list[dict]:
     """Return all transcript segments for *source_id* ordered by seq.
 

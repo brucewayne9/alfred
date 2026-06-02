@@ -153,6 +153,12 @@ def register(app: FastAPI) -> None:
         job_id = _forge_jobs.enqueue("ingest_transcribe", {"source_id": source_id, "url": url})
         return {"source_id": source_id, "job_id": job_id, "resolved": target}
 
+    @app.get("/forge/sources")
+    async def list_sources_endpoint(status: str | None = None, user: dict = Depends(require_auth)):
+        """Return sources newest-first. Use ?status=done to populate the source picker."""
+        from core.forge import ingest
+        return {"sources": ingest.list_sources(status=status)}
+
     @app.get("/forge/sources/{source_id}")
     async def get_source_status(source_id: str, user: dict = Depends(require_auth)):
         """Return the source row (status, duration_s, language, error, …).
