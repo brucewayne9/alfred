@@ -297,7 +297,7 @@ def overlay_captions(
             "-i", str(body_path),
             "-vf", drawtext_filter,
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-            "-c:a", "copy",
+            "-c:a", "aac", "-b:a", "192k",
             str(out_path),
         ],
         capture_output=True,

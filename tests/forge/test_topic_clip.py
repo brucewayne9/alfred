@@ -238,3 +238,119 @@ def test_enforce_duration_exact_boundary():
 
     seg60 = [{"start_s": 0.0, "end_s": 60.0}]
     assert enforce_duration(seg60)[0]["end_s"] == 60.0
+
+
+# ---------------------------------------------------------------------------
+# _safe_drawtext — pure string sanitiser, no ffmpeg required
+# ---------------------------------------------------------------------------
+
+from core.forge.renderers.topic_clip import (  # noqa: E402
+    _safe_drawtext,
+    _build_variant_assemblies,
+)
+
+
+def test_safe_drawtext_apostrophe():
+    """Straight apostrophe is replaced with U+2019, never a raw '."""
+    result = _safe_drawtext("it's a can't")
+    assert "'" not in result, "raw straight apostrophe found in output"
+    # U+2019 RIGHT SINGLE QUOTATION MARK should be present
+    assert "’" in result, "U+2019 not present after apostrophe replacement"
+
+
+def test_safe_drawtext_colon_escaped():
+    """Colon is escaped to \\: for ffmpeg drawtext."""
+    result = _safe_drawtext("time: 10:30")
+    assert "\\:" in result, "colon not escaped"
+    # No unescaped colons should remain (strip escaped ones, check for bare :)
+    stripped = result.replace("\\:", "")
+    assert ":" not in stripped, "unescaped colon remains"
+
+
+def test_safe_drawtext_no_raw_apostrophe():
+    """Combined: no raw apostrophes and colons are escaped."""
+    text = "it's a can't: test"
+    result = _safe_drawtext(text)
+    assert "'" not in result
+    assert "\\:" in result
+
+
+def test_safe_drawtext_percent_escaped():
+    """Percent sign is escaped to \\% for ffmpeg drawtext."""
+    result = _safe_drawtext("100% done")
+    assert "\\%" in result
+
+
+def test_safe_drawtext_backslash_escaped():
+    """Backslash is doubled (escaped) for ffmpeg drawtext."""
+    result = _safe_drawtext("path\\to\\file")
+    assert "\\\\" in result
+
+
+# ---------------------------------------------------------------------------
+# _build_variant_assemblies — pure logic, no ffmpeg required
+# ---------------------------------------------------------------------------
+
+def _make_segments(n: int, score_base: float = 0.7) -> list[dict]:
+    """Build *n* synthetic 7.5-second segments (sum=7.5n; well over 10s min)."""
+    segs = []
+    for i in range(n):
+        segs.append({
+            "start_s": float(i * 10),
+            "end_s": float(i * 10 + 7.5),
+            "text": f"Segment {i} text.",
+            "score": round(score_base + i * 0.01, 3),
+        })
+    return segs
+
+
+def test_build_variant_assemblies_count():
+    """variant_count=4 returns exactly 4 items with structurally distinct orderings."""
+    segs = _make_segments(4)  # 4 * 7.5 s = 30 s, within 10-60 band
+    variants = _build_variant_assemblies(segs, 4)
+    assert len(variants) == 4
+
+    # V0 original vs V1 reverse must differ
+    v0_order = [s["start_s"] for s in variants[0]["segments"]]
+    v1_order = [s["start_s"] for s in variants[1]["segments"]]
+    assert v0_order != v1_order, "V1 (reverse) not distinct from V0"
+
+    # V2 hook-first: first segment must be the highest-score one
+    max_score_start = max(segs, key=lambda s: s["score"])["start_s"]
+    assert variants[2]["segments"][0]["start_s"] == max_score_start, (
+        "V2 hook-first: first segment is not the highest-score segment"
+    )
+
+
+def test_build_variant_assemblies_single():
+    """variant_count=1 returns exactly [V0] (original order only)."""
+    segs = _make_segments(4)
+    variants = _build_variant_assemblies(segs, 1)
+    assert len(variants) == 1
+    assert variants[0]["label"] == "original"
+
+
+def test_variant_segments_independent():
+    """Mutating one variant's segments list does not affect another variant."""
+    segs = _make_segments(4)
+    variants = _build_variant_assemblies(segs, 3)
+
+    # Mutate V0's first segment
+    variants[0]["segments"][0]["end_s"] = 9999.0
+
+    # V1 and V2 must be unaffected
+    for i in (1, 2):
+        for seg in variants[i]["segments"]:
+            assert seg["end_s"] != 9999.0, (
+                f"Variant {i} was mutated when Variant 0 was modified"
+            )
+
+
+def test_build_variant_assemblies_labels():
+    """Each variant has a non-empty unique label string."""
+    segs = _make_segments(4)
+    variants = _build_variant_assemblies(segs, 4)
+    labels = [v["label"] for v in variants]
+    assert len(set(labels)) == 4, "duplicate labels in variants"
+    for lbl in labels:
+        assert isinstance(lbl, str) and lbl, "empty label"
