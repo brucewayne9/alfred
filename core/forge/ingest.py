@@ -8,6 +8,7 @@ transcription handler without pulling in heavy GPU deps at import time.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import time
@@ -15,6 +16,8 @@ import uuid
 from pathlib import Path
 
 from core.forge.db import _conn
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Allowed column names for update_source — guards against SQL injection.
@@ -292,6 +295,12 @@ def transcribe_handler(params: dict) -> dict:
     ckpt = load_checkpoint(source_id)
     if ckpt.get("complete"):
         save_segments(source_id, ckpt["segments"])
+        # Phase 11 — make the source immediately searchable (~1.6s for a 90-min interview)
+        try:
+            from core.forge import search as _search
+            _search.embed_source_windows(source_id)
+        except Exception:
+            logger.exception("embed_source_windows failed for %s (search will lazy-backfill)", source_id)
         update_source(source_id, status="done")
         return {
             "transcript_id": source_id,
@@ -459,6 +468,12 @@ def transcribe_handler(params: dict) -> dict:
         # 7. Persist to DB                                                     #
         # ------------------------------------------------------------------ #
         save_segments(source_id, labelled_clean)
+        # Phase 11 — make the source immediately searchable (~1.6s for a 90-min interview)
+        try:
+            from core.forge import search as _search
+            _search.embed_source_windows(source_id)
+        except Exception:
+            logger.exception("embed_source_windows failed for %s (search will lazy-backfill)", source_id)
         update_source(
             source_id,
             status="done",
