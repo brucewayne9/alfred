@@ -455,6 +455,14 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
           <input id="topicVariantCount" type="number" value="3" min="1" max="10" style="width:64px;padding:8px 10px;font-size:13px">
           <button class="btn" type="button" onclick="assembleVariants()"><span class="k">&#x29C9;</span> Assemble variants</button>
         </div>
+        <!-- MONTAGE TRAY — hand-pick moments across sources, stitch in order -->
+        <div style="margin-top:10px;padding:12px 18px;border:1px dashed var(--line,#444);border-radius:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <span style="font:700 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#caa14a)">Montage tray</span>
+          <button class="btn-ghost" type="button" onclick="addToMontage()">＋ Add selection to montage</button>
+          <span id="montageTrayStatus" style="font:600 13px/1 var(--sans);color:var(--mute)">empty — add picks from any source, then assemble</span>
+          <button class="btn-ghost" type="button" onclick="clearMontage()" style="margin-left:auto">Clear</button>
+          <button class="btn" type="button" onclick="assembleMontage()"><span class="k">&#x29C9;</span> Assemble montage</button>
+        </div>
       </section>
 
       <!-- QUEUE -->
@@ -1135,6 +1143,56 @@ async function assembleVariants(){
     toast('Assembling ' + variantCount + ' variants — watch the queue');
     refreshJobs(); tabTo('queue');
   } catch(e) { toast('Could not start assembly (' + e.message + ')'); }
+}
+
+// ---- Montage tray: hand-pick moments across sources, stitch in order ----
+let montageTray = [];
+function _montageSourceName(){
+  const sel = document.getElementById('topicSource');
+  const o = sel && sel.options[sel.selectedIndex];
+  return (o && o.textContent) ? o.textContent.trim().slice(0,40) : 'source';
+}
+function renderMontageStatus(){
+  const el = document.getElementById('montageTrayStatus');
+  if(!el) return;
+  if(!montageTray.length){ el.textContent = 'empty — add picks from any source, then assemble'; return; }
+  const srcs = new Set(montageTray.map(p => p.source_id)).size;
+  const secs = montageTray.reduce((a,p)=>a+(p.end_s-p.start_s),0);
+  el.textContent = montageTray.length + ' clip' + (montageTray.length>1?'s':'') + ' from ' + srcs + ' source' + (srcs>1?'s':'') + ' · ~' + Math.round(secs) + 's';
+}
+function addToMontage(){
+  const sourceId = document.getElementById('topicSource').value;
+  if(!sourceId){ toast('Pick a source first'); return; }
+  const picks = Object.values(topicState.selected).filter(s => s.kept).map(s => ({
+    source_id: sourceId, start_s: s.trimIn, end_s: s.trimOut,
+    text: s.text, speaker: s.speaker || null, score: s.score
+  }));
+  if(!picks.length){ toast('No segments selected to add'); return; }
+  montageTray.push(...picks);
+  renderMontageStatus();
+  toast('Added ' + picks.length + ' from ' + _montageSourceName() + ' (tray: ' + montageTray.length + ')');
+}
+function clearMontage(){ montageTray = []; renderMontageStatus(); toast('Montage tray cleared'); }
+async function assembleMontage(){
+  if(!montageTray.length){ toast('Montage tray is empty — add picks first'); return; }
+  const total = montageTray.reduce((a,p)=>a+(p.end_s-p.start_s),0);
+  if(total < 10){ toast('Montage too short (~' + Math.round(total) + 's; need ≥10s)'); return; }
+  const captionStyle = (document.getElementById('topicCaptionStyle')||{}).value || 'clean';
+  const captionPos = (document.getElementById('topicCaptionPos')||{}).value || 'lower';
+  try {
+    const r = await fetch(API + '/forge/jobs', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      credentials: 'include',
+      body: JSON.stringify({
+        job_type: 'multi_montage',
+        params: {picks: montageTray, caption_style: captionStyle, caption_position: captionPos}
+      })
+    });
+    if(!r.ok) throw new Error(r.status);
+    toast('Assembling montage from ' + montageTray.length + ' picks — watch the queue');
+    refreshJobs(); tabTo('queue');
+  } catch(e) { toast('Could not start montage (' + e.message + ')'); }
 }
 
 function printTopicSelection(){

@@ -181,6 +181,69 @@ def _topic_clip_handler(params: dict) -> dict:
     }
 
 
+def _multi_montage_handler(params: dict) -> dict:
+    """Custom handler for multi_montage jobs — hand-picked multi-source montage.
+
+    Renders ONE operator-ordered montage from picks across sources, then runs
+    it through multiply() for Tier-2 pixel anti-suppression (stealth copies for
+    distribution).  allow_flip=False — captions + logo must never mirror.
+
+    Emits the standard delivered_dirs + variant_count result shape so the
+    Library tab and push_to_postiz consume it for free.
+    """
+    import tempfile
+    import time
+    import shutil
+    from pathlib import Path
+    from core.forge.renderers.multi_montage import render
+    from core.forge.multiply import multiply
+    from core.forge import delivery
+
+    picks = params.get("picks") or []
+    if not picks:
+        raise RuntimeError("multi_montage: no picks provided")
+    stealth = int(params.get("variations", 3) or 3)
+    base = (params.get("subfolder") or "Intelligent Clips").strip()
+    stamp = int(time.time())
+    label = f"multi_montage_{stamp}"
+
+    work = Path(tempfile.mkdtemp(prefix="forge_multimtg_job_"))
+    var_dirs, total_delivered = [], 0
+    try:
+        forge_jobs.check_cancel()
+        master = render(params, work / f"{label}_master.mp4")
+        forge_jobs.check_cancel()
+        copies = (
+            multiply(master, stealth, work / "v", base_name=label, allow_flip=False)
+            if stealth else []
+        )
+        dest = f"{base}/{label}"
+        try:
+            delivery.deliver(master, dest, filename=master.name)
+            total_delivered += 1
+        except Exception:  # noqa: BLE001
+            pass
+        for c in copies:
+            try:
+                delivery.deliver(c, dest)
+                total_delivered += 1
+            except Exception:  # noqa: BLE001
+                pass
+        if total_delivered:
+            var_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    return {
+        "format": "multi_montage",
+        "variant_count": 1,
+        "clips_used": len(picks),
+        "variations_each": stealth,
+        "delivered": total_delivered,
+        "delivered_dirs": var_dirs,
+    }
+
+
 def register_default_handlers() -> None:
     """Register all built-in Forge job handlers into the queue."""
     forge_jobs.register_handler("echo", _echo_handler)
@@ -189,3 +252,4 @@ def register_default_handlers() -> None:
     forge_jobs.register_handler("film_montage", _film_montage_handler)
     forge_jobs.register_handler("ingest_transcribe", _ingest_transcribe_handler)
     forge_jobs.register_handler("topic_clip", _topic_clip_handler)
+    forge_jobs.register_handler("multi_montage", _multi_montage_handler)
