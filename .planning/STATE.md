@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-06-01)
 ## Current Position
 
 Phase: 11 — Topic-Targeted Segment Retrieval
-Plan: 11-02 (1 of 3 complete)
+Plan: 11-03 (2 of 3 complete)
 Status: In Progress
-Progress: [███░░░░░░░] 30% (v1.2 — 2/4 phases; Phase 10 done; Phase 11 plan 1/3 done)
+Progress: [████░░░░░░] 40% (v1.2 — 2/4 phases; Phase 10 done; Phase 11 plans 1-2/3 done)
 
-Last activity: 2026-06-02 — 11-01 complete (windowing + bge-m3 embedding + search_segments wired inline to transcription)
+Last activity: 2026-06-02 — 11-02 complete (search API: GET /forge/sources + GET /forge/sources/{id}/search, lazy backfill, 7 tests passing)
 
 ## Performance Metrics
 
@@ -45,6 +45,8 @@ Last activity: 2026-06-02 — 11-01 complete (windowing + bge-m3 embedding + sea
 - **Single shared forge_segments ChromaDB collection** — sources scoped via source_id metadata, not one collection per source
 - **Duration-only windowing** — no speaker-boundary splits; short interjections flip speaker not topic; duration guard absorbs them
 
+- **sys.modules stub injection** — API tests stub core.forge.search via sys.modules autouse fixture to avoid chromadb dep in test env; pre-existing test_search.py failure deferred to Phase 11-03+
+
 ### Pending Todos
 
 - None
@@ -56,5 +58,5 @@ Last activity: 2026-06-02 — 11-01 complete (windowing + bge-m3 embedding + sea
 ## Session Continuity
 
 Last session: 2026-06-02
-Stopped at: Phase 11 Plan 01 complete — windowing + bge-m3 embedding + search_segments wired inline to transcription
-Resume at: `/gsd:execute-phase 11` — execute 11-02 (search API endpoint + backfill)
+Stopped at: Phase 11 Plan 02 complete — GET /forge/sources + GET /forge/sources/{id}/search + lazy backfill + 7 API tests
+Resume at: `/gsd:execute-phase 11` — execute 11-03 (precision validation checkpoint)
