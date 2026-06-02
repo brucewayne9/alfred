@@ -171,6 +171,45 @@ def register(app: FastAPI) -> None:
             raise HTTPException(status_code=404, detail="source not found")
         return source
 
+    @app.get("/forge/sources/{source_id}/search")
+    async def search_source_segments(
+        source_id: str,
+        q: str = Query(..., description="Topic or theme to search for"),
+        top_k: int = Query(default=10, ge=1, le=50),
+        speaker: str | None = Query(default=None),
+        threshold: float = Query(default=0.45, ge=0.0, le=1.0),
+        user: dict = Depends(require_auth),
+    ):
+        """Search a transcribed source for a topic/theme.
+
+        Returns ranked windows with transcript text inline (TOPIC-02 preview).
+        Lazy-backfills embedding for Phase-10 sources that predate Phase-11.
+
+        Errors:
+            404 — source_id not found
+            409 — source not yet done (status != 'done')
+        """
+        from core.forge import ingest, search as forge_search
+        source = ingest.get_source(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="source not found")
+        if source.get("status") != "done":
+            raise HTTPException(
+                status_code=409,
+                detail=f"source not ready: {source.get('status')}",
+            )
+        # Lazy backfill — Phase-10 sources ingested before embedding existed
+        if not forge_search.has_windows(source_id):
+            forge_search.embed_source_windows(source_id)
+        results = forge_search.search_segments(
+            source_id=source_id,
+            query=q,
+            top_k=top_k,
+            speaker=speaker or None,
+            score_threshold=threshold,
+        )
+        return {"source_id": source_id, "query": q, "results": results}
+
     @app.get("/forge/sources/{source_id}/transcript")
     async def get_source_transcript(source_id: str, user: dict = Depends(require_auth)):
         """Return ordered, speaker-labelled transcript segments for a source.
