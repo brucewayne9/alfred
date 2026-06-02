@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-06-01)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** v1.2 Forge Intelligent Clipping — Phase 10 executing
+**Current focus:** v1.2 Forge Intelligent Clipping — Phase 11 executing
 
 ## Current Position
 
-Phase: 10 — Long-form Ingest & Transcription
-Plan: 10-02 (1 of 3 complete)
+Phase: 11 — Topic-Targeted Segment Retrieval
+Plan: 11-02 (1 of 3 complete)
 Status: In Progress
-Progress: [█░░░░░░░░░] 8% (v1.2 — 1/4 phases; Phase 10 plan 1/3 done)
+Progress: [███░░░░░░░] 30% (v1.2 — 2/4 phases; Phase 10 done; Phase 11 plan 1/3 done)
 
-Last activity: 2026-06-01 — 10-01 complete (sources/transcript_segments tables, ingest.py, extract_audio)
+Last activity: 2026-06-02 — 11-01 complete (windowing + bge-m3 embedding + search_segments wired inline to transcription)
 
 ## Performance Metrics
 
@@ -29,8 +29,8 @@ Last activity: 2026-06-01 — 10-01 complete (sources/transcript_segments tables
 - 1 day (2026-02-26)
 
 **v1.2 Running:**
-- 4 phases defined, 3 plans written (Phase 10), 3 commits (Phase 10 Plan 01)
-- Phase 10 Plan 01: 3 tasks, 3 files, ~6 min
+- 4 phases defined, Phase 10 complete (3/3 plans), Phase 11 in progress
+- Phase 11 Plan 01: 2 tasks, 3 files, ~15 min
 - Target: 14 requirements across Phases 10-13
 
 ## Accumulated Context
@@ -42,6 +42,8 @@ Last activity: 2026-06-01 — 10-01 complete (sources/transcript_segments tables
 - **Human-in-the-loop distribution only** — no auto-post to any platform; operator pushes to Postiz as drafts
 - **YouTube is source only** — no posting destination; Meta (IG+FB) + TikTok are the targets
 - **No calendar deadlines** — phases gate on capability/metrics per operating agreement
+- **Single shared forge_segments ChromaDB collection** — sources scoped via source_id metadata, not one collection per source
+- **Duration-only windowing** — no speaker-boundary splits; short interjections flip speaker not topic; duration guard absorbs them
 
 ### Pending Todos
 
@@ -53,6 +55,6 @@ Last activity: 2026-06-01 — 10-01 complete (sources/transcript_segments tables
 
 ## Session Continuity
 
-Last session: 2026-06-01
-Stopped at: Phase 10 Plan 01 complete — foundation (sources table, ingest.py, extract_audio)
-Resume at: `/gsd:execute-phase 10` — execute 10-02 (ingest paths: streaming upload + URL)
+Last session: 2026-06-02
+Stopped at: Phase 11 Plan 01 complete — windowing + bge-m3 embedding + search_segments wired inline to transcription
+Resume at: `/gsd:execute-phase 11` — execute 11-02 (search API endpoint + backfill)
