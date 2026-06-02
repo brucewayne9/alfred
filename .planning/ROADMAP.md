@@ -79,7 +79,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
   2. Forge produces multiple variants from the same segment set — differing in segment order, cut points, or caption timing — so no two are identical
   3. Every variant is formatted as a 9:16 vertical with the Mainstay logo and styled captions applied
   4. Finished variants appear in the Forge library and the operator can push them to Postiz as drafts in one action
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 - [ ] 12-01-PLAN.md — Segment cut + concat + duration-guard engine (CLIP-01 core)
 - [ ] 12-02-PLAN.md — Structural variants + safe captions + 9:16 branding + audio-only ComfyUI visual + render() (CLIP-01/02/03)
 - [ ] 12-03-PLAN.md — topic_clip handler + Assemble-variants UI + delivery/Postiz wiring + real-source end-to-end checkpoint (CLIP-02/04)
@@ -109,5 +109,5 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 9. Ad Intelligence | v1.1 | 2/2 | Complete | 2026-02-26 |
 | 10. Long-form Ingest & Transcription | 1/3 | Complete    | 2026-06-01 | - |
 | 11. Topic-targeted Segment Retrieval | v1.2 | Complete    | 2026-06-02 | 2026-06-02 |
-| 12. Variant Montage Assembly | v1.2 | 0/3 | Planned | - |
+| 12. Variant Montage Assembly | 1/3 | In Progress|  | - |
 | 13. Operator Self-serve Intelligent Clip Flow | v1.2 | 0/? | Not started | - |

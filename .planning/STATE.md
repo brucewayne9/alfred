@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-06-01)
 
 **Core value:** Alfred must be a reliable daily operations tool — every integration works correctly, no duplicate messages, no broken queues, and Mike can manage ad campaigns and CRM contacts conversationally without touching the ad platforms or CRM directly.
-**Current focus:** v1.2 Forge Intelligent Clipping — Phase 11 executing
+**Current focus:** v1.2 Forge Intelligent Clipping — Phase 12 executing
 
 ## Current Position
 
-Phase: 11 — Topic-Targeted Segment Retrieval
-Plan: 11-03 (3 of 3 complete)
-Status: Phase Complete
-Progress: [█████░░░░░] 50% (v1.2 — 2/4 phases; Phase 10 done; Phase 11 done)
+Phase: 12 — Variant Montage Assembly
+Plan: 12-01 (1 of 3 complete)
+Status: In Progress
+Progress: [██████░░░░] 60% (v1.2 — 2/4 phases done + Phase 12 started; Phase 10 done; Phase 11 done)
 
-Last activity: 2026-06-02 — 11-03 complete (Topic tab UI + precision checkpoint: threshold 0.72, real RuckTalk interview validated)
+Last activity: 2026-06-02 — 12-01 complete (segment cut+concat engine: _detect_has_video, _cut_segment, _concat_segments, enforce_duration; 13 tests passing)
 
 ## Performance Metrics
 
@@ -48,6 +48,9 @@ Last activity: 2026-06-02 — 11-03 complete (Topic tab UI + precision checkpoin
 - **sys.modules stub injection** — API tests stub core.forge.search via sys.modules autouse fixture to avoid chromadb dep in test env; Wave-2 test isolation leak fixed in 11-03 (0b417f4); 106/106 passing
 - **Topic default threshold 0.72** — Calibrated against real RuckTalk interview (episode_5.mp3); 0.45 plan default too low; 0.70 let floor-scraper through; 0.72 cuts it cleanly — Mike-approved at precision checkpoint
 - **Precision checkpoint retired** — On real RuckTalk source, "sleep and recovery" returns 3 genuine hits at 79%; "cooking recipes food preparation" returns 0 — Phase 11 make-or-break risk retired
+- **Re-encode on every topic_clip cut (no -c copy)** — keyframe seek bleeds 1-2s of prior segment without re-encode; libx264 veryfast crf23 / aac 192k 44100 2ch is the safe baseline
+- **enforce_duration runs before cutting** — duration guard trims last segment end_s before any ffmpeg I/O (pitfall: guard-after-concat is too late)
+- **Concat demuxer over filter_complex** — all inputs share identical params post-cut; demuxer is safe and avoids A/V drift
 
 ### Pending Todos
 
@@ -55,10 +58,10 @@ Last activity: 2026-06-02 — 11-03 complete (Topic tab UI + precision checkpoin
 
 ### Blockers/Concerns
 
-- Phase 11 retrieval precision is the highest technical risk — bge-m3 embeddings are good for semantic similarity but topic precision on long-form transcripts needs validation at plan time
+- None
 
 ## Session Continuity
 
 Last session: 2026-06-02
-Stopped at: Phase 11 Plan 03 complete — Topic tab UI + precision checkpoint approved (threshold 0.72, 106/106 tests)
-Resume at: `/gsd:plan-phase 12` — Phase 12 Variant Montage Assembly (consumes Phase 11 Copy-selection JSON hand-off)
+Stopped at: Phase 12 Plan 01 complete — cut+concat engine implemented and tested (13/13, 104 existing unaffected)
+Resume at: Phase 12 Plan 02 — structural variants (full/highlights/soundbite) on top of topic_clip engine
