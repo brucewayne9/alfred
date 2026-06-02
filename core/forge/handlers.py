@@ -102,6 +102,85 @@ def _ingest_transcribe_handler(params: dict) -> dict:
     return ingest.transcribe_handler(params)
 
 
+def _topic_clip_handler(params: dict) -> dict:
+    """Custom handler for topic_clip jobs — structural variant loop.
+
+    Loops _build_variant_assemblies, renders each variant via render(), then
+    passes each master through multiply() for pixel-level Tier-2 anti-suppression.
+    Does NOT route through _run_remix_format / build_remixes (that varies vessel
+    mood — wrong for structural segment variation).
+
+    allow_flip=False is mandatory: captions and the Mainstay logo must never be
+    mirrored.
+
+    Result dict emits:
+      format          — "topic_clip"
+      variant_count   — number of structural variants built
+      variations_each — stealth copies per structural variant
+      delivered       — total files delivered to Nextcloud
+      delivered_dirs  — list of Nextcloud dir paths (for Library + Postiz to work)
+    """
+    import tempfile
+    import time
+    import shutil
+    from pathlib import Path
+    from core.forge.renderers.topic_clip import render, _build_variant_assemblies, enforce_duration
+    from core.forge.multiply import multiply
+    from core.forge import delivery
+
+    segments = params.get("segments") or []
+    variant_count = int(params.get("variant_count", 3) or 3)
+    variant_count = max(1, min(10, variant_count))
+    # stealth copies per structural variant (default 3 — research open Q3)
+    stealth = int(params.get("variations", 3) or 3)
+    base = (params.get("subfolder") or "Intelligent Clips").strip()
+    stamp = int(time.time())
+
+    variants = _build_variant_assemblies(enforce_duration(segments), variant_count)
+    work = Path(tempfile.mkdtemp(prefix="forge_topic_clip_"))
+    total_delivered, var_dirs = 0, []
+    try:
+        for i, var in enumerate(variants):
+            forge_jobs.check_cancel()
+            label = f"topic_clip_{stamp}_v{i:02d}"
+            # Build per-variant params: override segments + variant_index for render()
+            rp = dict(params)
+            rp["variant_index"] = i
+            rp["segments"] = var["segments"]
+            master = render(rp, work / f"{label}_master.mp4")
+            forge_jobs.check_cancel()
+            copies = (
+                multiply(master, stealth, work / f"v{i}", base_name=label, allow_flip=False)
+                if stealth else []
+            )
+            dest = f"{base}/{label}"
+            look_delivered = 0
+            try:
+                delivery.deliver(master, dest, filename=master.name)
+                look_delivered += 1
+            except Exception:  # noqa: BLE001
+                pass
+            for c in copies:
+                try:
+                    delivery.deliver(c, dest)
+                    look_delivered += 1
+                except Exception:  # noqa: BLE001
+                    pass
+            if look_delivered:
+                var_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+                total_delivered += look_delivered
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    return {
+        "format": "topic_clip",
+        "variant_count": len(variants),
+        "variations_each": stealth,
+        "delivered": total_delivered,
+        "delivered_dirs": var_dirs,
+    }
+
+
 def register_default_handlers() -> None:
     """Register all built-in Forge job handlers into the queue."""
     forge_jobs.register_handler("echo", _echo_handler)
@@ -109,3 +188,4 @@ def register_default_handlers() -> None:
     forge_jobs.register_handler("kinetic_lyric", _kinetic_lyric_handler)
     forge_jobs.register_handler("film_montage", _film_montage_handler)
     forge_jobs.register_handler("ingest_transcribe", _ingest_transcribe_handler)
+    forge_jobs.register_handler("topic_clip", _topic_clip_handler)
