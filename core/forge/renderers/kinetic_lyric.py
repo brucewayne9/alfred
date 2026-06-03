@@ -95,7 +95,7 @@ def render(params: dict, out_path: str | Path) -> Path:
     ComfyUI-Cloud vessel still -> ken-burns motion bg -> Remotion KineticTypeRig
     (silent) -> guarded mux of the hook audio -> assert_audible.
     """
-    from core.forge import audio, uploads
+    from core.forge import audio, uploads, caption_styles
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,7 +127,14 @@ def render(params: dict, out_path: str | Path) -> Path:
     words = audio.transcribe_words(hook)
     if not words:
         raise RuntimeError("transcription produced no words")
-    lines = build_karaoke_lines(words)
+    # Caption style picks how the lyric animates (shared gallery across formats).
+    # 'none'/'off' = clean vessel, no captions. Default mimics the classic gold
+    # karaoke sweep this format always had.
+    style_id = params.get("caption_style")
+    captions_on = style_id not in ("none", "off")
+    lines = build_karaoke_lines(words, max_words=5, uppercase=False) if captions_on else []
+    style_spec = caption_styles.resolve(
+        style_id if (style_id and caption_styles.is_valid(style_id)) else "karaoke_gold")
 
     # 4. Vessel image via ComfyUI Cloud (same lazy-import pattern as leak_graphic)
     if str(REPO) not in sys.path:
@@ -165,12 +172,14 @@ def render(params: dict, out_path: str | Path) -> Path:
         try:
             shutil.copyfile(vessel_mp4, pub_path)
 
-            # 7. Props
+            # 7. Props — shared CaptionStudioRig (same engine as Film Montage),
+            #    so all 37 gallery styles work here too.
             props = {
                 "brand": "mainstay",
                 "bgClip": pub_name,
-                "karaokeLines": lines,
-                "gradePreset": "teal-orange-crushed",
+                "lines": lines,
+                "style": style_spec,
+                "scrim": True,
             }
             props_path = work / "props.json"
             props_path.write_text(json.dumps(props))
@@ -178,7 +187,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             # 8. Render silent video via Remotion
             silent = work / "silent.mp4"
             rr = subprocess.run(
-                ["npx", "remotion", "render", "src/index.ts", "KineticTypeRig",
+                ["npx", "remotion", "render", "src/index.ts", "CaptionStudioRig",
                  str(silent), f"--props={props_path}"],
                 cwd=str(REMOTION), capture_output=True, text=True, timeout=1200,
                 env=_node_env())

@@ -306,6 +306,30 @@
     h1.page{font-size:22px}
     .topicbar select,.topicbar #topicVariantCount{flex:1 1 100%}
   }
+  /* ---- Caption-style gallery ---- */
+  .cap-trigger{display:flex;align-items:center;gap:11px;width:100%;background:#0e0e13;border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:11px 13px;font:600 14px/1 var(--sans);cursor:pointer;transition:.15s}
+  .cap-trigger:hover{border-color:var(--gold-dim)}
+  .cap-swatch{display:inline-flex;align-items:center;justify-content:center;width:34px;height:26px;border-radius:6px;font:900 13px/1 var(--sans);background:var(--gold);color:#11100c;flex:none}
+  .cap-fam{font:600 10px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute2);border:1px solid var(--line);border-radius:999px;padding:4px 8px}
+  .cap-overlay{position:fixed;inset:0;background:rgba(4,4,7,.74);backdrop-filter:blur(5px);z-index:200;display:none;align-items:center;justify-content:center;padding:28px}
+  .cap-overlay.show{display:flex}
+  .cap-modal{background:var(--panel);border:1px solid var(--line2);border-radius:18px;width:min(940px,100%);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .cap-head{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}
+  .cap-head h3{font:900 19px/1 var(--serif);margin:0}
+  .cap-head .x{margin-left:auto;cursor:pointer;color:var(--mute);font-size:22px;line-height:1;border:1px solid var(--line);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+  .cap-head .x:hover{color:var(--ink);border-color:var(--gold-dim)}
+  .cap-body{overflow:auto;padding:8px 22px 22px}
+  .cap-fam-h{font:700 11px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--gold-hi);margin:20px 2px 11px}
+  .cap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px}
+  .cap-tile{position:relative;border:1.5px solid var(--line);border-radius:12px;background:linear-gradient(160deg,#16161d,#0d0d12);padding:0;cursor:pointer;overflow:hidden;transition:.14s;aspect-ratio:9/12}
+  .cap-tile:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+  .cap-tile.sel{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,161,74,.22)}
+  .cap-tile .stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;text-align:center}
+  .cap-tile .demo{font-weight:800;font-size:17px;line-height:1.15;letter-spacing:.5px}
+  .cap-tile .nm{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;font:600 11px/1.2 var(--sans);color:var(--ink);background:linear-gradient(to top,rgba(0,0,0,.82),rgba(0,0,0,0));text-align:left}
+  .cap-tile .tick{position:absolute;top:7px;right:7px;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#11100c;font-size:12px;display:none;align-items:center;justify-content:center;font-weight:900}
+  .cap-tile.sel .tick{display:flex}
+  .cap-tile.none .stage{color:var(--mute2);font:600 12px/1.3 var(--sans)}
 </style>
 </head>
 <body>
@@ -391,9 +415,16 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <label>Generate vessels <span style="color:var(--mute);font-weight:400">AI clips to add (0 = sources only)</span></label>
             <input type="number" id="genN" min="0" max="6" step="1" value="0" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
           </div>
-          <div class="field">
-            <label>Caption font</label>
-            <select id="font"><option>Elegant Serif (yellow)</option><option>Bold Condensed</option><option>Handwritten Script</option><option>Clean Sans</option><option>Two-tier · Setup / Punchline</option><option>No caption</option></select>
+          <div class="field full">
+            <label>Caption style <span style="color:var(--mute);font-weight:400">— how the lyrics animate on screen (Opus-Clip style)</span></label>
+            <button type="button" id="capTrigger" class="cap-trigger" onclick="openCapGallery()">
+              <span class="cap-swatch" id="capTriggerSwatch">Aa</span>
+              <span id="capTriggerLabel">Gold Box</span>
+              <span class="cap-fam" id="capTriggerFam">Box</span>
+              <span style="margin-left:auto;color:var(--mute2)">▾ browse 37</span>
+            </button>
+            <input type="hidden" id="captionStyle" value="box_gold">
+            <input type="hidden" id="font" value="gallery">
           </div>
           <div class="field">
             <label>Deliver to</label>
@@ -652,8 +683,85 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 
 <div class="toast" id="toast"><span class="k">✦</span><span id="toastmsg">Forged.</span></div>
 
+<div class="cap-overlay" id="capGallery" onclick="if(event.target===this)closeCapGallery()">
+  <div class="cap-modal">
+    <div class="cap-head">
+      <h3>Caption style</h3>
+      <span style="color:var(--mute);font-size:13px">Pick how the lyrics animate — karaoke, pop, box, kinetic & more</span>
+      <span class="x" onclick="closeCapGallery()">×</span>
+    </div>
+    <div class="cap-body" id="capBody"><div style="color:var(--mute2);padding:30px;text-align:center">Loading styles…</div></div>
+  </div>
+</div>
+
 <script>
 const API = ""; // same origin as the demo/prod server
+
+// ---- Caption-style gallery -------------------------------------------------
+let CAP_STYLES=null, CAP_LOADED=false;
+function _capDemo(s){
+  // Two-word static preview that hints how base + active words render.
+  const up = s.upper ? 'text-transform:uppercase;' : '';
+  const fam = (s.family==='Typewriter') ? "font-family:var(--mono);" : "";
+  const base = `color:${s.color};${up}${fam}`;
+  let act;
+  if(s.boxFill){ act = `background:${s.boxFill};color:${s.active};padding:2px 7px;border-radius:6px;${up}${fam}`; }
+  else { act = `color:${s.active};${up}${fam}`; }
+  return `<span class="demo"><span style="${base}">Your</span> <span class="demo" style="${act}">Love</span></span>`;
+}
+function _capSwatch(s){
+  const bg = s.boxFill || s.active;
+  const fg = s.boxFill ? s.active : '#11100c';
+  return {bg, fg};
+}
+async function loadCaptionStyles(){
+  try{
+    const r = await fetch(API+'/forge/caption-styles',{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    CAP_STYLES = data.styles; CAP_LOADED=true;
+    const fams = data.families;
+    const cur = (document.getElementById('captionStyle')||{}).value || data.default;
+    let html='';
+    // "No Captions" first
+    html += `<div class="cap-fam-h">Off</div><div class="cap-grid">`
+         + `<div class="cap-tile none${cur==='none'?' sel':''}" data-id="none" onclick="pickCapStyle('none','No Captions','Off')">`
+         + `<div class="stage">No captions<br>(clean video)</div><div class="tick">✓</div></div></div>`;
+    fams.forEach(f=>{
+      const items = CAP_STYLES.filter(s=>s.family===f);
+      if(!items.length) return;
+      html += `<div class="cap-fam-h">${f}</div><div class="cap-grid">`;
+      items.forEach(s=>{
+        html += `<div class="cap-tile${s.id===cur?' sel':''}" data-id="${s.id}" `
+             + `onclick='pickCapStyle(${JSON.stringify(s.id)},${JSON.stringify(s.name)},${JSON.stringify(s.family)})'>`
+             + `<div class="stage">${_capDemo(s)}</div>`
+             + `<div class="nm">${s.name}</div><div class="tick">✓</div></div>`;
+      });
+      html += `</div>`;
+    });
+    document.getElementById('capBody').innerHTML = html;
+    // reflect current selection on the trigger swatch
+    const sel = CAP_STYLES.find(s=>s.id===cur);
+    if(sel){ const sw=_capSwatch(sel); const el=document.getElementById('capTriggerSwatch');
+      el.style.background=sw.bg; el.style.color=sw.fg; }
+  }catch(err){
+    document.getElementById('capBody').innerHTML='<div style="color:var(--mute2);padding:30px;text-align:center">Could not load styles ('+err.message+')</div>';
+  }
+}
+function openCapGallery(){ document.getElementById('capGallery').classList.add('show'); if(!CAP_LOADED) loadCaptionStyles(); }
+function closeCapGallery(){ document.getElementById('capGallery').classList.remove('show'); }
+function pickCapStyle(id,name,family){
+  document.getElementById('captionStyle').value=id;
+  document.getElementById('capTriggerLabel').textContent=name;
+  document.getElementById('capTriggerFam').textContent=family;
+  const sw=document.getElementById('capTriggerSwatch');
+  if(id==='none'){ sw.style.background='#22222a'; sw.style.color='var(--mute)'; sw.textContent='—'; }
+  else { sw.textContent='Aa'; const s=(CAP_STYLES||[]).find(x=>x.id===id);
+         if(s){ const c=_capSwatch(s); sw.style.background=c.bg; sw.style.color=c.fg; } }
+  document.querySelectorAll('#capBody .cap-tile').forEach(t=>t.classList.toggle('sel',t.dataset.id===id));
+  closeCapGallery();
+}
+loadCaptionStyles();
 const LABELS = {create:"Create",topic:"Topic",library:"Library",queue:"Queue",distribution:"Distribute",intelligence:"Intelligence",users:"Users"};
 let curFmt = "leak_graphic";
 
@@ -697,6 +805,7 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
   const params={
     caption:document.getElementById('caption').value,
     font:document.getElementById('font').value,
+    caption_style:(document.getElementById('captionStyle')||{}).value||'box_gold',
     subfolder:document.getElementById('subfolder').value.replace(/ \/ /g,'/'),
     variations:Number(vars.value),
     remix:Number(document.getElementById('remix').value)||1

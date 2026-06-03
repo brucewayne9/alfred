@@ -19,6 +19,14 @@ def register(app: FastAPI) -> None:
     async def forge_health():
         return {"status": "ok", "service": "mainstay-forge"}
 
+    @app.get("/forge/caption-styles")
+    async def forge_caption_styles(user: dict = Depends(require_auth)):
+        """Caption-style catalog for the visual gallery picker (all 3 formats)."""
+        from core.forge import caption_styles
+        return {"styles": caption_styles.list_styles(),
+                "families": caption_styles.families(),
+                "default": caption_styles.DEFAULT_STYLE}
+
     @app.get("/forge/authcheck")
     async def forge_authcheck(request: Request):
         """Caddy forward_auth target: validate Basic credentials against the
