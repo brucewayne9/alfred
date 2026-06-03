@@ -1264,7 +1264,9 @@ async function loadTopicSources(){
       return;
     }
     sel.innerHTML = '<option value="">Pick a source…</option>' + sources.map(s => {
-      const name = esc(s.name || s.spec || s.id);
+      let raw = s.name || s.spec || s.id;
+      try { raw = decodeURIComponent(raw); } catch(_) {}   // drop-folder paths are URL-encoded
+      const name = esc(raw);
       const hint = s.duration_s ? (' · ' + fmtTime(s.duration_s)) : '';
       return '<option value="' + esc(s.id) + '">' + name + hint + '</option>';
     }).join('');
