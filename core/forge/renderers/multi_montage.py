@@ -12,6 +12,7 @@ in sync, audio-only picks get a synthesised visual), normalised to the same
 from __future__ import annotations
 
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -42,6 +43,45 @@ def _resolve_source_path(source_id: str) -> Path:
     if p is None or not p.exists():
         raise RuntimeError(f"source file missing on disk for {source_id!r}: {p}")
     return p
+
+
+def _resolve_bed(params: dict) -> Path | None:
+    """Resolve an optional song-bed audio source (upload id or path), or None."""
+    if params.get("bed_audio_upload_id"):
+        from core.forge import uploads
+        p = uploads.get_upload_path(params["bed_audio_upload_id"])
+        if p is None:
+            raise RuntimeError(f"bed audio upload not found: {params['bed_audio_upload_id']}")
+        return Path(p)
+    if params.get("bed_audio_path"):
+        p = Path(params["bed_audio_path"])
+        if not p.exists():
+            raise RuntimeError(f"bed audio path missing: {p}")
+        return p
+    return None
+
+
+def _prepare_bed(bed_src: Path, target_seconds: float, out_path: Path) -> Path:
+    """Loop+trim *bed_src* to exactly *target_seconds* as 44.1k stereo AAC.
+
+    Looping guarantees the bed covers the full montage even if the song is
+    shorter; the trim caps it so make_branded's -shortest lands on the video.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error",
+            "-stream_loop", "-1", "-i", str(bed_src),
+            "-t", f"{max(0.5, float(target_seconds)):.3f}",
+            "-vn", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
+            str(out_path),
+        ],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0 or not out_path.exists():
+        raise RuntimeError(f"_prepare_bed failed: {proc.stderr[-500:]}")
+    return out_path
 
 
 def build_multiclip_events(
@@ -87,6 +127,8 @@ def render(params: dict, out_path: str | Path) -> Path:
         raise RuntimeError("no picks — provide at least one segment")
     caption_style = params.get("caption_style", DEFAULT_CAPTION_STYLE)
     caption_position = params.get("caption_position", DEFAULT_CAPTION_POSITION)
+    caption_font = params.get("caption_font")
+    caption_color = params.get("caption_color")
 
     # Clamp total to the 10–60 s band (enforce_duration trims the last pick's end).
     picks = enforce_duration(picks)
@@ -138,13 +180,23 @@ def render(params: dict, out_path: str | Path) -> Path:
             overlay_timed_captions(
                 body, events, captioned, work / "caps",
                 style=caption_style, position=caption_position, words=words,
+                font=caption_font, color=caption_color,
             )
         else:
             overlay_captions(body, (picks[0].get("text") or "")[:120], captioned)
 
-        # 4. Brand: logo overlay + montage audio mux.
-        hook_audio = work / "hook.m4a"
-        _extract_audio(captioned, hook_audio)
+        # 4. Audio track: optional single song bed REPLACES the clip audio, else
+        #    keep the picks' own audio.  Bed is looped/trimmed to the montage length.
+        bed_src = _resolve_bed(params)
+        if bed_src is not None:
+            from core.forge import audio
+            target = audio.duration_seconds(captioned)
+            hook_audio = _prepare_bed(bed_src, target, work / "bed.m4a")
+        else:
+            hook_audio = work / "hook.m4a"
+            _extract_audio(captioned, hook_audio)
+
+        # 5. Brand: logo overlay + audio mux.
         make_branded(captioned, hook_audio, "", out_path)
         return out_path
     finally:

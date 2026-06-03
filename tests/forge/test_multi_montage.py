@@ -69,3 +69,15 @@ def test_picks_obey_duration_band():
     assert total <= 60.0
     # input not mutated
     assert picks[1]["end_s"] == 40.0
+
+
+def test_resolve_bed_none_when_absent():
+    from core.forge.renderers.multi_montage import _resolve_bed
+    assert _resolve_bed({}) is None
+
+
+def test_resolve_bed_path_missing_raises(tmp_path):
+    from core.forge.renderers.multi_montage import _resolve_bed
+    import pytest as _pt
+    with _pt.raises(RuntimeError, match="bed audio path missing"):
+        _resolve_bed({"bed_audio_path": str(tmp_path / "nope.mp3")})

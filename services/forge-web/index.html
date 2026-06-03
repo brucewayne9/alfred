@@ -451,17 +451,40 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <option value="center">Center</option>
             <option value="upper">Upper</option>
           </select>
+          <select id="topicCaptionFont" style="padding:8px 10px;font-size:13px" title="Caption font">
+            <option value="default">Default font</option>
+            <option value="anton">Anton</option>
+            <option value="bebas">Bebas Neue</option>
+            <option value="archivo">Archivo Black</option>
+            <option value="bungee">Bungee</option>
+            <option value="blackops">Black Ops</option>
+            <option value="dmsans">DM Sans</option>
+          </select>
+          <select id="topicCaptionColor" style="padding:8px 10px;font-size:13px" title="Text / highlight color">
+            <option value="">Default color</option>
+            <option value="white">White</option>
+            <option value="gold">Gold</option>
+            <option value="pink">Hot pink</option>
+            <option value="lime">Lime</option>
+            <option value="cyan">Cyan</option>
+            <option value="red">Red</option>
+          </select>
           <label style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">Variants</label>
           <input id="topicVariantCount" type="number" value="3" min="1" max="10" style="width:64px;padding:8px 10px;font-size:13px">
           <button class="btn" type="button" onclick="assembleVariants()"><span class="k">&#x29C9;</span> Assemble variants</button>
         </div>
         <!-- MONTAGE TRAY — hand-pick moments across sources, stitch in order -->
-        <div style="margin-top:10px;padding:12px 18px;border:1px dashed var(--line,#444);border-radius:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-          <span style="font:700 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#caa14a)">Montage tray</span>
-          <button class="btn-ghost" type="button" onclick="addToMontage()">＋ Add selection to montage</button>
-          <span id="montageTrayStatus" style="font:600 13px/1 var(--sans);color:var(--mute)">empty — add picks from any source, then assemble</span>
-          <button class="btn-ghost" type="button" onclick="clearMontage()" style="margin-left:auto">Clear</button>
-          <button class="btn" type="button" onclick="assembleMontage()"><span class="k">&#x29C9;</span> Assemble montage</button>
+        <div style="margin-top:10px;padding:12px 18px;border:1px dashed var(--line,#444);border-radius:10px">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <span style="font:700 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#caa14a)">Montage tray</span>
+            <button class="btn-ghost" type="button" onclick="addToMontage()">＋ Add selection</button>
+            <span id="montageTrayStatus" style="font:600 13px/1 var(--sans);color:var(--mute)">empty — add picks from any source, then assemble</span>
+            <label style="font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-left:auto">Song bed</label>
+            <input id="montageBedFile" type="file" accept="audio/*" style="font-size:12px;max-width:200px" title="Optional: lay one song over the whole montage instead of clip audio">
+            <button class="btn-ghost" type="button" onclick="clearMontage()">Clear</button>
+            <button class="btn" type="button" onclick="assembleMontage()"><span class="k">&#x29C9;</span> Assemble montage</button>
+          </div>
+          <ul id="montageTrayList" style="list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px"></ul>
         </div>
       </section>
 
@@ -1124,8 +1147,7 @@ async function assembleVariants(){
   }));
   if(!segments.length){ toast('No segments selected'); return; }
   const variantCount = parseInt(document.getElementById('topicVariantCount').value) || 3;
-  const captionStyle = (document.getElementById('topicCaptionStyle')||{}).value || 'clean';
-  const captionPos = (document.getElementById('topicCaptionPos')||{}).value || 'lower';
+  const cap = captionOpts();
   const caption = (segments[0] && segments[0].text)
     ? segments[0].text.split('. ')[0].slice(0, 120)
     : '';
@@ -1136,7 +1158,7 @@ async function assembleVariants(){
       credentials: 'include',
       body: JSON.stringify({
         job_type: 'topic_clip',
-        params: {source_id: sourceId, segments, variant_count: variantCount, caption, caption_style: captionStyle, caption_position: captionPos}
+        params: {source_id: sourceId, segments, variant_count: variantCount, caption, ...cap}
       })
     });
     if(!r.ok) throw new Error(r.status);
@@ -1145,49 +1167,94 @@ async function assembleVariants(){
   } catch(e) { toast('Could not start assembly (' + e.message + ')'); }
 }
 
-// ---- Montage tray: hand-pick moments across sources, stitch in order ----
+// ---- Shared caption options (style/position/font/color) ----
+function captionOpts(){
+  return {
+    caption_style: (document.getElementById('topicCaptionStyle')||{}).value || 'clean',
+    caption_position: (document.getElementById('topicCaptionPos')||{}).value || 'lower',
+    caption_font: (document.getElementById('topicCaptionFont')||{}).value || 'default',
+    caption_color: (document.getElementById('topicCaptionColor')||{}).value || ''
+  };
+}
+
+// ---- Montage tray: hand-pick moments across sources, reorder, stitch ----
 let montageTray = [];
+let _dragIdx = null;
 function _montageSourceName(){
   const sel = document.getElementById('topicSource');
   const o = sel && sel.options[sel.selectedIndex];
   return (o && o.textContent) ? o.textContent.trim().slice(0,40) : 'source';
 }
+function _fmtT(s){ s=Math.max(0,Math.floor(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function renderMontageStatus(){
   const el = document.getElementById('montageTrayStatus');
-  if(!el) return;
-  if(!montageTray.length){ el.textContent = 'empty — add picks from any source, then assemble'; return; }
-  const srcs = new Set(montageTray.map(p => p.source_id)).size;
-  const secs = montageTray.reduce((a,p)=>a+(p.end_s-p.start_s),0);
-  el.textContent = montageTray.length + ' clip' + (montageTray.length>1?'s':'') + ' from ' + srcs + ' source' + (srcs>1?'s':'') + ' · ~' + Math.round(secs) + 's';
+  if(el){
+    if(!montageTray.length){ el.textContent = 'empty — add picks from any source, then assemble'; }
+    else {
+      const srcs = new Set(montageTray.map(p => p.source_id)).size;
+      const secs = montageTray.reduce((a,p)=>a+(p.end_s-p.start_s),0);
+      el.textContent = montageTray.length + ' clip' + (montageTray.length>1?'s':'') + ' · ' + srcs + ' source' + (srcs>1?'s':'') + ' · ~' + Math.round(secs) + 's';
+    }
+  }
+  renderMontageList();
 }
+function renderMontageList(){
+  const ul = document.getElementById('montageTrayList');
+  if(!ul) return;
+  ul.innerHTML = montageTray.map((p,i) =>
+    '<li draggable="true" data-i="'+i+'" ondragstart="montageDragStart(event,'+i+')" ondragover="event.preventDefault()" ondrop="montageDrop(event,'+i+')" '
+    +'style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(255,255,255,.04);border-radius:8px;cursor:grab;font:500 12px/1.3 var(--sans)">'
+    +'<span style="color:var(--mute);cursor:grab" title="Drag to reorder">⠿</span>'
+    +'<span style="color:var(--gold,#caa14a);font-weight:700">'+(i+1)+'</span>'
+    +'<span style="flex:0 0 auto;color:var(--mute)">'+_fmtT(p.start_s)+'–'+_fmtT(p.end_s)+'</span>'
+    +'<span style="flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc((p.text||'').slice(0,70))+'</span>'
+    +'<button class="btn-ghost" style="padding:2px 8px" title="Up" onclick="montageMove('+i+',-1)">▲</button>'
+    +'<button class="btn-ghost" style="padding:2px 8px" title="Down" onclick="montageMove('+i+',1)">▼</button>'
+    +'<button class="btn-ghost" style="padding:2px 8px" title="Remove" onclick="montageRemove('+i+')">✕</button>'
+    +'</li>'
+  ).join('');
+}
+function montageDragStart(e,i){ _dragIdx=i; e.dataTransfer.effectAllowed='move'; }
+function montageDrop(e,i){ e.preventDefault(); if(_dragIdx===null||_dragIdx===i) return;
+  const [m]=montageTray.splice(_dragIdx,1); montageTray.splice(i,0,m); _dragIdx=null; renderMontageStatus(); }
+function montageMove(i,d){ const j=i+d; if(j<0||j>=montageTray.length) return;
+  const t=montageTray[i]; montageTray[i]=montageTray[j]; montageTray[j]=t; renderMontageStatus(); }
+function montageRemove(i){ montageTray.splice(i,1); renderMontageStatus(); }
 function addToMontage(){
   const sourceId = document.getElementById('topicSource').value;
   if(!sourceId){ toast('Pick a source first'); return; }
+  const sname = _montageSourceName();
   const picks = Object.values(topicState.selected).filter(s => s.kept).map(s => ({
-    source_id: sourceId, start_s: s.trimIn, end_s: s.trimOut,
+    source_id: sourceId, source_name: sname, start_s: s.trimIn, end_s: s.trimOut,
     text: s.text, speaker: s.speaker || null, score: s.score
   }));
   if(!picks.length){ toast('No segments selected to add'); return; }
   montageTray.push(...picks);
   renderMontageStatus();
-  toast('Added ' + picks.length + ' from ' + _montageSourceName() + ' (tray: ' + montageTray.length + ')');
+  toast('Added ' + picks.length + ' from ' + sname + ' (tray: ' + montageTray.length + ')');
 }
 function clearMontage(){ montageTray = []; renderMontageStatus(); toast('Montage tray cleared'); }
 async function assembleMontage(){
   if(!montageTray.length){ toast('Montage tray is empty — add picks first'); return; }
   const total = montageTray.reduce((a,p)=>a+(p.end_s-p.start_s),0);
   if(total < 10){ toast('Montage too short (~' + Math.round(total) + 's; need ≥10s)'); return; }
-  const captionStyle = (document.getElementById('topicCaptionStyle')||{}).value || 'clean';
-  const captionPos = (document.getElementById('topicCaptionPos')||{}).value || 'lower';
+  const params = {picks: montageTray, ...captionOpts()};
+  // Optional song bed — upload first, pass the id.
+  const bedInput = document.getElementById('montageBedFile');
+  const bedFile = bedInput && bedInput.files && bedInput.files[0];
   try {
+    if(bedFile){
+      toast('Uploading song bed…');
+      const fd = new FormData(); fd.append('file', bedFile);
+      const up = await fetch(API+'/forge/uploads',{method:'POST',credentials:'include',body:fd});
+      if(!up.ok) throw new Error('bed upload '+up.status);
+      params.bed_audio_upload_id = (await up.json()).upload_id;
+    }
     const r = await fetch(API + '/forge/jobs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       credentials: 'include',
-      body: JSON.stringify({
-        job_type: 'multi_montage',
-        params: {picks: montageTray, caption_style: captionStyle, caption_position: captionPos}
-      })
+      body: JSON.stringify({job_type: 'multi_montage', params})
     });
     if(!r.ok) throw new Error(r.status);
     toast('Assembling montage from ' + montageTray.length + ' picks — watch the queue');

@@ -12,6 +12,8 @@ import subprocess
 import pytest
 
 from core.forge.renderers.topic_clip import (
+    CAPTION_COLORS,
+    CAPTION_FONTS,
     CAPTION_POSITIONS,
     CAPTION_STYLES,
     _ass_escape,
@@ -21,6 +23,8 @@ from core.forge.renderers.topic_clip import (
     _detect_has_video,
     _format_ass_time,
     _group_karaoke_lines,
+    _resolve_color,
+    _resolve_font,
     _write_ass_file,
     _write_karaoke_ass,
     enforce_duration,
@@ -492,3 +496,38 @@ def test_write_karaoke_ass_has_kf_tags(tmp_path):
     assert "\\kf" in body                 # libass karaoke fill tags
     assert "FIRST" in body and "SECOND" in body   # karaoke preset uppercases
     assert body.count("Dialogue:") == 1   # both words on one line
+
+
+# ---------------------------------------------------------------------------
+# Caption font + color pickers
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_font_key_and_passthrough_and_default():
+    assert _resolve_font("anton") == "Anton"
+    assert _resolve_font("BEBAS") == "Bebas Neue"          # case-insensitive key
+    assert _resolve_font(None) == "DejaVu Sans"            # default
+    assert _resolve_font("Custom Family") == "Custom Family"  # direct family passthrough
+
+
+def test_resolve_color_maps_named_or_none():
+    assert _resolve_color("gold") == CAPTION_COLORS["gold"]
+    assert _resolve_color("PINK") == CAPTION_COLORS["pink"]
+    assert _resolve_color(None) is None                   # None -> use preset primary
+    assert _resolve_color("nonsense") is None             # unknown -> None (preset wins)
+
+
+def test_write_ass_applies_font_and_color(tmp_path):
+    events = [(0.0, 2.0, "hi")]
+    out = _write_ass_file(events, tmp_path / "fc.ass", style="clean", font="anton", color="gold")
+    style_line = [l for l in out.read_text().splitlines() if l.startswith("Style:")][0]
+    assert "Anton" in style_line
+    assert CAPTION_COLORS["gold"] in style_line
+
+
+def test_write_karaoke_applies_color_as_highlight(tmp_path):
+    words = [{"word": "a", "start": 0.0, "end": 0.4}]
+    out = _write_karaoke_ass(words, tmp_path / "kc.ass", font="bebas", color="pink")
+    style_line = [l for l in out.read_text().splitlines() if l.startswith("Style:")][0]
+    assert "Bebas Neue" in style_line
+    assert CAPTION_COLORS["pink"] in style_line   # primary == highlight colour

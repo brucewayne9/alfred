@@ -409,16 +409,67 @@ CAPTION_POSITIONS = {
 }
 DEFAULT_CAPTION_POSITION = "lower"
 
+# Font picker — only families confirmed installed via fc-list on 105.  libass
+# resolves by family NAME; unknown names fall back to DejaVu Sans harmlessly.
+CAPTION_FONTS = {
+    "default": "DejaVu Sans",
+    "anton": "Anton",
+    "bebas": "Bebas Neue",
+    "archivo": "Archivo Black",
+    "bungee": "Bungee",
+    "blackops": "Black Ops One",
+    "dmsans": "DM Sans",
+}
+DEFAULT_CAPTION_FONT = "default"
 
-def _style_block(style_cfg: dict, alignment: int, margin_v: int) -> str:
-    """Build the ASS [V4+ Styles] block for a caption style + position."""
+# Colour picker — ASS colours are &HAABBGGRR (note: BGR, not RGB).
+CAPTION_COLORS = {
+    "white": "&H00FFFFFF",
+    "gold":  "&H0000D7FF",   # RGB(255,215,0)
+    "pink":  "&H009314FF",   # RGB(255,20,147) hot pink
+    "lime":  "&H0000FF00",   # RGB(0,255,0)
+    "cyan":  "&H00FFFF00",   # RGB(0,255,255)
+    "red":   "&H000000FF",   # RGB(255,0,0)
+}
+DEFAULT_CAPTION_COLOR = None   # None → use the style preset's own primary colour
+
+
+def _resolve_font(font: str | None) -> str:
+    """Map a font key (or family name) to an installed family; default DejaVu Sans."""
+    if not font:
+        return CAPTION_FONTS[DEFAULT_CAPTION_FONT]
+    key = font.lower()
+    if key in CAPTION_FONTS:
+        return CAPTION_FONTS[key]
+    # Already a family name (allow direct passthrough of any installed family).
+    return font
+
+
+def _resolve_color(color: str | None) -> str | None:
+    if not color:
+        return None
+    return CAPTION_COLORS.get(color.lower(), None)
+
+
+def _style_block(
+    style_cfg: dict,
+    alignment: int,
+    margin_v: int,
+    font: str = "DejaVu Sans",
+    primary: str | None = None,
+) -> str:
+    """Build the ASS [V4+ Styles] block for a caption style + position.
+
+    *font* is a family name; *primary* overrides the preset text/highlight colour.
+    """
+    prim = primary or style_cfg["primary"]
     return (
         "[V4+ Styles]\n"
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
         "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
         "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
         "MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Cap,DejaVu Sans,{style_cfg['font_size']},{style_cfg['primary']},"
+        f"Style: Cap,{font},{style_cfg['font_size']},{prim},"
         f"{style_cfg['secondary']},&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,"
         f"{style_cfg['outline']},1,{alignment},80,80,{margin_v},1\n\n"
     )
@@ -440,6 +491,8 @@ def _write_ass_file(
     font_size: int = 56,
     style: str = DEFAULT_CAPTION_STYLE,
     position: str = DEFAULT_CAPTION_POSITION,
+    font: str | None = None,
+    color: str | None = None,
 ) -> Path:
     """Write a phrase-level styled ASS file (clean / bold).  Karaoke is separate."""
     out_path = Path(out_path)
@@ -449,7 +502,7 @@ def _write_ass_file(
     align, margin_v = CAPTION_POSITIONS.get(position, CAPTION_POSITIONS[DEFAULT_CAPTION_POSITION])
     lines = [
         _ASS_HEADER,
-        _style_block(cfg, align, margin_v),
+        _style_block(cfg, align, margin_v, font=_resolve_font(font), primary=_resolve_color(color)),
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
     ]
@@ -496,6 +549,8 @@ def _write_karaoke_ass(
     out_path: Path,
     style: str = "karaoke",
     position: str = DEFAULT_CAPTION_POSITION,
+    font: str | None = None,
+    color: str | None = None,
 ) -> Path:
     """Write a word-by-word karaoke ASS file.
 
@@ -509,7 +564,7 @@ def _write_karaoke_ass(
     align, margin_v = CAPTION_POSITIONS.get(position, CAPTION_POSITIONS[DEFAULT_CAPTION_POSITION])
     out = [
         _ASS_HEADER,
-        _style_block(cfg, align, margin_v),
+        _style_block(cfg, align, margin_v, font=_resolve_font(font), primary=_resolve_color(color)),
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
     ]
@@ -561,10 +616,13 @@ def overlay_timed_captions(
     style: str = DEFAULT_CAPTION_STYLE,
     position: str = DEFAULT_CAPTION_POSITION,
     words: list[dict] | None = None,
+    font: str | None = None,
+    color: str | None = None,
 ) -> Path:
     """Burn a rolling, speech-synced caption track onto an already-9:16 video.
 
-    *style* selects a CAPTION_STYLES preset; *position* a CAPTION_POSITIONS one.
+    *style* selects a CAPTION_STYLES preset; *position* a CAPTION_POSITIONS one;
+    *font* / *color* override the family and primary (text/highlight) colour.
     For the ``karaoke`` style, *words* (output-time word timings) drives a
     word-by-word highlight; if absent it falls back to phrase events.
     If *events* is empty the body is re-encoded through unchanged.
@@ -577,10 +635,13 @@ def overlay_timed_captions(
 
     cfg = CAPTION_STYLES.get(style, CAPTION_STYLES[DEFAULT_CAPTION_STYLE])
     if cfg["karaoke"] and words:
-        ass_path = _write_karaoke_ass(words, work_dir / "captions.ass", style=style, position=position)
+        ass_path = _write_karaoke_ass(
+            words, work_dir / "captions.ass", style=style, position=position, font=font, color=color
+        )
     elif events:
         ass_path = _write_ass_file(
-            events, work_dir / "captions.ass", font_size=font_size, style=style, position=position
+            events, work_dir / "captions.ass", font_size=font_size, style=style,
+            position=position, font=font, color=color,
         )
     else:
         return overlay_captions(body_path, "", out_path)
@@ -750,6 +811,8 @@ def assemble_variant(
     fine_segments: list[dict] | None = None,
     caption_style: str = DEFAULT_CAPTION_STYLE,
     caption_position: str = DEFAULT_CAPTION_POSITION,
+    caption_font: str | None = None,
+    caption_color: str | None = None,
 ) -> Path:
     """Assemble one structural variant into a branded 9:16 master.
 
@@ -818,6 +881,7 @@ def assemble_variant(
         overlay_timed_captions(
             body, events, captioned, work_dir / f"caps_{label}",
             style=caption_style, position=caption_position, words=words,
+            font=caption_font, color=caption_color,
         )
     else:
         overlay_captions(body, caption_text, captioned)
@@ -892,6 +956,8 @@ def render(params: dict, out_path: str | Path) -> Path:
     caption = params.get("caption", "")
     caption_style = params.get("caption_style", DEFAULT_CAPTION_STYLE)
     caption_position = params.get("caption_position", DEFAULT_CAPTION_POSITION)
+    caption_font = params.get("caption_font")
+    caption_color = params.get("caption_color")
 
     # Resolve source file path.
     src_row = ingest.get_source(source_id)
@@ -932,6 +998,8 @@ def render(params: dict, out_path: str | Path) -> Path:
             fine_segments=fine_segments,
             caption_style=caption_style,
             caption_position=caption_position,
+            caption_font=caption_font,
+            caption_color=caption_color,
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)
