@@ -30,9 +30,17 @@ import requests
 sys.path.insert(0, "/home/aialfred/alfred")
 
 from core.jewelry import db, pipeline, edit as edit_mod  # noqa: E402
+from core.jewelry import orders as roen_orders  # noqa: E402
+from core.jewelry import coupons as roen_coupons  # noqa: E402
 from core.jewelry.woocommerce import preview_url, admin_edit_url  # noqa: E402
 from core.jewelry.bracelet_box import handlers as box_handlers  # noqa: E402
 from core.jewelry.bracelet_box import wc_orders as box_wc  # noqa: E402
+from integrations.paypal_tracking import (  # noqa: E402
+    detect_carrier,
+    get_client_from_env,
+    normalize_tracking,
+    PayPalTrackingError,
+)
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -246,6 +254,52 @@ _pending_edit: dict = {}
 _pending_edit_lock = threading.Lock()
 PENDING_EDIT_TTL = 300  # 5 minutes
 
+# pending ship state: chat_id -> (order_id, expires_at_epoch)
+# Set when user taps Ship & Complete; consumed by the tracking number they paste.
+_pending_ship: dict = {}
+_pending_ship_lock = threading.Lock()
+PENDING_SHIP_TTL = 600  # 10 minutes — longer than edit since users may grab the label first
+
+
+# pending coupon state: chat_id -> (CouponSpec, expires_at_epoch)
+# Set when Sarah starts a coupon without naming it (or picks a duplicate name);
+# consumed by the next text she sends, which becomes the code name.
+_pending_coupon: dict = {}
+_pending_coupon_lock = threading.Lock()
+PENDING_COUPON_TTL = 300  # 5 minutes
+
+
+def set_pending_coupon(chat_id: int, spec) -> None:
+    with _pending_coupon_lock:
+        _pending_coupon[chat_id] = (spec, int(time.time()) + PENDING_COUPON_TTL)
+
+
+def pop_pending_coupon(chat_id: int):
+    """Return the pending CouponSpec for this chat, else None. Clears on read."""
+    with _pending_coupon_lock:
+        entry = _pending_coupon.get(chat_id)
+        if not entry:
+            return None
+        spec, expires = entry
+        if time.time() > expires:
+            _pending_coupon.pop(chat_id, None)
+            return None
+        _pending_coupon.pop(chat_id, None)
+        return spec
+
+
+def peek_pending_coupon(chat_id: int):
+    """Return the pending CouponSpec WITHOUT consuming, else None."""
+    with _pending_coupon_lock:
+        entry = _pending_coupon.get(chat_id)
+        if not entry:
+            return None
+        spec, expires = entry
+        if time.time() > expires:
+            _pending_coupon.pop(chat_id, None)
+            return None
+        return spec
+
 
 def set_pending_edit(chat_id: int, post_id: int) -> None:
     with _pending_edit_lock:
@@ -264,6 +318,38 @@ def pop_pending_edit(chat_id: int) -> Optional[int]:
             return None
         _pending_edit.pop(chat_id, None)
         return post_id
+
+
+def set_pending_ship(chat_id: int, order_id: int) -> None:
+    with _pending_ship_lock:
+        _pending_ship[chat_id] = (order_id, int(time.time()) + PENDING_SHIP_TTL)
+
+
+def pop_pending_ship(chat_id: int) -> Optional[int]:
+    """Return order_id if there's a fresh pending ship for this chat, else None. Clears on read."""
+    with _pending_ship_lock:
+        entry = _pending_ship.get(chat_id)
+        if not entry:
+            return None
+        order_id, expires = entry
+        if time.time() > expires:
+            _pending_ship.pop(chat_id, None)
+            return None
+        _pending_ship.pop(chat_id, None)
+        return order_id
+
+
+def peek_pending_ship(chat_id: int) -> Optional[int]:
+    """Return order_id if pending, WITHOUT consuming. Used to decide if next text is tracking."""
+    with _pending_ship_lock:
+        entry = _pending_ship.get(chat_id)
+        if not entry:
+            return None
+        order_id, expires = entry
+        if time.time() > expires:
+            _pending_ship.pop(chat_id, None)
+            return None
+        return order_id
 
 
 def _intake_for_album(chat_id: int, user_handle: Optional[str], media_group_id: str) -> int:
@@ -432,8 +518,45 @@ def handle_text(msg: dict) -> None:
         _send_today(chat_id, msg.get("message_id"))
         return
 
+    if lower in ("/orders", "orders", "pending orders", "what orders", "what pending orders"):
+        _send_orders_list(chat_id, msg.get("message_id"))
+        return
+
+    # Coupon flow: "create a coupon ...", "my coupons", or a name reply to a
+    # pending coupon. Handled here before the generic price-parse fallback.
+    if handle_coupon_text(chat_id, text, msg.get("message_id")):
+        return
+
+    # If the user has a pending Local Delivery, the next non-command text is the delivery note.
+    pending_local = _peek_pending_local(chat_id)
+    if pending_local is not None and not lower.startswith("/"):
+        _pop_pending_local(chat_id)  # consume
+        _complete_local_flow(chat_id, pending_local, text, msg.get("message_id"))
+        return
+
+    # If the user has a pending Ship & Complete, the next non-command text is the tracking number
+    # (or the word "local" / "hand delivery" to flip to the no-carrier path).
+    pending_order = peek_pending_ship(chat_id)
+    if pending_order is not None and not lower.startswith("/"):
+        pop_pending_ship(chat_id)  # consume
+        if lower in _LOCAL_KEYWORDS or any(lower.startswith(k + " ") for k in _LOCAL_KEYWORDS):
+            _ask_for_local_note(chat_id, pending_order)
+            return
+        _complete_ship_flow(chat_id, pending_order, text, msg.get("message_id"))
+        return
+
     if lower in ("/cancel", "cancel"):
-        # Cancel a pending Edit (from inline button) before falling back to active intake.
+        # Cancel any pending order action first (Ship & Complete or Local Delivery),
+        # then fall back to pending Edit, then to active intake.
+        if pop_pending_ship(chat_id) is not None:
+            send_message(chat_id, "Ship & Complete cancelled.")
+            return
+        if _pop_pending_local(chat_id) is not None:
+            send_message(chat_id, "Local Delivery cancelled.")
+            return
+        if pop_pending_coupon(chat_id) is not None:
+            send_message(chat_id, "Coupon cancelled.")
+            return
         if pop_pending_edit(chat_id) is not None:
             send_message(chat_id, "Edit cancelled.")
             return
@@ -521,6 +644,24 @@ def handle_callback_query(query: dict) -> None:
             answer_callback(cb_id, "Box action failed.")
         return
 
+    # Order management callback? `ord:ship:<id>` or `ord:detail:<id>` or `ord:cancel:<id>`
+    if data.startswith("ord:"):
+        try:
+            _handle_order_callback(data, chat_id, cb_id, msg_id)
+        except Exception:
+            logger.exception("order callback failed: %s", data)
+            answer_callback(cb_id, "Order action failed.")
+        return
+
+    # Coupon callback? `cpn:del:<code>`
+    if data.startswith("cpn:"):
+        try:
+            _handle_coupon_callback(data, chat_id, cb_id, msg_id)
+        except Exception:
+            logger.exception("coupon callback failed: %s", data)
+            answer_callback(cb_id, "Coupon action failed.")
+        return
+
     if ":" not in data:
         answer_callback(cb_id, "Bad action.")
         return
@@ -542,6 +683,23 @@ def handle_callback_query(query: dict) -> None:
             logger.exception("publish via button failed for %s", post_id)
             answer_callback(cb_id, "Publish failed.")
             send_message(chat_id, f"Publish failed for #{post_id}: {e}")
+            return
+        # Fire-and-best-effort: sync to Meta catalog + enqueue FB Page draft.
+        # Failures here do NOT roll back the WC publish.
+        try:
+            from core.jewelry.meta_publish_hook import on_product_published
+            result = on_product_published(post_id)
+            if result.get("errors"):
+                logger.warning("meta hook partial for %s: %s", post_id, result["errors"])
+            else:
+                logger.info("meta hook OK for %s: %s", post_id, result)
+            if result.get("fb_draft_id"):
+                send_message(
+                    chat_id,
+                    f"📨 FB Page draft queued — review at https://aialfred.groundrushcloud.com/admin/roen/social-pending",
+                )
+        except Exception:
+            logger.exception("meta hook crashed for %s — WC publish stands", post_id)
         return
 
     if action == "del":
@@ -663,7 +821,19 @@ def _send_help(chat_id: int, reply_to: Optional[int]) -> None:
         "  <code>price is $55</code>\n"
         "  <code>rewrite description, more poetic</code>\n\n"
         "<b>Publish or delete</b>: tap ✅ Publish or 🗑️ Delete under the draft.\n\n"
+        "<b>Orders</b>: <code>/orders</code> lists pending shipments. Tap 📦 Ship & Complete, paste the "
+        "USPS tracking #, and I'll save it on the order, push it to PayPal, mark the order completed, "
+        "and email the customer.\n\n"
+        "<b>Coupons</b> (friends & family): just tell me what you want —\n"
+        "  <code>create a coupon 20% off Brittany</code>\n"
+        "  <code>create a coupon $15 off Mom</code>\n"
+        "  <code>create a coupon free shipping Kelly</code>\n"
+        "  <code>create a free coupon Sarah</code>\n"
+        "Codes are reusable by default; add <code>one time</code> for single-use or "
+        "<code>good for a month</code> to set an expiry. <code>my coupons</code> lists them with a 🗑️ Delete button.\n\n"
         "<b>Commands</b>\n"
+        "  <code>/orders</code>         — pending orders to ship\n"
+        "  <code>/coupons</code>        — your coupons (with delete)\n"
         "  <code>/today</code>          — drafts created today\n"
         "  <code>/status</code>         — show your last intake\n"
         "  <code>/cancel</code>         — drop in-progress intake or pending edit\n"
@@ -672,6 +842,332 @@ def _send_help(chat_id: int, reply_to: Optional[int]) -> None:
         "  <code>delete 188 194</code>  — batch-delete by post ID (Mike)"
     )
     send_message(chat_id, msg, reply_to=reply_to)
+
+
+# ----------------------- /orders flow -----------------------
+
+# USPS 20-22 digits, UPS 1Z+16, FedEx 12/15/20 digits, Intl USPS LL\d{9}LL.
+# Loose validation — PayPal's API does strict validation, we just reject obvious garbage.
+_TRACKING_RE = re.compile(r"^[A-Za-z0-9]{8,30}$")
+
+
+def _render_order_line(o: roen_orders.OrderSummary) -> str:
+    waited = ""
+    if o.date_created:
+        try:
+            created = roen_orders._parse_iso(o.date_created)
+            now = time.time()
+            secs = int(now - created.timestamp())
+            if secs < 3600:
+                waited = f"{secs // 60} min ago"
+            elif secs < 86400:
+                waited = f"{secs // 3600}h ago"
+            else:
+                waited = f"{secs // 86400}d ago"
+        except Exception:
+            pass
+    items_str = ", ".join(f"{i.name}" for i in o.items[:3])
+    if len(o.items) > 3:
+        items_str += f" +{len(o.items)-3} more"
+    badge = "🟡" if o.status == "processing" else "⏸"
+    return (
+        f"{badge} <b>#{o.id}</b> — {o.customer_name}\n"
+        f"   {items_str}\n"
+        f"   <b>${o.total}</b> • {waited or o.status}"
+    )
+
+
+def _send_orders_list(chat_id: int, reply_to: Optional[int]) -> None:
+    try:
+        pending = roen_orders.list_pending_orders()
+    except Exception as e:
+        logger.exception("orders list failed")
+        send_message(chat_id, f"Couldn't fetch orders{_address_suffix(chat_id)}: {e}", reply_to=reply_to)
+        return
+
+    if not pending:
+        send_message(chat_id, f"No pending orders{_address_suffix(chat_id)}. Inbox zero.", reply_to=reply_to)
+        return
+
+    header = f"<b>📋 {len(pending)} pending order{'s' if len(pending) != 1 else ''}</b>\n\n"
+    # One message per order so each gets its own keyboard.
+    send_message(chat_id, header + _render_order_line(pending[0]),
+                 reply_to=reply_to,
+                 reply_markup=_order_keyboard(pending[0].id))
+    for o in pending[1:]:
+        send_message(chat_id, _render_order_line(o), reply_markup=_order_keyboard(o.id))
+
+
+def _order_keyboard(order_id: int) -> dict:
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "📦 Ship & Complete", "callback_data": f"ord:ship:{order_id}"},
+                {"text": "👁 Details", "callback_data": f"ord:detail:{order_id}"},
+            ],
+            [
+                {"text": "🏠 Local Delivery", "callback_data": f"ord:local:{order_id}"},
+            ],
+        ]
+    }
+
+
+# Words that, when pasted in place of a tracking number, mean "no carrier — hand-delivered"
+_LOCAL_KEYWORDS = {"local", "local delivery", "hand", "hand delivery", "hand-delivery",
+                   "in person", "in-person", "delivered", "pickup", "pick up", "pick-up"}
+
+
+def _send_order_details(chat_id: int, order_id: int) -> None:
+    try:
+        o = roen_orders.get_order_details(order_id)
+    except Exception as e:
+        send_message(chat_id, f"Couldn't load order #{order_id}: {e}")
+        return
+
+    lines = [
+        f"<b>Order #{o.id}</b> — {o.status}",
+        f"<b>${o.total}</b> {o.currency} • {o.payment_method_title or o.payment_method}",
+        "",
+        f"<b>Customer:</b> {o.customer_name}",
+        f"<b>Email:</b> <code>{o.customer_email}</code>",
+    ]
+    if o.shipping_address_lines:
+        lines += ["", "<b>Ship to:</b>"] + [f"  {ln}" for ln in o.shipping_address_lines]
+    if o.items:
+        lines += ["", "<b>Items:</b>"]
+        for i in o.items:
+            lines.append(f"  • {i.name} ×{i.quantity} (${i.total})")
+    if o.transaction_id:
+        lines += ["", f"<b>PayPal txn:</b> <code>{o.transaction_id}</code>"]
+    else:
+        lines += ["", "⚠️ <i>No PayPal transaction id on this order — tracking will save locally but won't push to PayPal.</i>"]
+    send_message(chat_id, "\n".join(lines), reply_markup=_order_keyboard(o.id))
+
+
+def _ask_for_tracking(chat_id: int, order_id: int) -> None:
+    set_pending_ship(chat_id, order_id)
+    send_message(
+        chat_id,
+        (
+            f"📦 Order <b>#{order_id}</b> — paste the tracking number.\n\n"
+            f"USPS by default. Prefix with <code>UPS </code> or <code>FEDEX </code> if it's another carrier.\n\n"
+            f"Examples:\n"
+            f"  <code>9405511206213098765432</code>\n"
+            f"  <code>UPS 1Z9Y34670344585291</code>\n\n"
+            f"Hand-delivered? Type <code>local</code> instead.\n\n"
+            f"<code>/cancel</code> to abort."
+        ),
+    )
+
+
+# Per-chat state for the local-delivery flow: chat_id -> (order_id, expires_at_epoch)
+# Separate from _pending_ship so a Ship & Complete in-progress doesn't get confused
+# with a Local Delivery in-progress.
+_pending_local: dict = {}
+_pending_local_lock = threading.Lock()
+PENDING_LOCAL_TTL = 600  # 10 minutes
+
+
+def _ask_for_local_note(chat_id: int, order_id: int) -> None:
+    with _pending_local_lock:
+        _pending_local[chat_id] = (order_id, int(time.time()) + PENDING_LOCAL_TTL)
+    send_message(
+        chat_id,
+        (
+            f"🏠 Order <b>#{order_id}</b> — local delivery.\n\n"
+            f"Send a brief delivery note. Examples:\n"
+            f"  <code>Delivered to Kelly in person 5/19</code>\n"
+            f"  <code>Handed off at Sarah's market booth, 5/19 noon</code>\n\n"
+            f"<i>⚠️ PayPal seller protection requires carrier tracking or signed proof. "
+            f"For your records, snap a quick photo of the handoff — keep it on your phone, "
+            f"don't send it anywhere. You'll only need it if there's ever a dispute.</i>\n\n"
+            f"<code>/cancel</code> to abort."
+        ),
+    )
+
+
+def _pop_pending_local(chat_id: int) -> Optional[int]:
+    with _pending_local_lock:
+        entry = _pending_local.get(chat_id)
+        if not entry:
+            return None
+        order_id, expires = entry
+        if time.time() > expires:
+            _pending_local.pop(chat_id, None)
+            return None
+        _pending_local.pop(chat_id, None)
+        return order_id
+
+
+def _peek_pending_local(chat_id: int) -> Optional[int]:
+    with _pending_local_lock:
+        entry = _pending_local.get(chat_id)
+        if not entry:
+            return None
+        order_id, expires = entry
+        if time.time() > expires:
+            _pending_local.pop(chat_id, None)
+            return None
+        return order_id
+
+
+def _complete_local_flow(chat_id: int, order_id: int, note: str, reply_to: Optional[int]) -> None:
+    """Local hand-delivery: save the note, complete the order, skip PayPal."""
+    note = note.strip()
+    if not note or len(note) < 5:
+        send_message(
+            chat_id,
+            f"Need a slightly longer note{_address_suffix(chat_id)} — at least who and when. Try again or <code>/cancel</code>.",
+            reply_to=reply_to,
+        )
+        # restore state
+        with _pending_local_lock:
+            _pending_local[chat_id] = (order_id, int(time.time()) + PENDING_LOCAL_TTL)
+        return
+
+    full_note = f"Local hand-delivery (no carrier tracking). {note}"
+    try:
+        # Save as a customer-visible WC order note via wc-cli
+        roen_orders._wp([
+            "wc", "shop_order_note", "create",
+            "--user=1",
+            f"--order_id={order_id}",
+            f"--note={full_note}",
+            "--customer_note=true",
+            "--porcelain",
+        ], timeout=20)
+        # Also stamp our own meta for searchability
+        roen_orders._wp([
+            "post", "meta", "update", str(order_id),
+            "_roen_local_delivery_note", note,
+        ], timeout=15)
+        roen_orders._wp([
+            "post", "meta", "update", str(order_id),
+            "_roen_tracking_carrier", "LOCAL",
+        ], timeout=15)
+    except Exception as e:
+        logger.exception("save local note failed for %s", order_id)
+        send_message(chat_id, f"❌ Couldn't save the local-delivery note on #{order_id}: {e}", reply_to=reply_to)
+        return
+
+    try:
+        roen_orders.complete_order(order_id)
+    except Exception as e:
+        logger.exception("complete_order failed for %s", order_id)
+        send_message(chat_id, f"⚠️ Saved the note but couldn't flip #{order_id} to completed: {e}", reply_to=reply_to)
+        return
+
+    send_message(
+        chat_id,
+        (
+            f"🏠 <b>Order #{order_id} closed as local delivery</b>\n"
+            f"Note: <i>{note}</i>\n\n"
+            f"✅ Order marked completed — customer emailed\n"
+            f"⏭ PayPal: <i>skipped</i> (no carrier — seller protection N/A for hand-delivery)"
+        ),
+        reply_to=reply_to,
+    )
+
+
+def _complete_ship_flow(chat_id: int, order_id: int, raw_text: str, reply_to: Optional[int]) -> None:
+    """User pasted tracking text. Parse → save WC → push PayPal → complete order."""
+    text = raw_text.strip()
+    # Optional carrier prefix: "UPS 1Z..." / "FEDEX 1234..."
+    carrier_override: Optional[str] = None
+    tracking_part = text
+    parts = text.split(None, 1)
+    if len(parts) == 2 and parts[0].upper() in ("USPS", "UPS", "FEDEX", "FED-EX", "FEDX", "DHL"):
+        carrier_override = parts[0].upper().replace("FED-EX", "FEDEX").replace("FEDX", "FEDEX")
+        tracking_part = parts[1]
+
+    tracking = normalize_tracking(tracking_part)
+    if not _TRACKING_RE.match(tracking):
+        send_message(
+            chat_id,
+            f"That doesn't look like a tracking number{_address_suffix(chat_id)}. Try again or <code>/cancel</code>.",
+            reply_to=reply_to,
+        )
+        set_pending_ship(chat_id, order_id)  # restore state for retry
+        return
+
+    carrier = carrier_override or detect_carrier(tracking)
+
+    # Save to WC + add customer-visible note
+    try:
+        roen_orders.save_tracking(order_id, tracking, carrier)
+    except Exception as e:
+        logger.exception("save_tracking failed for %s", order_id)
+        send_message(chat_id, f"❌ Couldn't save tracking on order #{order_id}: {e}", reply_to=reply_to)
+        return
+
+    # Push to PayPal (best-effort — if it fails, WC state still stands)
+    paypal_msg = ""
+    txn_id = roen_orders.get_paypal_transaction_id(order_id)
+    if txn_id:
+        try:
+            client = get_client_from_env(_env)
+            client.add_tracker(txn_id, tracking, carrier=carrier, notify_buyer=True, status="SHIPPED")
+            paypal_msg = "✅ PayPal notified (buyer protection active)"
+        except PayPalTrackingError as e:
+            logger.warning("PayPal tracker push failed for %s: %s", order_id, e)
+            paypal_msg = f"⚠️ PayPal push failed: {e}"
+        except Exception as e:
+            logger.exception("PayPal tracker push crashed for %s", order_id)
+            paypal_msg = f"⚠️ PayPal push crashed: {e}"
+    else:
+        paypal_msg = "⚠️ No PayPal txn id on order — skipped PayPal push"
+
+    # Mark WC order completed (fires customer email)
+    try:
+        roen_orders.complete_order(order_id)
+        wc_msg = "✅ Order marked completed — customer emailed"
+    except Exception as e:
+        logger.exception("complete_order failed for %s", order_id)
+        send_message(
+            chat_id,
+            f"⚠️ Saved tracking but couldn't flip order #{order_id} to completed: {e}",
+            reply_to=reply_to,
+        )
+        return
+
+    summary = (
+        f"📦 <b>Order #{order_id} shipped</b>\n"
+        f"Carrier: <b>{carrier}</b>\n"
+        f"Tracking: <code>{tracking}</code>\n\n"
+        f"{wc_msg}\n"
+        f"{paypal_msg}"
+    )
+    send_message(chat_id, summary, reply_to=reply_to)
+
+
+def _handle_order_callback(data: str, chat_id: int, cb_id: str, msg_id: Optional[int]) -> None:
+    parts = data.split(":")
+    if len(parts) != 3:
+        answer_callback(cb_id, "Bad order action.")
+        return
+    _, action, raw_id = parts
+    try:
+        order_id = int(raw_id)
+    except ValueError:
+        answer_callback(cb_id, "Bad order id.")
+        return
+
+    if action == "ship":
+        answer_callback(cb_id, "Send tracking #")
+        _ask_for_tracking(chat_id, order_id)
+        return
+
+    if action == "local":
+        answer_callback(cb_id, "Send delivery note")
+        _ask_for_local_note(chat_id, order_id)
+        return
+
+    if action == "detail":
+        answer_callback(cb_id)
+        _send_order_details(chat_id, order_id)
+        return
+
+    answer_callback(cb_id, "Unknown order action.")
 
 
 # Telegram sendMessage hard-caps text at 4096 chars. Stay safely under that
@@ -793,6 +1289,208 @@ def _publish_last(chat_id: int, reply_to: Optional[int]) -> None:
         send_message(chat_id, f"Published draft #{post_id}.\n{preview_url(post_id)}", reply_to=reply_to)
     except Exception as e:
         send_message(chat_id, f"Publish failed: {e}", reply_to=reply_to)
+        return
+    try:
+        from core.jewelry.meta_publish_hook import on_product_published
+        result = on_product_published(post_id)
+        if result.get("fb_draft_id"):
+            send_message(
+                chat_id,
+                "📨 FB Page draft queued — review at https://aialfred.groundrushcloud.com/admin/roen/social-pending",
+                reply_to=reply_to,
+            )
+    except Exception:
+        logger.exception("meta hook crashed for /publish %s — WC publish stands", post_id)
+
+
+# ----------------------- coupon flow -----------------------
+
+_COUPON_LIST_TRIGGERS = {
+    "my coupons", "/coupons", "coupons", "list coupons", "show coupons",
+    "list my coupons", "show my coupons",
+}
+
+
+def _is_coupon_create(lower: str) -> bool:
+    """True if the text is a request to create a coupon."""
+    if lower.startswith("/coupon") and not lower.startswith("/coupons"):
+        return True
+    return "coupon" in lower and re.search(r"\b(create|make|new|add|generate|give)\b", lower) is not None
+
+
+def _discount_phrase(discount_type: str, amount: float, free_shipping: bool) -> str:
+    """Human description of a discount, e.g. '20% off' / '$15 off' / 'free (100% off)'."""
+    def trim(a: float) -> str:
+        return str(int(a)) if a == int(a) else f"{a:.2f}"
+    if free_shipping and amount == 0:
+        return "free shipping"
+    parts = []
+    if discount_type == "percent":
+        parts.append("free (100% off)" if amount == 100 else f"{trim(amount)}% off")
+    else:
+        parts.append(f"${trim(amount)} off")
+    if free_shipping:
+        parts.append("+ free shipping")
+    return " ".join(parts)
+
+
+def _format_coupon_confirmation(chat_id: int, spec) -> str:
+    usage = "single use" if spec.usage_limit == 1 else "unlimited use"
+    expiry = f"expires {spec.expiry_date}" if spec.expiry_date else "no expiry"
+    return (
+        f"✅ <b>Coupon created{_address_suffix(chat_id)}</b>\n"
+        f"Code: <code>{spec.code}</code>\n"
+        f"{_discount_phrase(spec.discount_type, spec.amount, spec.free_shipping)} · {usage} · {expiry}\n\n"
+        f"Share it with whoever you like."
+    )
+
+
+def _coupon_keyboard(code: str) -> dict:
+    return {"inline_keyboard": [[{"text": "🗑️ Delete", "callback_data": f"cpn:del:{code}"}]]}
+
+
+def _create_and_confirm(chat_id: int, spec, reply_to: Optional[int]) -> None:
+    """Uniqueness-check, create in WooCommerce, confirm. On dup name, re-prompt."""
+    try:
+        if roen_coupons.coupon_exists(spec.code):
+            spec.code = None
+            set_pending_coupon(chat_id, spec)
+            send_message(
+                chat_id,
+                "There's already a coupon with that name. Send a different name "
+                "(or <code>/cancel</code>).",
+                reply_to=reply_to,
+            )
+            return
+        roen_coupons.create_coupon(spec)
+    except Exception as e:
+        logger.exception("coupon create failed")
+        send_message(chat_id, f"Couldn't create that coupon{_address_suffix(chat_id)}: {e}", reply_to=reply_to)
+        return
+    send_message(chat_id, _format_coupon_confirmation(chat_id, spec),
+                 reply_to=reply_to, reply_markup=_coupon_keyboard(spec.code))
+
+
+def _start_coupon_create(chat_id: int, text: str, reply_to: Optional[int]) -> None:
+    spec = roen_coupons.parse_coupon_request(text)
+    if spec is None:
+        send_message(
+            chat_id,
+            ("What discount would you like? Examples:\n"
+             "  <code>create a coupon 20% off Brittany</code>\n"
+             "  <code>create a coupon $15 off Mom</code>\n"
+             "  <code>create a coupon free shipping Kelly</code>\n"
+             "  <code>create a free coupon Sarah</code>\n\n"
+             "Add <code>one time</code> for single-use, or "
+             "<code>good for a month</code> to set an expiry."),
+            reply_to=reply_to,
+        )
+        return
+    if spec.code is None:
+        set_pending_coupon(chat_id, spec)
+        send_message(
+            chat_id,
+            ("What do you want to call it? (e.g. <code>Brittany</code>)\n"
+             f"That'll be {_discount_phrase(spec.discount_type, spec.amount, spec.free_shipping)}."),
+            reply_to=reply_to,
+        )
+        return
+    _create_and_confirm(chat_id, spec, reply_to)
+
+
+def _finish_coupon_with_name(chat_id: int, spec, name_text: str, reply_to: Optional[int]) -> None:
+    code = roen_coupons.normalize_code(name_text)
+    if not code:
+        set_pending_coupon(chat_id, spec)  # restore — keep waiting for a usable name
+        send_message(
+            chat_id,
+            "I need a name for the code — letters or numbers, like <code>Brittany</code>.",
+            reply_to=reply_to,
+        )
+        return
+    spec.code = code
+    _create_and_confirm(chat_id, spec, reply_to)
+
+
+def _send_coupons_list(chat_id: int, reply_to: Optional[int]) -> None:
+    try:
+        rows = roen_coupons.list_coupons()
+    except Exception as e:
+        logger.exception("coupon list failed")
+        send_message(chat_id, f"Couldn't fetch coupons{_address_suffix(chat_id)}: {e}", reply_to=reply_to)
+        return
+    if not rows:
+        send_message(chat_id, f"No coupons yet{_address_suffix(chat_id)}. Make one with "
+                              "<code>create a coupon 20% off Brittany</code>.", reply_to=reply_to)
+        return
+
+    header = f"<b>🎟️ Your coupons ({len(rows)})</b>"
+    send_message(chat_id, header, reply_to=reply_to)
+    for r in rows:
+        # WooCommerce stores codes lowercase; display/act on the uppercase form
+        # to match how the code was created and shared (checkout is case-insensitive).
+        send_message(chat_id, _format_coupon_row(r), reply_markup=_coupon_keyboard(r.code.upper()))
+
+
+def _format_coupon_row(r) -> str:
+    try:
+        amount = float(r.amount)
+    except (TypeError, ValueError):
+        amount = 0.0
+    desc = _discount_phrase(r.discount_type, amount, r.free_shipping)
+    if r.usage_limit == 1:
+        uses = "single use"
+    elif r.usage_limit:
+        uses = f"{r.usage_limit} uses"
+    else:
+        uses = "unlimited"
+    exp = f"expires {r.date_expires}" if r.date_expires else "no expiry"
+    used = f" · used {r.usage_count}×" if r.usage_count else ""
+    return f"<b>{r.code.upper()}</b> — {desc} · {uses} · {exp}{used}"
+
+
+def _handle_coupon_callback(data: str, chat_id: int, cb_id: str, msg_id: Optional[int]) -> None:
+    parts = data.split(":", 2)
+    if len(parts) != 3 or parts[1] != "del":
+        answer_callback(cb_id, "Bad coupon action.")
+        return
+    code = parts[2]
+    try:
+        deleted = roen_coupons.delete_coupon(code)
+    except Exception as e:
+        logger.exception("coupon delete failed for %s", code)
+        answer_callback(cb_id, "Delete failed.")
+        send_message(chat_id, f"Couldn't delete <b>{code}</b>: {e}")
+        return
+    if deleted:
+        answer_callback(cb_id, "Deleted.")
+        remove_keyboard(chat_id, msg_id)
+        send_message(chat_id, f"Deleted coupon <b>{code}</b> ✅\nIt'll stop working at checkout right away.")
+    else:
+        answer_callback(cb_id, "Not found.")
+        remove_keyboard(chat_id, msg_id)
+        send_message(chat_id, f"Coupon <b>{code}</b> wasn't found — already gone?")
+
+
+def handle_coupon_text(chat_id: int, text: str, reply_to: Optional[int]) -> bool:
+    """Handle coupon create/list/name-reply. Returns True if it consumed the message."""
+    lower = text.lower().strip()
+
+    if lower in _COUPON_LIST_TRIGGERS:
+        _send_coupons_list(chat_id, reply_to)
+        return True
+
+    if _is_coupon_create(lower):
+        _start_coupon_create(chat_id, text, reply_to)
+        return True
+
+    # Name reply to a pending coupon (any non-command text while one is pending).
+    if peek_pending_coupon(chat_id) is not None and not lower.startswith("/"):
+        spec = pop_pending_coupon(chat_id)
+        if spec is not None:
+            _finish_coupon_with_name(chat_id, spec, text, reply_to)
+            return True
+    return False
 
 
 # ----------------------- main loop -----------------------
