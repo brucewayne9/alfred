@@ -1,14 +1,54 @@
-"""Film-montage renderer: hook + borrowed/generated clips -> branded 9:16 montage."""
+"""Film-montage renderer: hook + borrowed/generated clips -> branded 9:16 montage.
+
+Optional word-synced lyric captions: when params carry a valid ``caption_style``
+(see core.forge.caption_styles), the silent montage body is run through a
+Remotion caption-overlay pass (CaptionStudioRig) before logo + audio mux. The
+hook audio is transcribed to word timings, so captions follow the sung lyric.
+"""
 from __future__ import annotations
+import json
 import math
 import shutil
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 
-from core.forge import audio, clips, uploads
+from core.forge import audio, clips, uploads, caption_styles
+from core.forge.renderers.kinetic_lyric import build_karaoke_lines, _node_env, REMOTION
 
 LOGO_PATH = Path("/home/aialfred/remotion/public/mainstay-logo.png")
+
+
+def _caption_overlay(body: Path, lines: list, style_spec: dict, work: Path) -> Path:
+    """Burn word-synced captions over the silent montage via Remotion CaptionStudioRig.
+
+    Returns a new silent mp4 (captions baked, no audio/logo yet — make_branded
+    adds those). The montage video is staged into Remotion's public/ under a
+    unique name and always cleaned up.
+    """
+    pub_name = f"forge_mtgcap_{uuid.uuid4().hex}.mp4"
+    pub_path = REMOTION / "public" / pub_name
+    shutil.copyfile(body, pub_path)
+    try:
+        props = {"brand": "mainstay", "bgClip": pub_name, "lines": lines,
+                 "style": style_spec, "scrim": True}
+        props_path = work / "capprops.json"
+        props_path.write_text(json.dumps(props))
+        out = work / "captioned.mp4"
+        rr = subprocess.run(
+            ["npx", "remotion", "render", "src/index.ts", "CaptionStudioRig",
+             str(out), f"--props={props_path}"],
+            cwd=str(REMOTION), capture_output=True, text=True, timeout=1800,
+            env=_node_env())
+        if rr.returncode != 0 or not out.exists():
+            raise RuntimeError(f"caption overlay render failed: {rr.stderr[-800:]}")
+        return out
+    finally:
+        try:
+            pub_path.unlink()
+        except OSError:
+            pass
 
 
 def plan_segments(clip_count: int, hook_seconds: float, seg_seconds: float = 2.5) -> list[dict]:
@@ -172,7 +212,15 @@ def render(params: dict, out_path: str | Path) -> Path:
         if proc.returncode != 0 or not body.exists():
             raise RuntimeError(f"concat failed: {proc.stderr[-500:]}")
 
-        # 6-7. Brand + mux + guard.
+        # 6. Optional word-synced lyric captions (Remotion overlay pass).
+        style_id = params.get("caption_style")
+        if style_id and style_id not in ("none", "off") and caption_styles.is_valid(style_id):
+            words = audio.transcribe_words(hook)
+            lines = build_karaoke_lines(words, max_words=4, uppercase=False) if words else []
+            if lines:
+                body = _caption_overlay(body, lines, caption_styles.resolve(style_id), work)
+
+        # 7. Brand + mux + guard.
         make_branded(body, hook, params.get("caption", ""), out_path)
         audio.assert_audible(out_path)
         return Path(out_path)

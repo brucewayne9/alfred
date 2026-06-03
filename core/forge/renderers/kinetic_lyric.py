@@ -42,11 +42,14 @@ def _is_marker(t: str) -> bool:
 
 
 def build_karaoke_lines(words: list[dict], fps: int = 30, max_words: int = 7,
-                        gap_break: float = 0.7) -> list[list[dict]]:
-    """Group word-timing dicts into karaoke lines for KineticTypeRig.
+                        gap_break: float = 0.7, uppercase: bool = True) -> list[list[dict]]:
+    """Group word-timing dicts into karaoke lines for the caption rigs.
 
     New line when: the next word is an age marker (21..29), a >gap_break pause,
-    or the current line hit max_words. Words are uppercased, trailing punct stripped.
+    or the current line hit max_words. Trailing punct stripped. `uppercase`
+    controls case baking — KineticTypeRig wants UPPER baked in; the Film Montage
+    caption gallery passes uppercase=False so each style's own `upper` token
+    (CSS text-transform) decides case per-preset.
     """
     def fr(t: float) -> int:
         return max(0, round(float(t) * fps))
@@ -58,7 +61,9 @@ def build_karaoke_lines(words: list[dict], fps: int = 30, max_words: int = 7,
         gap = (w["start"] - prev_end) if prev_end is not None else 0.0
         if cur and (_is_marker(w["word"]) or gap > gap_break or len(cur) >= max_words):
             lines.append(cur); cur = []
-        text = w["word"].upper().rstrip(",.?!").strip()
+        text = w["word"].rstrip(",.?!").strip()
+        if uppercase:
+            text = text.upper()
         if text:
             cur.append({"text": text, "startFrame": fr(w["start"]), "endFrame": fr(w["end"])})
         prev_end = w["end"]
