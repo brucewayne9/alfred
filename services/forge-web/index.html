@@ -480,7 +480,11 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <button class="btn-ghost" type="button" onclick="addToMontage()">＋ Add selection</button>
             <span id="montageTrayStatus" style="font:600 13px/1 var(--sans);color:var(--mute)">empty — add picks from any source, then assemble</span>
             <label style="font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-left:auto">Song bed</label>
-            <input id="montageBedFile" type="file" accept="audio/*" style="font-size:12px;max-width:200px" title="Optional: lay one song over the whole montage instead of clip audio">
+            <input id="montageBedFile" type="file" accept="audio/*" style="font-size:12px;max-width:180px" title="Optional: add a music bed under the montage">
+            <select id="montageBedMode" style="padding:8px 10px;font-size:13px" title="How the song bed sits with the clip audio">
+              <option value="duck">Under voice (duck)</option>
+              <option value="replace">Replace audio</option>
+            </select>
             <button class="btn-ghost" type="button" onclick="clearMontage()">Clear</button>
             <button class="btn" type="button" onclick="assembleMontage()"><span class="k">&#x29C9;</span> Assemble montage</button>
           </div>
@@ -1249,6 +1253,7 @@ async function assembleMontage(){
       const up = await fetch(API+'/forge/uploads',{method:'POST',credentials:'include',body:fd});
       if(!up.ok) throw new Error('bed upload '+up.status);
       params.bed_audio_upload_id = (await up.json()).upload_id;
+      params.bed_mode = (document.getElementById('montageBedMode')||{}).value || 'duck';
     }
     const r = await fetch(API + '/forge/jobs', {
       method: 'POST',

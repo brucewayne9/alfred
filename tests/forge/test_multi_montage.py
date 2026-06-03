@@ -81,3 +81,29 @@ def test_resolve_bed_path_missing_raises(tmp_path):
     import pytest as _pt
     with _pt.raises(RuntimeError, match="bed audio path missing"):
         _resolve_bed({"bed_audio_path": str(tmp_path / "nope.mp3")})
+
+
+import shutil as _shutil
+import subprocess as _sp
+
+_HAS_FFMPEG = _shutil.which("ffmpeg") is not None
+
+
+@pytest.mark.skipif(not _HAS_FFMPEG, reason="ffmpeg not available")
+def test_duck_mix_produces_audio(tmp_path):
+    """_duck_mix mixes voice + bed into a valid AAC track at the voice's length."""
+    from core.forge.renderers.multi_montage import _duck_mix
+    from core.forge import audio
+    voice = tmp_path / "voice.m4a"
+    bed = tmp_path / "bed.m4a"
+    # 4s voice (tone), 4s bed (different tone)
+    _sp.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+             "-i", "sine=frequency=300:sample_rate=44100", "-t", "4",
+             "-c:a", "aac", str(voice)], check=True)
+    _sp.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+             "-i", "sine=frequency=800:sample_rate=44100", "-t", "4",
+             "-c:a", "aac", str(bed)], check=True)
+    out = _duck_mix(voice, bed, tmp_path / "mix.m4a")
+    assert out.exists()
+    # duration tracks the voice (duration=first), within tolerance
+    assert abs(audio.duration_seconds(out) - 4.0) <= 0.4

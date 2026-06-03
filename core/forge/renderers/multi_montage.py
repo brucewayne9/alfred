@@ -84,6 +84,43 @@ def _prepare_bed(bed_src: Path, target_seconds: float, out_path: Path) -> Path:
     return out_path
 
 
+def _duck_mix(
+    voice_path: Path,
+    bed_path: Path,
+    out_path: Path,
+    music_level: float = 0.32,
+) -> Path:
+    """Mix *voice* full + *bed* music ducked underneath (sidechain compression).
+
+    The voice (interview) stays up front at full level; the music is lowered to
+    *music_level* and then auto-ducked further whenever the voice is present, so
+    it swells gently in the gaps and drops under speech.  Output 44.1k stereo AAC.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    # [0]=voice  [1]=music.  Lower music, sidechain-duck it against the voice,
+    # then sum with the full voice (normalize=0 keeps the voice at full level).
+    filter_complex = (
+        "[1:a]volume={lvl}[bg];"
+        "[bg][0:a]sidechaincompress=threshold=0.03:ratio=8:attack=5:release=300[duck];"
+        "[duck][0:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[mix]"
+    ).format(lvl=music_level)
+    proc = subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error",
+            "-i", str(voice_path), "-i", str(bed_path),
+            "-filter_complex", filter_complex,
+            "-map", "[mix]",
+            "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
+            str(out_path),
+        ],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0 or not out_path.exists():
+        raise RuntimeError(f"_duck_mix failed: {proc.stderr[-500:]}")
+    return out_path
+
+
 def build_multiclip_events(
     picks: list[dict],
     fine_by_source: dict[str, list[dict]],
@@ -185,16 +222,25 @@ def render(params: dict, out_path: str | Path) -> Path:
         else:
             overlay_captions(body, (picks[0].get("text") or "")[:120], captioned)
 
-        # 4. Audio track: optional single song bed REPLACES the clip audio, else
-        #    keep the picks' own audio.  Bed is looped/trimmed to the montage length.
+        # 4. Audio track.  Optional song bed:
+        #      duck (default) — keep the interview voice up front, music ducked
+        #                       underneath (sidechain compression on speech).
+        #      replace        — music only (for talk-free music-video montages).
+        #    No bed → keep the picks' own audio.
         bed_src = _resolve_bed(params)
+        bed_mode = (params.get("bed_mode") or "duck").lower()
+        voice_audio = work / "voice.m4a"
+        _extract_audio(captioned, voice_audio)
         if bed_src is not None:
             from core.forge import audio
             target = audio.duration_seconds(captioned)
-            hook_audio = _prepare_bed(bed_src, target, work / "bed.m4a")
+            bed = _prepare_bed(bed_src, target, work / "bed.m4a")
+            if bed_mode == "replace":
+                hook_audio = bed
+            else:
+                hook_audio = _duck_mix(voice_audio, bed, work / "mixed.m4a")
         else:
-            hook_audio = work / "hook.m4a"
-            _extract_audio(captioned, hook_audio)
+            hook_audio = voice_audio
 
         # 5. Brand: logo overlay + audio mux.
         make_branded(captioned, hook_audio, "", out_path)
