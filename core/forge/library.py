@@ -199,26 +199,39 @@ def soft_delete(paths: list[str], kind: str, job_id: str | None = None,
     if not safe_paths:
         raise ValueError("nothing to delete")
 
+    import requests as _rq
+
     token = uuid.uuid4().hex[:12]
     dest_dir = f"{TRASH_ROOT}/{token}"
     _ensure_folder(TRASH_ROOT)
     _ensure_folder(dest_dir)
 
     items: list[dict] = []
+    missing = 0
     for i, src in enumerate(safe_paths):
         base = src.rstrip("/").split("/")[-1]
         dest = f"{dest_dir}/{i:02d}_{base}"
-        nc.move_file(src, dest)
-        items.append({"orig": src, "trash": dest})
+        try:
+            nc.move_file(src, dest)
+            items.append({"orig": src, "trash": dest})
+        except _rq.exceptions.HTTPError as e:
+            # Source already gone (e.g. a stale Library card) — treat as deleted,
+            # don't fail the whole action.
+            if getattr(e.response, "status_code", None) in (404, 409):
+                missing += 1
+                continue
+            raise
 
-    with _conn() as c:
-        c.execute(
-            "INSERT INTO trash (token, kind, items, job_id, label, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (token, kind, json.dumps(items), job_id, label, int(time.time())),
-        )
-    _prune_trash()
-    return {"token": token, "count": len(items)}
+    # Only record an undo entry if something was actually moved.
+    if items:
+        with _conn() as c:
+            c.execute(
+                "INSERT INTO trash (token, kind, items, job_id, label, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (token, kind, json.dumps(items), job_id, label, int(time.time())),
+            )
+        _prune_trash()
+    return {"token": token, "count": len(items), "missing": missing}
 
 
 def undo_last() -> dict | None:
