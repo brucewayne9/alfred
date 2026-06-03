@@ -31,6 +31,7 @@ def init_db() -> None:
                 params      TEXT NOT NULL DEFAULT '{}',
                 result      TEXT,
                 error       TEXT,
+                created_by  TEXT,
                 created_at  INTEGER NOT NULL,
                 updated_at  INTEGER NOT NULL
             );
@@ -84,3 +85,7 @@ def init_db() -> None:
                 ON transcript_segments(source_id, seq);
             """
         )
+        # Idempotent migration: add jobs.created_by to pre-existing DBs.
+        cols = {r[1] for r in c.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "created_by" not in cols:
+            c.execute("ALTER TABLE jobs ADD COLUMN created_by TEXT")

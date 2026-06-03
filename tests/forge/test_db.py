@@ -41,5 +41,5 @@ def test_jobs_table_has_expected_columns(forge_db):
     conn.close()
     assert cols == {
         "id", "job_type", "status", "params",
-        "result", "error", "created_at", "updated_at",
+        "result", "error", "created_by", "created_at", "updated_at",
     }

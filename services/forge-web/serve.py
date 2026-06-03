@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 os.environ.setdefault("FORGE_DB_PATH", "/home/aialfred/alfred/data/forge_live.db")
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 
 from core.api.forge import register as register_forge
@@ -29,8 +29,17 @@ PORT = int(os.environ.get("FORGE_PORT", "8201"))
 app = FastAPI(title="Mainstay Forge")
 register_forge(app)
 register_default_handlers()  # echo + leak_graphic (real ComfyUI-Cloud render)
-# Surface is gated by Caddy basic_auth; service is bound to localhost only.
-app.dependency_overrides[require_auth] = lambda: {"username": "mainstay", "role": "team"}
+
+
+# Surface is gated by Caddy basic_auth (per-user); the service is bound to
+# localhost only and never reachable except through Caddy.  Caddy forwards the
+# authenticated username via the X-Forge-User header, so each person's jobs are
+# stamped with who created them.  Falls back to "mainstay" if the header absent.
+def _forge_user(request: Request) -> dict:
+    return {"username": request.headers.get("X-Forge-User") or "mainstay", "role": "team"}
+
+
+app.dependency_overrides[require_auth] = _forge_user
 
 
 @app.on_event("startup")

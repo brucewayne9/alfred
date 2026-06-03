@@ -71,15 +71,16 @@ def _row_to_dict(row) -> dict:
     return d
 
 
-def enqueue(job_type: str, params: Optional[dict] = None, now: Optional[int] = None) -> str:
+def enqueue(job_type: str, params: Optional[dict] = None, now: Optional[int] = None,
+            created_by: Optional[str] = None) -> str:
     init_db()
     job_id = uuid.uuid4().hex
     ts = now if now is not None else _now()
     with _conn() as c:
         c.execute(
-            "INSERT INTO jobs (id, job_type, status, params, created_at, updated_at) "
-            "VALUES (?, ?, 'pending', ?, ?, ?)",
-            (job_id, job_type, json.dumps(params or {}), ts, ts),
+            "INSERT INTO jobs (id, job_type, status, params, created_by, created_at, updated_at) "
+            "VALUES (?, ?, 'pending', ?, ?, ?, ?)",
+            (job_id, job_type, json.dumps(params or {}), created_by, ts, ts),
         )
     return job_id
 

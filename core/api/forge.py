@@ -15,7 +15,9 @@ def register(app: FastAPI) -> None:
         job_type = payload.get("job_type")
         if not job_type:
             raise HTTPException(status_code=400, detail="job_type is required")
-        job_id = forge_jobs.enqueue(job_type, payload.get("params") or {})
+        job_id = forge_jobs.enqueue(
+            job_type, payload.get("params") or {}, created_by=user.get("username")
+        )
         return forge_jobs.get_job(job_id)
 
     @app.get("/forge/jobs")

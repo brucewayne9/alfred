@@ -713,10 +713,11 @@ async function refreshJobs(){
       const active=(j.status==='pending'||j.status==='running'||j.status==='cancelling');
       const stopBtn=active?`<button class="jbtn stop" title="Stop this job" onclick="cancelJob('${j.id}')">■ Stop</button>`:'';
       const delBtn=`<button class="jbtn del" title="Delete from queue" onclick="deleteJob('${j.id}')">🗑 Delete</button>`;
+      const by = j.created_by ? ` · by ${esc(j.created_by)}` : '';
       return `<div class="job"><div><span class="st ${j.status}"><span class="d"></span>${j.status}</span></div>
         <div><div class="type">${FMTNAME[j.job_type]||j.job_type}</div>
         <div class="meta">${cap}${nv}</div><div class="id">${j.id.slice(0,12)}</div></div>
-        <div style="text-align:right"><div class="meta">${ago(j.created_at)}</div>
+        <div style="text-align:right"><div class="meta">${ago(j.created_at)}${by}</div>
         <div class="jacts">${stopBtn}${delBtn}</div></div></div>`;
     }).join('');
   }catch(e){}
