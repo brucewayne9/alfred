@@ -346,11 +346,6 @@
           <div class="fmt" data-fmt="film_montage"><span class="px">B</span><span class="glyph">▶</span><h3>Film Montage</h3><p>Emotional clips stitched to the hook — pull from YouTube, a search, or generate. Branded outro.</p><span class="fstat livep">live now</span></div>
           <div class="fmt sel" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>AI cover art from your caption — generated on ComfyUI Cloud, then multiplied.</p><span class="fstat livep">live now</span></div>
         </div>
-        <a class="srcdrop" href="https://groundrushcloud.com/s/aC9WRESZegKryke" target="_blank" rel="noopener">
-          <span class="srcdrop-ic">📁</span>
-          <span class="srcdrop-tx"><b>Drop a documentary or interview to clip</b><span class="srcdrop-sub">Opens the shared source folder — drag the file straight in (handles big files). Intelligent topic-clipping is coming; this stages your long-form sources for it.</span></span>
-          <span class="srcdrop-go">Open folder ↗</span>
-        </a>
         <form class="form panel" style="padding:22px" id="createForm">
           <div class="field full">
             <label>Caption / lyric <span style="color:var(--mute);font-weight:400">— for Kinetic, this is the vessel mood</span></label>
@@ -416,8 +411,24 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 
       <!-- TOPIC -->
       <section data-panel="topic" style="display:none">
-        <h1 class="page">Topic search</h1>
-        <p class="sub">Pick a transcribed source, describe a topic in plain language, and Forge finds the matching segments — ranked by relevance, with timestamps and transcript text inline so you can verify on-topic before sending to assembly.</p>
+        <h1 class="page">Topic</h1>
+        <p class="sub">Bring in a long video, podcast, or interview — by link or by file — then search it in plain language and cut the moments you want.</p>
+
+        <!-- ADD A SOURCE: paste a link, or drop a big file -->
+        <div class="panel" style="padding:22px;margin-bottom:18px">
+          <label style="font:700 11px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--gold-hi)">Add a source</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+            <input id="ingestUrl" type="text" placeholder="Paste a YouTube, TikTok, or Instagram link…" style="flex:1 1 320px;padding:12px 14px;font-size:14px"
+                   onkeydown="if(event.key==='Enter')ingestFromUrl()">
+            <button class="btn" type="button" onclick="ingestFromUrl()"><span class="k">⤓</span> Fetch &amp; transcribe</button>
+          </div>
+          <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font:500 13px/1.4 var(--sans);color:var(--mute)">Got a big documentary or interview file instead?</span>
+            <a class="srcdrop-go" href="https://groundrushcloud.com/s/aC9WRESZegKryke" target="_blank" rel="noopener" style="text-decoration:none">📁 Open the drop folder ↗</a>
+            <span style="font:500 12px/1.4 var(--sans);color:var(--mute2)">— drag it in, then hit Refresh below.</span>
+          </div>
+          <div id="ingestStatus" style="margin-top:10px;font:500 13px/1.4 var(--sans);color:var(--gold-hi);display:none"></div>
+        </div>
 
         <div class="panel" style="padding:22px">
           <div class="form">
@@ -1115,7 +1126,7 @@ async function loadTopicSources(){
     if(!r.ok) throw new Error(r.status);
     const {sources} = await r.json();
     if(!sources || !sources.length){
-      sel.innerHTML = '<option value="">No transcribed sources yet — ingest one via Create</option>';
+      sel.innerHTML = '<option value="">No sources yet — add one above (paste a link or drop a file)</option>';
       _topicSourcesLoaded = false;
       return;
     }
@@ -1127,6 +1138,33 @@ async function loadTopicSources(){
     _topicSourcesLoaded = true;
   } catch(e) {
     sel.innerHTML = '<option value="">Could not load sources (' + esc(e.message) + ')</option>';
+  }
+}
+
+// Ingest a YouTube/TikTok/IG link as a new transcribed source.
+async function ingestFromUrl(){
+  const inp = document.getElementById('ingestUrl');
+  const url = (inp.value || '').trim();
+  const st = document.getElementById('ingestStatus');
+  if(!url){ toast('Paste a link first'); return; }
+  if(!/^https?:\/\//i.test(url)){ toast('That doesn\'t look like a link'); return; }
+  st.style.display=''; st.style.color='var(--gold-hi)';
+  st.textContent='⤓ Fetching and transcribing — this can take a few minutes for a long video. It\'ll appear in the Source list below when ready.';
+  try{
+    const r = await fetch(API + '/forge/ingest/url', {method:'POST',
+      headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({url})});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.detail||r.status); }
+    inp.value='';
+    toast('Fetching the link — watch the Queue, then Refresh sources');
+    refreshJobs();
+    // Auto-refresh the source list a few times as transcription finishes.
+    let tries=0;
+    const poll=setInterval(async ()=>{ tries++; await loadTopicSources();
+      if(tries>=20) clearInterval(poll); }, 15000);
+  }catch(e){
+    st.style.color='var(--error)';
+    st.textContent='Could not fetch that link ('+e.message+'). If it\'s age-restricted or private, download it and use the drop folder instead.';
   }
 }
 
