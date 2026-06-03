@@ -278,6 +278,32 @@
     .mobnav .mi{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mute2);font:600 10px/1 var(--sans);padding:6px 8px;cursor:pointer;border-radius:10px}
     .mobnav .mi .ic{width:20px;height:20px}
     .mobnav .mi.active{color:var(--gold)}
+    /* Distribution + Intelligence responsiveness */
+    .rrow{grid-template-columns:1fr 1fr}
+    .rrow .rx{justify-self:end}
+    .jpick{flex-direction:column;align-items:stretch}
+    .jpick select{min-width:0;width:100%}
+    .winner{padding:16px;gap:12px}
+    .packhdr .pcap{display:none}
+    .post .pacts{margin-left:0;width:100%;justify-content:flex-start;flex-wrap:wrap}
+    .pmini.postiz{margin-left:0}
+    /* Topic: caption controls + montage tray stack and fill on mobile */
+    .topicbar{padding:12px 14px;gap:10px}
+    .topicbar select,.topicbar #topicVariantCount{flex:1 1 44%;min-width:0}
+    .topicbar .btn{flex:1 1 100%;justify-content:center}
+    .mtray>div:first-child{gap:10px}
+    .mtray select,.mtray input[type=file]{flex:1 1 100%;max-width:100%}
+    .mtray .btn{flex:1 1 100%;justify-content:center}
+    .mtray #montageTrayList li{flex-wrap:wrap}
+  }
+  /* Tables/wide content scroll horizontally instead of squishing */
+  .boardwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  @media(max-width:900px){ .board{min-width:520px} }
+  @media(max-width:560px){
+    .rrow{grid-template-columns:1fr}
+    .cal{grid-template-columns:repeat(2,1fr)}
+    h1.page{font-size:22px}
+    .topicbar select,.topicbar #topicVariantCount{flex:1 1 100%}
   }
 </style>
 </head>
@@ -436,7 +462,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 
         <div id="topicResults" style="margin-top:24px"><div class="empty">Pick a source and enter a topic.</div></div>
 
-        <div style="position:sticky;bottom:0;z-index:10;margin-top:16px;padding:14px 18px;background:linear-gradient(0deg,var(--bg),var(--bg) 80%,transparent);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div class="topicbar" style="position:sticky;bottom:0;z-index:10;margin-top:16px;padding:14px 18px;background:linear-gradient(0deg,var(--bg),var(--bg) 80%,transparent);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <span id="topicSelected" style="font:600 14px/1 var(--sans);color:var(--mute)">0 segments selected</span>
           <button class="btn-ghost" type="button" onclick="copyTopicSelection()" style="margin-left:auto">⧉ Copy selection</button>
           <button class="btn-ghost" type="button" onclick="printTopicSelection()">⎙ Print selection</button>
@@ -474,7 +500,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
           <button class="btn" type="button" onclick="assembleVariants()"><span class="k">&#x29C9;</span> Assemble variants</button>
         </div>
         <!-- MONTAGE TRAY — hand-pick moments across sources, stitch in order -->
-        <div style="margin-top:10px;padding:12px 18px;border:1px dashed var(--line,#444);border-radius:10px">
+        <div class="mtray" style="margin-top:10px;padding:12px 18px;border:1px dashed var(--line,#444);border-radius:10px">
           <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
             <span style="font:700 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#caa14a)">Montage tray</span>
             <button class="btn-ghost" type="button" onclick="addToMontage()">＋ Add selection</button>
@@ -553,7 +579,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
           <div class="trophy">🏆</div>
           <div><div class="wl">Winning sound</div><div class="wn">"Letter From Houston" — hook</div><div class="wd">68% avg retention · 41k saves across 6 pilot pages · pulling 3.2× the field on shares.</div></div>
         </div>
-        <div class="panel" style="padding:8px 14px 6px">
+        <div class="panel boardwrap" style="padding:8px 14px 6px">
           <table class="board">
             <thead><tr><th>Sound</th><th class="num">Plays</th><th class="num">Retention</th><th class="num">Saves</th><th>Momentum</th></tr></thead>
             <tbody>
