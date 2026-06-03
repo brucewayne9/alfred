@@ -38,8 +38,18 @@ def cookies_file() -> str | None:
 
 
 def _auth_args() -> list[str]:
-    """Shared yt-dlp args: upgraded player-clients + cookies when available."""
-    args = ["--extractor-args", f"youtube:player_client={YT_PLAYER_CLIENTS}"]
+    """Shared yt-dlp args: player-clients + EJS challenge solver + cookies.
+
+    `--remote-components ejs:github` pulls YouTube's JS 'n'-challenge solver
+    (yt-dlp split it out of core in 2026.03). Without it the web client can only
+    return storyboards ('Only images are available') and every real download
+    fails 'Requested format is not available'. yt-dlp caches the solver lib under
+    ~/.cache/yt-dlp after the first fetch, so this is a one-time download.
+    """
+    args = [
+        "--extractor-args", f"youtube:player_client={YT_PLAYER_CLIENTS}",
+        "--remote-components", "ejs:github",
+    ]
     ck = cookies_file()
     if ck:
         args += ["--cookies", ck]

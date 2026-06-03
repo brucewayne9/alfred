@@ -111,3 +111,6 @@ scripts/ag_manuals/.cookies.json
 scripts/ag_manuals/node_modules/
 scripts/ag_manuals/screenshots/
 
+
+# YouTube session cookies — secret, never commit
+config/youtube_cookies.txt
