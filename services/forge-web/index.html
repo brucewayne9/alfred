@@ -331,6 +331,7 @@
       <div class="campaign">
         <span class="chip"><span class="dot"></span> Rod Wave · Don't Look Down</span>
         <span class="chip">June 19 · <span class="count" id="dday2">21d</span></span>
+        <span class="chip" id="whoami" style="border-color:var(--gold-dim);color:var(--gold-hi)">…</span>
       </div>
     </div>
     <div class="scroll">
@@ -738,6 +739,22 @@ async function deleteJob(id){
   }catch(e){toast('delete failed');}
 }
 setInterval(()=>{const q=document.querySelector('[data-panel="queue"]');if(q&&q.style.display!=='none')refreshJobs();},2200);
+
+// Who's signed in — populates the topbar chip from /forge/me.
+async function loadWhoami(){
+  try{
+    const r=await fetch(API+'/forge/me',{credentials:'include'});
+    if(!r.ok) return;
+    const m=await r.json();
+    const el=document.getElementById('whoami');
+    if(el && m.username){
+      const badge = m.role==='admin' ? ' · admin' : '';
+      el.textContent = '◑ '+m.username+badge;
+      el.title = 'Signed in as '+m.username+(m.role==='admin'?' (admin)':'');
+    }
+  }catch(e){}
+}
+loadWhoami();
 
 // ===== LIVE LIBRARY =====
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}

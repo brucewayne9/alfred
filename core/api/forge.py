@@ -10,6 +10,11 @@ def register(app: FastAPI) -> None:
     async def forge_health():
         return {"status": "ok", "service": "mainstay-forge"}
 
+    @app.get("/forge/me")
+    async def forge_me(user: dict = Depends(require_auth)):
+        """Who am I — for the 'Signed in as…' indicator."""
+        return {"username": user.get("username"), "role": user.get("role", "team")}
+
     @app.post("/forge/jobs")
     async def create_job(payload: dict = Body(...), user: dict = Depends(require_auth)):
         job_type = payload.get("job_type")

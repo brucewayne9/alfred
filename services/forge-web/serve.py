@@ -35,8 +35,14 @@ register_default_handlers()  # echo + leak_graphic (real ComfyUI-Cloud render)
 # localhost only and never reachable except through Caddy.  Caddy forwards the
 # authenticated username via the X-Forge-User header, so each person's jobs are
 # stamped with who created them.  Falls back to "mainstay" if the header absent.
+# Usernames granted the admin role (everyone else is "team").
+FORGE_ADMINS = {"mike", "mainstay"}
+
+
 def _forge_user(request: Request) -> dict:
-    return {"username": request.headers.get("X-Forge-User") or "mainstay", "role": "team"}
+    username = request.headers.get("X-Forge-User") or "mainstay"
+    role = "admin" if username in FORGE_ADMINS else "team"
+    return {"username": username, "role": role}
 
 
 app.dependency_overrides[require_auth] = _forge_user
