@@ -461,8 +461,10 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
           <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <span style="font:500 13px/1.4 var(--sans);color:var(--mute)">Got a big documentary or interview file instead?</span>
             <a class="srcdrop-go" href="https://groundrushcloud.com/s/aC9WRESZegKryke" target="_blank" rel="noopener" style="text-decoration:none">📁 Open the drop folder ↗</a>
-            <span style="font:500 12px/1.4 var(--sans);color:var(--mute2)">— drag it in, then hit Refresh below.</span>
+            <button class="btn-ghost" type="button" onclick="loadCloudFiles()" style="white-space:nowrap;padding:9px 13px">↺ Scan drop folder</button>
+            <span style="font:500 12px/1.4 var(--sans);color:var(--mute2)">— drag it in, scan, then Ingest.</span>
           </div>
+          <div id="cloudFiles" style="margin-top:12px;display:none"></div>
           <div id="ingestStatus" style="margin-top:10px;font:500 13px/1.4 var(--sans);color:var(--gold-hi);display:none"></div>
         </div>
 
@@ -776,7 +778,7 @@ function tabTo(name){
   if(name==='queue') refreshJobs();
   if(name==='library') loadLibrary();
   if(name==='distribution') loadDistribution();
-  if(name==='topic' && !_topicSourcesLoaded) loadTopicSources();
+  if(name==='topic' && !_topicSourcesLoaded){ loadTopicSources(); loadCloudFiles(); }
   if(name==='users') loadUsers();
 }
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(LABELS[h])tabTo(h);});
@@ -1296,6 +1298,57 @@ async function ingestFromUrl(){
   }catch(e){
     st.style.color='var(--error)';
     st.textContent='Could not fetch that link ('+e.message+'). If it\'s age-restricted or private, download it and use the drop folder instead.';
+  }
+}
+
+function _humanSize(b){ b=Number(b)||0; if(b<1024)return b+' B'; const u=['KB','MB','GB','TB']; let i=-1; do{b/=1024;i++;}while(b>=1024&&i<u.length-1); return b.toFixed(b>=10?0:1)+' '+u[i]; }
+
+// List files sitting in the Nextcloud drop folder (Sources/) with one-click Ingest.
+async function loadCloudFiles(){
+  const box=document.getElementById('cloudFiles');
+  box.style.display='';
+  box.innerHTML='<div style="color:var(--mute2);font:500 13px/1.4 var(--sans);padding:6px 2px">Scanning the drop folder…</div>';
+  try{
+    const r=await fetch(API+'/forge/ingest/cloud-sources',{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const {files}=await r.json();
+    if(!files||!files.length){
+      box.innerHTML='<div style="color:var(--mute2);font:500 13px/1.4 var(--sans);padding:6px 2px">Drop folder is empty — drag a file into it, then Scan again.</div>';
+      return;
+    }
+    box.innerHTML=files.map(f=>{
+      const nm=esc(decodeURIComponent(f.name||''));
+      const pathAttr=esc(f.path||'');
+      const glyph=(f.kind==='video')?'🎬':'🎵';
+      return '<div class="cloudrow" style="display:flex;align-items:center;gap:12px;padding:10px 13px;border:1px solid var(--line);border-radius:10px;background:#0e0e13;margin-bottom:8px">'
+        +'<span style="font-size:17px">'+glyph+'</span>'
+        +'<div style="flex:1;min-width:0"><div style="font:600 13px/1.3 var(--sans);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+nm+'</div>'
+        +'<div style="font:500 11px/1.3 var(--mono);color:var(--mute2)">'+_humanSize(f.size)+'</div></div>'
+        +'<button class="btn" type="button" style="padding:9px 15px" onclick="ingestCloudFile(this,\''+pathAttr+'\')"><span class="k">⤓</span> Ingest</button>'
+      +'</div>';
+    }).join('');
+  }catch(e){
+    box.innerHTML='<div style="color:var(--error);font:500 13px/1.4 var(--sans);padding:6px 2px">Could not scan the drop folder ('+esc(e.message)+').</div>';
+  }
+}
+
+async function ingestCloudFile(btn, path){
+  btn.disabled=true; btn.innerHTML='⏳ Ingesting…';
+  const st=document.getElementById('ingestStatus');
+  try{
+    const r=await fetch(API+'/forge/ingest/cloud',{method:'POST',
+      headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({path})});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.detail||r.status); }
+    btn.innerHTML='✓ Queued'; btn.style.opacity='.7';
+    st.style.display=''; st.style.color='var(--gold-hi)';
+    st.textContent='⤓ Ingesting — big files transcribe slowly. Watch the Queue; it\'ll appear in the Source picker when done.';
+    toast('Ingest queued — watch the Queue');
+    refreshJobs();
+    let tries=0; const poll=setInterval(async ()=>{ tries++; await loadTopicSources(); if(tries>=40) clearInterval(poll); }, 15000);
+  }catch(e){
+    btn.disabled=false; btn.innerHTML='<span class="k">⤓</span> Ingest';
+    toast('Ingest failed ('+e.message+')');
   }
 }
 
