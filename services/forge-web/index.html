@@ -1050,12 +1050,19 @@ async function deleteBatch(btn){
   const dirs=(card.dataset.dirs||'').split('|').filter(Boolean);
   btn.disabled=true;
   try{
-    const r=await fetch(API+'/forge/library/batch-delete',{method:'POST',
-      headers:{'Content-Type':'application/json'},credentials:'include',
-      body:JSON.stringify({job_id:card.dataset.job,dirs,label:card.dataset.cap||'batch'})});
-    if(!r.ok) throw new Error(r.status);
-    const {undo}=await r.json(); setUndo(undo);
-    toast('batch moved to trash — Undo to restore'); card.remove();
+    let undo;
+    if(dirs.length){
+      const r=await fetch(API+'/forge/library/batch-delete',{method:'POST',
+        headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({job_id:card.dataset.job,dirs,label:card.dataset.cap||'batch'})});
+      if(!r.ok) throw new Error(r.status);
+      ({undo}=await r.json()); setUndo(undo);
+    } else {
+      // No delivered files (e.g. a transcribe/errored job) — just drop the job row.
+      const r=await fetch(API+'/forge/jobs/'+encodeURIComponent(card.dataset.job),{method:'DELETE',credentials:'include'});
+      if(!r.ok) throw new Error(r.status);
+    }
+    toast('moved to trash — Undo to restore'); card.remove();
   }catch(e){toast('delete failed'); btn.disabled=false;}
 }
 async function deleteAsset(ev,btn,path){
