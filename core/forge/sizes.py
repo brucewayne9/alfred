@@ -25,6 +25,27 @@ def is_valid(aspect: str | None) -> bool:
     return (aspect or "") in ASPECTS
 
 
+def resolve_list(params: dict) -> list[str]:
+    """Aspect ids the job should render, in catalog order.
+
+    Accepts multi-select ``params['aspects']`` (list) or legacy single
+    ``params['aspect']``; filters to known ids; falls back to vertical. The
+    handler renders the full output set once per id so one job can emit all
+    three social sizes at once.
+    """
+    raw = params.get("aspects")
+    if not raw:
+        single = params.get("aspect")
+        raw = [single] if single else [DEFAULT_ASPECT]
+    if isinstance(raw, str):
+        raw = [raw]
+    seen, out = set(), []
+    for a in raw:
+        if a in ASPECTS and a not in seen:
+            seen.add(a); out.append(a)
+    return out or [DEFAULT_ASPECT]
+
+
 def list_sizes() -> list[dict]:
     """Picker payload for the UI."""
     return [{"id": k, "label": v[2], "w": v[0], "h": v[1]} for k, v in ASPECTS.items()]

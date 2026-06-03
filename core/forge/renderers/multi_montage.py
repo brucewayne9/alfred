@@ -158,6 +158,8 @@ def render(params: dict, out_path: str | Path) -> Path:
 
     Honours the 10–60 s duration band (trims the tail).  Returns the master path.
     """
+    from core.forge import sizes
+    W, H, _tag = sizes.resolve(params.get("aspect"))
     out_path = Path(out_path)
     picks = params.get("picks") or []
     if not picks:
@@ -180,16 +182,16 @@ def render(params: dict, out_path: str | Path) -> Path:
             if has_video:
                 sp = _cut_segment(
                     src, float(pk["start_s"]), float(pk["end_s"]),
-                    work / f"seg_{i:03d}.mp4", has_video=True,
+                    work / f"seg_{i:03d}.mp4", has_video=True, w=W, h=H,
                 )
             else:
-                # Audio-only pick: cut audio, synthesise a 9:16 visual for it.
+                # Audio-only pick: cut audio, synthesise a visual for it.
                 a = _cut_segment(
                     src, float(pk["start_s"]), float(pk["end_s"]),
-                    work / f"seg_{i:03d}.m4a", has_video=False,
+                    work / f"seg_{i:03d}.m4a", has_video=False, w=W, h=H,
                 )
                 sp = _synthesise_visual(
-                    pk.get("text", "") or "clip", a, work / f"seg_{i:03d}.mp4", work,
+                    pk.get("text", "") or "clip", a, work / f"seg_{i:03d}.mp4", work, w=W, h=H,
                 )
             seg_paths.append(sp)
 
@@ -217,7 +219,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             overlay_timed_captions(
                 body, events, captioned, work / "caps",
                 style=caption_style, position=caption_position, words=words,
-                font=caption_font, color=caption_color,
+                font=caption_font, color=caption_color, w=W, h=H,
             )
         else:
             overlay_captions(body, (picks[0].get("text") or "")[:120], captioned)

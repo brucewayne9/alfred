@@ -337,6 +337,9 @@
   .seg-btn:hover{border-color:var(--gold-dim)}
   .seg-btn.sel{border-color:var(--gold);color:var(--ink);background:rgba(201,161,74,.08)}
   .seg-btn.sel small{color:var(--gold-hi)}
+  .szchip{padding:7px 10px;border:1.5px solid var(--line);border-radius:8px;background:#14141a;color:var(--mute);font:700 11.5px/1 var(--sans);cursor:pointer;transition:.14s}
+  .szchip:hover{border-color:var(--gold-dim)}
+  .szchip.sel{border-color:var(--gold);color:var(--ink);background:rgba(201,161,74,.09)}
 </style>
 </head>
 <body>
@@ -434,13 +437,12 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <input type="hidden" id="font" value="gallery">
           </div>
           <div class="field full sizefield" style="display:none">
-            <label>Output size <span style="color:var(--mute);font-weight:400">— renders all variants at this aspect for the platform</span></label>
+            <label>Output sizes <span style="color:var(--mute);font-weight:400">— pick one or more; each is rendered (full variant set per size)</span></label>
             <div class="seg" id="aspectSeg">
-              <button type="button" class="seg-btn sel" data-aspect="9x16" onclick="pickAspect(this)">Vertical · 9:16<small>1080×1920</small></button>
-              <button type="button" class="seg-btn" data-aspect="1x1" onclick="pickAspect(this)">Square · 1:1<small>1080×1080</small></button>
-              <button type="button" class="seg-btn" data-aspect="16x9" onclick="pickAspect(this)">Landscape · 16:9<small>1920×1080</small></button>
+              <button type="button" class="seg-btn sel" data-aspect="9x16" onclick="toggleAspect(this)">Vertical · 9:16<small>1080×1920</small></button>
+              <button type="button" class="seg-btn" data-aspect="1x1" onclick="toggleAspect(this)">Square · 1:1<small>1080×1080</small></button>
+              <button type="button" class="seg-btn" data-aspect="16x9" onclick="toggleAspect(this)">Landscape · 16:9<small>1920×1080</small></button>
             </div>
-            <input type="hidden" id="aspect" value="9x16">
           </div>
           <div class="field">
             <label>Deliver to</label>
@@ -562,6 +564,12 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <option value="cyan">Cyan</option>
             <option value="red">Red</option>
           </select>
+          <label style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">Size</label>
+          <span id="topicAspectSeg" style="display:inline-flex;gap:6px">
+            <button type="button" class="szchip sel" data-aspect="9x16" onclick="toggleAspect(this)" title="Vertical 1080×1920">9:16</button>
+            <button type="button" class="szchip" data-aspect="1x1" onclick="toggleAspect(this)" title="Square 1080×1080">1:1</button>
+            <button type="button" class="szchip" data-aspect="16x9" onclick="toggleAspect(this)" title="Landscape 1920×1080">16:9</button>
+          </span>
           <label style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">Variants</label>
           <input id="topicVariantCount" type="number" value="3" min="1" max="10" style="width:64px;padding:8px 10px;font-size:13px">
           <button class="btn" type="button" onclick="assembleVariants()"><span class="k">&#x29C9;</span> Assemble variants</button>
@@ -766,9 +774,16 @@ async function loadCaptionStyles(){
     document.getElementById('capBody').innerHTML='<div style="color:var(--mute2);padding:30px;text-align:center">Could not load styles ('+err.message+')</div>';
   }
 }
-function pickAspect(btn){
-  document.querySelectorAll('#aspectSeg .seg-btn').forEach(b=>b.classList.toggle('sel',b===btn));
-  document.getElementById('aspect').value=btn.dataset.aspect;
+// Multi-select size chips: toggle, but never let the user deselect the last one.
+function toggleAspect(btn){
+  const grp=btn.parentElement;
+  const sel=grp.querySelectorAll('[data-aspect].sel');
+  if(btn.classList.contains('sel') && sel.length<=1) return; // keep ≥1
+  btn.classList.toggle('sel');
+}
+function readAspects(id){
+  const sel=[...document.querySelectorAll('#'+id+' [data-aspect].sel')].map(b=>b.dataset.aspect);
+  return sel.length?sel:['9x16'];
 }
 function openCapGallery(){ document.getElementById('capGallery').classList.add('show'); if(!CAP_LOADED) loadCaptionStyles(); }
 function closeCapGallery(){ document.getElementById('capGallery').classList.remove('show'); }
@@ -810,7 +825,7 @@ function syncAudioFields(){
   document.querySelectorAll('.clipfield').forEach(el=>el.style.display = needsAudio?'':'none');
   document.querySelectorAll('.montagefield').forEach(el=>el.style.display = (curFmt==='film_montage')?'':'none');
   document.querySelectorAll('.leakfield').forEach(el=>el.style.display=(curFmt==='leak_graphic')?'':'none');
-  document.querySelectorAll('.sizefield').forEach(el=>el.style.display = needsAudio?'':'none');
+  document.querySelectorAll('.sizefield').forEach(el=>el.style.display = '');  // sizes on every format
 }
 document.querySelectorAll('.fmt').forEach(f=>f.addEventListener('click',()=>{
   document.querySelectorAll('.fmt').forEach(x=>x.classList.remove('sel'));
@@ -829,7 +844,7 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
     caption:document.getElementById('caption').value,
     font:document.getElementById('font').value,
     caption_style:(document.getElementById('captionStyle')||{}).value||'box_gold',
-    aspect:(document.getElementById('aspect')||{}).value||'9x16',
+    aspects:readAspects('aspectSeg'),
     subfolder:document.getElementById('subfolder').value.replace(/ \/ /g,'/'),
     variations:Number(vars.value),
     remix:Number(document.getElementById('remix').value)||1
@@ -1535,7 +1550,8 @@ function captionOpts(){
     caption_style: (document.getElementById('topicCaptionStyle')||{}).value || 'clean',
     caption_position: (document.getElementById('topicCaptionPos')||{}).value || 'lower',
     caption_font: (document.getElementById('topicCaptionFont')||{}).value || 'default',
-    caption_color: (document.getElementById('topicCaptionColor')||{}).value || ''
+    caption_color: (document.getElementById('topicCaptionColor')||{}).value || '',
+    aspects: readAspects('topicAspectSeg')
   };
 }
 

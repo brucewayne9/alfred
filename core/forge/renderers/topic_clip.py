@@ -64,6 +64,8 @@ def _cut_segment(
     end_s: float,
     out_path: str | Path,
     has_video: bool,
+    w: int = 1080,
+    h: int = 1920,
 ) -> Path:
     """Cut ONE segment from *src* spanning [start_s, end_s).
 
@@ -89,8 +91,8 @@ def _cut_segment(
             "-ss", str(start_s), "-i", str(src),
             "-t", str(duration),
             "-vf",
-            "scale=1080:1920:force_original_aspect_ratio=increase,"
-            "crop=1080:1920,fps=30,format=yuv420p",
+            f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+            f"crop={w}:{h},fps=30,format=yuv420p",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
             "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
             str(out_path),
@@ -457,32 +459,39 @@ def _style_block(
     margin_v: int,
     font: str = "DejaVu Sans",
     primary: str | None = None,
+    scale: float = 1.0,
 ) -> str:
     """Build the ASS [V4+ Styles] block for a caption style + position.
 
     *font* is a family name; *primary* overrides the preset text/highlight colour.
+    *scale* proportionally resizes font + bottom margin for non-vertical aspects.
     """
     prim = primary or style_cfg["primary"]
+    fs = max(18, int(round(style_cfg["font_size"] * scale)))
+    mv = max(20, int(round(margin_v * scale)))
     return (
         "[V4+ Styles]\n"
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
         "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
         "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
         "MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Cap,{font},{style_cfg['font_size']},{prim},"
+        f"Style: Cap,{font},{fs},{prim},"
         f"{style_cfg['secondary']},&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,"
-        f"{style_cfg['outline']},1,{alignment},80,80,{margin_v},1\n\n"
+        f"{style_cfg['outline']},1,{alignment},80,80,{mv},1\n\n"
     )
 
 
-_ASS_HEADER = (
-    "[Script Info]\n"
-    "ScriptType: v4.00+\n"
-    "PlayResX: 1080\n"
-    "PlayResY: 1920\n"
-    "WrapStyle: 0\n"
-    "ScaledBorderAndShadow: yes\n\n"
-)
+def _ass_header(w: int = 1080, h: int = 1920) -> str:
+    """ASS [Script Info] header. PlayRes MUST match output dims or libass
+    stretches the whole caption canvas to fit (distorting square/landscape)."""
+    return (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        f"PlayResX: {w}\n"
+        f"PlayResY: {h}\n"
+        "WrapStyle: 0\n"
+        "ScaledBorderAndShadow: yes\n\n"
+    )
 
 
 def _write_ass_file(
@@ -493,6 +502,8 @@ def _write_ass_file(
     position: str = DEFAULT_CAPTION_POSITION,
     font: str | None = None,
     color: str | None = None,
+    w: int = 1080,
+    h: int = 1920,
 ) -> Path:
     """Write a phrase-level styled ASS file (clean / bold).  Karaoke is separate."""
     out_path = Path(out_path)
@@ -500,9 +511,10 @@ def _write_ass_file(
     cfg = dict(CAPTION_STYLES.get(style, CAPTION_STYLES[DEFAULT_CAPTION_STYLE]))
     cfg["font_size"] = font_size or cfg["font_size"]
     align, margin_v = CAPTION_POSITIONS.get(position, CAPTION_POSITIONS[DEFAULT_CAPTION_POSITION])
+    sc = max(0.62, min(1.15, h / 1920))
     lines = [
-        _ASS_HEADER,
-        _style_block(cfg, align, margin_v, font=_resolve_font(font), primary=_resolve_color(color)),
+        _ass_header(w, h),
+        _style_block(cfg, align, margin_v, font=_resolve_font(font), primary=_resolve_color(color), scale=sc),
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
     ]
@@ -551,6 +563,8 @@ def _write_karaoke_ass(
     position: str = DEFAULT_CAPTION_POSITION,
     font: str | None = None,
     color: str | None = None,
+    w: int = 1080,
+    h: int = 1920,
 ) -> Path:
     """Write a word-by-word karaoke ASS file.
 
@@ -562,9 +576,10 @@ def _write_karaoke_ass(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     cfg = CAPTION_STYLES.get(style, CAPTION_STYLES["karaoke"])
     align, margin_v = CAPTION_POSITIONS.get(position, CAPTION_POSITIONS[DEFAULT_CAPTION_POSITION])
+    sc = max(0.62, min(1.15, h / 1920))
     out = [
-        _ASS_HEADER,
-        _style_block(cfg, align, margin_v, font=_resolve_font(font), primary=_resolve_color(color)),
+        _ass_header(w, h),
+        _style_block(cfg, align, margin_v, font=_resolve_font(font), primary=_resolve_color(color), scale=sc),
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
     ]
@@ -618,6 +633,8 @@ def overlay_timed_captions(
     words: list[dict] | None = None,
     font: str | None = None,
     color: str | None = None,
+    w: int = 1080,
+    h: int = 1920,
 ) -> Path:
     """Burn a rolling, speech-synced caption track onto an already-9:16 video.
 
@@ -636,12 +653,13 @@ def overlay_timed_captions(
     cfg = CAPTION_STYLES.get(style, CAPTION_STYLES[DEFAULT_CAPTION_STYLE])
     if cfg["karaoke"] and words:
         ass_path = _write_karaoke_ass(
-            words, work_dir / "captions.ass", style=style, position=position, font=font, color=color
+            words, work_dir / "captions.ass", style=style, position=position,
+            font=font, color=color, w=w, h=h,
         )
     elif events:
         ass_path = _write_ass_file(
             events, work_dir / "captions.ass", font_size=font_size, style=style,
-            position=position, font=font, color=color,
+            position=position, font=font, color=color, w=w, h=h,
         )
     else:
         return overlay_captions(body_path, "", out_path)
@@ -744,6 +762,8 @@ def _synthesise_visual(
     audio_path: Path,
     out_path: Path,
     work_dir: Path,
+    w: int = 1080,
+    h: int = 1920,
 ) -> Path:
     """Build a 9:16 video from a generated still + the concatenated audio.
 
@@ -765,7 +785,7 @@ def _synthesise_visual(
     # Lazy import — never at module level (keeps imports safe in test env)
     try:
         from scripts.rucktalk_common import run_comfyui_cloud  # noqa: PLC0415
-        img = run_comfyui_cloud(caption_seed, width=1080, height=1920)
+        img = run_comfyui_cloud(caption_seed, width=w, height=h)
     except Exception:
         img = None
 
@@ -774,7 +794,7 @@ def _synthesise_visual(
     else:
         # Solid black background via ffmpeg lavfi color source.
         img_input = [
-            "-f", "lavfi", "-i", "color=black:s=1080x1920:r=30",
+            "-f", "lavfi", "-i", f"color=black:s={w}x{h}:r=30",
         ]
 
     cmd = [
@@ -783,8 +803,8 @@ def _synthesise_visual(
         "-i", str(audio_path),
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
         "-c:a", "aac", "-b:a", "192k",
-        "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,"
-               "crop=1080:1920,fps=30,format=yuv420p",
+        "-vf", f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+               f"crop={w}:{h},fps=30,format=yuv420p",
         "-shortest",
         str(out_path),
     ]
@@ -813,8 +833,10 @@ def assemble_variant(
     caption_position: str = DEFAULT_CAPTION_POSITION,
     caption_font: str | None = None,
     caption_color: str | None = None,
+    w: int = 1080,
+    h: int = 1920,
 ) -> Path:
-    """Assemble one structural variant into a branded 9:16 master.
+    """Assemble one structural variant into a branded master at w x h.
 
     Pipeline:
       1. Cut each segment from source_path into work_dir.
@@ -846,6 +868,7 @@ def assemble_variant(
             seg["end_s"],
             work_dir / f"seg_{label}_{i:03d}{ext}",
             has_video=has_video,
+            w=w, h=h,
         )
         seg_paths.append(sp)
 
@@ -862,6 +885,7 @@ def assemble_variant(
             body,
             visual_out,
             work_dir,
+            w=w, h=h,
         )
 
     # 4. Captions — style-aware rolling track.
@@ -881,7 +905,7 @@ def assemble_variant(
         overlay_timed_captions(
             body, events, captioned, work_dir / f"caps_{label}",
             style=caption_style, position=caption_position, words=words,
-            font=caption_font, color=caption_color,
+            font=caption_font, color=caption_color, w=w, h=h,
         )
     else:
         overlay_captions(body, caption_text, captioned)
@@ -948,8 +972,9 @@ def render(params: dict, out_path: str | Path) -> Path:
     import tempfile
     import shutil
 
-    from core.forge import ingest
+    from core.forge import ingest, sizes
 
+    W, H, _tag = sizes.resolve(params.get("aspect"))
     source_id = params["source_id"]
     segments = params["segments"]
     variant_index = int(params.get("variant_index", 0))
@@ -1000,6 +1025,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             caption_position=caption_position,
             caption_font=caption_font,
             caption_color=caption_color,
+            w=W, h=H,
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)
