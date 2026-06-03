@@ -2,6 +2,7 @@
 from __future__ import annotations
 import glob
 import os
+import shutil
 import subprocess
 import uuid
 from pathlib import Path
@@ -37,7 +38,27 @@ def cookies_file() -> str | None:
     return str(default) if default.exists() else None
 
 
-def _auth_args() -> list[str]:
+def stage_cookies(dest_dir: str | Path) -> str | None:
+    """Copy the master cookies into a throwaway file for ONE yt-dlp run.
+
+    CRITICAL: yt-dlp REWRITES the --cookies file after every run to refresh
+    rotating session tokens. Pointing it at the master means concurrent fetches
+    (a montage pulls several sources at once) clobber each other and can strip
+    the auth cookies — silently breaking age-restricted downloads. So each run
+    gets a private disposable copy; the master stays pristine for its full
+    session lifetime. Returns None when no master cookies are configured.
+    """
+    master = cookies_file()
+    if not master:
+        return None
+    dest = Path(dest_dir)
+    dest.mkdir(parents=True, exist_ok=True)
+    tmp = dest / f"ck_{uuid.uuid4().hex[:8]}.txt"
+    shutil.copyfile(master, tmp)
+    return str(tmp)
+
+
+def _auth_args(cookies_path: str | None = None) -> list[str]:
     """Shared yt-dlp args: player-clients + EJS challenge solver + cookies.
 
     `--remote-components ejs:github` pulls YouTube's JS 'n'-challenge solver
@@ -45,14 +66,16 @@ def _auth_args() -> list[str]:
     return storyboards ('Only images are available') and every real download
     fails 'Requested format is not available'. yt-dlp caches the solver lib under
     ~/.cache/yt-dlp after the first fetch, so this is a one-time download.
+
+    `cookies_path` MUST be a disposable copy (see stage_cookies) — never the
+    master, which yt-dlp would rewrite/clobber.
     """
     args = [
         "--extractor-args", f"youtube:player_client={YT_PLAYER_CLIENTS}",
         "--remote-components", "ejs:github",
     ]
-    ck = cookies_file()
-    if ck:
-        args += ["--cookies", ck]
+    if cookies_path:
+        args += ["--cookies", cookies_path]
     return args
 
 
@@ -81,7 +104,7 @@ def resolve_source(spec: str) -> tuple[str, str]:
     return f"ytsearch{SEARCH_N}:{s}", "search"
 
 
-def ytdlp_cmd(target: str, out_dir: Path) -> list[str]:
+def ytdlp_cmd(target: str, out_dir: Path, cookies_path: str | None = None) -> list[str]:
     """yt-dlp command: best <=1080p mp4, no playlists beyond the search N, into out_dir."""
     out_tmpl = str(Path(out_dir) / "src_%(autonumber)s.%(ext)s")
     cmd = [
@@ -93,7 +116,7 @@ def ytdlp_cmd(target: str, out_dir: Path) -> list[str]:
         "--download-sections", SECTION_WINDOW,
         "--retries", "5", "--fragment-retries", "5",
         "--socket-timeout", "30", "-N", "4",
-        *_auth_args(),
+        *_auth_args(cookies_path),
         "-o", out_tmpl, target,
     ]
     node = _node_path()
@@ -114,7 +137,9 @@ def fetch_source(spec: str, out_dir: Path, timeout: int = 480) -> list[Path]:
     call_dir = out_dir / f"s_{uuid.uuid4().hex[:8]}"
     call_dir.mkdir(parents=True, exist_ok=True)
     target, _kind = resolve_source(spec)
-    proc = subprocess.run(ytdlp_cmd(target, call_dir), capture_output=True, text=True, timeout=timeout)
+    ck = stage_cookies(call_dir)  # disposable copy — never let yt-dlp touch the master
+    proc = subprocess.run(ytdlp_cmd(target, call_dir, cookies_path=ck),
+                          capture_output=True, text=True, timeout=timeout)
     new = sorted(call_dir.glob("*.mp4"))
     if not new:
         detail = (proc.stderr or proc.stdout or "").strip()[-300:]

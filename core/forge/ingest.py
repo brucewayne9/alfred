@@ -352,7 +352,7 @@ def transcribe_handler(params: dict) -> dict:
                 "--merge-output-format", "mp4",
                 "--retries", "5", "--fragment-retries", "5",
                 "--socket-timeout", "30", "-N", "4",
-                *_clips._auth_args(),
+                *_clips._auth_args(_clips.stage_cookies(dl_dir)),
                 "-o", out_tmpl, target,
             ]
             node = _clips._node_path()
