@@ -145,6 +145,22 @@ CATALOG: list[dict] = [
     {"id": "wave_gold",  "name": "Wave Gold",  "family": "Wave", "spec": _s("wave", color=WHITE, active=GOLD)},
     {"id": "wave_white", "name": "Wave White", "family": "Wave", "spec": _s("wave", color=GREY, active=WHITE)},
     {"id": "wave_mint",  "name": "Wave Mint",  "family": "Wave", "spec": _s("wave", color=WHITE, active=MINT)},
+
+    # ── Type-Pop (words pop in one by one with a cursor) ────────────────────
+    {"id": "typepop_gold",  "name": "Type-Pop Gold",  "family": "Type-Pop", "spec": _s("typepop", color=WHITE, active=GOLD)},
+    {"id": "typepop_white", "name": "Type-Pop White", "family": "Type-Pop", "spec": _s("typepop", color=GREY, active=WHITE)},
+    {"id": "typepop_term",  "name": "Terminal Pop",   "family": "Type-Pop", "spec": _s("typepop", font=MONO, upper=False, color=GREEN, active=GREEN, size=58, weight=600)},
+
+    # ── Neon (glowing text) ────────────────────────────────────────────────
+    {"id": "neon_pink", "name": "Neon Pink", "family": "Neon", "spec": _s("neon", color=PINK, active=PINK, shadow=False, weight=900)},
+    {"id": "neon_ice",  "name": "Neon Ice",  "family": "Neon", "spec": _s("neon", color=ICE, active=ICE, shadow=False, weight=900)},
+    {"id": "neon_gold", "name": "Neon Gold", "family": "Neon", "spec": _s("neon", color=GOLD, active=GOLD, shadow=False, weight=900)},
+    {"id": "neon_green","name": "Neon Green","family": "Neon", "spec": _s("neon", color=GREEN, active=GREEN, shadow=False, weight=900)},
+
+    # ── Shake (jittery hype) ───────────────────────────────────────────────
+    {"id": "shake_white", "name": "Shake White", "family": "Shake", "spec": _s("shake", color=WHITE, active=GOLD, size=78, weight=900)},
+    {"id": "shake_pink",  "name": "Shake Pink",  "family": "Shake", "spec": _s("shake", color=WHITE, active=PINK, size=78, weight=900)},
+    {"id": "shake_red",   "name": "Shake Red",   "family": "Shake", "spec": _s("shake", color=WHITE, active=RED, size=78, weight=900, intensity=1.3)},
 ]
 
 DEFAULT_STYLE = "box_gold"
