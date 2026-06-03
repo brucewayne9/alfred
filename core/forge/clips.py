@@ -14,6 +14,37 @@ SEARCH_N = 3
 # to pull three whole 1080p videos and blowing past it.
 SECTION_WINDOW = "*0:00-01:30"
 
+# Player-client pool. `tv_embedded` + `mediaconnect` are the two clients that can
+# still pull AGE-RESTRICTED videos without a logged-in account; the rest survive
+# Google rotating which clients serve formats (the 'fetched nothing' gate). Keep
+# the bypass clients FIRST so an age-gated video clears before falling through.
+YT_PLAYER_CLIENTS = "tv_embedded,mediaconnect,default,web_safari,android_vr,tv"
+
+
+def cookies_file() -> str | None:
+    """Path to a YouTube cookies.txt (Netscape format), if one is configured.
+
+    Order: FORGE_YTDLP_COOKIES env → config/youtube_cookies.txt. Returns None when
+    neither exists, so cookie-free fetches still work for non-gated videos. A
+    logged-in, age-verified export is the ONLY thing that clears age-restricted
+    videos that the bypass player-clients can't.
+    """
+    cand = os.environ.get("FORGE_YTDLP_COOKIES")
+    if cand and os.path.exists(cand):
+        return cand
+    repo = Path(__file__).resolve().parent.parent.parent
+    default = repo / "config" / "youtube_cookies.txt"
+    return str(default) if default.exists() else None
+
+
+def _auth_args() -> list[str]:
+    """Shared yt-dlp args: upgraded player-clients + cookies when available."""
+    args = ["--extractor-args", f"youtube:player_client={YT_PLAYER_CLIENTS}"]
+    ck = cookies_file()
+    if ck:
+        args += ["--cookies", ck]
+    return args
+
 
 def _node_path() -> str | None:
     """Locate a Node >=18 binary for yt-dlp's JS runtime.
@@ -52,9 +83,7 @@ def ytdlp_cmd(target: str, out_dir: Path) -> list[str]:
         "--download-sections", SECTION_WINDOW,
         "--retries", "5", "--fragment-retries", "5",
         "--socket-timeout", "30", "-N", "4",
-        # Widen the YouTube player-client pool so extraction survives Google rotating
-        # which clients serve formats — the cause of intermittent 'fetched nothing'.
-        "--extractor-args", "youtube:player_client=default,web_safari,android_vr,tv",
+        *_auth_args(),
         "-o", out_tmpl, target,
     ]
     node = _node_path()
