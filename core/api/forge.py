@@ -1,14 +1,79 @@
 """Mainstay Forge — job API router. Wired via register(app) in core/api/main.py."""
-from fastapi import Body, Depends, FastAPI, File, HTTPException, Query, Response, UploadFile
+import base64
+import binascii
+
+from fastapi import Body, Depends, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 
 from core.forge import jobs as forge_jobs
+from core.forge import users as forge_users
 from core.security.auth import require_auth
+
+
+def _require_admin(user: dict) -> None:
+    if (user or {}).get("role") != "admin":
+        raise HTTPException(status_code=403, detail="admin only")
 
 
 def register(app: FastAPI) -> None:
     @app.get("/forge/health")
     async def forge_health():
         return {"status": "ok", "service": "mainstay-forge"}
+
+    @app.get("/forge/authcheck")
+    async def forge_authcheck(request: Request):
+        """Caddy forward_auth target: validate Basic credentials against the
+        Forge user store.  200 + X-Forge-User/Role on success; 401 otherwise.
+        """
+        unauth = Response(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="Mainstay Forge"'},
+        )
+        hdr = request.headers.get("Authorization", "")
+        if not hdr.startswith("Basic "):
+            return unauth
+        try:
+            raw = base64.b64decode(hdr[6:]).decode("utf-8", "replace")
+            username, _, password = raw.partition(":")
+        except (binascii.Error, ValueError):
+            return unauth
+        u = forge_users.verify_user(username, password)
+        if not u:
+            return unauth
+        return Response(
+            status_code=200,
+            headers={"X-Forge-User": u["username"], "X-Forge-Role": u["role"]},
+        )
+
+    # ---- User management (admin only) -------------------------------------
+    @app.get("/forge/users")
+    async def list_forge_users(user: dict = Depends(require_auth)):
+        _require_admin(user)
+        return {"users": forge_users.list_users(), "me": user.get("username")}
+
+    @app.post("/forge/users")
+    async def add_forge_user(payload: dict = Body(...), user: dict = Depends(require_auth)):
+        _require_admin(user)
+        username = (payload.get("username") or "").strip().lower()
+        password = payload.get("password") or ""
+        role = "admin" if payload.get("role") == "admin" else "team"
+        if not username or not password:
+            raise HTTPException(status_code=400, detail="username and password required")
+        forge_users.create_user(username, password, role)
+        return {"ok": True, "users": forge_users.list_users()}
+
+    @app.delete("/forge/users/{username}")
+    async def remove_forge_user(username: str, user: dict = Depends(require_auth)):
+        _require_admin(user)
+        username = (username or "").strip().lower()
+        if username == user.get("username"):
+            raise HTTPException(status_code=400, detail="can't remove your own login")
+        roster = forge_users.list_users()
+        admins = [u for u in roster if u["role"] == "admin"]
+        target = next((u for u in roster if u["username"] == username), None)
+        if target and target["role"] == "admin" and len(admins) <= 1:
+            raise HTTPException(status_code=400, detail="can't remove the last admin")
+        forge_users.delete_user(username)
+        return {"ok": True, "users": forge_users.list_users()}
 
     @app.get("/forge/me")
     async def forge_me(user: dict = Depends(require_auth)):

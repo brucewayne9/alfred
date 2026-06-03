@@ -30,18 +30,23 @@ app = FastAPI(title="Mainstay Forge")
 register_forge(app)
 register_default_handlers()  # echo + leak_graphic (real ComfyUI-Cloud render)
 
+# Seed the per-person login store (mike/mainstay/jordan/mello) on first run.
+from core.forge import users as _forge_users  # noqa: E402
+_forge_users.ensure_seeded()
 
-# Surface is gated by Caddy basic_auth (per-user); the service is bound to
-# localhost only and never reachable except through Caddy.  Caddy forwards the
-# authenticated username via the X-Forge-User header, so each person's jobs are
-# stamped with who created them.  Falls back to "mainstay" if the header absent.
-# Usernames granted the admin role (everyone else is "team").
+# Fallback admins if the X-Forge-Role header is ever missing.
 FORGE_ADMINS = {"mike", "mainstay"}
 
 
+# Auth: Caddy forward_auth hits /forge/authcheck, which validates the login
+# against the Forge user store and returns X-Forge-User / X-Forge-Role; Caddy
+# copies those onto the proxied request.  We read them here so each person's
+# jobs are stamped and admins get the management panel.
 def _forge_user(request: Request) -> dict:
     username = request.headers.get("X-Forge-User") or "mainstay"
-    role = "admin" if username in FORGE_ADMINS else "team"
+    role = request.headers.get("X-Forge-Role")
+    if role not in ("admin", "team"):
+        role = "admin" if username in FORGE_ADMINS else "team"
     return {"username": username, "role": role}
 
 

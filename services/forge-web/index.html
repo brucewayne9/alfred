@@ -321,6 +321,7 @@
     <div class="navitem" data-tab="queue"><span class="ic">≋</span> Queue <span class="tag" id="qbadge">0</span></div>
     <div class="navitem" data-tab="distribution"><span class="ic">⊞</span> Distribute</div>
     <div class="navitem" data-tab="intelligence"><span class="ic">◔</span> Intel <span class="tag">soon</span></div>
+    <div class="navitem adminonly" data-tab="users" style="display:none"><span class="ic">⚷</span> Users <span class="tag">admin</span></div>
     <div class="foot"><b>Campaign:</b> Rod Wave —<br>Don't Look Down · <span class="count" id="dday">21d</span> to drop</div>
   </aside>
 
@@ -594,6 +595,31 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
         <div class="rec">▲ <b>Funnel call:</b> "Letter From Houston" hook is the clear winner. Push <b>Variant #7</b> (the @diariesofateengal montage cut) to the established pages now — it's converting saves at 1.7× the next best variant.</div>
       </section>
 
+      <!-- USERS (admin only) -->
+      <section data-panel="users" style="display:none">
+        <h1 class="page">Users <span class="soon" style="background:rgba(201,161,74,.1);color:var(--gold-hi);border-color:var(--gold-dim)">admin</span></h1>
+        <p class="sub">Give a teammate their own login, or remove one. Changes take effect immediately — they sign in at forge.groundrushcloud.com with what you set here.</p>
+
+        <div class="group" style="margin-bottom:18px">
+          <h4>Add a login</h4>
+          <div class="gsub">Pick a username and a password, hand it to them privately.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input id="uName" placeholder="username (e.g. dharmic)" style="flex:1 1 150px;padding:11px 13px;font-size:14px">
+            <input id="uPass" placeholder="password" style="flex:1 1 150px;padding:11px 13px;font-size:14px">
+            <select id="uRole" style="padding:11px 13px;font-size:14px">
+              <option value="team">Team</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button class="btn" type="button" onclick="addUser()"><span class="k">＋</span> Add user</button>
+          </div>
+        </div>
+
+        <div class="roster">
+          <div class="dsec"><div class="dhead"><h2 style="font:900 16px/1 var(--serif);margin:0">Current logins</h2></div></div>
+          <ul id="userList" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px"></ul>
+        </div>
+      </section>
+
     </div>
   </div>
 </div>
@@ -612,7 +638,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 
 <script>
 const API = ""; // same origin as the demo/prod server
-const LABELS = {create:"Create",topic:"Topic",library:"Library",queue:"Queue",distribution:"Distribute",intelligence:"Intelligence"};
+const LABELS = {create:"Create",topic:"Topic",library:"Library",queue:"Queue",distribution:"Distribute",intelligence:"Intelligence",users:"Users"};
 let curFmt = "leak_graphic";
 
 // d-day countdown to 2026-06-19 (computed from a fixed render baseline; demo uses 21d)
@@ -627,6 +653,7 @@ function tabTo(name){
   if(name==='library') loadLibrary();
   if(name==='distribution') loadDistribution();
   if(name==='topic' && !_topicSourcesLoaded) loadTopicSources();
+  if(name==='users') loadUsers();
 }
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(LABELS[h])tabTo(h);});
 document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>tabTo(el.dataset.tab)));
@@ -752,9 +779,50 @@ async function loadWhoami(){
       el.textContent = '◑ '+m.username+badge;
       el.title = 'Signed in as '+m.username+(m.role==='admin'?' (admin)':'');
     }
+    // Reveal admin-only nav (Users) for admins.
+    if(m.role==='admin') document.querySelectorAll('.adminonly').forEach(n=>n.style.display='');
   }catch(e){}
 }
 loadWhoami();
+
+// ===== USER MANAGEMENT (admin) =====
+async function loadUsers(){
+  const ul=document.getElementById('userList'); if(!ul) return;
+  try{
+    const r=await fetch(API+'/forge/users',{credentials:'include'});
+    if(r.status===403){ ul.innerHTML='<li style="color:var(--mute)">Admins only.</li>'; return; }
+    const data=await r.json();
+    ul.innerHTML=(data.users||[]).map(u=>{
+      const isMe=u.username===data.me;
+      const roleTag='<span class="pbadge'+(u.role==='admin'?' stag':'')+'">'+u.role+'</span>';
+      const rm=isMe?'<span style="color:var(--mute2);font-size:12px">you</span>'
+        :'<button class="rx" title="Remove login" onclick="removeUser(\''+esc(u.username)+'\')">✕</button>';
+      return '<li style="display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:#101015">'
+        +'<span style="font:600 14px/1 var(--sans);color:var(--ink);flex:1">'+esc(u.username)+'</span>'+roleTag+rm+'</li>';
+    }).join('');
+  }catch(e){ ul.innerHTML='<li style="color:var(--error)">Could not load users.</li>'; }
+}
+async function addUser(){
+  const u=document.getElementById('uName').value.trim();
+  const p=document.getElementById('uPass').value;
+  const role=document.getElementById('uRole').value;
+  if(!u||!p){ toast('Username and password required'); return; }
+  try{
+    const r=await fetch(API+'/forge/users',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({username:u,password:p,role})});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.detail||r.status); }
+    document.getElementById('uName').value=''; document.getElementById('uPass').value='';
+    toast('Added '+u+' — give them the password'); loadUsers();
+  }catch(e){ toast('Could not add user ('+e.message+')'); }
+}
+async function removeUser(name){
+  if(!confirm('Remove the login for "'+name+'"? They will no longer be able to sign in.')) return;
+  try{
+    const r=await fetch(API+'/forge/users/'+encodeURIComponent(name),{method:'DELETE',credentials:'include'});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.detail||r.status); }
+    toast('Removed '+name); loadUsers();
+  }catch(e){ toast('Could not remove ('+e.message+')'); }
+}
 
 // ===== LIVE LIBRARY =====
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
