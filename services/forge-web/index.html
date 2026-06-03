@@ -1229,7 +1229,8 @@ async function markPosted(cb){
   finally{cb.disabled=false;}
 }
 
-const _init=location.hash.slice(1); tabTo(LABELS[_init]?_init:'create');
+// initial tab is selected at the very end of this script (after every let/const
+// is initialized) so deep-linking to #topic can't hit a temporal-dead-zone.
 
 // ===== TOPIC TAB =====
 let _topicSourcesLoaded = false;
@@ -1555,6 +1556,10 @@ function printTopicSelection(){
     w.document.close(); w.print();
   }
 }
+
+// Select the initial tab LAST — every top-level declaration above is now
+// initialized, so tabTo('topic') (deep-link/refresh on the topic tab) is safe.
+{ const _init=location.hash.slice(1); tabTo(LABELS[_init]?_init:'create'); }
 </script>
 
 <!-- Waveform hook trimmer: drag a 10–60s window instead of typing start/end seconds -->
