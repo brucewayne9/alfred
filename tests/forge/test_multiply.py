@@ -185,3 +185,45 @@ class TestVideoMultiply:
         for p in results:
             w, h = _get_dimensions(Path(p))
             assert (w, h) == (540, 960), f"{p}: expected 540x960, got {w}x{h}"
+
+
+class TestTextSafe:
+    """text_safe=True is for masters with captions/lyrics burned into the pixels
+    (kinetic-lyric, film-montage). The variants must use NO geometry — no flip,
+    zoom, crop, or rotate — so words never mirror or leave the 9:16 frame."""
+
+    def test_pool_has_no_geometry(self):
+        from core.forge.multiply import _make_structural_pool
+
+        pool = _make_structural_pool(1080, 1920, allow_flip=True, text_safe=True)
+        assert pool, "text_safe pool must not be empty"
+        for vf, _ in pool:
+            assert "hflip" not in vf, f"flip leaked into text_safe pool: {vf}"
+            assert "rotate" not in vf, f"rotate leaked into text_safe pool: {vf}"
+            # the only allowed crop is the full-frame identity passthrough
+            assert "iw*" not in vf and "ih*" not in vf, f"zoom-crop leaked: {vf}"
+            if "crop=" in vf:
+                assert "crop=1080:1920:0:0" in vf, f"non-identity crop leaked: {vf}"
+
+    @pytest.mark.timeout(120)
+    def test_variants_keep_full_frame(self, tmp_path):
+        from core.forge.multiply import multiply
+
+        master = _make_video_master(tmp_path)
+        results = multiply(master, 6, tmp_path / "ts", text_safe=True)
+
+        assert len(results) == 6
+        for p in results:
+            assert Path(p).exists() and Path(p).stat().st_size > 0
+            # no off-frame crop — every copy stays the master's 540x960
+            assert _get_dimensions(Path(p)) == (540, 960)
+
+    @pytest.mark.timeout(120)
+    def test_variants_are_byte_distinct(self, tmp_path):
+        import hashlib
+        from core.forge.multiply import multiply
+
+        master = _make_video_master(tmp_path)
+        results = multiply(master, 6, tmp_path / "ts2", text_safe=True)
+        digs = {hashlib.md5(Path(p).read_bytes()).hexdigest() for p in results}
+        assert len(digs) == len(results), "text_safe copies should be distinct files"

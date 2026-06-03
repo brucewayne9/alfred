@@ -49,8 +49,13 @@ def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str)
             label = f"{fmt}_{stamp}_look{ri:02d}" if len(remixes) > 1 else f"{fmt}_{stamp}"
             master = render(rp, work / f"{label}_master{ext}")
             forge_jobs.check_cancel()  # and again after the (slow) render, before delivery
+            # Kinetic-lyric and film-montage burn lyrics/captions into the frame,
+            # so their copies must use colour/grade only — no flip/zoom/rotate that
+            # would mirror the words or push them off the 9:16 edge.
+            text_safe = fmt in ("kinetic_lyric", "film_montage")
             variants = multiply(master, n, work / f"v{ri}", base_name=label,
-                                 allow_flip=(fmt != "leak_graphic")) if n else []
+                                 allow_flip=(fmt != "leak_graphic" and not text_safe),
+                                 text_safe=text_safe) if n else []
             dest = f"{base}/{label}"
             look_delivered = 0
             try:

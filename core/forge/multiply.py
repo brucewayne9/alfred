@@ -105,13 +105,44 @@ def _has_audio(path: Path) -> bool:
 # Each entry: (base_vf, speed_k_or_None)
 # W and H placeholders are filled at call time.
 
-def _make_structural_pool(W: int, H: int, allow_flip: bool = True) -> list[tuple[str, float | None]]:
+def _make_structural_pool(W: int, H: int, allow_flip: bool = True,
+                          text_safe: bool = False) -> list[tuple[str, float | None]]:
     """Return the ordered list of (vf, speed_k) base recipes for WxH masters.
 
     When *allow_flip* is False the flipped hemisphere is omitted entirely,
     which is required for text-bearing leak covers where hflip produces
     backwards/mirrored text.
+
+    When *text_safe* is True the pool contains NO geometry at all — no flip,
+    zoom, crop, or rotate — because the master has captions/lyrics burned into
+    the pixels and any spatial transform mirrors them or shoves them off the
+    9:16 frame.  Divergence comes purely from colour/grade (and, for video, the
+    speed layer added downstream, which also re-samples the dHash frame).  This
+    is what kinetic-lyric and film-montage need: distinct distribution copies
+    that keep every word on-screen and reading forwards.
     """
+    if text_safe:
+        # Colour/grade + texture bases. None move a single pixel spatially, so
+        # burned-in lyrics never mirror or leave frame. Each pairs a grade with a
+        # grain/sharpen pass: that texture (on-brand film grain for the moody Rod
+        # Wave look) is what actually diverges the perceptual hash between copies,
+        # since flat colour shifts barely move a gradient-based dHash.
+        grades = [
+            f"crop={W}:{H}:0:0",                                          # clean passthrough
+            "eq=contrast=1.07:saturation=1.10,noise=alls=6:allf=t",       # punchy + light grain
+            "eq=brightness=0.04:contrast=1.04,unsharp=5:5:0.8",           # brighter + crisp
+            "eq=brightness=-0.05:contrast=1.08:saturation=0.92,noise=alls=10:allf=t",  # moody + grain
+            "curves=preset=darker,noise=alls=8:allf=t",                   # crushed + grain
+            "curves=preset=lighter,unsharp=5:5:0.6",                      # lifted + crisp
+            "hue=h=8,eq=saturation=1.10,noise=alls=7:allf=t",             # warm + grain
+            "hue=h=-8,eq=saturation=1.06,unsharp=3:3:0.7",                # cool + crisp
+            f"vignette={round(math.pi/5, 4)},noise=alls=9:allf=t",        # vignette + grain
+            "colorbalance=rs=0.06:gs=0.02:bs=-0.06,noise=alls=6:allf=t",  # warm grade + grain
+            "colorbalance=rs=-0.06:gs=0.0:bs=0.06,unsharp=5:5:0.9",       # teal grade + crisp
+            "eq=gamma=1.08:contrast=1.06:saturation=1.12,noise=alls=11:allf=t",  # filmic + grain
+        ]
+        return [(g, None) for g in grades]
+
     # Zoom levels that produce observably different 8x8 dHash on regular patterns
     z_factors = [0.90, 0.80, 0.70, 0.95, 0.85, 0.75]
 
@@ -309,11 +340,16 @@ def multiply(
     *,
     base_name: str = "variant",
     allow_flip: bool = True,
+    text_safe: bool = False,
 ) -> list[Path]:
     """Produce `count` non-duplicate variants of `master_path` into `out_dir`.
 
     Set *allow_flip=False* for text-bearing masters (leak covers, etc.) so
     that no hflip variants are generated and text is never rendered backwards.
+
+    Set *text_safe=True* for masters with captions/lyrics burned into the pixels
+    (kinetic-lyric, film-montage): the variants then use colour/grade only — no
+    flip, zoom, crop, or rotate — so every word stays on-screen and forwards.
 
     Returns the list of variant file paths (same extension as master).
     """
@@ -330,7 +366,7 @@ def multiply(
         raise ValueError(f"Unsupported extension: {ext}")
 
     W, H = _get_dimensions(master)
-    pool = _make_structural_pool(W, H, allow_flip=allow_flip)
+    pool = _make_structural_pool(W, H, allow_flip=allow_flip, text_safe=text_safe)
     pool_size = len(pool)
 
     # Pre-assign pool slots: spread count variants evenly across the pool,
@@ -367,7 +403,8 @@ def multiply(
             parts = [base_vf]
             if color:
                 parts.append(color)
-            if (i + retry) % 3 == 2:
+            # Rotate tilts burned-in text off-axis, so it's skipped for text_safe.
+            if not text_safe and (i + retry) % 3 == 2:
                 rot_vf, _ = _recipe_rotate(i + retry, W, H)
                 parts.append(rot_vf)
             speed_k: float | None = None
@@ -391,8 +428,12 @@ def multiply(
                 slot = (slot + 1) % pool_size
                 continue
 
+            # The 8x8 dHash only sees coarse geometry/luminance structure — it's
+            # blind to the grade/grain that text_safe relies on, so don't make it
+            # arbitrate copies it can't measure (would force pointless re-renders).
             h = _compute_hash(out_path, is_video)
-            too_close = any(_hamming(h, ah) < MIN_HAMMING for ah in accepted_hashes)
+            too_close = (not text_safe) and any(
+                _hamming(h, ah) < MIN_HAMMING for ah in accepted_hashes)
 
             if not too_close:
                 used_slots.add(slot)

@@ -352,8 +352,8 @@
             <textarea id="caption" placeholder="still waiting for that new album…">I ain't mad at you</textarea>
           </div>
           <div class="field full" id="audioField" style="display:none">
-            <label>Audio hook <span style="color:var(--mute);font-weight:400">— required for Kinetic / Montage (mp3, wav…)</span></label>
-            <input type="file" id="audio" accept="audio/*" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 13px/1.2 var(--sans)">
+            <label>Audio hook <span style="color:var(--mute);font-weight:400">— required for Kinetic / Montage (mp3, wav, m4a, aac…)</span></label>
+            <input type="file" id="audio" accept="audio/*,.m4a,.aac,.mp3,.wav,.m4b,.caf,.ogg,.flac" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 13px/1.2 var(--sans)">
           </div>
           <div class="field full clipfield" style="display:none">
             <label>Hook selection <span style="color:var(--mute);font-weight:400">— drag across the waveform to pick the clip (10–60s)</span></label>
@@ -523,7 +523,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <button class="btn-ghost" type="button" onclick="addToMontage()">＋ Add selection</button>
             <span id="montageTrayStatus" style="font:600 13px/1 var(--sans);color:var(--mute)">empty — add picks from any source, then assemble</span>
             <label style="font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-left:auto">Song bed</label>
-            <input id="montageBedFile" type="file" accept="audio/*" style="font-size:12px;max-width:180px" title="Optional: add a music bed under the montage">
+            <input id="montageBedFile" type="file" accept="audio/*,.m4a,.aac,.mp3,.wav,.m4b,.caf,.ogg,.flac" style="font-size:12px;max-width:180px" title="Optional: add a music bed under the montage">
             <select id="montageBedMode" style="padding:8px 10px;font-size:13px" title="How the song bed sits with the clip audio">
               <option value="duck">Under voice (duck)</option>
               <option value="replace">Replace audio</option>
