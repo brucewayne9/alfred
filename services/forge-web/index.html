@@ -370,6 +370,10 @@
             <input type="hidden" id="clipStart"><input type="hidden" id="clipEnd">
           </div>
           <div class="field full leakfield" style="display:none">
+            <label>Your graphic <span style="color:var(--mute);font-weight:400">— optional: upload your own cover and we'll bake the title + tracklist over it. Leave empty to AI-generate one.</span></label>
+            <input type="file" id="leakImage" accept="image/*" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 13px/1.4 var(--sans)">
+          </div>
+          <div class="field full leakfield" style="display:none">
             <label>Album / release title <span style="color:var(--mute);font-weight:400">— baked onto the cover</span></label>
             <input type="text" id="leakTitle" placeholder="Don't Look Down" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 14px/1.2 var(--sans)">
           </div>
@@ -722,6 +726,15 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
       if(lt) params.title=lt;
       const tl=document.getElementById('leakTracklist').value.split('\n').map(s=>s.trim()).filter(Boolean);
       if(tl.length) params.tracklist=tl;
+      // Optional: upload your own graphic to bake the text over (else AI-generate).
+      const imgEl=document.getElementById('leakImage');
+      if(imgEl && imgEl.files && imgEl.files.length){
+        toast('Uploading your graphic…');
+        const ifd=new FormData(); ifd.append('file', imgEl.files[0]);
+        const iup=await fetch(API+'/forge/uploads',{method:'POST',credentials:'include',body:ifd});
+        if(!iup.ok) throw new Error('image upload '+iup.status);
+        params.base_image_upload_id=(await iup.json()).upload_id;
+      }
     }
     const r=await fetch(API+'/forge/jobs',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({job_type:curFmt,params})});
     if(!r.ok) throw new Error(r.status);

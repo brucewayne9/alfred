@@ -93,20 +93,30 @@ def render(params: dict, out_path: str | Path) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="forge_leak_render_"))
 
-    # 1. Generate cover art via ComfyUI Cloud (same lazy-import pattern as kinetic)
-    if str(REPO) not in sys.path:
-        sys.path.insert(0, str(REPO))
-    from scripts.rucktalk_common import run_comfyui_cloud  # lazy: heavy import
-
-    prompt = build_prompt(params.get("caption", ""), override=params.get("vessel_prompt"))
-    result = run_comfyui_cloud(prompt, width=1080, height=1920)  # 9:16 portrait
-    if not result:
-        raise RuntimeError("ComfyUI Cloud returned no image")
-    src = Path(result)
-    if not src.exists():
-        raise RuntimeError(f"ComfyUI image missing on disk: {src}")
+    # 1. Cover art: use an operator-uploaded graphic if provided, else generate
+    #    one via ComfyUI Cloud.  Either way the title/tracklist/tag bakes over it.
     art = work / "art.png"
-    art.write_bytes(src.read_bytes())
+    base_id = params.get("base_image_upload_id")
+    base_path = params.get("base_image_path")
+    if base_id or base_path:
+        from core.forge import uploads
+        src = uploads.get_upload_path(base_id) if base_id else base_path
+        if src is None or not Path(src).exists():
+            raise RuntimeError("uploaded base graphic not found")
+        art.write_bytes(Path(src).read_bytes())
+    else:
+        if str(REPO) not in sys.path:
+            sys.path.insert(0, str(REPO))
+        from scripts.rucktalk_common import run_comfyui_cloud  # lazy: heavy import
+
+        prompt = build_prompt(params.get("caption", ""), override=params.get("vessel_prompt"))
+        result = run_comfyui_cloud(prompt, width=1080, height=1920)  # 9:16 portrait
+        if not result:
+            raise RuntimeError("ComfyUI Cloud returned no image")
+        src = Path(result)
+        if not src.exists():
+            raise RuntimeError(f"ComfyUI image missing on disk: {src}")
+        art.write_bytes(src.read_bytes())
 
     # 2. Parse text inputs
     title = (params.get("title") or params.get("caption") or "Don't Look Down").strip()
