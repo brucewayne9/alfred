@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mainstay Forge — Field Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0d; --panel:#15151b; --panel2:#1b1a22;
+    --line:#2a2a33; --line2:#36343f;
+    --gold:#c9a14a; --gold-hi:#e7c574; --gold-dim:#8a7333;
+    --ink:#edeae3; --mute:#9a958c; --mute2:#6f6b63;
+    --running:#5b8bd0; --done:#5fae7e; --warn:#d9a441;
+    --serif:"Fraunces",Georgia,serif; --sans:"Hanken Grotesk",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; line-height:1.6;
+    background-image:
+      radial-gradient(1100px 600px at 12% -8%, rgba(201,161,74,.16), transparent 60%),
+      radial-gradient(900px 520px at 110% 0%, rgba(91,139,208,.07), transparent 55%);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:0 22px 90px}
+  header.mast{padding:54px 0 30px;border-bottom:1px solid var(--line);margin-bottom:8px}
+  .kicker{font:700 11px/1 var(--sans);letter-spacing:.32em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+  .logo{width:60px;height:60px;margin-bottom:20px;opacity:.96}
+  h1{font:900 clamp(38px,7vw,64px)/0.98 var(--serif);margin:0;letter-spacing:-.01em}
+  h1 b{color:var(--gold-hi);font-weight:900}
+  .lede{color:var(--mute);font-size:17px;max-width:64ch;margin:18px 0 0}
+  .urlbar{margin-top:24px;display:inline-flex;align-items:center;gap:12px;padding:12px 18px;border:1px solid var(--gold-dim);border-radius:12px;background:rgba(201,161,74,.07)}
+  .urlbar .lbl{font:700 10px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+  .urlbar a{color:var(--gold-hi);font:600 15px/1 var(--mono);text-decoration:none}
+  section{padding:38px 0 8px;border-bottom:1px solid var(--line)}
+  .snum{font:700 12px/1 var(--mono);color:var(--gold-dim);letter-spacing:.1em}
+  h2{font:900 27px/1.1 var(--serif);margin:10px 0 6px;letter-spacing:-.01em}
+  .sub{color:var(--mute);font-size:15px;margin:0 0 18px}
+  h3{font:700 16px/1.2 var(--sans);margin:22px 0 8px;color:var(--gold-hi)}
+  .pill{display:inline-block;font:700 9.5px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;padding:5px 9px;border-radius:999px;margin-left:10px;transform:translateY(-3px)}
+  .pill.live{color:#bfe6cd;background:rgba(95,174,126,.12);border:1px solid rgba(95,174,126,.4)}
+  .pill.soon{color:#e7c574;background:rgba(201,161,74,.1);border:1px solid var(--gold-dim)}
+  .card{background:linear-gradient(180deg,var(--panel),#111016);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0}
+  .card .ct{font:900 16px/1 var(--serif);color:var(--ink)}
+  .card .cd{color:var(--mute);font-size:14.5px;margin-top:8px}
+  ul{margin:10px 0;padding-left:0;list-style:none}
+  li{position:relative;padding:5px 0 5px 26px;color:var(--ink);font-size:15px}
+  li::before{content:"›";position:absolute;left:6px;top:5px;color:var(--gold);font-weight:700}
+  .step{display:flex;gap:16px;padding:12px 0;border-top:1px dashed var(--line)}
+  .step:first-of-type{border-top:none}
+  .step .n{flex:0 0 30px;height:30px;border-radius:50%;border:1px solid var(--gold-dim);color:var(--gold-hi);font:700 14px/30px var(--mono);text-align:center;background:rgba(201,161,74,.06)}
+  .step .b{flex:1}
+  .step .b b{color:var(--gold-hi)}
+  .note{margin:14px 0;padding:13px 16px;border-left:3px solid var(--gold);background:rgba(201,161,74,.05);border-radius:0 10px 10px 0;color:var(--mute);font-size:14px}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0;font:600 13px/1 var(--sans)}
+  .flow span{padding:9px 13px;border:1px solid var(--line2);border-radius:9px;background:#13131a;color:var(--ink)}
+  .flow b{color:var(--gold-hi)}
+  .flow .arr{border:none;background:none;color:var(--gold);padding:0 2px}
+  .caution{border:1px solid var(--gold-dim);border-radius:14px;padding:20px 22px;margin:16px 0;background:rgba(201,161,74,.06)}
+  .caution h3{margin-top:0}
+  .rules li::before{content:"●";color:var(--gold-dim);font-size:9px;top:9px}
+  code{font-family:var(--mono);color:var(--gold-hi);font-size:13px;background:rgba(201,161,74,.08);padding:2px 7px;border-radius:6px}
+  footer{padding:34px 0 0;color:var(--mute2);font-size:13px}
+  footer b{color:var(--gold)}
+  @media print{body{background:#fff;color:#111}.card,.note,.caution{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <img class="logo" src="mainstay-logo.png" alt="Mainstay" />
+    <div class="kicker">Mainstay Tech · Field Manual</div>
+    <h1>Mainstay <b>Forge</b></h1>
+    <p class="lede">Our in-house clip factory. Bring in a song, a video, or a long interview and Forge hands you finished, branded, vertical clips — several versions at once, ready to post. You always hit send yourself; nothing posts on its own.</p>
+    <div class="urlbar"><span class="lbl">Open it at</span><a href="https://forge.groundrushcloud.com">forge.groundrushcloud.com</a></div>
+  </header>
+
+  <section>
+    <div class="snum">01</div>
+    <h2>Signing in</h2>
+    <p class="sub">You each have your own login now — Forge records who made every clip.</p>
+    <ul>
+      <li>Go to <code>forge.groundrushcloud.com</code> on your phone or computer.</li>
+      <li>Enter <b>your</b> username and password (sent to you privately).</li>
+      <li>Top-right shows who you're signed in as. Your work appears in the Queue under your name.</li>
+      <li>Need a login added or changed? That's on Mike — just ask him.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="snum">02</div>
+    <h2>What's where</h2>
+    <p class="sub">Each tab does one job. Left side on desktop, bottom bar on your phone.</p>
+    <ul>
+      <li><b>Create</b> — build a post from scratch: a leak graphic, a kinetic lyric, or a film montage.</li>
+      <li><b>Topic</b> — bring in a long video/podcast/interview and cut the exact moments out of it. <em>The smart one.</em></li>
+      <li><b>Queue</b> — watch what's being made, and who made it.</li>
+      <li><b>Library</b> — everything Forge has finished: preview, download, delete.</li>
+      <li><b>Distribute</b> — line clips up and push them to Postiz as drafts.</li>
+      <li><b>Intel</b> — the performance scoreboard. <span style="color:var(--warn)">Not switched on yet</span> — Mike's still setting it up.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="snum">03</div>
+    <h2>Create — build from scratch <span class="pill live">Live</span></h2>
+    <p class="sub">Pick a style, fill the boxes, hit “Forge it.” It lands in the Queue, then the Library.</p>
+
+    <div class="card"><div class="ct">A · Leak Graphic</div><div class="cd">A “leaked” album graphic. Type the <b>Title</b>, a <b>Tracklist</b> (one song per line), and a <b>Caption</b>. <b style="color:var(--gold-hi)">New:</b> you can now <b>upload your own graphic</b> and Forge bakes the title + tracklist + LEAKED tag right over it. Leave the upload empty and it makes the artwork for you with AI.</div></div>
+    <div class="card"><div class="ct">B · Kinetic Lyric</div><div class="cd">A lyric video synced to a hook. Upload the <b>audio hook</b> and type the <b>lyric</b>. You get a vertical video with the words popping in time to the song.</div></div>
+    <div class="card"><div class="ct">C · Film Montage</div><div class="cd">A fast-cut montage. List your <b>clip sources</b> one per line (a YouTube/TikTok/Instagram link, or <code>search: rainy night city</code>) and upload the <b>song hook</b>. You get a rhythmic montage cut to the song — it auto-picks ~2.5-second beats across your clips, and it runs exactly as long as the hook you give it.</div></div>
+
+    <h3>Shared options</h3>
+    <ul>
+      <li><b>Caption font</b> — the lettering style.</li>
+      <li><b>Deliver to</b> — which folder it saves into.</li>
+      <li><b>Remix looks</b> — how many genuinely different-looking versions to make.</li>
+      <li><b>Variations</b> — near-identical copies of each look, so the same post can go to several accounts without flagging as a duplicate.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="snum">04</div>
+    <h2>Topic — cut clips out of a long video <span class="pill live">Live</span></h2>
+    <p class="sub">“Find the good moments and cut them for me.” This is the heart of Forge.</p>
+
+    <div class="step"><div class="n">1</div><div class="b"><b>Add a source — by link OR by file.</b> At the top of Topic there's an <b>Add a source</b> box. Paste a <b>YouTube, TikTok, or Instagram link</b> and hit <b>Fetch &amp; transcribe</b> — Forge downloads it and reads it. Or, for a big file you already have, open the <b>drop folder</b>, drag it in, and hit Refresh. Either way it shows up in your Source list.</div></div>
+    <div class="step"><div class="n">2</div><div class="b"><b>Search a topic.</b> Pick the source, type what you want in plain words — <em>“the part where he talks about growing up”</em> — and hit Find segments. It lists the matching moments with timestamps and the exact words.</div></div>
+    <div class="step"><div class="n">3</div><div class="b"><b>Pick &amp; trim.</b> Tick the moments you want; nudge the start/end to tighten them.</div></div>
+    <div class="step"><div class="n">4</div><div class="b"><b>Set the caption look.</b> <b>Style:</b> Clean (a line at a time), Karaoke (each word lights up as he talks), or Bold caps. Plus <b>position</b> (lower/center/upper), <b>font</b> (Anton, Bebas, Archivo, Bungee, Black Ops, DM Sans), and <b>color</b> (the highlight color for karaoke). Captions follow his real words automatically.</div></div>
+    <div class="step"><div class="n">5</div><div class="b"><b>Assemble variants.</b> Set how many and hit “Assemble variants” — Forge makes several different branded, captioned cuts of your picked moments.</div></div>
+
+    <h3>Montage tray — stitch moments across clips</h3>
+    <p class="sub" style="margin-bottom:10px">Want specific moments from <b>more than one source</b> in one clip?</p>
+    <ul>
+      <li>Search a source, pick moments, hit <b>Add selection</b>. Switch sources, pick more, add again.</li>
+      <li>The tray lists every pick — <b>drag to reorder</b>, or remove any you don't want.</li>
+      <li><b>Song bed</b> (optional): add a song to play under it. <b>Under voice (duck)</b> keeps the talking up front and tucks the music low underneath; <b>Replace audio</b> is music-only.</li>
+      <li>Hit <b>Assemble montage</b> — it stitches your exact picks, in your order.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="snum">05</div>
+    <h2>Where your clips go</h2>
+    <p class="sub">Every job follows the same path — so you always know where to find your work.</p>
+    <div class="flow">
+      <span>You hit <b>Forge it / Assemble</b></span><span class="arr">→</span>
+      <span><b>Queue</b> (it's rendering)</span><span class="arr">→</span>
+      <span><b>Library</b> (finished — preview &amp; download)</span><span class="arr">→</span>
+      <span><b>Distribute</b> (push to Postiz as drafts)</span>
+    </div>
+    <ul>
+      <li>Everything is saved to our shared Mainstay cloud automatically — nothing lives only on your phone.</li>
+      <li>In <b>Distribute</b>, Forge lines each variant up to a different account and pushes them to <b>Postiz as drafts</b>. <b>A human still hits send</b> — Forge never posts on its own.</li>
+      <li>Made something you don't want? Delete it from the Library (it goes to a trash you can undo).</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="snum">06</div>
+    <h2>Getting creative</h2>
+    <p class="sub">The tool's only as good as the angles you bring it. A few ways to make it sing:</p>
+    <ul>
+      <li><b>Mix sources in one montage</b> — a bar from an interview, a moment from a live clip, a line from a podcast, stitched in your order.</li>
+      <li><b>Try the caption styles</b> — Karaoke pops on TikTok; Bold caps reads loud on mute; Clean is the safe, classy default. Same clip, three feels.</li>
+      <li><b>Use a song bed under talking</b> — drop a Rod Wave instrumental under an interview cut and let it duck under his voice. Instant mood.</li>
+      <li><b>Upload your own leak graphic</b> — bring real artwork and let Forge bake the tracklist on it.</li>
+      <li><b>Make a few looks, not fifty</b> — pick the 2–3 that actually hit and push those wide with Variations.</li>
+    </ul>
+  </section>
+
+  <section style="border-bottom:none">
+    <div class="snum">—</div>
+    <div class="caution">
+      <h3>Be thoughtful — don't burn it up</h3>
+      <p style="color:var(--ink);font-size:15px;margin:0 0 6px">Every clip Forge makes uses real compute and AI credits behind the scenes. It's powerful, so it's easy to spam — please don't. Before you assemble, think about <b>what you're actually making and why</b>.</p>
+      <ul style="margin-top:8px">
+        <li>Make <b>deliberate</b> clips — pick your moments, then assemble. Don't fire off dozens of throwaways to “see what happens.”</li>
+        <li>A handful of strong variants beats a hundred mediocre ones — and keeps the Library clean for everyone.</li>
+        <li>Re-cut when something's off (caption style, trim) instead of regenerating from scratch over and over.</li>
+        <li>Treat it like studio time, not a slot machine.</li>
+      </ul>
+    </div>
+
+    <h3>The rules Forge always follows</h3>
+    <ul class="rules">
+      <li>Every clip is vertical <b>9:16</b> and between <b>10 and 60 seconds</b>.</li>
+      <li>Everything comes out <b>branded</b> in the Mainstay style.</li>
+      <li><b>Nothing posts itself</b> — it only ever makes drafts.</li>
+      <li>YouTube / TikTok / Instagram are used to <b>pull</b> clips from, never to post to.</li>
+    </ul>
+
+    <h3>Hit a snag? Reach out to Mike</h3>
+    <p style="color:var(--ink);font-size:15px">If something breaks, looks wrong, won't load, or you're just not sure — <b>reach out to Mike</b>. Don't fight it or work around it. A few quick notes:</p>
+    <ul>
+      <li><b>A link won't load</b> — it's probably age-locked or private; download it and use the drop folder.</li>
+      <li><b>A wrong word in a caption</b> — that's the transcript guessing slang; flag it.</li>
+      <li><b>Anything else</b> — message Mike and it gets handled.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <b>Mainstay Forge</b> · built for the Rod Wave “Don't Look Down” rollout · internal tool — do not share outside the team.
+  </footer>
+
+</div>
+</body>
+</html>
