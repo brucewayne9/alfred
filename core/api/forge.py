@@ -136,13 +136,32 @@ def register(app: FastAPI) -> None:
             raise HTTPException(status_code=400, detail=str(e))
 
     @app.get("/forge/library/file")
-    async def library_file(path: str = Query(...), user: dict = Depends(require_auth)):
+    async def library_file(path: str = Query(...), request: Request = None,
+                           user: dict = Depends(require_auth)):
         from core.forge import library
         try:
             data, ctype = library.read_file(path)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        return Response(content=data, media_type=ctype)
+        total = len(data)
+        rng = (request.headers.get("range") if request else None) or ""
+        # HTTP Range so <video> plays + seeks everywhere (iOS Safari REQUIRES it).
+        if rng.startswith("bytes="):
+            first, _, last = rng[6:].split(",")[0].strip().partition("-")
+            start = int(first) if first else 0
+            end = int(last) if last else total - 1
+            start = max(0, start)
+            end = min(end, total - 1)
+            if start > end:
+                start, end = 0, total - 1
+            chunk = data[start:end + 1]
+            return Response(content=chunk, status_code=206, media_type=ctype, headers={
+                "Content-Range": f"bytes {start}-{end}/{total}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(len(chunk)),
+            })
+        return Response(content=data, media_type=ctype,
+                        headers={"Accept-Ranges": "bytes", "Content-Length": str(total)})
 
     @app.delete("/forge/library/file")
     async def library_delete(path: str = Query(...), user: dict = Depends(require_auth)):
