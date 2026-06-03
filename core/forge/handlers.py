@@ -33,12 +33,13 @@ def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str)
     from pathlib import Path
     from core.forge.remix import build_remixes
     from core.forge.multiply import multiply
-    from core.forge import delivery
+    from core.forge import delivery, sizes
 
     remixes = build_remixes(params, int(params.get("remix", 1) or 1))
     n = int(params.get("variations", 18) or 18)
     base = (params.get("subfolder") or default_subfolder).strip()
     stamp = int(time.time())
+    _w, _h, tag = sizes.resolve(params.get("aspect"))  # size suffix so 9x16/1x1/16x9 coexist
     ext = ".png" if fmt == "leak_graphic" else ".mp4"
     total_delivered, look_dirs = 0, []
     work = Path(tempfile.mkdtemp(prefix=f"forge_{fmt}_"))
@@ -46,7 +47,8 @@ def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str)
         for rp in remixes:
             forge_jobs.check_cancel()  # stop between looks if the user hit Stop
             ri = rp.get("remix_index", 0)
-            label = f"{fmt}_{stamp}_look{ri:02d}" if len(remixes) > 1 else f"{fmt}_{stamp}"
+            label = (f"{fmt}_{stamp}_{tag}_look{ri:02d}" if len(remixes) > 1
+                     else f"{fmt}_{stamp}_{tag}")
             master = render(rp, work / f"{label}_master{ext}")
             forge_jobs.check_cancel()  # and again after the (slow) render, before delivery
             # Kinetic-lyric and film-montage burn lyrics/captions into the frame,

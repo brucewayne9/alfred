@@ -95,8 +95,9 @@ def render(params: dict, out_path: str | Path) -> Path:
     ComfyUI-Cloud vessel still -> ken-burns motion bg -> Remotion KineticTypeRig
     (silent) -> guarded mux of the hook audio -> assert_audible.
     """
-    from core.forge import audio, uploads, caption_styles
+    from core.forge import audio, uploads, caption_styles, sizes
 
+    W, H, _tag = sizes.resolve(params.get("aspect"))
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="forge_kin_render_"))
@@ -143,7 +144,7 @@ def render(params: dict, out_path: str | Path) -> Path:
 
     img = run_comfyui_cloud(
         _vessel_prompt(params.get("caption", ""), params.get("vessel_prompt")),
-        width=1080, height=1920,
+        width=W, height=H,
     )
     if not img:
         raise RuntimeError("ComfyUI Cloud returned no vessel image")
@@ -158,9 +159,10 @@ def render(params: dict, out_path: str | Path) -> Path:
         kb = subprocess.run(
             ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "30",
              "-i", str(img), "-t", str(secs),
-             "-vf", ("scale=1620:2880:force_original_aspect_ratio=increase,crop=1620:2880,"
-                     "zoompan=z='min(1.0+0.00010*in,1.12)':x='iw/2-(iw/zoom/2)':"
-                     "y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30"),
+             "-vf", (f"scale={int(W*1.5)}:{int(H*1.5)}:force_original_aspect_ratio=increase,"
+                     f"crop={int(W*1.5)}:{int(H*1.5)},"
+                     f"zoompan=z='min(1.0+0.00010*in,1.12)':x='iw/2-(iw/zoom/2)':"
+                     f"y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps=30"),
              "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30", "-an", str(vessel_mp4)],
             capture_output=True, text=True)
         if kb.returncode != 0 or not vessel_mp4.exists():
@@ -180,6 +182,8 @@ def render(params: dict, out_path: str | Path) -> Path:
                 "lines": lines,
                 "style": style_spec,
                 "scrim": True,
+                "width": W,
+                "height": H,
             }
             props_path = work / "props.json"
             props_path.write_text(json.dumps(props))

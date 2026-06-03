@@ -330,6 +330,13 @@
   .cap-tile .tick{position:absolute;top:7px;right:7px;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#11100c;font-size:12px;display:none;align-items:center;justify-content:center;font-weight:900}
   .cap-tile.sel .tick{display:flex}
   .cap-tile.none .stage{color:var(--mute2);font:600 12px/1.3 var(--sans)}
+  /* ---- Output-size segmented control ---- */
+  .seg{display:flex;gap:8px}
+  .seg-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:#0e0e13;border:1.5px solid var(--line);border-radius:10px;color:var(--mute);padding:11px 8px;cursor:pointer;font:700 12.5px/1.1 var(--sans);transition:.14s}
+  .seg-btn small{font:600 10px/1 var(--mono);color:var(--mute2);letter-spacing:.02em}
+  .seg-btn:hover{border-color:var(--gold-dim)}
+  .seg-btn.sel{border-color:var(--gold);color:var(--ink);background:rgba(201,161,74,.08)}
+  .seg-btn.sel small{color:var(--gold-hi)}
 </style>
 </head>
 <body>
@@ -425,6 +432,15 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             </button>
             <input type="hidden" id="captionStyle" value="box_gold">
             <input type="hidden" id="font" value="gallery">
+          </div>
+          <div class="field full sizefield" style="display:none">
+            <label>Output size <span style="color:var(--mute);font-weight:400">— renders all variants at this aspect for the platform</span></label>
+            <div class="seg" id="aspectSeg">
+              <button type="button" class="seg-btn sel" data-aspect="9x16" onclick="pickAspect(this)">Vertical · 9:16<small>1080×1920</small></button>
+              <button type="button" class="seg-btn" data-aspect="1x1" onclick="pickAspect(this)">Square · 1:1<small>1080×1080</small></button>
+              <button type="button" class="seg-btn" data-aspect="16x9" onclick="pickAspect(this)">Landscape · 16:9<small>1920×1080</small></button>
+            </div>
+            <input type="hidden" id="aspect" value="9x16">
           </div>
           <div class="field">
             <label>Deliver to</label>
@@ -750,6 +766,10 @@ async function loadCaptionStyles(){
     document.getElementById('capBody').innerHTML='<div style="color:var(--mute2);padding:30px;text-align:center">Could not load styles ('+err.message+')</div>';
   }
 }
+function pickAspect(btn){
+  document.querySelectorAll('#aspectSeg .seg-btn').forEach(b=>b.classList.toggle('sel',b===btn));
+  document.getElementById('aspect').value=btn.dataset.aspect;
+}
 function openCapGallery(){ document.getElementById('capGallery').classList.add('show'); if(!CAP_LOADED) loadCaptionStyles(); }
 function closeCapGallery(){ document.getElementById('capGallery').classList.remove('show'); }
 function pickCapStyle(id,name,family){
@@ -790,6 +810,7 @@ function syncAudioFields(){
   document.querySelectorAll('.clipfield').forEach(el=>el.style.display = needsAudio?'':'none');
   document.querySelectorAll('.montagefield').forEach(el=>el.style.display = (curFmt==='film_montage')?'':'none');
   document.querySelectorAll('.leakfield').forEach(el=>el.style.display=(curFmt==='leak_graphic')?'':'none');
+  document.querySelectorAll('.sizefield').forEach(el=>el.style.display = needsAudio?'':'none');
 }
 document.querySelectorAll('.fmt').forEach(f=>f.addEventListener('click',()=>{
   document.querySelectorAll('.fmt').forEach(x=>x.classList.remove('sel'));
@@ -808,6 +829,7 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
     caption:document.getElementById('caption').value,
     font:document.getElementById('font').value,
     caption_style:(document.getElementById('captionStyle')||{}).value||'box_gold',
+    aspect:(document.getElementById('aspect')||{}).value||'9x16',
     subfolder:document.getElementById('subfolder').value.replace(/ \/ /g,'/'),
     variations:Number(vars.value),
     remix:Number(document.getElementById('remix').value)||1

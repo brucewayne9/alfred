@@ -20,7 +20,8 @@ from core.forge.renderers.kinetic_lyric import build_karaoke_lines, _node_env, R
 LOGO_PATH = Path("/home/aialfred/remotion/public/mainstay-logo.png")
 
 
-def _caption_overlay(body: Path, lines: list, style_spec: dict, work: Path) -> Path:
+def _caption_overlay(body: Path, lines: list, style_spec: dict, work: Path,
+                     w: int = 1080, h: int = 1920) -> Path:
     """Burn word-synced captions over the silent montage via Remotion CaptionStudioRig.
 
     Returns a new silent mp4 (captions baked, no audio/logo yet — make_branded
@@ -32,7 +33,7 @@ def _caption_overlay(body: Path, lines: list, style_spec: dict, work: Path) -> P
     shutil.copyfile(body, pub_path)
     try:
         props = {"brand": "mainstay", "bgClip": pub_name, "lines": lines,
-                 "style": style_spec, "scrim": True}
+                 "style": style_spec, "scrim": True, "width": w, "height": h}
         props_path = work / "capprops.json"
         props_path.write_text(json.dumps(props))
         out = work / "captioned.mp4"
@@ -93,9 +94,9 @@ def assign_offsets(segs: list[dict], durations: list[float]) -> list[dict]:
 
 
 def _cut_segment(src: str | Path, seconds: float, out: str | Path,
-                 offset: float | None = None) -> Path:
+                 offset: float | None = None, w: int = 1080, h: int = 1920) -> Path:
     """Cut `seconds` starting at `offset` (default: deterministic 10%-in, cap 1s);
-    cover-crop to 1080x1920@30, no audio."""
+    cover-crop to w x h @30, no audio."""
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     if offset is not None:
@@ -108,8 +109,8 @@ def _cut_segment(src: str | Path, seconds: float, out: str | Path,
     proc = subprocess.run(
         ["ffmpeg", "-y", "-v", "error", "-ss", str(off), "-i", str(src),
          "-t", str(seconds), "-an",
-         "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,"
-                "crop=1080:1920,fps=30,format=yuv420p",
+         "-vf", f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                f"crop={w}:{h},fps=30,format=yuv420p",
          "-c:v", "libx264", "-preset", "veryfast", str(out)],
         capture_output=True, text=True)
     if proc.returncode != 0 or not out.exists():
@@ -164,6 +165,9 @@ def render(params: dict, out_path: str | Path) -> Path:
     if not src.exists():
         raise RuntimeError(f"audio source missing on disk: {src}")
 
+    from core.forge import sizes
+    W, H, _tag = sizes.resolve(params.get("aspect"))
+
     work = Path(tempfile.mkdtemp(prefix="forge_mtg_"))
     try:
         if params.get("clip_start") is not None and params.get("clip_end") is not None:
@@ -197,7 +201,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             seg_paths.append(
                 _cut_segment(raw[seg["clip_index"]], seg["seconds"],
                              work / "segments" / f"seg_{i:03d}.mp4",
-                             offset=seg.get("offset")))
+                             offset=seg.get("offset"), w=W, h=H))
 
         # 5. Concat (re-encode — segments may vary).
         concat_txt = work / "concat.txt"
@@ -218,7 +222,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             words = audio.transcribe_words(hook)
             lines = build_karaoke_lines(words, max_words=4, uppercase=False) if words else []
             if lines:
-                body = _caption_overlay(body, lines, caption_styles.resolve(style_id), work)
+                body = _caption_overlay(body, lines, caption_styles.resolve(style_id), work, w=W, h=H)
 
         # 7. Brand + mux + guard.
         make_branded(body, hook, params.get("caption", ""), out_path)
