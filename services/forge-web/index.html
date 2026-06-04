@@ -1318,7 +1318,8 @@ async function markPosted(cb){
 
 // ===== TOPIC TAB =====
 let _topicSourcesLoaded = false;
-const topicState = { results: [], selected: {} };
+const topicState = { results: [], selected: {}, sourceDur: {}, dur: 0, preview: null };
+const TRIM_MIN = 15, TRIM_MAX = 60, TRIM_PAD = 20;  // window 15–60s; show ±20s context
 
 function fmtTime(s){
   s = Math.max(0, s);
@@ -1338,6 +1339,7 @@ async function loadTopicSources(){
       _topicSourcesLoaded = false;
       return;
     }
+    sources.forEach(s => { if(s.duration_s) topicState.sourceDur[s.id] = Number(s.duration_s); });
     sel.innerHTML = '<option value="">Pick a source…</option>' + sources.map(s => {
       let raw = s.name || s.spec || s.id;
       try { raw = decodeURIComponent(raw); } catch(_) {}   // drop-folder paths are URL-encoded
@@ -1434,6 +1436,8 @@ async function runTopicSearch(){
   const q = document.getElementById('topicQuery').value.trim();
   if(!id){ toast('Pick a source first'); return; }
   if(!q){ toast('Enter a topic to search for'); return; }
+  topicState.activeSource = id;
+  topicState.dur = topicState.sourceDur[id] || 0;
   const k = parseInt(document.getElementById('topicTopK').value) || 10;
   const t = parseFloat(document.getElementById('topicThreshold').value) || 0.72;
   const spk = document.getElementById('topicSpeaker').value;
@@ -1467,51 +1471,143 @@ function renderTopicResults(results){
     updateTopicSelectionSummary();
     return;
   }
+  const dur = topicState.dur || 0;
   results.forEach(res => {
     const start_s = res.start_s != null ? res.start_s : res.seq_start;
     const end_s = res.end_s != null ? res.end_s : res.seq_end;
     const key = start_s + '-' + end_s;
-    topicState.selected[key] = { ...res, start_s, end_s, kept: true, trimIn: start_s, trimOut: end_s };
+    // Context span: ±20s around the matched window (clamped to the source).
+    const lo = Math.max(0, start_s - TRIM_PAD);
+    const hi = dur > 0 ? Math.min(dur, end_s + TRIM_PAD) : (end_s + TRIM_PAD);
+    // Initial window = the match, clamped to the 15–60s band.
+    let tin = start_s, tout = end_s;
+    if(tout - tin > TRIM_MAX) tout = tin + TRIM_MAX;
+    if(tout - tin < TRIM_MIN) tout = Math.min(hi, tin + TRIM_MIN);
+    topicState.selected[key] = { ...res, start_s, end_s, lo, hi, kept: true, trimIn: tin, trimOut: tout };
   });
   box.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px">' + results.map((res, i) => {
     const start_s = res.start_s != null ? res.start_s : res.seq_start;
     const end_s = res.end_s != null ? res.end_s : res.seq_end;
     const key = esc(start_s + '-' + end_s);
+    const st = topicState.selected[start_s + '-' + end_s] || {trimIn:start_s, trimOut:end_s};
     const pct = Math.round((res.score || 0) * 100);
     const spkBadge = res.speaker ? (' <span style="font:600 10px/1 var(--mono);padding:3px 7px;border-radius:6px;background:rgba(91,139,208,.14);color:#a8c4ea;border:1px solid rgba(91,139,208,.4)">Spk ' + esc(res.speaker) + '</span>') : '';
     const scoreColor = pct >= 70 ? 'var(--done)' : pct >= 50 ? 'var(--pending)' : 'var(--mute)';
+    const hStyle = 'position:absolute;top:-3px;bottom:-3px;width:14px;margin-left:-7px;border-radius:5px;background:var(--gold);border:1px solid #1a1206;cursor:ew-resize;touch-action:none;box-shadow:0 1px 4px rgba(0,0,0,.5)';
     return '<div class="panel" style="padding:16px 18px" id="tcard-' + key + '">'
       + '<div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:10px">'
         + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;flex:1">'
           + '<input type="checkbox" checked style="width:17px;height:17px;accent-color:var(--done);cursor:pointer;flex:0 0 17px" onchange="toggleTopicSegment(\'' + key + '\',this.checked)">'
-          + '<span style="font:700 15px/1.3 var(--sans);color:var(--ink)">&#9654; ' + fmtTime(start_s) + ' – ' + fmtTime(end_s) + '</span>'
+          + '<span id="hd-' + key + '" style="font:700 15px/1.3 var(--sans);color:var(--ink)">&#9654; ' + fmtTime(st.trimIn) + ' – ' + fmtTime(st.trimOut) + '</span>'
           + spkBadge
         + '</label>'
         + '<span style="font:700 13px/1 var(--mono);color:' + scoreColor + ';padding:5px 9px;border-radius:8px;border:1px solid;border-color:' + scoreColor + ';background:rgba(0,0,0,.2);flex:0 0 auto">' + pct + '%</span>'
       + '</div>'
-      + '<details open style="margin-bottom:10px">'
+      + '<details open style="margin-bottom:12px">'
         + '<summary style="cursor:pointer;font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);list-style:none;display:flex;align-items:center;gap:6px">&#x25BE; Transcript</summary>'
         + '<div style="margin-top:8px;padding:10px 12px;border-radius:8px;background:#0e0e13;border:1px solid var(--line);font:400 14px/1.7 var(--sans);color:var(--ink);max-height:160px;overflow-y:auto">'
           + esc(res.text || '')
         + '</div>'
       + '</details>'
-      + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-        + '<label style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">In (s)</label>'
-        + '<input type="number" step="0.1" value="' + start_s.toFixed(1) + '" min="' + start_s.toFixed(1) + '" max="' + end_s.toFixed(1) + '" style="width:90px;padding:8px 10px;font-size:13px" onchange="trimTopicSegment(\'' + key + '\',\'in\',this.value,' + start_s + ',' + end_s + ')">'
-        + '<label style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">Out (s)</label>'
-        + '<input type="number" step="0.1" value="' + end_s.toFixed(1) + '" min="' + start_s.toFixed(1) + '" max="' + end_s.toFixed(1) + '" style="width:90px;padding:8px 10px;font-size:13px" onchange="trimTopicSegment(\'' + key + '\',\'out\',this.value,' + start_s + ',' + end_s + ')">'
-        + '<span style="font:500 12px/1 var(--mono);color:var(--mute2)">' + fmtTime(end_s - start_s) + ' window</span>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+        + '<span style="font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">Drag to set the clip &mdash; 15&ndash;60s</span>'
+        + '<span id="rd-' + key + '" style="font:600 12px/1 var(--mono);color:var(--gold-hi)"></span>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+        + '<button class="btn ghost" type="button" id="ls-' + key + '" onclick="listenTrim(\'' + key + '\')" style="flex:0 0 auto;padding:8px 13px"><span class="k">&#9654;</span> Listen</button>'
+        + '<div id="trk-' + key + '" style="position:relative;flex:1;height:40px;border-radius:9px;background:#0e0e13;border:1px solid var(--line)">'
+          + '<div id="fill-' + key + '" style="position:absolute;top:0;bottom:0;background:linear-gradient(90deg,rgba(232,184,75,.18),rgba(232,184,75,.34));border-radius:8px;pointer-events:none"></div>'
+          + '<div id="ph-' + key + '" style="position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;left:0;display:none;pointer-events:none"></div>'
+          + '<div id="hIn-' + key + '" onpointerdown="startTrimDrag(event,\'' + key + '\',\'in\')" style="' + hStyle + '"></div>'
+          + '<div id="hOut-' + key + '" onpointerdown="startTrimDrag(event,\'' + key + '\',\'out\')" style="' + hStyle + '"></div>'
+        + '</div>'
       + '</div>'
     + '</div>';
   }).join('') + '</div>';
+  // Position every trim slider now that the DOM exists.
+  Object.keys(topicState.selected).forEach(k => applyTrim(k));
   updateTopicSelectionSummary();
 }
 
-function toggleTopicSegment(key, checked){
-  if(topicState.selected[key]) topicState.selected[key].kept = checked;
-  const card = document.getElementById('tcard-' + key);
-  if(card) card.style.opacity = checked ? '1' : '0.45';
-  updateTopicSelectionSummary();
+// ---- Draggable topic trim (in/out handles + listen) ----
+function applyTrim(key){
+  const st = topicState.selected[key]; if(!st) return;
+  const span = (st.hi - st.lo) || 1;
+  const pIn = Math.max(0, Math.min(100, (st.trimIn - st.lo) / span * 100));
+  const pOut = Math.max(0, Math.min(100, (st.trimOut - st.lo) / span * 100));
+  const hIn = document.getElementById('hIn-' + key);
+  const hOut = document.getElementById('hOut-' + key);
+  const fill = document.getElementById('fill-' + key);
+  const rd = document.getElementById('rd-' + key);
+  const hd = document.getElementById('hd-' + key);
+  if(hIn) hIn.style.left = pIn + '%';
+  if(hOut) hOut.style.left = pOut + '%';
+  if(fill){ fill.style.left = pIn + '%'; fill.style.width = (pOut - pIn) + '%'; }
+  const len = st.trimOut - st.trimIn;
+  if(rd) rd.textContent = fmtTime(st.trimIn) + ' → ' + fmtTime(st.trimOut) + ' · ' + len.toFixed(0) + 's';
+  if(hd) hd.innerHTML = '&#9654; ' + fmtTime(st.trimIn) + ' – ' + fmtTime(st.trimOut);
+}
+
+function startTrimDrag(ev, key, which){
+  ev.preventDefault(); ev.stopPropagation();
+  const st = topicState.selected[key]; if(!st) return;
+  const trk = document.getElementById('trk-' + key); if(!trk) return;
+  const span = (st.hi - st.lo) || 1;
+  const move = (e) => {
+    const rect = trk.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+    let frac = (cx - rect.left) / (rect.width || 1);
+    frac = Math.max(0, Math.min(1, frac));
+    let t = st.lo + frac * span;
+    if(which === 'in'){
+      t = Math.max(st.lo, Math.min(t, st.trimOut - TRIM_MIN));   // keep ≥15s window
+      t = Math.max(t, st.trimOut - TRIM_MAX);                    // keep ≤60s window
+      st.trimIn = t;
+    } else {
+      t = Math.min(st.hi, Math.max(t, st.trimIn + TRIM_MIN));
+      t = Math.min(t, st.trimIn + TRIM_MAX);
+      st.trimOut = t;
+    }
+    applyTrim(key);
+  };
+  const up = () => {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+}
+
+function listenTrim(key){
+  const st = topicState.selected[key]; if(!st) return;
+  const src = topicState.activeSource; if(!src){ toast('Pick a source first'); return; }
+  const btn = document.getElementById('ls-' + key);
+  const ph = document.getElementById('ph-' + key);
+  const wasThis = topicState.preview && topicState._listenKey === key && !topicState.preview.paused;
+  // Stop whatever's currently playing and reset every button/playhead.
+  if(topicState.preview){ try{ topicState.preview.pause(); }catch(_){} }
+  if(topicState._raf) cancelAnimationFrame(topicState._raf);
+  _resetListenBtns();
+  topicState.preview = null;
+  if(wasThis) return;   // second click on the same card = just stop
+
+  const len = st.trimOut - st.trimIn, span = (st.hi - st.lo) || 1;
+  const a = new Audio(API + '/forge/sources/' + encodeURIComponent(src)
+    + '/preview?start=' + st.trimIn.toFixed(2) + '&end=' + st.trimOut.toFixed(2));
+  topicState.preview = a; topicState._listenKey = key;
+  const stop = () => { if(ph) ph.style.display='none'; if(btn) btn.innerHTML='<span class="k">&#9654;</span> Listen'; if(topicState._raf) cancelAnimationFrame(topicState._raf); };
+  const tick = () => {
+    if(ph){ const pos = (st.trimIn - st.lo + Math.min(len, a.currentTime)) / span * 100; ph.style.left = pos + '%'; ph.style.display=''; }
+    if(!a.paused && !a.ended) topicState._raf = requestAnimationFrame(tick);
+  };
+  a.onended = () => { stop(); topicState.preview = null; };
+  a.onerror = () => { stop(); topicState.preview = null; toast('Preview unavailable for that window'); };
+  if(btn) btn.innerHTML = '<span class="k">&#10073;&#10073;</span> Stop';
+  a.play().then(tick).catch(() => { stop(); topicState.preview = null; toast('Could not play preview'); });
+}
+function _resetListenBtns(){
+  document.querySelectorAll('[id^="ls-"]').forEach(b => { b.innerHTML='<span class="k">&#9654;</span> Listen'; });
+  document.querySelectorAll('[id^="ph-"]').forEach(p => p.style.display='none');
 }
 
 function trimTopicSegment(key, which, val, minS, maxS){

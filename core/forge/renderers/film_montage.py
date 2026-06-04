@@ -19,6 +19,57 @@ from core.forge.renderers.kinetic_lyric import build_karaoke_lines, _node_env, R
 
 LOGO_PATH = Path("/home/aialfred/remotion/public/mainstay-logo.png")
 
+# Swift dissolve between montage segments (seconds). Hides the hard-cut "jump"
+# between clips sampled from different moments. Kept short so it reads as a clean
+# transition, not a slow blend. Set transition="cut" in params to disable.
+TRANSITION_FADE = 0.18
+
+
+def _concat_xfade(seg_paths: list[Path], out: Path, fade: float = TRANSITION_FADE) -> Path:
+    """Concat segments with a quick crossfade dissolve at every boundary.
+
+    Chains ffmpeg ``xfade`` filters. Each transition overlaps two clips by
+    ``fade`` seconds, so the running composite duration is tracked to place every
+    offset correctly. Segments are cut ``fade`` seconds long (see render) so the
+    overlap is absorbed and total duration ≈ the sum of requested seconds — the
+    lyric captions stay synced. Falls back to a copy for a single segment.
+    """
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if len(seg_paths) == 1:
+        shutil.copyfile(seg_paths[0], out)
+        return out
+
+    durs = []
+    for p in seg_paths:
+        try:
+            durs.append(audio.duration_seconds(p))
+        except Exception:
+            durs.append(fade * 2)
+
+    inputs: list[str] = []
+    for p in seg_paths:
+        inputs += ["-i", str(p)]
+
+    filt, prev, acc = [], "0:v", durs[0]
+    for i in range(1, len(seg_paths)):
+        off = max(0.0, acc - fade)
+        label = f"vx{i}"
+        filt.append(
+            f"[{prev}][{i}:v]xfade=transition=fade:duration={fade}:"
+            f"offset={off:.3f}[{label}]")
+        prev, acc = label, acc + durs[i] - fade
+
+    proc = subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", *inputs,
+         "-filter_complex", ";".join(filt),
+         "-map", f"[{prev}]", "-c:v", "libx264", "-preset", "veryfast",
+         "-pix_fmt", "yuv420p", "-an", str(out)],
+        capture_output=True, text=True)
+    if proc.returncode != 0 or not out.exists():
+        raise RuntimeError(f"xfade concat failed: {proc.stderr[-500:]}")
+    return out
+
 
 def _caption_overlay(body: Path, lines: list, style_spec: dict, work: Path,
                      w: int = 1080, h: int = 1920) -> Path:
@@ -196,25 +247,33 @@ def render(params: dict, out_path: str | Path) -> Path:
             except Exception:
                 durations.append(0.0)
         segs = assign_offsets(segs, durations)
+        # Quick dissolve by default; "cut" gives a hard splice (already clean).
+        transition = (params.get("transition") or "fade").lower()
+        fade = TRANSITION_FADE if transition != "cut" and len(segs) > 1 else 0.0
         seg_paths: list[Path] = []
         for i, seg in enumerate(segs):
+            # Pad each segment by `fade` so the crossfade overlap is absorbed and
+            # the body length stays matched to the hook audio.
             seg_paths.append(
-                _cut_segment(raw[seg["clip_index"]], seg["seconds"],
+                _cut_segment(raw[seg["clip_index"]], seg["seconds"] + fade,
                              work / "segments" / f"seg_{i:03d}.mp4",
                              offset=seg.get("offset"), w=W, h=H))
 
-        # 5. Concat (re-encode — segments may vary).
-        concat_txt = work / "concat.txt"
-        concat_txt.write_text(
-            "".join(f"file '{p.resolve()}'\n" for p in seg_paths))
+        # 5. Stitch: crossfade dissolve (default) or clean hard concat.
         body = work / "body.mp4"
-        proc = subprocess.run(
-            ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
-             "-i", str(concat_txt), "-c:v", "libx264", "-preset", "veryfast",
-             "-pix_fmt", "yuv420p", "-an", str(body)],
-            capture_output=True, text=True)
-        if proc.returncode != 0 or not body.exists():
-            raise RuntimeError(f"concat failed: {proc.stderr[-500:]}")
+        if fade > 0.0:
+            _concat_xfade(seg_paths, body, fade=fade)
+        else:
+            concat_txt = work / "concat.txt"
+            concat_txt.write_text(
+                "".join(f"file '{p.resolve()}'\n" for p in seg_paths))
+            proc = subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
+                 "-i", str(concat_txt), "-c:v", "libx264", "-preset", "veryfast",
+                 "-pix_fmt", "yuv420p", "-an", str(body)],
+                capture_output=True, text=True)
+            if proc.returncode != 0 or not body.exists():
+                raise RuntimeError(f"concat failed: {proc.stderr[-500:]}")
 
         # 6. Optional word-synced lyric captions (Remotion overlay pass).
         style_id = params.get("caption_style")
