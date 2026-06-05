@@ -1,4 +1,5 @@
 """Mainstay Forge — deliver rendered artifacts to the team's Nextcloud folders."""
+import logging
 from pathlib import Path
 
 from integrations.nextcloud.client import create_folder, upload_file
@@ -30,4 +31,13 @@ def deliver(local_path: Path, subfolder: str, filename: str | None = None) -> st
         upload_file(remote_path, local_path.read_bytes())
     except Exception as e:
         raise RuntimeError(f"Nextcloud upload failed: {remote_path}: {e}") from e
+
+    # Dual-save trial (2026-06-05): mirror into Google Drive alongside Nextcloud.
+    # Best-effort — Nextcloud is primary, a Drive failure must never break delivery.
+    try:
+        from core.forge import delivery_drive
+        delivery_drive.deliver(local_path, subfolder, filename=name)
+    except Exception:  # noqa: BLE001 — mirror is non-fatal
+        logging.getLogger(__name__).warning("Forge Drive mirror skipped (non-fatal)")
+
     return remote_path
