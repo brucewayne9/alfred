@@ -233,8 +233,24 @@ def render(params: dict, out_path: str | Path) -> Path:
             raw.extend(clips.fetch_source(s, work / "raw"))
         gen_prompt = (params.get("generate_prompt") or params.get("caption")
                       or "cinematic moody emotional b-roll, low-key lighting, film grain, vertical")
+        video_source = params.get("video_source", "higgsfield")
+        # If the user uploaded a still, use it as the Kling start frame. No such
+        # param exists today, but resolve it if present so the wiring is ready;
+        # otherwise generate_clip auto-synthesises a frame for Higgsfield/Kling.
+        start_frame = None
+        sample_id = params.get("base_image_upload_id")
+        if not sample_id:
+            samples = params.get("samples") or params.get("sample_upload_ids")
+            if isinstance(samples, (list, tuple)) and samples:
+                sample_id = samples[0]
+        if sample_id:
+            sp = uploads.get_upload_path(sample_id)
+            if sp is not None and Path(sp).exists():
+                start_frame = sp
         for _ in range(int(params.get("generate") or 0)):
-            raw.append(clips.generate_clip(gen_prompt, work / "raw"))
+            raw.append(clips.generate_clip(
+                gen_prompt, work / "raw",
+                source=video_source, start_frame=start_frame))
         if not raw:
             raise RuntimeError("no clips — provide sources or set generate>0")
 

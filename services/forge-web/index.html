@@ -389,12 +389,24 @@
         <div class="fmts">
           <div class="fmt" data-fmt="kinetic_lyric"><span class="px">A</span><span class="glyph">𝄞</span><h3>Kinetic Lyric</h3><p>Aesthetic vessel + the hook, lyric building word-by-word in time with the vocal.</p><span class="fstat livep">live now</span></div>
           <div class="fmt" data-fmt="film_montage"><span class="px">B</span><span class="glyph">▶</span><h3>Film Montage</h3><p>Emotional clips stitched to the hook — pull from YouTube, a search, or generate. Branded outro.</p><span class="fstat livep">live now</span></div>
-          <div class="fmt sel" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>AI cover art from your caption — generated on ComfyUI Cloud, then multiplied.</p><span class="fstat livep">live now</span></div>
+          <div class="fmt sel" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>AI cover art from your caption — generated on Higgsfield, then multiplied.</p><span class="fstat livep">live now</span></div>
         </div>
         <form class="form panel" style="padding:22px" id="createForm">
           <div class="field full">
             <label>Caption / lyric <span style="color:var(--mute);font-weight:400">— for Kinetic, this is the vessel mood</span></label>
             <textarea id="caption" placeholder="still waiting for that new album…">I ain't mad at you</textarea>
+          </div>
+          <div class="field full vsrcfield" style="display:none">
+            <label>Visual source <span style="color:var(--mute);font-weight:400">— how the artwork is made</span></label>
+            <div class="seg" id="vsrcSeg">
+              <button type="button" class="seg-btn vsrc-upload" data-vsrc="upload" onclick="pickVisualSource(this)">Upload<small>your own art</small></button>
+              <button type="button" class="seg-btn vsrc-hf sel" data-vsrc="higgsfield" onclick="pickVisualSource(this)">Higgsfield<small id="vsrcHfSub">Nano Banana Pro · 4K</small></button>
+            </div>
+            <span class="hint vsrc-credits" style="margin-top:2px">Higgsfield is premium — ~2 credits/image · ~10 credits/clip.</span>
+          </div>
+          <div class="field full vdescfield" style="display:none">
+            <label>Describe the look you want <span style="color:var(--mute);font-weight:400">— the more vivid, the better the generation</span></label>
+            <textarea id="visualPrompt" placeholder="moody cinematic album cover, rain-soaked neon street, deep teal & gold, 35mm grain, dramatic rim light…" style="min-height:84px"></textarea>
           </div>
           <div class="field full" id="audioField" style="display:none">
             <label>Audio hook <span style="color:var(--mute);font-weight:400">— required for Kinetic / Montage (mp3, wav, m4a, aac…)</span></label>
@@ -414,8 +426,8 @@
             <!-- region drives these; submit handler reads them unchanged -->
             <input type="hidden" id="clipStart"><input type="hidden" id="clipEnd">
           </div>
-          <div class="field full leakfield" style="display:none">
-            <label>Your graphic <span style="color:var(--mute);font-weight:400">— optional: upload your own cover and we'll bake the title + tracklist over it. Leave empty to AI-generate one.</span></label>
+          <div class="field full leakfield leakuploadfield" style="display:none">
+            <label>Your graphic <span style="color:var(--mute);font-weight:400">— upload your own cover and we'll bake the title + tracklist over it.</span></label>
             <input type="file" id="leakImage" accept="image/*" style="width:100%;background:#15151a;border:1px solid var(--line);color:#f5f0e6;border-radius:10px;padding:11px 13px;font:500 13px/1.4 var(--sans)">
           </div>
           <div class="field full leakfield" style="display:none">
@@ -840,17 +852,60 @@ function tabTo(name){
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(LABELS[h])tabTo(h);});
 document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>tabTo(el.dataset.tab)));
 
+// ---- Visual source (Upload / Higgsfield) ----
+// Tracks the chosen source per family. Default = higgsfield (ComfyUI removed from UI).
+let visualSource = "higgsfield";
+function visualSourceSupported(){
+  return curFmt==='leak_graphic' || curFmt==='kinetic_lyric' || curFmt==='film_montage';
+}
+function pickVisualSource(btn){
+  document.querySelectorAll('#vsrcSeg .seg-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel'); visualSource = btn.dataset.vsrc;
+  syncAudioFields();
+}
+function syncVisualSource(){
+  // film_montage has no "upload your own art" path here — force off Upload, relabel Higgsfield.
+  const seg = document.getElementById('vsrcSeg');
+  const upBtn = seg.querySelector('.vsrc-upload');
+  const hfSub = document.getElementById('vsrcHfSub');
+  if(curFmt==='film_montage'){
+    upBtn.style.display='none';
+    hfSub.textContent='Kling · video';
+    if(visualSource==='upload'){ // upload not offered for montage → fall back to Higgsfield
+      visualSource='higgsfield';
+      seg.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('sel', b.dataset.vsrc==='higgsfield'));
+    }
+  } else {
+    upBtn.style.display='';
+    hfSub.textContent='Nano Banana Pro · 4K';
+  }
+}
+
 function syncAudioFields(){
   const needsAudio = (curFmt==='kinetic_lyric'||curFmt==='film_montage');
   document.getElementById('audioField').style.display = needsAudio?'':'none';
   document.querySelectorAll('.clipfield').forEach(el=>el.style.display = needsAudio?'':'none');
   document.querySelectorAll('.montagefield').forEach(el=>el.style.display = (curFmt==='film_montage')?'':'none');
+  // leak text fields (title/tracklist) stay on leak_graphic; the "upload your own" file input only on upload source.
   document.querySelectorAll('.leakfield').forEach(el=>el.style.display=(curFmt==='leak_graphic')?'':'none');
+  // Visual-source control + describe box
+  const vSupported = visualSourceSupported();
+  document.querySelectorAll('.vsrcfield').forEach(el=>el.style.display = vSupported?'':'none');
+  if(vSupported) syncVisualSource();
+  const isUpload = (visualSource==='upload');
+  // describe box shows whenever the AI source (higgsfield) is chosen (i.e. not Upload)
+  document.querySelectorAll('.vdescfield').forEach(el=>el.style.display = (vSupported && !isUpload)?'':'none');
+  // leak "upload your own graphic" file input only when leak_graphic + Upload chosen
+  document.querySelectorAll('.leakuploadfield').forEach(el=>el.style.display = (curFmt==='leak_graphic' && isUpload)?'':'none');
   document.querySelectorAll('.sizefield').forEach(el=>el.style.display = '');  // sizes on every format
 }
 document.querySelectorAll('.fmt').forEach(f=>f.addEventListener('click',()=>{
   document.querySelectorAll('.fmt').forEach(x=>x.classList.remove('sel'));
-  f.classList.add('sel'); curFmt=f.dataset.fmt; syncAudioFields();
+  f.classList.add('sel'); curFmt=f.dataset.fmt;
+  // Reset visual source to default so a stale "upload" pick from another format doesn't leak.
+  visualSource='higgsfield';
+  document.querySelectorAll('#vsrcSeg .seg-btn').forEach(b=>b.classList.toggle('sel', b.dataset.vsrc==='higgsfield'));
+  syncAudioFields();
 }));
 syncAudioFields();
 const vars=document.getElementById('vars'), varsval=document.getElementById('varsval');
@@ -870,6 +925,20 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
     variations:Number(vars.value),
     remix:Number(document.getElementById('remix').value)||1
   };
+  // ---- Visual source contract ----
+  // image_source for leak_graphic/kinetic_lyric ; video_source for film_montage.
+  // ComfyUI removed from UI — the AI path is always Higgsfield now. Upload (leak only) skips the source key.
+  const aiSelected = visualSourceSupported() && visualSource==='higgsfield';
+  const describeVal = (document.getElementById('visualPrompt')||{}).value || '';
+  if(aiSelected){
+    if(curFmt==='film_montage') params.video_source='higgsfield';
+    else params.image_source='higgsfield';
+  }
+  // Rich describe text → backend's existing keys.
+  if(aiSelected && describeVal.trim()){
+    if(curFmt==='film_montage') params.generate_prompt=describeVal.trim();
+    else params.vessel_prompt=describeVal.trim();
+  }
   try{
     if(needsAudio){
       const fileEl=document.getElementById('audio');
@@ -888,7 +957,13 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
       if(curFmt==='film_montage'){
         params.sources=document.getElementById('sources').value.split('\n').map(s=>s.trim()).filter(Boolean);
         params.generate=Number(document.getElementById('genN').value)||0;
-        if(!params.sources.length && !params.generate){toast('Add a clip source or set generate ≥ 1');return;}
+        // Higgsfield Kling can generate from the describe prompt even with no listed sources.
+        const hasGenPrompt = (visualSource==='higgsfield' && (params.generate_prompt||'').length>0);
+        if(!params.sources.length && !params.generate && !hasGenPrompt){toast('Add a clip source or set generate ≥ 1');return;}
+        // No sources + Higgsfield → backend needs generate ≥ 1 or it raises "no clips". Force at least 1.
+        if(params.video_source==='higgsfield' && !params.sources.length){
+          params.generate = Number(document.getElementById('genN').value) || 1;
+        }
       }
     }
     if(curFmt==='leak_graphic'){
@@ -896,9 +971,9 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
       if(lt) params.title=lt;
       const tl=document.getElementById('leakTracklist').value.split('\n').map(s=>s.trim()).filter(Boolean);
       if(tl.length) params.tracklist=tl;
-      // Optional: upload your own graphic to bake the text over (else AI-generate).
+      // Upload-your-own-graphic path only when the Upload source is chosen.
       const imgEl=document.getElementById('leakImage');
-      if(imgEl && imgEl.files && imgEl.files.length){
+      if(visualSource==='upload' && imgEl && imgEl.files && imgEl.files.length){
         toast('Uploading your graphic…');
         const ifd=new FormData(); ifd.append('file', imgEl.files[0]);
         const iup=await fetch(API+'/forge/uploads',{method:'POST',credentials:'include',body:ifd});

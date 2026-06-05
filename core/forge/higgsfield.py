@@ -76,8 +76,9 @@ def _run_cli(args: list[str], timeout: int) -> str | None:
         logger.error("higgsfield CLI not found — install with: npm i -g @higgsfield/cli")
         return None
     env = os.environ.copy()
-    # Ensure the node bin dir is on PATH so the CLI's own resolution works under systemd.
-    env["PATH"] = env.get("PATH", "") + os.pathsep + str(Path(cli).parent)
+    # PREPEND the CLI's own bin dir (nvm node 22 lives beside it) so the right `node`
+    # runs the CLI — under a stripped systemd PATH an older /usr/bin/node would crash it.
+    env["PATH"] = str(Path(cli).parent) + os.pathsep + env.get("PATH", "")
     try:
         proc = subprocess.run(
             [cli, *args],

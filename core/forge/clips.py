@@ -147,17 +147,57 @@ def fetch_source(spec: str, out_dir: Path, timeout: int = 480) -> list[Path]:
     return new
 
 
-def generate_clip(prompt: str, out_dir: Path, duration: int = 6) -> Path:
-    """Generate an LTX vessel clip on ComfyUI Cloud."""
+def generate_clip(prompt: str, out_dir: Path, duration: int = 6, *,
+                  source: str = "higgsfield", start_frame: str | Path | None = None) -> Path:
+    """Generate a vessel clip for Forge — Kling on Higgsfield (default) or ComfyUI emergency.
+
+    ``source="higgsfield"`` (the DEFAULT) drives Kling v3.0 (image-to-video) on the Ultra
+    subscription: Kling needs a start frame, so when none is supplied we first synthesise a
+    still via the image dispatcher and feed it in. ComfyUI/LTX is NOT silently used for the
+    Mainstay team — on a Higgsfield failure we only fall back when the emergency switch is
+    on; otherwise we raise so the job fails visibly and we top up / re-auth.
+    """
+    import logging
     import sys
     repo = Path(__file__).resolve().parent.parent
     if str(repo.parent) not in sys.path:
         sys.path.insert(0, str(repo.parent))
+
+    log = logging.getLogger(__name__)
+    dest = Path(out_dir) / f"gen_{uuid.uuid4().hex}.mp4"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    source = (source or "higgsfield").lower()
+
+    if source != "comfyui":  # default Forge path = Higgsfield (Kling)
+        from core.forge import higgsfield  # lazy: keeps SDK optional
+        if higgsfield.is_available():
+            frame = start_frame
+            if frame is None:
+                # Kling is image-to-video — needs a start frame. Synthesise one.
+                from core.forge import image_generation
+                frame = image_generation.render_image(prompt, 1080, 1920, source="higgsfield")
+            res = higgsfield.generate_video(
+                prompt, dest, start_image=frame, duration=duration, aspect_ratio="9:16",
+            )
+            if res and Path(res).exists():
+                return Path(res)
+            log.error("HIGGSFIELD video generation failed (auth/credits/empty result).")
+        else:
+            log.error("HIGGSFIELD CLI unavailable — cannot generate clip.")
+
+        # Higgsfield is down — break-glass only.
+        from core.forge.image_generation import comfyui_emergency_enabled
+        if not comfyui_emergency_enabled():
+            raise RuntimeError(
+                "Higgsfield video unavailable (out of credits?) and emergency ComfyUI is OFF. "
+                "Check `higgsfield account status`; touch data/forge_emergency_comfyui.flag to "
+                "bring ComfyUI back."
+            )
+        log.warning("FORGE_EMERGENCY_COMFYUI active — serving LTX/ComfyUI fallback clip.")
+
     from scripts.rucktalk_common import run_comfyui_video_cloud
     res = run_comfyui_video_cloud(prompt, duration=duration)
     if not res or not Path(res).exists():
         raise RuntimeError("LTX cloud returned no video")
-    dest = Path(out_dir) / f"gen_{uuid.uuid4().hex}.mp4"
-    dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(Path(res).read_bytes())
     return dest

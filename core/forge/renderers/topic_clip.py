@@ -764,6 +764,9 @@ def _synthesise_visual(
     work_dir: Path,
     w: int = 1080,
     h: int = 1920,
+    image_source: str = "higgsfield",
+    image_model: str | None = None,
+    aspect: str | None = None,
 ) -> Path:
     """Build a 9:16 video from a generated still + the concatenated audio.
 
@@ -782,10 +785,15 @@ def _synthesise_visual(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     audio_path = Path(audio_path)
 
-    # Lazy import — never at module level (keeps imports safe in test env)
+    # Lazy import — never at module level (keeps imports safe in test env).
+    # Routes through the image dispatcher: ComfyUI Cloud by default, Higgsfield
+    # when the job opts in (with ComfyUI fallback baked into the dispatcher).
     try:
-        from scripts.rucktalk_common import run_comfyui_cloud  # noqa: PLC0415
-        img = run_comfyui_cloud(caption_seed, width=w, height=h)
+        from core.forge import image_generation  # noqa: PLC0415
+        img = image_generation.render_image(
+            caption_seed, w, h,
+            source=image_source, model=image_model, aspect=aspect,
+        )
     except Exception:
         img = None
 
@@ -835,6 +843,9 @@ def assemble_variant(
     caption_color: str | None = None,
     w: int = 1080,
     h: int = 1920,
+    image_source: str = "higgsfield",
+    image_model: str | None = None,
+    aspect: str | None = None,
 ) -> Path:
     """Assemble one structural variant into a branded master at w x h.
 
@@ -886,6 +897,9 @@ def assemble_variant(
             visual_out,
             work_dir,
             w=w, h=h,
+            image_source=image_source,
+            image_model=image_model,
+            aspect=aspect,
         )
 
     # 4. Captions — style-aware rolling track.
@@ -1026,6 +1040,9 @@ def render(params: dict, out_path: str | Path) -> Path:
             caption_font=caption_font,
             caption_color=caption_color,
             w=W, h=H,
+            image_source=params.get("image_source", "higgsfield"),
+            image_model=params.get("image_model"),
+            aspect=params.get("aspect"),
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)

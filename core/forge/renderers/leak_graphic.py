@@ -107,17 +107,20 @@ def render(params: dict, out_path: str | Path) -> Path:
             raise RuntimeError("uploaded base graphic not found")
         art.write_bytes(Path(src).read_bytes())
     else:
-        if str(REPO) not in sys.path:
-            sys.path.insert(0, str(REPO))
-        from scripts.rucktalk_common import run_comfyui_cloud  # lazy: heavy import
+        from core.forge import image_generation  # lazy: heavy import
 
         prompt = build_prompt(params.get("caption", ""), override=params.get("vessel_prompt"))
-        result = run_comfyui_cloud(prompt, width=W, height=H)
+        result = image_generation.render_image(
+            prompt, W, H,
+            source=params.get("image_source", "higgsfield"),
+            model=params.get("image_model"),
+            aspect=params.get("aspect"),
+        )
         if not result:
-            raise RuntimeError("ComfyUI Cloud returned no image")
+            raise RuntimeError("image generation returned no image")
         src = Path(result)
         if not src.exists():
-            raise RuntimeError(f"ComfyUI image missing on disk: {src}")
+            raise RuntimeError(f"generated image missing on disk: {src}")
         art.write_bytes(src.read_bytes())
 
     # 2. Parse text inputs

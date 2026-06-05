@@ -137,17 +137,19 @@ def render(params: dict, out_path: str | Path) -> Path:
     style_spec = caption_styles.resolve(
         style_id if (style_id and caption_styles.is_valid(style_id)) else "karaoke_gold")
 
-    # 4. Vessel image via ComfyUI Cloud (same lazy-import pattern as leak_graphic)
-    if str(REPO) not in sys.path:
-        sys.path.insert(0, str(REPO))
-    from scripts.rucktalk_common import run_comfyui_cloud  # lazy: heavy import
+    # 4. Vessel image via the image dispatcher (ComfyUI Cloud, or Higgsfield when
+    #    params opt in). Same lazy-import pattern as leak_graphic.
+    from core.forge import image_generation  # lazy: heavy import
 
-    img = run_comfyui_cloud(
+    img = image_generation.render_image(
         _vessel_prompt(params.get("caption", ""), params.get("vessel_prompt")),
-        width=W, height=H,
+        W, H,
+        source=params.get("image_source", "higgsfield"),
+        model=params.get("image_model"),
+        aspect=params.get("aspect"),
     )
     if not img:
-        raise RuntimeError("ComfyUI Cloud returned no vessel image")
+        raise RuntimeError("vessel image generation returned no image")
     img = Path(img)
     if not img.exists():
         raise RuntimeError(f"vessel image missing on disk: {img}")
