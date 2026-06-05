@@ -61,8 +61,6 @@ EMAIL_ACCOUNTS = {
         "use_ssl": True,
         "password_env": "EMAIL_PASS_ALFRED",
     },
-    # Gmail-backed Alfred outbound — used by the AI Audit funnel to send PDFs
-    # from alfred@groundrushinc.com (the deliverable Google Workspace inbox).
     "alfred-gw": {
         "email": "alfred@groundrushinc.com",
         "name": "Alfred",
@@ -112,6 +110,16 @@ EMAIL_ACCOUNTS = {
         "smtp_port": 465,
         "use_ssl": True,
         "password_env": "EMAIL_PASS_GROUNDRUSHINC",
+    },
+    "legal": {
+        "email": "legal@groundrushlabs.com",
+        "name": "Ground Rush Legal",
+        "imap_server": "mail.doowoprnb.com",
+        "imap_port": 993,
+        "smtp_server": "mail.doowoprnb.com",
+        "smtp_port": 465,
+        "use_ssl": True,
+        "password_env": "EMAIL_PASS_LEGAL",
     },
 }
 
@@ -350,12 +358,16 @@ class EmailClient:
         attachments: Optional[list[dict]] = None,
         reply_to: Optional[str] = None,
         cc: Optional[list[str]] = None,
+        text_body: Optional[str] = None,
     ) -> dict:
         """Send an email from an account.
 
         attachments: list of {"filename": str, "content": bytes, "mimetype": str}
             mimetype can be "application/pdf", "image/png", etc. Defaults split
             on "/"; falls back to application/octet-stream.
+        text_body: optional plain-text alternative for html sends. When provided
+            with html=True, the message ships as multipart/alternative with the
+            text part first — markedly better inbox placement (avoids spam).
         """
         try:
             config = self._resolve_account(account)
@@ -369,6 +381,8 @@ class EmailClient:
                 msg = MIMEMultipart("mixed")
                 if html:
                     alt = MIMEMultipart("alternative")
+                    if text_body:
+                        alt.attach(MIMEText(text_body, "plain"))
                     alt.attach(MIMEText(body, "html"))
                     msg.attach(alt)
                 else:
@@ -386,6 +400,8 @@ class EmailClient:
                     msg.attach(part)
             elif html:
                 msg = MIMEMultipart("alternative")
+                if text_body:
+                    msg.attach(MIMEText(text_body, "plain"))
                 msg.attach(MIMEText(body, "html"))
             else:
                 msg = MIMEText(body)
