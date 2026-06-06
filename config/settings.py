@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     azuracast_api_key: str = ""
 
     # --- Central Casting ---
+    # Feature flag. OFF in prod (alfred.service); set CASTING_ENABLED=1 on the
+    # beta instance to load the full casting router + nav tab. One codebase.
+    casting_enabled: bool = False
     casting_db_path: str = "/home/aialfred/alfred/data/casting.db"
     casting_voices_dir: str = "/home/aialfred/alfred/data/casting/voices"
     casting_previews_dir: str = "/home/aialfred/alfred/data/casting/previews"

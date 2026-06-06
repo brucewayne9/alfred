@@ -14,9 +14,11 @@ import { useWebSocket } from '../../hooks/useWebSocket'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { useHandsFree } from '../../hooks/useHandsFree'
 import { useWakeWord } from '../../hooks/useWakeWord'
+import { apiFetch } from '../../api/client'
 
 export function AppLayout() {
   const [currentView, setCurrentView] = useState<'chat' | 'knowledge' | 'casting'>('chat')
+  const [castingEnabled, setCastingEnabled] = useState(false)
   const { messages, currentConversationId } = useChatStore()
   const { loadConversations, loadProjects } = useSidebarStore()
   const { subscribe } = usePushNotifications()
@@ -29,19 +31,27 @@ export function AppLayout() {
     loadConversations()
     loadProjects()
     subscribe().catch(() => {})
+    apiFetch<{ enabled: boolean }>('/api/casting/enabled')
+      .then(r => setCastingEnabled(!!r.enabled))
+      .catch(() => setCastingEnabled(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If casting gets disabled while we're on its view, fall back to chat.
+  useEffect(() => {
+    if (!castingEnabled && currentView === 'casting') setCurrentView('chat')
+  }, [castingEnabled, currentView])
 
   const hasMessages = messages.length > 0 || currentConversationId
 
   return (
     <div className="h-full flex flex-col bg-alfred-bg safe-top">
-      <Header currentView={currentView} onViewChange={setCurrentView} />
+      <Header currentView={currentView} onViewChange={setCurrentView} castingEnabled={castingEnabled} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 flex flex-col min-w-0">
           {currentView === 'knowledge' ? (
             <KnowledgePage />
-          ) : currentView === 'casting' ? (
+          ) : currentView === 'casting' && castingEnabled ? (
             <CastingApp />
           ) : hasMessages ? (
             <>

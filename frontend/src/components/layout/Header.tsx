@@ -78,9 +78,10 @@ function TtsPopover({ onClose }: { onClose: () => void }) {
 interface HeaderProps {
   currentView?: 'chat' | 'knowledge' | 'casting'
   onViewChange?: (view: 'chat' | 'knowledge' | 'casting') => void
+  castingEnabled?: boolean
 }
 
-export function Header({ currentView = 'chat', onViewChange }: HeaderProps) {
+export function Header({ currentView = 'chat', onViewChange, castingEnabled = false }: HeaderProps) {
   const { logout, user } = useAuthStore()
   const toggleSidebar = useSidebarStore(s => s.toggle)
   const { autoSpeak, setAutoSpeak, handsFreeActive, setHandsFree, wakeWordActive, setWakeWord } = useVoiceStore()
@@ -143,13 +144,15 @@ export function Header({ currentView = 'chat', onViewChange }: HeaderProps) {
           <BookOpen size={18} />
         </button>
 
-        <button
-          onClick={() => onViewChange?.(currentView === 'casting' ? 'chat' : 'casting')}
-          className={`p-2 rounded-lg transition-colors ${currentView === 'casting' ? 'text-alfred-accent bg-alfred-accent/10' : 'text-alfred-muted hover:text-white hover:bg-alfred-hover'}`}
-          title="Central Casting"
-        >
-          <Radio size={18} />
-        </button>
+        {castingEnabled && (
+          <button
+            onClick={() => onViewChange?.(currentView === 'casting' ? 'chat' : 'casting')}
+            className={`p-2 rounded-lg transition-colors ${currentView === 'casting' ? 'text-alfred-accent bg-alfred-accent/10' : 'text-alfred-muted hover:text-white hover:bg-alfred-hover'}`}
+            title="Central Casting"
+          >
+            <Radio size={18} />
+          </button>
+        )}
 
         {showTts && <TtsPopover onClose={() => setShowTts(false)} />}
 
