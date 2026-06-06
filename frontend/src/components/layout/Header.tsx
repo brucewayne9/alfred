@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Menu, LogOut, Volume2, VolumeX, Headphones, AudioWaveform, Settings2, BookOpen } from 'lucide-react'
+import { Menu, LogOut, Volume2, VolumeX, Headphones, AudioWaveform, Settings2, BookOpen, Radio } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { useSidebarStore } from '../../stores/sidebarStore'
 import { useVoiceStore } from '../../stores/voiceStore'
@@ -76,8 +76,8 @@ function TtsPopover({ onClose }: { onClose: () => void }) {
 }
 
 interface HeaderProps {
-  currentView?: 'chat' | 'knowledge'
-  onViewChange?: (view: 'chat' | 'knowledge') => void
+  currentView?: 'chat' | 'knowledge' | 'casting'
+  onViewChange?: (view: 'chat' | 'knowledge' | 'casting') => void
 }
 
 export function Header({ currentView = 'chat', onViewChange }: HeaderProps) {
@@ -141,6 +141,14 @@ export function Header({ currentView = 'chat', onViewChange }: HeaderProps) {
           title="Knowledge Base"
         >
           <BookOpen size={18} />
+        </button>
+
+        <button
+          onClick={() => onViewChange?.(currentView === 'casting' ? 'chat' : 'casting')}
+          className={`p-2 rounded-lg transition-colors ${currentView === 'casting' ? 'text-alfred-accent bg-alfred-accent/10' : 'text-alfred-muted hover:text-white hover:bg-alfred-hover'}`}
+          title="Central Casting"
+        >
+          <Radio size={18} />
         </button>
 
         {showTts && <TtsPopover onClose={() => setShowTts(false)} />}

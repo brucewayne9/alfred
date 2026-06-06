@@ -9,13 +9,14 @@ import { VadStatus } from '../voice/VadStatus'
 import { useChatStore } from '../../stores/chatStore'
 import { useSidebarStore } from '../../stores/sidebarStore'
 import { KnowledgePage } from '../knowledge/KnowledgePage'
+import { CastingApp } from '../casting/CastingApp'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { useHandsFree } from '../../hooks/useHandsFree'
 import { useWakeWord } from '../../hooks/useWakeWord'
 
 export function AppLayout() {
-  const [currentView, setCurrentView] = useState<'chat' | 'knowledge'>('chat')
+  const [currentView, setCurrentView] = useState<'chat' | 'knowledge' | 'casting'>('chat')
   const { messages, currentConversationId } = useChatStore()
   const { loadConversations, loadProjects } = useSidebarStore()
   const { subscribe } = usePushNotifications()
@@ -40,6 +41,8 @@ export function AppLayout() {
         <main className="flex-1 flex flex-col min-w-0">
           {currentView === 'knowledge' ? (
             <KnowledgePage />
+          ) : currentView === 'casting' ? (
+            <CastingApp />
           ) : hasMessages ? (
             <>
               <ChatArea />
