@@ -16,9 +16,12 @@ def _preview_path(dj_id: int) -> Path:
 
 def _render_preview_cached(dj_id: int) -> str:
     """Render the DJ's neutral clip to the cache path and return it. Caller must
-    ensure the DJ has a neutral clip first."""
+    ensure the DJ has a neutral clip first. Registers the neutral clip into the
+    Qwen resources dir first so 105:7860 can resolve it by name (not path)."""
     out = str(_preview_path(dj_id))
-    preview_mod.render_preview(voice_wav=voice.mood_path(dj_id, "neutral"), out_path=out)
+    voice.register_to_engine(dj_id, ["neutral"])
+    preview_mod.render_preview(
+        voice_name=voice.engine_voice_name(dj_id, "neutral"), out_path=out)
     return out
 
 def _dj_out(row: dict) -> dict:

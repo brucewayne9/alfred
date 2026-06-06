@@ -14,10 +14,11 @@ def test_preview_calls_qwen_with_neutral_voice(monkeypatch, tmp_path):
         return R()
     monkeypatch.setattr(pv.requests, "get", fake_get)
     out_path = str(tmp_path / "preview.wav")
-    result = pv.render_preview(voice_wav="/voices/7/neutral.wav",
+    result = pv.render_preview(voice_name="cc7_neutral",
                                line="Good morning, this is a test.", out_path=out_path)
     assert result == out_path
     assert "synthesize_speech" in calls["url"]
     assert calls["params"]["text"] == "Good morning, this is a test."
+    assert calls["params"]["voice"] == "cc7_neutral"
     with open(out_path, "rb") as fh:
         assert fh.read().startswith(b"RIFF")

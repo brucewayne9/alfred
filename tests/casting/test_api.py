@@ -10,6 +10,7 @@ def client(monkeypatch):
     monkeypatch.setattr(settings, "casting_db_path", os.path.join(tmp, "casting.db"), raising=False)
     monkeypatch.setattr(settings, "casting_voices_dir", os.path.join(tmp, "voices"), raising=False)
     monkeypatch.setattr(settings, "casting_previews_dir", os.path.join(tmp, "prev"), raising=False)
+    monkeypatch.setattr(settings, "qwen_resources_dir", os.path.join(tmp, "qwenres"), raising=False)
     import core.casting.db as dbmod; importlib.reload(dbmod); dbmod.init_db()
     import core.casting.api_router as r; importlib.reload(r)
     # bypass auth in tests
@@ -50,7 +51,7 @@ def test_get_preview_serves_cached(client, monkeypatch):
     dj_id = res.json()["id"]
     # mark a neutral clip present in the db (no real wav needed; render is stubbed)
     r.db.set_mood_present(dj_id, "neutral")
-    def fake_render(*, voice_wav, out_path, **kw):
+    def fake_render(*, voice_name, out_path, **kw):
         from pathlib import Path
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "wb") as fh:

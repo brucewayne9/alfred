@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     casting_voices_dir: str = "/home/aialfred/alfred/data/casting/voices"
     casting_previews_dir: str = "/home/aialfred/alfred/data/casting/previews"
     qwen_tts_url: str = "http://75.43.156.105:7860"
+    qwen_resources_dir: str = "/home/aialfred/qwen3-tts/resources"
     casting_ollama_url: str = "http://75.43.156.105:11434"
     casting_model: str = "kimi-k2.6:cloud"
     # AzuraCast deploy target (server 98)

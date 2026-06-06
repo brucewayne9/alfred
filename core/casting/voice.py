@@ -1,6 +1,6 @@
 # core/casting/voice.py
 from __future__ import annotations
-import json, subprocess
+import json, shutil, subprocess
 from pathlib import Path
 from config.settings import settings
 
@@ -50,3 +50,23 @@ def store_mood(*, dj_id: int, mood: str, src_path: str) -> str:
 
 def mood_path(dj_id: int, mood: str) -> str:
     return str(_voices_root() / str(dj_id) / f"{mood}.wav")
+
+def engine_voice_name(dj_id: int, mood: str) -> str:
+    """Collision-proof registered name (never clobbers live jocks like MJ_neutral)."""
+    return f"cc{dj_id}_{mood}"
+
+def register_to_engine(dj_id: int, moods: list[str]) -> dict[str, str]:
+    """Copy each stored mood clip into the Qwen resources dir under the id-namespaced
+    name `cc<dj_id>_<mood>.wav` so the 105:7860 server can resolve it by name.
+    Returns {mood: registered_name}. Skips moods with no stored clip."""
+    res_dir = Path(settings.qwen_resources_dir)
+    res_dir.mkdir(parents=True, exist_ok=True)
+    registered: dict[str, str] = {}
+    for mood in moods:
+        src = Path(mood_path(dj_id, mood))
+        if not src.exists():
+            continue
+        dest = res_dir / f"cc{dj_id}_{mood}.wav"
+        shutil.copyfile(str(src), str(dest))
+        registered[mood] = engine_voice_name(dj_id, mood)
+    return registered
