@@ -114,3 +114,7 @@ scripts/ag_manuals/screenshots/
 
 # YouTube session cookies — secret, never commit
 config/youtube_cookies.txt
+
+# Central Casting runtime data (library DB, voice clips, previews)
+data/casting.db
+data/casting/
