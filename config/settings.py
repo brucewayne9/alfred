@@ -77,6 +77,19 @@ class Settings(BaseSettings):
     azuracast_url: str = ""
     azuracast_api_key: str = ""
 
+    # --- Central Casting ---
+    casting_db_path: str = "/home/aialfred/alfred/data/casting.db"
+    casting_voices_dir: str = "/home/aialfred/alfred/data/casting/voices"
+    casting_previews_dir: str = "/home/aialfred/alfred/data/casting/previews"
+    qwen_tts_url: str = "http://75.43.156.105:7860"
+    casting_ollama_url: str = "http://75.43.156.105:11434"
+    casting_model: str = "kimi-k2.6:cloud"
+    # AzuraCast deploy target (server 98)
+    casting_ssh_host: str = "server-98"
+    casting_az_db_pass: str = "Yc2tNakqcne2"
+    casting_engine_voices_dir: str = "/var/azuracast"          # where <Base>_<mood>.wav live on 98
+    casting_station_id: int = 22
+
     # Meta Ads
     meta_app_id: str = ""
     meta_app_secret: str = ""
