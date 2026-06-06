@@ -28,8 +28,8 @@ class DeployError(RuntimeError):
     pass
 
 
-def _sh(cmd: list[str], timeout: int = 120) -> str:
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+def _sh(cmd: list[str], timeout: int = 120, input_text: str | None = None) -> str:
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, input=input_text)
     if r.returncode != 0:
         raise DeployError(f"cmd failed ({r.returncode}): {' '.join(cmd)}\n{r.stderr}")
     return r.stdout
@@ -98,12 +98,15 @@ def deploy_dj(*, dj_id: int, dj_name: str, moods: list[str], persona_prompt: str
     pw = settings.casting_az_db_pass
 
     def _exec(sql: str) -> str:
-        return _sh([
-            "timeout", "60", "ssh", host,
-            "sudo", "docker", "exec", "azuracast",
-            "mariadb", "-u", "azuracast", f"-p{pw}", "azuracast",
-            "-N", "-e", sql,
-        ])
+        # SQL goes over STDIN, not as a -e arg: ssh re-parses any trailing args
+        # through the REMOTE shell, which would mangle spaces/quotes/parens/
+        # semicolons in the SQL. Passing the remote command as one token and the
+        # SQL via stdin (docker exec -i) avoids all remote re-quoting.
+        remote = (
+            f"sudo docker exec -i azuracast "
+            f"mariadb -u azuracast -p{pw} azuracast -N"
+        )
+        return _sh(["timeout", "60", "ssh", host, remote], input_text=sql)
 
     # 2. SELECT existing row by (station_id, name)
     select_sql = (
