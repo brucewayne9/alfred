@@ -20,10 +20,13 @@ def test_apply_due_calls_deploy_and_marks(env, monkeypatch):
     aid = dbmod.create_assignment(dj_id=dj_id, station_id=22, slot="10a-2p",
                                   effective_at="2026-06-07T10:00:00")
     deployed = {}
-    monkeypatch.setattr(sch, "deploy_dj", lambda **kw: deployed.update(kw))
+    monkeypatch.setattr(sch.deploy, "deploy_dj", lambda **kw: deployed.update(kw))
     applied = sch.apply_due(now_iso="2026-06-07T10:01:00")
     assert applied == 1
-    assert deployed["base_name"] == "Sloan"
+    assert deployed["dj_name"] == "Sloan"
+    assert deployed["schedule_start"] == "10:00"
+    assert deployed["schedule_end"] == "14:00"
+    assert deployed["enabled"] is False
     assert dbmod.due_assignments(now_iso="2026-06-07T10:01:00") == []
     assert dbmod.get_dj(dj_id)["status"] == "live"
 
@@ -47,7 +50,7 @@ def test_apply_due_demotes_prior_live_dj(env, monkeypatch):
     dbmod.create_assignment(dj_id=new, station_id=22, slot="10a-2p",
                             effective_at="2026-06-07T10:00:00")
 
-    monkeypatch.setattr(sch, "deploy_dj", lambda **kw: None)
+    monkeypatch.setattr(sch.deploy, "deploy_dj", lambda **kw: None)
     sch.apply_due(now_iso="2026-06-07T10:01:00")
 
     assert dbmod.get_dj(old)["status"] == "ready"   # demoted

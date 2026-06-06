@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from core.casting import db
-from core.casting.deploy import deploy_dj, DeployError
+from core.casting import deploy
+from core.casting.deploy import DeployError
 
 def apply_due(now_iso: str | None = None) -> int:
     # Default to Eastern Time (Mike's TZ; CLAUDE.md mandates ET), naive seconds-ISO
@@ -16,9 +17,15 @@ def apply_due(now_iso: str | None = None) -> int:
         if not dj or dj["status"] == "draft" or not dj["moods_present"]:
             continue
         try:
-            deploy_dj(dj_id=dj["id"], base_name=dj["name"].replace(" ", "_"),
-                      moods=dj["moods_present"], persona_prompt=dj["persona_prompt"],
-                      station_id=a["station_id"])
+            schedule_start, schedule_end = deploy.slot_to_times(a["slot"])
+        except ValueError:
+            # unparseable slot — leave unapplied, operator must fix the slot
+            continue
+        try:
+            deploy.deploy_dj(dj_id=dj["id"], dj_name=dj["name"],
+                             moods=dj["moods_present"], persona_prompt=dj["persona_prompt"],
+                             station_id=a["station_id"], schedule_start=schedule_start,
+                             schedule_end=schedule_end, enabled=False)
         except DeployError:
             # leave unapplied so the next run retries; alerting handled by caller
             continue
