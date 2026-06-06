@@ -1,11 +1,14 @@
 # core/casting/deploy.py
 from __future__ import annotations
-import subprocess
+import re, subprocess
 from pathlib import Path
 from config.settings import settings
 
 class DeployError(RuntimeError):
     pass
+
+def _slug(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_-]", "", name.replace(" ", "_")) or "dj"
 
 def _sh(cmd: list[str], timeout: int = 120) -> str:
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -15,7 +18,6 @@ def _sh(cmd: list[str], timeout: int = 120) -> str:
 
 def _copy_wav(local: str, remote_name: str) -> None:
     host = settings.casting_ssh_host
-    remote = f"{host}:{settings.casting_engine_voices_dir}/{remote_name}"
     # copy to a temp on 98 then sudo-move into the engine dir (engine dir is root-owned)
     tmp_remote = f"/tmp/{remote_name}"
     _sh(["timeout", "120", "scp", local, f"{host}:{tmp_remote}"])
@@ -39,10 +41,11 @@ def _upsert_break(*, base_name: str, persona_prompt: str, station_id: int) -> No
 
 def deploy_dj(*, dj_id: int, base_name: str, moods: list[str], persona_prompt: str,
               station_id: int) -> None:
+    base = _slug(base_name)
     vdir = Path(settings.casting_voices_dir) / str(dj_id)
     for mood in moods:
         local = vdir / f"{mood}.wav"
         if not local.exists():
             raise DeployError(f"missing mood clip: {local}")
-        _copy_wav(str(local), f"{base_name}_{mood}.wav")
-    _upsert_break(base_name=base_name, persona_prompt=persona_prompt, station_id=station_id)
+        _copy_wav(str(local), f"{base}_{mood}.wav")
+    _upsert_break(base_name=base, persona_prompt=persona_prompt, station_id=station_id)

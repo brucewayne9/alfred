@@ -26,3 +26,29 @@ def test_apply_due_calls_deploy_and_marks(env, monkeypatch):
     assert deployed["base_name"] == "Sloan"
     assert dbmod.due_assignments(now_iso="2026-06-07T10:01:00") == []
     assert dbmod.get_dj(dj_id)["status"] == "live"
+
+def test_apply_due_demotes_prior_live_dj(env, monkeypatch):
+    dbmod, sch = env
+    # an incumbent live DJ already applied on station 22
+    old = dbmod.create_dj(name="Harry", role="host", persona_prompt="x",
+                          archetype_tags=[], expertise="", voice_source="recorded")
+    dbmod.set_mood_present(old, "neutral")
+    dbmod.set_status(old, "ready")
+    old_aid = dbmod.create_assignment(dj_id=old, station_id=22, slot="6a-10a",
+                                      effective_at="2026-06-07T06:00:00")
+    dbmod.mark_applied(old_aid)
+    dbmod.set_status(old, "live")
+
+    # new DJ taking the same station
+    new = dbmod.create_dj(name="Sloan", role="host", persona_prompt="x",
+                          archetype_tags=[], expertise="", voice_source="recorded")
+    dbmod.set_mood_present(new, "neutral")
+    dbmod.set_status(new, "ready")
+    dbmod.create_assignment(dj_id=new, station_id=22, slot="10a-2p",
+                            effective_at="2026-06-07T10:00:00")
+
+    monkeypatch.setattr(sch, "deploy_dj", lambda **kw: None)
+    sch.apply_due(now_iso="2026-06-07T10:01:00")
+
+    assert dbmod.get_dj(old)["status"] == "ready"   # demoted
+    assert dbmod.get_dj(new)["status"] == "live"     # promoted

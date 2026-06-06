@@ -86,6 +86,16 @@ def set_status(dj_id: int, status: str) -> None:
     with _conn() as c:
         c.execute("UPDATE dj SET status=? WHERE id=?", (status, dj_id))
 
+def demote_live_djs(station_id: int) -> None:
+    """Demote any DJ currently 'live' on this station back to 'ready' so a station
+    never has two live hosts at once."""
+    with _conn() as c:
+        c.execute(
+            "UPDATE dj SET status='ready' WHERE status='live' AND id IN "
+            "(SELECT dj_id FROM assignment WHERE station_id=? AND applied=1)",
+            (station_id,),
+        )
+
 def set_mood_present(dj_id: int, mood: str) -> None:
     with _conn() as c:
         r = c.execute("SELECT moods_present FROM dj WHERE id=?", (dj_id,)).fetchone()

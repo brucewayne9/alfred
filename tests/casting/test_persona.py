@@ -22,3 +22,15 @@ def test_draft_persona_uses_llm(monkeypatch):
     assert captured["body"]["model"]  # model set
     assert captured["body"]["think"] is False
     assert captured["body"]["stream"] is False
+
+def test_draft_persona_reads_reasoning_fallback(monkeypatch):
+    importlib.reload(p)
+    def fake_chat(url, json=None, timeout=None):
+        class R:
+            status_code = 200
+            def raise_for_status(self): pass
+            def json(self): return {"message": {"content": "", "reasoning": "PERSONA: from reasoning field"}}
+        return R()
+    monkeypatch.setattr(p.requests, "post", fake_chat)
+    out = p.draft_persona(name="Sloan", brief="warm realist", archetype_id="strategist")
+    assert "from reasoning field" in out.persona_prompt

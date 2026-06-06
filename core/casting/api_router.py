@@ -1,7 +1,8 @@
 from __future__ import annotations
 import shutil, tempfile
+from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from config.settings import settings
 from core.casting import db, voice, persona as persona_mod, preview as preview_mod
@@ -9,6 +10,16 @@ from core.casting.mood_pack import MOOD_PACK, MOODS
 from core.casting.archetypes import ARCHETYPES
 from core.casting.models import (DJCreate, DJOut, PersonaBrief, PersonaDraft,
                                  AssignmentCreate, AssignmentOut)
+
+def _preview_path(dj_id: int) -> Path:
+    return Path(settings.casting_previews_dir) / f"{dj_id}.wav"
+
+def _render_preview_cached(dj_id: int) -> str:
+    """Render the DJ's neutral clip to the cache path and return it. Caller must
+    ensure the DJ has a neutral clip first."""
+    out = str(_preview_path(dj_id))
+    preview_mod.render_preview(voice_wav=voice.mood_path(dj_id, "neutral"), out_path=out)
+    return out
 
 def _dj_out(row: dict) -> dict:
     return DJOut(
@@ -73,17 +84,36 @@ def register(app: FastAPI, auth_dep=None) -> None:
         row = db.get_dj(dj_id)
         if "neutral" in row["moods_present"] and row["status"] == "draft":
             db.set_status(dj_id, "ready")
+        # eagerly render+cache the preview off the neutral clip (best-effort)
+        if mood == "neutral":
+            try:
+                _render_preview_cached(dj_id)
+            except Exception:
+                pass
         return _dj_out(db.get_dj(dj_id))
 
-    @app.post("/api/casting/djs/{dj_id}/preview")
+    @app.get("/api/casting/djs/{dj_id}/preview")
     async def preview(dj_id: int, _user=Depends(guard)):
+        row = db.get_dj(dj_id)
+        if not row:
+            raise HTTPException(404, "DJ not found")
+        cached = _preview_path(dj_id)
+        if cached.exists():
+            return FileResponse(str(cached), media_type="audio/wav", filename=f"preview_{dj_id}.wav")
+        if "neutral" in row["moods_present"]:
+            out = _render_preview_cached(dj_id)
+            return FileResponse(out, media_type="audio/wav", filename=f"preview_{dj_id}.wav")
+        raise HTTPException(404, "no preview yet")
+
+    @app.post("/api/casting/djs/{dj_id}/preview")
+    async def rerender_preview(dj_id: int, _user=Depends(guard)):
+        # force re-render (re-roll): overwrite the cached file
         row = db.get_dj(dj_id)
         if not row:
             raise HTTPException(404, "DJ not found")
         if "neutral" not in row["moods_present"]:
             raise HTTPException(422, "need a neutral clip before preview")
-        out = str(Path(settings.casting_previews_dir) / f"{dj_id}.wav")
-        preview_mod.render_preview(voice_wav=voice.mood_path(dj_id, "neutral"), out_path=out)
+        out = _render_preview_cached(dj_id)
         return FileResponse(out, media_type="audio/wav", filename=f"preview_{dj_id}.wav")
 
     @app.get("/api/casting/assignments")
@@ -100,6 +130,12 @@ def register(app: FastAPI, auth_dep=None) -> None:
             raise HTTPException(404, "DJ not found")
         if row["status"] == "draft":
             raise HTTPException(422, "DJ is still a draft; add a neutral clip first")
+        # datetime-local sends "YYYY-MM-DDTHH:MM" (no seconds). Normalize to a
+        # canonical seconds-precision ISO string so lexical compares stay sound.
+        try:
+            eff = datetime.fromisoformat(body.effective_at).isoformat(timespec="seconds")
+        except ValueError:
+            raise HTTPException(422, "bad effective_at")
         aid = db.create_assignment(dj_id=body.dj_id, station_id=body.station_id,
-                                   slot=body.slot, effective_at=body.effective_at)
+                                   slot=body.slot, effective_at=eff)
         return {"id": aid}

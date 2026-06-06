@@ -23,6 +23,12 @@ export const castingApi = {
     return apiUpload<DJ>(`/api/casting/djs/${djId}/voice/${mood}`, fd)
   },
   previewUrl: (djId: number) => `/api/casting/djs/${djId}/preview`,
+  // Force a re-render ("re-roll") of the preview and return a fresh blob URL.
+  rerenderPreview: async (djId: number) => {
+    const res = await fetch(`/api/casting/djs/${djId}/preview`, { method: 'POST', credentials: 'include' })
+    if (!res.ok) throw new Error(`preview rerender failed (${res.status})`)
+    return URL.createObjectURL(await res.blob())
+  },
   listAssignments: (stationId?: number) =>
     apiFetch<Assignment[]>(`/api/casting/assignments${stationId ? `?station_id=${stationId}` : ''}`),
   createAssignment: (dj_id: number, station_id: number, slot: string, effective_at: string) =>

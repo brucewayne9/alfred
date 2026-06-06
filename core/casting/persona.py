@@ -39,6 +39,7 @@ def draft_persona(*, name: str, brief: str, archetype_id: str | None = None) -> 
     }
     resp = requests.post(f"{settings.casting_ollama_url}/api/chat", json=body, timeout=120)
     resp.raise_for_status()
-    content = (resp.json().get("message", {}) or {}).get("content", "").strip()
+    msg = (resp.json().get("message", {}) or {})
+    content = (msg.get("content") or msg.get("reasoning") or "").strip()
     tags = [archetype_id] if archetype_id else []
     return PersonaDraft(persona_prompt=content, archetype_tags=tags)
