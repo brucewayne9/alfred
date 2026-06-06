@@ -149,6 +149,27 @@ _drafts_dir = Path.home() / ".openclaw" / "workspace" / "static" / "drafts"
 if _drafts_dir.exists():
     app.mount("/drafts", StaticFiles(directory=str(_drafts_dir), html=True), name="drafts")
 
+# W. Pharr Rd. Arcade — neighborhood leaderboards
+try:
+    from core.api.arcade_scores import register as _register_arcade
+    _register_arcade(app)
+except Exception as _e:
+    logger.exception("arcade_scores register failed: %s", _e)
+
+# The Rollout — living board for Mainstay work (gated at edge by Caddy basic_auth)
+try:
+    from core.api.rollout_board import register as _register_rollout
+    _register_rollout(app)
+except Exception as _e:
+    logger.exception("rollout_board register failed: %s", _e)
+
+# Arena Portal — Rod Wave tour venue front door (public) + command center (admin)
+try:
+    from core.api.arena_portal import register as _register_arena_portal
+    _register_arena_portal(app)
+except Exception as _e:
+    logger.exception("arena_portal register failed: %s", _e)
+
 # AI Savings Audit — public lead capture for the calculator funnel
 try:
     from core.api.audit_endpoint import register as _register_audit
@@ -163,12 +184,33 @@ try:
 except Exception as _e:
     logger.exception("audit_admin register failed: %s", _e)
 
+# RuckTalk daily-episode approval gate — admin at /admin/rucktalk/pending
+try:
+    from core.api.rucktalk_admin import register as _register_rucktalk_admin
+    _register_rucktalk_admin(app)
+except Exception as _e:
+    logger.exception("rucktalk_admin register failed: %s", _e)
+
+# Roen Handmade FB Page draft-and-approve queue — admin at /admin/roen/social-pending
+try:
+    from core.api.roen_admin import register as _register_roen_admin
+    _register_roen_admin(app)
+except Exception as _e:
+    logger.exception("roen_admin register failed: %s", _e)
+
 # SEO admin — /admin/seo dashboard, /admin/seo/sites/<slug>
 try:
     from core.api.seo_admin import register as _register_seo_admin
     _register_seo_admin(app)
 except Exception as _e:
     logger.exception("seo_admin register failed: %s", _e)
+
+# Central Casting — AI DJ studio at /api/casting/*
+try:
+    from core.api.central_casting import register as _register_central_casting
+    _register_central_casting(app)
+except Exception as _e:
+    logger.exception("central_casting register failed: %s", _e)
 
 
 @app.get("/static/drafts/{file_path:path}")
@@ -1705,6 +1747,179 @@ async def set_tts_settings(backend: str, user: dict = Depends(require_auth)):
     settings.tts_model = backend
 
     return {"backend": backend, "message": f"TTS backend set to {backend}"}
+
+
+# ==================== Fit as Ruck — Stripe → Brevo ====================
+
+FITASRUCK_DELIVERY_HTML = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#F4F1EA;color:#1a1a1a;margin:0;padding:40px 16px;line-height:1.55}
+.wrap{max-width:560px;margin:0 auto;background:#fff;padding:40px 28px;border:1px solid #e5e0d5}
+h1{font-family:'Big Shoulders Stencil Display',Impact,sans-serif;font-size:44px;margin:0 0 6px;letter-spacing:0.02em;text-transform:uppercase;color:#0D0D0D;line-height:0.92}
+h1 .ac{color:#E8622B}
+.eyebrow{font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:#E8622B;font-weight:700;margin-bottom:12px}
+.btn{display:inline-block;background:#E8622B;color:#fff;padding:16px 28px;text-decoration:none;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;font-size:13px;margin:24px 0}
+p{margin:0 0 14px;font-size:16px}
+.footer{margin-top:36px;padding-top:18px;border-top:1px solid #e5e0d5;color:#8A847A;font-size:11px;letter-spacing:0.1em;text-transform:uppercase}
+.sig{font-style:italic;font-size:18px;margin-top:20px;color:#0D0D0D}
+</style>
+</head><body>
+<div class="wrap">
+<div class="eyebrow">Fit as Ruck · Your Program</div>
+<h1>You're <span class="ac">in.</span></h1>
+<p>Your 8-week program is waiting. Download the PDF below — save it to your phone or computer, you'll come back to it a lot over the next 8 weeks.</p>
+<p><a class="btn" href="{pdf_url}">Download the PDF</a></p>
+<p style="background:#F4F1EA;border-left:3px solid #E8622B;padding:12px 14px;font-size:14px;color:#4a4a4a;margin:18px 0">Heads up — if you don't see this email in your inbox, check your spam or promotions folder and mark it "not spam" so the rest of the series lands where it should.</p>
+<p>Tonight, do one thing — open the PDF and read Chapter 1 all the way through. Don't skim, don't jump to the workout schedule. Chapter 1 explains why this program is built the way it is. If you skip it, the rest won't make as much sense.</p>
+<p>Over the next three weeks you'll get ten short emails from me — gear, pacing, the mistake most people make in Week 1, and a preview of the Week 8 Finisher. Nothing salesy. Just the stuff I wish someone had told me.</p>
+<p class="sig">— MJ</p>
+<div class="footer">Questions? reply to this email. Refund? reply within 7 days.<br>A Ground Rush Inc product · fitasruck.com</div>
+</div></body></html>"""
+
+
+@app.post("/webhooks/stripe-fitasruck")
+async def stripe_fitasruck_webhook(request: Request):
+    """Stripe webhook for Fit as Ruck purchases.
+
+    Verifies signature, then:
+      1. Adds buyer to Brevo contact list (Fit as Ruck — Buyers)
+      2. Sends delivery email with PDF download link
+    """
+    import stripe
+    from integrations.brevo.client import add_or_update_contact, send_transactional
+
+    stripe.api_key = settings.stripe_api_key
+    webhook_secret = settings.stripe_fitasruck_webhook_secret
+
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    if not webhook_secret:
+        logger.error("stripe-fitasruck webhook: signing secret not configured")
+        return Response(status_code=500, content="webhook not configured")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except ValueError:
+        logger.warning("stripe-fitasruck webhook: invalid payload")
+        return Response(status_code=400, content="invalid payload")
+    except stripe.error.SignatureVerificationError:
+        logger.warning("stripe-fitasruck webhook: invalid signature")
+        return Response(status_code=400, content="invalid signature")
+
+    # Convert Stripe object graph to plain dict so .get() works everywhere
+    event_dict = event.to_dict() if hasattr(event, "to_dict") else dict(event)
+    event_type = event_dict.get("type", "")
+    logger.info(f"stripe-fitasruck webhook: {event_type} id={event_dict.get('id')}")
+
+    if event_type != "checkout.session.completed":
+        return {"received": True, "ignored": event_type}
+
+    session = event_dict.get("data", {}).get("object", {}) or {}
+    customer_details = session.get("customer_details") or {}
+    email = customer_details.get("email") or session.get("customer_email") or ""
+    name = customer_details.get("name") or ""
+    amount_total = session.get("amount_total", 0) or 0
+
+    if not email:
+        logger.error(f"stripe-fitasruck: checkout session missing email, session={session.get('id')}")
+        return {"received": True, "error": "no_email"}
+
+    logger.info(f"stripe-fitasruck: purchase from {email} (${amount_total/100:.2f})")
+
+    # 1. Add to Brevo list
+    try:
+        from datetime import datetime, timezone
+        first_name = name.split(" ")[0] if name else ""
+        signup_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        attrs = {
+            "FIRSTNAME": first_name,
+            "FIT_AS_RUCK_BUYER": True,
+            "FAR_SIGNUP_DATE": signup_iso,
+        }
+        add_or_update_contact(email=email, attributes=attrs, list_ids=[settings.fitasruck_buyers_list_id])
+        logger.info(f"stripe-fitasruck: added {email} to Brevo list {settings.fitasruck_buyers_list_id}")
+    except Exception as e:
+        logger.exception(f"stripe-fitasruck: Brevo contact add failed for {email}: {e}")
+
+    # 2. Send delivery email
+    try:
+        html = FITASRUCK_DELIVERY_HTML.replace("{pdf_url}", settings.fitasruck_pdf_url)
+        send_transactional(
+            to_email=email,
+            to_name=name or None,
+            subject="Your Fit as Ruck program is inside",
+            html_content=html,
+            tags=["fitasruck", "delivery"],
+        )
+        logger.info(f"stripe-fitasruck: delivery email sent to {email}")
+    except Exception as e:
+        logger.exception(f"stripe-fitasruck: delivery email failed for {email}: {e}")
+        try:
+            import requests as _rq
+            _token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+            _chat = os.environ.get("TELEGRAM_CHAT_ID", "") or "7582976864"
+            if _token and _chat:
+                _rq.post(
+                    f"https://api.telegram.org/bot{_token}/sendMessage",
+                    data={"chat_id": _chat, "text": f"⚠️ Fit as Ruck: payment received from {email} (${amount_total/100:.2f}) but delivery email FAILED. Manually send: {settings.fitasruck_pdf_url}"},
+                    timeout=5,
+                )
+        except Exception:
+            pass
+        return {"received": True, "error": "email_send_failed", "buyer": email}
+
+    # 3. Meta Conversions API (CAPI) — server-side Purchase event
+    # Closes the ~30-50% client-side telemetry gap (Safari/Firefox/adblockers).
+    # event_id = Stripe session id → dedupes with client-side pixel when it carries the same id.
+    try:
+        import hashlib
+        import time as _time
+        import requests as _rq
+        pixel_id = "1431408642363564"  # Fit as Ruck Pixel
+        token = settings.meta_access_token
+        if token:
+            em_hash = hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
+            user_data: dict = {"em": [em_hash]}
+            phone = customer_details.get("phone") or ""
+            if phone:
+                ph_clean = "".join(ch for ch in phone if ch.isdigit())
+                if ph_clean:
+                    user_data["ph"] = [hashlib.sha256(ph_clean.encode("utf-8")).hexdigest()]
+            event_payload = {
+                "data": [{
+                    "event_name": "Purchase",
+                    "event_time": int(_time.time()),
+                    "action_source": "website",
+                    "event_source_url": "https://fitasruck.com/thanks?paid=1",
+                    "event_id": session.get("id") or f"sess-{int(_time.time())}",
+                    "user_data": user_data,
+                    "custom_data": {
+                        "currency": (session.get("currency") or "usd").upper(),
+                        "value": round(amount_total / 100, 2),
+                        "content_ids": ["fit-as-ruck-8week"],
+                        "content_type": "product",
+                        "content_name": "Fit as Ruck 8-Week Program",
+                    },
+                }],
+                "access_token": token,
+            }
+            capi = _rq.post(
+                f"https://graph.facebook.com/v22.0/{pixel_id}/events",
+                json=event_payload,
+                timeout=10,
+            )
+            if capi.status_code == 200:
+                logger.info(f"stripe-fitasruck: Meta CAPI Purchase ok event_id={event_payload['data'][0]['event_id']}")
+            else:
+                logger.warning(f"stripe-fitasruck: Meta CAPI {capi.status_code}: {capi.text[:300]}")
+        else:
+            logger.warning("stripe-fitasruck: META_ACCESS_TOKEN missing, skipping CAPI")
+    except Exception as e:
+        logger.exception(f"stripe-fitasruck: Meta CAPI post failed for {email}: {e}")
+
+    return {"received": True, "buyer": email}
 
 
 # ==================== Knowledge Management (LightRAG) ====================
