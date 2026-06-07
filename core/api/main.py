@@ -163,6 +163,14 @@ try:
 except Exception as _e:
     logger.exception("rollout_board register failed: %s", _e)
 
+# RuckTalk Content Board — social brain-dumps -> reel cards + live IG stats
+try:
+    from core.api.rucktalk_content_board import register as _register_rtboard
+    _register_rtboard(app)
+    logger.info("rucktalk content board registered")
+except Exception as _e:
+    logger.exception("rucktalk_content_board register failed: %s", _e)
+
 # Arena Portal — Rod Wave tour venue front door (public) + command center (admin)
 try:
     from core.api.arena_portal import register as _register_arena_portal
