@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RuckTalk Content Board</title>
+<style>
+  :root{
+    --bg:#0c0e10; --panel:#15181c; --panel2:#1c2026; --line:#2a3038;
+    --ink:#e8eaed; --mut:#8a94a0; --accent:#e2b714; --good:#36c46b; --warn:#e7b008; --hot:#ff5a3c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{position:sticky;top:0;z-index:5;background:linear-gradient(180deg,#101316,#0c0e10);border-bottom:1px solid var(--line);
+    padding:14px 16px calc(14px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px}
+  header h1{font-size:16px;margin:0;letter-spacing:.3px;font-weight:700}
+  header .dot{color:var(--accent)}
+  header .spacer{flex:1}
+  button{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 12px;cursor:pointer}
+  button:active{transform:translateY(1px)}
+  .btn-accent{background:var(--accent);color:#161306;border-color:var(--accent);font-weight:700}
+  main{padding:14px;display:grid;gap:14px;grid-template-columns:1fr}
+  @media(min-width:860px){main{grid-template-columns:repeat(3,1fr)}}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:80px}
+  .col h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mut);margin:0 0 10px;display:flex;justify-content:space-between}
+  .count{color:var(--accent)}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:10px}
+  .card .ttl{font-weight:600;line-height:1.3}
+  .card .meta{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .chip{font-size:11px;color:var(--mut);background:#10141a;border:1px solid var(--line);border-radius:999px;padding:3px 8px}
+  .chip.sparkle{color:var(--accent);border-color:#3a3414}
+  .chip.warn{color:#161306;background:var(--warn);border-color:var(--warn);font-weight:700}
+  .chip.stat{color:var(--good)}
+  .chip.hot{color:var(--hot)}
+  .move{margin-left:auto;display:flex;gap:6px}
+  .move button{padding:4px 9px;font-size:14px;line-height:1;border-radius:8px}
+  .raw{color:var(--mut);font-size:13px;margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:20}
+  .scrim.on{display:flex}
+  .sheet{background:var(--panel);border-top-left-radius:18px;border-top-right-radius:18px;width:100%;max-height:92vh;overflow:auto;
+    padding:18px 16px calc(28px + env(safe-area-inset-bottom));border:1px solid var(--line)}
+  @media(min-width:860px){.scrim{align-items:center;justify-content:center}.sheet{max-width:620px;border-radius:18px}}
+  .sheet h3{margin:2px 0 14px;font-size:18px}
+  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:13px 0 5px}
+  input,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;color:var(--ink);
+    padding:10px 11px;font:inherit;resize:vertical}
+  textarea{min-height:60px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:140px}
+  .sheet .actions{display:flex;gap:10px;margin-top:20px}
+  .sheet .actions button{flex:1}
+  .del{background:transparent;border-color:#46232a;color:#e0707f}
+  .save-flash{color:var(--good);font-size:12px;opacity:0;transition:opacity .3s}
+  .save-flash.on{opacity:1}
+  .empty{color:var(--mut);font-size:13px;text-align:center;padding:14px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="dot">●</span> RuckTalk <span style="color:var(--mut);font-weight:400">Content Board</span></h1>
+  <span class="spacer"></span>
+  <span class="save-flash" id="flash">saved</span>
+  <button id="refresh">↻ Stats</button>
+</header>
+<main id="board"></main>
+
+<div class="scrim" id="scrim">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+const COLS=[["to_shoot","To Shoot"],["shot","Shot"],["posted","Posted"]];
+const ORDER=["to_shoot","shot","posted"];
+let STATE={columns:{to_shoot:[],shot:[],posted:[]},updated:0};
+let saveTimer=null;
+
+async function load(){
+  try{const r=await fetch('api/state');STATE=await r.json();}
+  catch(e){console.error(e);}
+  if(!STATE.columns)STATE.columns={to_shoot:[],shot:[],posted:[]};
+  render();
+}
+function flash(){const f=document.getElementById('flash');f.classList.add('on');setTimeout(()=>f.classList.remove('on'),1200);}
+function queueSave(){clearTimeout(saveTimer);saveTimer=setTimeout(doSave,500);}
+async function doSave(){
+  try{await fetch('api/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(STATE)});flash();}
+  catch(e){console.error(e);}
+}
+function findCard(id){
+  for(const k of ORDER){const i=STATE.columns[k].findIndex(c=>c.id===id);if(i>-1)return[k,i];}
+  return null;
+}
+function moveCard(id,dir){
+  const f=findCard(id);if(!f)return;const[col,idx]=f;
+  const ci=ORDER.indexOf(col);const ni=ci+dir;
+  if(ni<0||ni>=ORDER.length)return;
+  const[card]=STATE.columns[col].splice(idx,1);
+  card.status=ORDER[ni];
+  STATE.columns[ORDER[ni]].unshift(card);
+  queueSave();render();
+  if(card.status==='posted'&&!card.reel_url)openCard(id,true);
+}
+function esc(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function render(){
+  const b=document.getElementById('board');b.innerHTML='';
+  for(const[key,name]of COLS){
+    const list=STATE.columns[key]||[];
+    const col=document.createElement('div');col.className='col';
+    col.innerHTML=`<h2>${name}<span class="count">${list.length}</span></h2>`;
+    if(!list.length)col.insertAdjacentHTML('beforeend','<div class="empty">— empty —</div>');
+    for(const c of list){
+      const sparkle=c.polished?'<span class="chip sparkle">✨ ready</span>':'<span class="chip">rough</span>';
+      let statline='';
+      if(key==='posted'){
+        if(c.stats){
+          const hot=(c.stats.shares>=5)?' hot':'';
+          statline=`<span class="chip stat${hot}">reach ${c.stats.reach} · saves ${c.stats.saves} · shares ${c.stats.shares}${c.stats.shares>=5?' 🔥':''}</span>`;
+        }else if(!c.reel_url){
+          statline='<span class="chip warn">⚠ link needed</span>';
+        }else{
+          statline='<span class="chip">link saved · ↻ stats</span>';
+        }
+      }
+      const left=ORDER.indexOf(key)>0?`<button onclick="event.stopPropagation();moveCard('${c.id}',-1)">◀</button>`:'';
+      const right=ORDER.indexOf(key)<2?`<button onclick="event.stopPropagation();moveCard('${c.id}',1)">▶</button>`:'';
+      const card=document.createElement('div');card.className='card';
+      card.onclick=()=>openCard(c.id,false);
+      card.innerHTML=`<div class="ttl">${esc(c.title)}</div>
+        <div class="raw">${esc(c.raw)}</div>
+        <div class="meta">${sparkle}${statline}<span class="move">${left}${right}</span></div>`;
+      col.appendChild(card);
+    }
+    b.appendChild(col);
+  }
+}
+
+function field(label,id,val,ta){
+  const v=esc(val);
+  return ta?`<label>${label}</label><textarea id="f_${id}">${v}</textarea>`
+           :`<label>${label}</label><input id="f_${id}" value="${v}">`;
+}
+function openCard(id,focusLink){
+  const f=findCard(id);if(!f)return;const[col,idx]=f;const c=STATE.columns[col][idx];
+  const sheet=document.getElementById('sheet');
+  sheet.innerHTML=`
+    <h3>${esc(c.title)||'Reel card'}</h3>
+    ${field('Title','title',c.title,false)}
+    ${field('Hook (first 3 seconds)','hook',c.hook,true)}
+    ${field('Shot (what to film)','shot',c.shot,true)}
+    ${field('Script / talking points','script',c.script,true)}
+    ${field('Caption','caption',c.caption,true)}
+    <div class="row"><div>${field('Hashtags','hashtags',c.hashtags,false)}</div>
+      <div>${field('Save / Share line','cta',c.cta,false)}</div></div>
+    ${field('Raw dump','raw',c.raw,true)}
+    ${col==='posted'?field('Reel link (unlocks stats)','reel_url',c.reel_url,false):''}
+    <label><input type="checkbox" id="f_polished" ${c.polished?'checked':''} style="width:auto;margin-right:7px">Polished / ready to film</label>
+    <div class="actions">
+      <button class="btn-accent" onclick="saveCard('${c.id}')">Save</button>
+      <button onclick="closeSheet()">Close</button>
+      <button class="del" onclick="deleteCard('${c.id}')">Delete</button>
+    </div>`;
+  document.getElementById('scrim').classList.add('on');
+  if(focusLink){const el=document.getElementById('f_reel_url');if(el){el.focus();el.scrollIntoView({block:'center'});}}
+}
+function closeSheet(){document.getElementById('scrim').classList.remove('on');}
+function saveCard(id){
+  const f=findCard(id);if(!f)return;const[col,idx]=f;const c=STATE.columns[col][idx];
+  for(const k of['title','hook','shot','script','caption','hashtags','cta','raw','reel_url']){
+    const el=document.getElementById('f_'+k);if(el)c[k]=el.value;
+  }
+  c.polished=document.getElementById('f_polished').checked;
+  queueSave();render();closeSheet();
+}
+function deleteCard(id){
+  if(!confirm('Delete this card?'))return;
+  const f=findCard(id);if(!f)return;const[col,idx]=f;
+  STATE.columns[col].splice(idx,1);queueSave();render();closeSheet();
+}
+document.getElementById('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')closeSheet();});
+document.getElementById('refresh').addEventListener('click',async()=>{
+  const btn=document.getElementById('refresh');btn.textContent='…';
+  try{const r=await fetch('api/refresh-stats',{method:'POST'});const j=await r.json();
+    await load();btn.textContent='↻ Stats';
+    if(j.note)alert(j.note);}
+  catch(e){btn.textContent='↻ Stats';alert('stats refresh failed');}
+});
+load();
+</script>
+</body>
+</html>
