@@ -121,6 +121,46 @@ CATALOG: list[dict] = [
     {"id": "min_italic", "name": "Editorial",    "family": "Minimal", "spec": _s("minimal", font=SERIF, italic=True, upper=False, color=WHITE, size=62, weight=600)},
     {"id": "min_center", "name": "Center Quote", "family": "Minimal", "spec": _s("minimal", font=SERIF, upper=False, color=WHITE, size=64, weight=600, bottomPx=MID)},
     {"id": "min_small",  "name": "Subtle",       "family": "Minimal", "spec": _s("minimal", upper=False, color=WHITE, size=46, weight=500, letterSpacing=1)},
+
+    # ── Big Word (one giant word at a time — Hormozi/Opus) ──────────────────
+    {"id": "big_gold",  "name": "Big Gold",   "family": "Big Word", "spec": _s("bigword", color=GOLD, active=GOLD, size=124, weight=900, bottomPx=MID)},
+    {"id": "big_white", "name": "Big White",  "family": "Big Word", "spec": _s("bigword", color=WHITE, active=WHITE, size=124, weight=900, bottomPx=MID)},
+    {"id": "big_pink",  "name": "Big Pink",   "family": "Big Word", "spec": _s("bigword", color=PINK, active=PINK, size=124, weight=900, bottomPx=MID)},
+    {"id": "big_punch", "name": "Slam Word",  "family": "Big Word", "spec": _s("bigword", color=WHITE, active=WHITE, size=132, weight=900, intensity=1.5, outline=3, bottomPx=MID)},
+    {"id": "big_ice",   "name": "Big Ice",    "family": "Big Word", "spec": _s("bigword", color=ICE, active=ICE, size=120, weight=900, bottomPx=MID)},
+
+    # ── Caption Bar (text on a solid background bar) ────────────────────────
+    {"id": "bar_dark",  "name": "Dark Bar",   "family": "Caption Bar", "spec": _s("bar", color=WHITE, active=GOLD, boxFill="rgba(8,7,10,0.82)", boxRadius=14)},
+    {"id": "bar_black", "name": "Black Bar",  "family": "Caption Bar", "spec": _s("bar", color=WHITE, active=GOLD, boxFill=INK, boxRadius=10)},
+    {"id": "bar_gold",  "name": "Gold Bar",   "family": "Caption Bar", "spec": _s("bar", color=INK, active="#3a2c05", boxFill=GOLD, boxRadius=14)},
+    {"id": "bar_white", "name": "White Bar",  "family": "Caption Bar", "spec": _s("bar", color=INK, active=PINK, boxFill=WHITE, boxRadius=14)},
+    {"id": "bar_pink",  "name": "Pink Bar",   "family": "Caption Bar", "spec": _s("bar", color=WHITE, active=INK, boxFill=PINK, boxRadius=18)},
+
+    # ── Stack (words build vertically) ─────────────────────────────────────
+    {"id": "stack_gold",  "name": "Stack Gold",  "family": "Stack", "spec": _s("stack", color=WHITE, active=GOLD, size=78, weight=900, bottomPx=MID)},
+    {"id": "stack_white", "name": "Stack White", "family": "Stack", "spec": _s("stack", color=GREY, active=WHITE, size=78, weight=900, bottomPx=MID)},
+    {"id": "stack_pink",  "name": "Stack Pink",  "family": "Stack", "spec": _s("stack", color=WHITE, active=PINK, size=78, weight=900, bottomPx=MID)},
+
+    # ── Wave (words bob in motion) ─────────────────────────────────────────
+    {"id": "wave_gold",  "name": "Wave Gold",  "family": "Wave", "spec": _s("wave", color=WHITE, active=GOLD)},
+    {"id": "wave_white", "name": "Wave White", "family": "Wave", "spec": _s("wave", color=GREY, active=WHITE)},
+    {"id": "wave_mint",  "name": "Wave Mint",  "family": "Wave", "spec": _s("wave", color=WHITE, active=MINT)},
+
+    # ── Type-Pop (words pop in one by one with a cursor) ────────────────────
+    {"id": "typepop_gold",  "name": "Type-Pop Gold",  "family": "Type-Pop", "spec": _s("typepop", color=WHITE, active=GOLD)},
+    {"id": "typepop_white", "name": "Type-Pop White", "family": "Type-Pop", "spec": _s("typepop", color=GREY, active=WHITE)},
+    {"id": "typepop_term",  "name": "Terminal Pop",   "family": "Type-Pop", "spec": _s("typepop", font=MONO, upper=False, color=GREEN, active=GREEN, size=58, weight=600)},
+
+    # ── Neon (glowing text) ────────────────────────────────────────────────
+    {"id": "neon_pink", "name": "Neon Pink", "family": "Neon", "spec": _s("neon", color=PINK, active=PINK, shadow=False, weight=900)},
+    {"id": "neon_ice",  "name": "Neon Ice",  "family": "Neon", "spec": _s("neon", color=ICE, active=ICE, shadow=False, weight=900)},
+    {"id": "neon_gold", "name": "Neon Gold", "family": "Neon", "spec": _s("neon", color=GOLD, active=GOLD, shadow=False, weight=900)},
+    {"id": "neon_green","name": "Neon Green","family": "Neon", "spec": _s("neon", color=GREEN, active=GREEN, shadow=False, weight=900)},
+
+    # ── Shake (jittery hype) ───────────────────────────────────────────────
+    {"id": "shake_white", "name": "Shake White", "family": "Shake", "spec": _s("shake", color=WHITE, active=GOLD, size=78, weight=900)},
+    {"id": "shake_pink",  "name": "Shake Pink",  "family": "Shake", "spec": _s("shake", color=WHITE, active=PINK, size=78, weight=900)},
+    {"id": "shake_red",   "name": "Shake Red",   "family": "Shake", "spec": _s("shake", color=WHITE, active=RED, size=78, weight=900, intensity=1.3)},
 ]
 
 DEFAULT_STYLE = "box_gold"

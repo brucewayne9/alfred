@@ -33,50 +33,55 @@ def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str)
     from pathlib import Path
     from core.forge.remix import build_remixes
     from core.forge.multiply import multiply
-    from core.forge import delivery
+    from core.forge import delivery, sizes
 
     remixes = build_remixes(params, int(params.get("remix", 1) or 1))
     n = int(params.get("variations", 18) or 18)
     base = (params.get("subfolder") or default_subfolder).strip()
     stamp = int(time.time())
+    aspect_ids = sizes.resolve_list(params)  # one full output set per selected size
     ext = ".png" if fmt == "leak_graphic" else ".mp4"
     total_delivered, look_dirs = 0, []
     work = Path(tempfile.mkdtemp(prefix=f"forge_{fmt}_"))
     try:
-        for rp in remixes:
-            forge_jobs.check_cancel()  # stop between looks if the user hit Stop
-            ri = rp.get("remix_index", 0)
-            label = f"{fmt}_{stamp}_look{ri:02d}" if len(remixes) > 1 else f"{fmt}_{stamp}"
-            master = render(rp, work / f"{label}_master{ext}")
-            forge_jobs.check_cancel()  # and again after the (slow) render, before delivery
-            # Kinetic-lyric and film-montage burn lyrics/captions into the frame,
-            # so their copies must use colour/grade only — no flip/zoom/rotate that
-            # would mirror the words or push them off the 9:16 edge.
-            text_safe = fmt in ("kinetic_lyric", "film_montage")
-            variants = multiply(master, n, work / f"v{ri}", base_name=label,
-                                 allow_flip=(fmt != "leak_graphic" and not text_safe),
-                                 text_safe=text_safe) if n else []
-            dest = f"{base}/{label}"
-            look_delivered = 0
-            try:
-                delivery.deliver(master, dest, filename=master.name)
-                look_delivered += 1
-            except Exception:  # noqa: BLE001
-                pass
-            for v in variants:
+        for aspect_id in aspect_ids:
+            tag = sizes.resolve(aspect_id)[2]  # 9x16 / 1x1 / 16x9 — coexist via filename
+            for rp in remixes:
+                forge_jobs.check_cancel()  # stop between looks if the user hit Stop
+                ri = rp.get("remix_index", 0)
+                rp = {**rp, "aspect": aspect_id}  # render() resolves dims from this
+                label = (f"{fmt}_{stamp}_{tag}_look{ri:02d}" if len(remixes) > 1
+                         else f"{fmt}_{stamp}_{tag}")
+                master = render(rp, work / f"{label}_master{ext}")
+                forge_jobs.check_cancel()  # and again after the (slow) render, before delivery
+                # Kinetic-lyric and film-montage burn lyrics/captions into the frame,
+                # so their copies must use colour/grade only — no flip/zoom/rotate that
+                # would mirror the words or push them off the frame edge.
+                text_safe = fmt in ("kinetic_lyric", "film_montage")
+                variants = multiply(master, n, work / f"v{tag}{ri}", base_name=label,
+                                     allow_flip=(fmt != "leak_graphic" and not text_safe),
+                                     text_safe=text_safe) if n else []
+                dest = f"{base}/{label}"
+                look_delivered = 0
                 try:
-                    delivery.deliver(v, dest); look_delivered += 1
+                    delivery.deliver(master, dest, filename=master.name)
+                    look_delivered += 1
                 except Exception:  # noqa: BLE001
                     pass
-            # Only record a delivered dir if something actually landed — otherwise
-            # the Library points at a folder Nextcloud never created (→ 404/500).
-            if look_delivered:
-                look_dirs.append(f"Content/Mainstay-RodWave/{dest}")
-                total_delivered += look_delivered
+                for v in variants:
+                    try:
+                        delivery.deliver(v, dest); look_delivered += 1
+                    except Exception:  # noqa: BLE001
+                        pass
+                # Only record a delivered dir if something actually landed — otherwise
+                # the Library points at a folder Nextcloud never created (→ 404/500).
+                if look_delivered:
+                    look_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+                    total_delivered += look_delivered
     finally:
         shutil.rmtree(work, ignore_errors=True)
     return {"format": fmt, "remix_looks": len(remixes), "variations_each": n,
-            "delivered": total_delivered, "delivered_dirs": look_dirs}
+            "sizes": aspect_ids, "delivered": total_delivered, "delivered_dirs": look_dirs}
 
 
 def _leak_graphic_handler(params: dict) -> dict:
@@ -131,7 +136,7 @@ def _topic_clip_handler(params: dict) -> dict:
     from pathlib import Path
     from core.forge.renderers.topic_clip import render, _build_variant_assemblies, enforce_duration
     from core.forge.multiply import multiply
-    from core.forge import delivery
+    from core.forge import delivery, sizes
 
     segments = params.get("segments") or []
     variant_count = int(params.get("variant_count", 3) or 3)
@@ -140,40 +145,44 @@ def _topic_clip_handler(params: dict) -> dict:
     stealth = int(params.get("variations", 3) or 3)
     base = (params.get("subfolder") or "Intelligent Clips").strip()
     stamp = int(time.time())
+    aspect_ids = sizes.resolve_list(params)  # one full variant set per selected size
 
     variants = _build_variant_assemblies(enforce_duration(segments), variant_count)
     work = Path(tempfile.mkdtemp(prefix="forge_topic_clip_"))
     total_delivered, var_dirs = 0, []
     try:
-        for i, var in enumerate(variants):
-            forge_jobs.check_cancel()
-            label = f"topic_clip_{stamp}_v{i:02d}"
-            # Build per-variant params: override segments + variant_index for render()
-            rp = dict(params)
-            rp["variant_index"] = i
-            rp["segments"] = var["segments"]
-            master = render(rp, work / f"{label}_master.mp4")
-            forge_jobs.check_cancel()
-            copies = (
-                multiply(master, stealth, work / f"v{i}", base_name=label, allow_flip=False)
-                if stealth else []
-            )
-            dest = f"{base}/{label}"
-            look_delivered = 0
-            try:
-                delivery.deliver(master, dest, filename=master.name)
-                look_delivered += 1
-            except Exception:  # noqa: BLE001
-                pass
-            for c in copies:
+        for aspect_id in aspect_ids:
+            tag = sizes.resolve(aspect_id)[2]
+            for i, var in enumerate(variants):
+                forge_jobs.check_cancel()
+                label = f"topic_clip_{stamp}_{tag}_v{i:02d}"
+                # Build per-variant params: override segments + variant_index + size
+                rp = dict(params)
+                rp["variant_index"] = i
+                rp["segments"] = var["segments"]
+                rp["aspect"] = aspect_id
+                master = render(rp, work / f"{label}_master.mp4")
+                forge_jobs.check_cancel()
+                copies = (
+                    multiply(master, stealth, work / f"v{tag}{i}", base_name=label, allow_flip=False)
+                    if stealth else []
+                )
+                dest = f"{base}/{label}"
+                look_delivered = 0
                 try:
-                    delivery.deliver(c, dest)
+                    delivery.deliver(master, dest, filename=master.name)
                     look_delivered += 1
                 except Exception:  # noqa: BLE001
                     pass
-            if look_delivered:
-                var_dirs.append(f"Content/Mainstay-RodWave/{dest}")
-                total_delivered += look_delivered
+                for c in copies:
+                    try:
+                        delivery.deliver(c, dest)
+                        look_delivered += 1
+                    except Exception:  # noqa: BLE001
+                        pass
+                if look_delivered:
+                    var_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+                    total_delivered += look_delivered
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -181,6 +190,7 @@ def _topic_clip_handler(params: dict) -> dict:
         "format": "topic_clip",
         "variant_count": len(variants),
         "variations_each": stealth,
+        "sizes": aspect_ids,
         "delivered": total_delivered,
         "delivered_dirs": var_dirs,
     }
@@ -202,48 +212,65 @@ def _multi_montage_handler(params: dict) -> dict:
     from pathlib import Path
     from core.forge.renderers.multi_montage import render
     from core.forge.multiply import multiply
-    from core.forge import delivery
+    from core.forge import delivery, sizes
 
     picks = params.get("picks") or []
     if not picks:
         raise RuntimeError("multi_montage: no picks provided")
-    stealth = int(params.get("variations", 3) or 3)
+    # Default the stealth-copy count to cover every connected account so each gets a
+    # unique render (master + copies >= accounts). Operator can still override via
+    # `variations`. Falls back to 3 if the roster can't be resolved.
+    if params.get("variations"):
+        stealth = int(params["variations"])
+    else:
+        try:
+            from core.forge import distribution
+            n_accounts = len(distribution.resolve_targets(None))
+            stealth = max(3, n_accounts - 1)
+        except Exception:  # noqa: BLE001
+            stealth = 3
     base = (params.get("subfolder") or "Intelligent Clips").strip()
     stamp = int(time.time())
-    label = f"multi_montage_{stamp}"
+    aspect_ids = sizes.resolve_list(params)  # one montage per selected size
 
     work = Path(tempfile.mkdtemp(prefix="forge_multimtg_job_"))
     var_dirs, total_delivered = [], 0
     try:
-        forge_jobs.check_cancel()
-        master = render(params, work / f"{label}_master.mp4")
-        forge_jobs.check_cancel()
-        copies = (
-            multiply(master, stealth, work / "v", base_name=label, allow_flip=False)
-            if stealth else []
-        )
-        dest = f"{base}/{label}"
-        try:
-            delivery.deliver(master, dest, filename=master.name)
-            total_delivered += 1
-        except Exception:  # noqa: BLE001
-            pass
-        for c in copies:
+        for aspect_id in aspect_ids:
+            tag = sizes.resolve(aspect_id)[2]
+            label = f"multi_montage_{stamp}_{tag}"
+            forge_jobs.check_cancel()
+            master = render({**params, "aspect": aspect_id}, work / f"{label}_master.mp4")
+            forge_jobs.check_cancel()
+            copies = (
+                multiply(master, stealth, work / f"v{tag}", base_name=label, allow_flip=False)
+                if stealth else []
+            )
+            dest = f"{base}/{label}"
+            delivered = 0
             try:
-                delivery.deliver(c, dest)
-                total_delivered += 1
+                delivery.deliver(master, dest, filename=master.name)
+                delivered += 1
             except Exception:  # noqa: BLE001
                 pass
-        if total_delivered:
-            var_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+            for c in copies:
+                try:
+                    delivery.deliver(c, dest)
+                    delivered += 1
+                except Exception:  # noqa: BLE001
+                    pass
+            if delivered:
+                var_dirs.append(f"Content/Mainstay-RodWave/{dest}")
+                total_delivered += delivered
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
     return {
         "format": "multi_montage",
-        "variant_count": 1,
+        "variant_count": len(aspect_ids),
         "clips_used": len(picks),
         "variations_each": stealth,
+        "sizes": aspect_ids,
         "delivered": total_delivered,
         "delivered_dirs": var_dirs,
     }

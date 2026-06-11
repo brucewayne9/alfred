@@ -61,7 +61,11 @@ async def _start_worker():
     n = forge_jobs.reconcile_orphans()
     if n:
         print(f"[forge] reconciled {n} orphaned running job(s) on startup")
-    asyncio.create_task(forge_jobs.worker_loop(poll_interval=2.0))
+    # Hold a strong reference on app.state: the event loop only keeps a *weak*
+    # ref to a bare create_task(), so without this the GC can collect the worker
+    # mid-run and silently stall the whole queue (the recurring stuck-jobs bug).
+    app.state.worker_task = asyncio.create_task(forge_jobs.worker_loop(poll_interval=2.0))
+    print("[forge] worker_loop started")
 
 
 @app.get("/forge")

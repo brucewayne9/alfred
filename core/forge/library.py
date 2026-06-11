@@ -47,6 +47,11 @@ def list_done_jobs(limit: int = 100) -> list[dict]:
         dirs = res.get("delivered_dirs")
         if not dirs:
             dirs = [res["delivered_dir"]] if res.get("delivered_dir") else []
+        # The Library is delivered MEDIA batches only. Jobs that deliver nothing
+        # (ingest/transcribe, or a render that failed to land files) have no dirs
+        # — they're not cards, and showing them means a 🗑 that 400s on empty dirs.
+        if not dirs:
+            continue
         out.append({
             "id": j["id"],
             "format": res.get("format") or j.get("job_type"),

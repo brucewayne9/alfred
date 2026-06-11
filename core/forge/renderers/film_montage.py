@@ -19,8 +19,60 @@ from core.forge.renderers.kinetic_lyric import build_karaoke_lines, _node_env, R
 
 LOGO_PATH = Path("/home/aialfred/remotion/public/mainstay-logo.png")
 
+# Swift dissolve between montage segments (seconds). Hides the hard-cut "jump"
+# between clips sampled from different moments. Kept short so it reads as a clean
+# transition, not a slow blend. Set transition="cut" in params to disable.
+TRANSITION_FADE = 0.18
 
-def _caption_overlay(body: Path, lines: list, style_spec: dict, work: Path) -> Path:
+
+def _concat_xfade(seg_paths: list[Path], out: Path, fade: float = TRANSITION_FADE) -> Path:
+    """Concat segments with a quick crossfade dissolve at every boundary.
+
+    Chains ffmpeg ``xfade`` filters. Each transition overlaps two clips by
+    ``fade`` seconds, so the running composite duration is tracked to place every
+    offset correctly. Segments are cut ``fade`` seconds long (see render) so the
+    overlap is absorbed and total duration ≈ the sum of requested seconds — the
+    lyric captions stay synced. Falls back to a copy for a single segment.
+    """
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if len(seg_paths) == 1:
+        shutil.copyfile(seg_paths[0], out)
+        return out
+
+    durs = []
+    for p in seg_paths:
+        try:
+            durs.append(audio.duration_seconds(p))
+        except Exception:
+            durs.append(fade * 2)
+
+    inputs: list[str] = []
+    for p in seg_paths:
+        inputs += ["-i", str(p)]
+
+    filt, prev, acc = [], "0:v", durs[0]
+    for i in range(1, len(seg_paths)):
+        off = max(0.0, acc - fade)
+        label = f"vx{i}"
+        filt.append(
+            f"[{prev}][{i}:v]xfade=transition=fade:duration={fade}:"
+            f"offset={off:.3f}[{label}]")
+        prev, acc = label, acc + durs[i] - fade
+
+    proc = subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", *inputs,
+         "-filter_complex", ";".join(filt),
+         "-map", f"[{prev}]", "-c:v", "libx264", "-preset", "veryfast",
+         "-pix_fmt", "yuv420p", "-an", str(out)],
+        capture_output=True, text=True)
+    if proc.returncode != 0 or not out.exists():
+        raise RuntimeError(f"xfade concat failed: {proc.stderr[-500:]}")
+    return out
+
+
+def _caption_overlay(body: Path, lines: list, style_spec: dict, work: Path,
+                     w: int = 1080, h: int = 1920) -> Path:
     """Burn word-synced captions over the silent montage via Remotion CaptionStudioRig.
 
     Returns a new silent mp4 (captions baked, no audio/logo yet — make_branded
@@ -32,7 +84,7 @@ def _caption_overlay(body: Path, lines: list, style_spec: dict, work: Path) -> P
     shutil.copyfile(body, pub_path)
     try:
         props = {"brand": "mainstay", "bgClip": pub_name, "lines": lines,
-                 "style": style_spec, "scrim": True}
+                 "style": style_spec, "scrim": True, "width": w, "height": h}
         props_path = work / "capprops.json"
         props_path.write_text(json.dumps(props))
         out = work / "captioned.mp4"
@@ -93,9 +145,9 @@ def assign_offsets(segs: list[dict], durations: list[float]) -> list[dict]:
 
 
 def _cut_segment(src: str | Path, seconds: float, out: str | Path,
-                 offset: float | None = None) -> Path:
+                 offset: float | None = None, w: int = 1080, h: int = 1920) -> Path:
     """Cut `seconds` starting at `offset` (default: deterministic 10%-in, cap 1s);
-    cover-crop to 1080x1920@30, no audio."""
+    cover-crop to w x h @30, no audio."""
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     if offset is not None:
@@ -108,8 +160,8 @@ def _cut_segment(src: str | Path, seconds: float, out: str | Path,
     proc = subprocess.run(
         ["ffmpeg", "-y", "-v", "error", "-ss", str(off), "-i", str(src),
          "-t", str(seconds), "-an",
-         "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,"
-                "crop=1080:1920,fps=30,format=yuv420p",
+         "-vf", f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                f"crop={w}:{h},fps=30,format=yuv420p",
          "-c:v", "libx264", "-preset", "veryfast", str(out)],
         capture_output=True, text=True)
     if proc.returncode != 0 or not out.exists():
@@ -118,31 +170,21 @@ def _cut_segment(src: str | Path, seconds: float, out: str | Path,
 
 
 def make_branded(body: str | Path, hook: str | Path, caption: str, out_path: str | Path) -> Path:
-    """Overlay the Mainstay logo bottom-right and mux the hook audio with explicit stream mapping.
+    """Mux the hook audio onto the body with explicit stream mapping. No logo overlay.
 
-    Caption drawtext is intentionally skipped (apostrophes/quotes break ffmpeg drawtext and
-    would risk the whole render). If the logo is absent, fall back to a plain audio mux.
+    The Mainstay corner logo was removed per Mike (2026-06-11) — outputs ship clean so the
+    burner accounts read as native, not branded. Function name kept for call-site stability.
+    Caption drawtext is intentionally skipped (apostrophes/quotes break ffmpeg drawtext).
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    if LOGO_PATH.exists():
-        cmd = [
-            "ffmpeg", "-y", "-v", "error",
-            "-i", str(body), "-i", str(LOGO_PATH), "-i", str(hook),
-            "-filter_complex",
-            "[1:v]scale=150:-1[lg];[0:v][lg]overlay=W-w-40:H-h-60:format=auto[v]",
-            "-map", "[v]", "-map", "2:a:0",
-            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k", "-shortest", str(out_path),
-        ]
-    else:
-        cmd = [
-            "ffmpeg", "-y", "-v", "error",
-            "-i", str(body), "-i", str(hook),
-            "-map", "0:v:0", "-map", "1:a:0",
-            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k", "-shortest", str(out_path),
-        ]
+    cmd = [
+        "ffmpeg", "-y", "-v", "error",
+        "-i", str(body), "-i", str(hook),
+        "-map", "0:v:0", "-map", "1:a:0",
+        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k", "-shortest", str(out_path),
+    ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0 or not out_path.exists():
         raise RuntimeError(f"make_branded failed: {proc.stderr[-500:]}")
@@ -164,6 +206,9 @@ def render(params: dict, out_path: str | Path) -> Path:
     if not src.exists():
         raise RuntimeError(f"audio source missing on disk: {src}")
 
+    from core.forge import sizes
+    W, H, _tag = sizes.resolve(params.get("aspect"))
+
     work = Path(tempfile.mkdtemp(prefix="forge_mtg_"))
     try:
         if params.get("clip_start") is not None and params.get("clip_end") is not None:
@@ -178,8 +223,24 @@ def render(params: dict, out_path: str | Path) -> Path:
             raw.extend(clips.fetch_source(s, work / "raw"))
         gen_prompt = (params.get("generate_prompt") or params.get("caption")
                       or "cinematic moody emotional b-roll, low-key lighting, film grain, vertical")
+        video_source = params.get("video_source", "higgsfield")
+        # If the user uploaded a still, use it as the Kling start frame. No such
+        # param exists today, but resolve it if present so the wiring is ready;
+        # otherwise generate_clip auto-synthesises a frame for Higgsfield/Kling.
+        start_frame = None
+        sample_id = params.get("base_image_upload_id")
+        if not sample_id:
+            samples = params.get("samples") or params.get("sample_upload_ids")
+            if isinstance(samples, (list, tuple)) and samples:
+                sample_id = samples[0]
+        if sample_id:
+            sp = uploads.get_upload_path(sample_id)
+            if sp is not None and Path(sp).exists():
+                start_frame = sp
         for _ in range(int(params.get("generate") or 0)):
-            raw.append(clips.generate_clip(gen_prompt, work / "raw"))
+            raw.append(clips.generate_clip(
+                gen_prompt, work / "raw",
+                source=video_source, start_frame=start_frame))
         if not raw:
             raise RuntimeError("no clips — provide sources or set generate>0")
 
@@ -192,25 +253,33 @@ def render(params: dict, out_path: str | Path) -> Path:
             except Exception:
                 durations.append(0.0)
         segs = assign_offsets(segs, durations)
+        # Quick dissolve by default; "cut" gives a hard splice (already clean).
+        transition = (params.get("transition") or "fade").lower()
+        fade = TRANSITION_FADE if transition != "cut" and len(segs) > 1 else 0.0
         seg_paths: list[Path] = []
         for i, seg in enumerate(segs):
+            # Pad each segment by `fade` so the crossfade overlap is absorbed and
+            # the body length stays matched to the hook audio.
             seg_paths.append(
-                _cut_segment(raw[seg["clip_index"]], seg["seconds"],
+                _cut_segment(raw[seg["clip_index"]], seg["seconds"] + fade,
                              work / "segments" / f"seg_{i:03d}.mp4",
-                             offset=seg.get("offset")))
+                             offset=seg.get("offset"), w=W, h=H))
 
-        # 5. Concat (re-encode — segments may vary).
-        concat_txt = work / "concat.txt"
-        concat_txt.write_text(
-            "".join(f"file '{p.resolve()}'\n" for p in seg_paths))
+        # 5. Stitch: crossfade dissolve (default) or clean hard concat.
         body = work / "body.mp4"
-        proc = subprocess.run(
-            ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
-             "-i", str(concat_txt), "-c:v", "libx264", "-preset", "veryfast",
-             "-pix_fmt", "yuv420p", "-an", str(body)],
-            capture_output=True, text=True)
-        if proc.returncode != 0 or not body.exists():
-            raise RuntimeError(f"concat failed: {proc.stderr[-500:]}")
+        if fade > 0.0:
+            _concat_xfade(seg_paths, body, fade=fade)
+        else:
+            concat_txt = work / "concat.txt"
+            concat_txt.write_text(
+                "".join(f"file '{p.resolve()}'\n" for p in seg_paths))
+            proc = subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
+                 "-i", str(concat_txt), "-c:v", "libx264", "-preset", "veryfast",
+                 "-pix_fmt", "yuv420p", "-an", str(body)],
+                capture_output=True, text=True)
+            if proc.returncode != 0 or not body.exists():
+                raise RuntimeError(f"concat failed: {proc.stderr[-500:]}")
 
         # 6. Optional word-synced lyric captions (Remotion overlay pass).
         style_id = params.get("caption_style")
@@ -218,7 +287,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             words = audio.transcribe_words(hook)
             lines = build_karaoke_lines(words, max_words=4, uppercase=False) if words else []
             if lines:
-                body = _caption_overlay(body, lines, caption_styles.resolve(style_id), work)
+                body = _caption_overlay(body, lines, caption_styles.resolve(style_id), work, w=W, h=H)
 
         # 7. Brand + mux + guard.
         make_branded(body, hook, params.get("caption", ""), out_path)

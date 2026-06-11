@@ -26,7 +26,9 @@ def build_remixes(params: dict, n: int) -> list[dict]:
     n = max(1, int(n or 1))
     if n == 1:
         return [dict(params)]
-    base = (params.get("caption") or "").strip()
+    # Honour a user-supplied describe prompt as the base for every remix variation;
+    # only fall back to the caption when they didn't describe a look.
+    base = (params.get("vessel_prompt") or params.get("caption") or "").strip()
     out: list[dict] = []
     for i in range(n):
         p = dict(params)

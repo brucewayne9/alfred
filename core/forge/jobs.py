@@ -7,11 +7,14 @@ asyncio-only job pattern (see core/audit/lead_router.py).
 import asyncio
 import contextvars
 import json
+import logging
 import time
 import uuid
 from typing import Callable, Optional
 
 from core.forge.db import _conn, init_db
+
+logger = logging.getLogger(__name__)
 
 # job_type -> handler(params: dict) -> dict
 _HANDLERS: dict[str, Callable[[dict], dict]] = {}
@@ -217,12 +220,24 @@ def reconcile_orphans(now: Optional[int] = None) -> int:
 
 
 async def worker_loop(poll_interval: float = 2.0) -> None:
-    """Background loop: claim one pending job at a time, run it off the event loop."""
+    """Background loop: claim one pending job at a time, run it off the event loop.
+
+    The body is wrapped so a transient fault (e.g. a momentary SQLite lock during
+    a poll) is logged and retried instead of killing the task. An unsupervised
+    ``create_task`` that dies leaves the whole queue stalled with no signal — this
+    keeps the worker self-healing.
+    """
     init_db()
     loop = asyncio.get_running_loop()
     while True:
-        job = claim_next_pending()
-        if job is None:
+        try:
+            job = claim_next_pending()
+            if job is None:
+                await asyncio.sleep(poll_interval)
+                continue
+            await loop.run_in_executor(None, _execute, job["id"])
+        except asyncio.CancelledError:  # graceful shutdown — let it propagate
+            raise
+        except Exception:  # noqa: BLE001 — never let the queue die
+            logger.exception("forge worker_loop iteration failed; continuing")
             await asyncio.sleep(poll_interval)
-            continue
-        await loop.run_in_executor(None, _execute, job["id"])

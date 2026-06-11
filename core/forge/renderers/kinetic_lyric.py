@@ -95,8 +95,9 @@ def render(params: dict, out_path: str | Path) -> Path:
     ComfyUI-Cloud vessel still -> ken-burns motion bg -> Remotion KineticTypeRig
     (silent) -> guarded mux of the hook audio -> assert_audible.
     """
-    from core.forge import audio, uploads
+    from core.forge import audio, uploads, caption_styles, sizes
 
+    W, H, _tag = sizes.resolve(params.get("aspect"))
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="forge_kin_render_"))
@@ -127,19 +128,28 @@ def render(params: dict, out_path: str | Path) -> Path:
     words = audio.transcribe_words(hook)
     if not words:
         raise RuntimeError("transcription produced no words")
-    lines = build_karaoke_lines(words)
+    # Caption style picks how the lyric animates (shared gallery across formats).
+    # 'none'/'off' = clean vessel, no captions. Default mimics the classic gold
+    # karaoke sweep this format always had.
+    style_id = params.get("caption_style")
+    captions_on = style_id not in ("none", "off")
+    lines = build_karaoke_lines(words, max_words=5, uppercase=False) if captions_on else []
+    style_spec = caption_styles.resolve(
+        style_id if (style_id and caption_styles.is_valid(style_id)) else "karaoke_gold")
 
-    # 4. Vessel image via ComfyUI Cloud (same lazy-import pattern as leak_graphic)
-    if str(REPO) not in sys.path:
-        sys.path.insert(0, str(REPO))
-    from scripts.rucktalk_common import run_comfyui_cloud  # lazy: heavy import
+    # 4. Vessel image via the image dispatcher (ComfyUI Cloud, or Higgsfield when
+    #    params opt in). Same lazy-import pattern as leak_graphic.
+    from core.forge import image_generation  # lazy: heavy import
 
-    img = run_comfyui_cloud(
+    img = image_generation.render_image(
         _vessel_prompt(params.get("caption", ""), params.get("vessel_prompt")),
-        width=1080, height=1920,
+        W, H,
+        source=params.get("image_source", "higgsfield"),
+        model=params.get("image_model"),
+        aspect=params.get("aspect"),
     )
     if not img:
-        raise RuntimeError("ComfyUI Cloud returned no vessel image")
+        raise RuntimeError("vessel image generation returned no image")
     img = Path(img)
     if not img.exists():
         raise RuntimeError(f"vessel image missing on disk: {img}")
@@ -151,9 +161,10 @@ def render(params: dict, out_path: str | Path) -> Path:
         kb = subprocess.run(
             ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "30",
              "-i", str(img), "-t", str(secs),
-             "-vf", ("scale=1620:2880:force_original_aspect_ratio=increase,crop=1620:2880,"
-                     "zoompan=z='min(1.0+0.00010*in,1.12)':x='iw/2-(iw/zoom/2)':"
-                     "y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30"),
+             "-vf", (f"scale={int(W*1.5)}:{int(H*1.5)}:force_original_aspect_ratio=increase,"
+                     f"crop={int(W*1.5)}:{int(H*1.5)},"
+                     f"zoompan=z='min(1.0+0.00010*in,1.12)':x='iw/2-(iw/zoom/2)':"
+                     f"y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps=30"),
              "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30", "-an", str(vessel_mp4)],
             capture_output=True, text=True)
         if kb.returncode != 0 or not vessel_mp4.exists():
@@ -165,12 +176,16 @@ def render(params: dict, out_path: str | Path) -> Path:
         try:
             shutil.copyfile(vessel_mp4, pub_path)
 
-            # 7. Props
+            # 7. Props — shared CaptionStudioRig (same engine as Film Montage),
+            #    so all 37 gallery styles work here too.
             props = {
                 "brand": "mainstay",
                 "bgClip": pub_name,
-                "karaokeLines": lines,
-                "gradePreset": "teal-orange-crushed",
+                "lines": lines,
+                "style": style_spec,
+                "scrim": True,
+                "width": W,
+                "height": H,
             }
             props_path = work / "props.json"
             props_path.write_text(json.dumps(props))
@@ -178,7 +193,7 @@ def render(params: dict, out_path: str | Path) -> Path:
             # 8. Render silent video via Remotion
             silent = work / "silent.mp4"
             rr = subprocess.run(
-                ["npx", "remotion", "render", "src/index.ts", "KineticTypeRig",
+                ["npx", "remotion", "render", "src/index.ts", "CaptionStudioRig",
                  str(silent), f"--props={props_path}"],
                 cwd=str(REMOTION), capture_output=True, text=True, timeout=1200,
                 env=_node_env())
