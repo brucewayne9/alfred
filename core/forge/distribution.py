@@ -33,12 +33,18 @@ def build_caption(hook: str, platform: str) -> str:
 
 def assign_posts(job_id: str, files: list[dict], accounts: list[dict], *,
                  caption: str = "", stagger_minutes: int = 20) -> list[dict]:
-    """Round-robin files across accounts; each post gets platform, stagger, caption, id."""
+    """One post per account — every connected account gets the clip ("send to everybody").
+
+    Each account is handed its own file, cycling through the available stealth copies
+    so that when there are at least as many unique copies as accounts every account
+    posts a *different* render (dodging duplicate-content detection across the burners).
+    With fewer copies than accounts the copies repeat, but no account is ever skipped.
+    """
     if not accounts or not files:
         return []
     posts = []
-    for i, f in enumerate(files):
-        acct = accounts[i % len(accounts)]
+    for i, acct in enumerate(accounts):
+        f = files[i % len(files)]
         platform = acct.get("platform") or "TikTok"
         posts.append({
             "post_id": f"{job_id}:{i}",
@@ -85,6 +91,55 @@ def set_accounts(accounts: list[dict]) -> list[dict]:
     with open(p, "w", encoding="utf-8") as f:
         json.dump(accounts, f, indent=2)
     return accounts
+
+
+def live_targets() -> list[dict]:
+    """Every channel currently connected in the Mainstay Postiz org, as roster rows.
+
+    This is the source of truth for "send it to everybody": connect an account in
+    Postiz and it lands here automatically — no hand-maintained file, no copying
+    integration IDs around. Returns [] if Postiz is unreachable so callers can fall
+    back to the local JSON roster.
+    """
+    try:
+        from core.forge import postiz_client
+        ints = postiz_client.list_integrations()
+    except Exception:  # noqa: BLE001 — never let a Postiz hiccup break the pack
+        return []
+    rows = []
+    for i in ints:
+        if i.get("disabled"):
+            continue
+        iid = i.get("id")
+        if not iid:
+            continue
+        prov = (i.get("identifier") or i.get("provider")
+                or i.get("providerIdentifier") or "").lower()
+        platform = {"tiktok": "TikTok", "instagram": "Instagram Reels",
+                    "youtube": "YouTube Shorts"}.get(prov, prov or "TikTok")
+        rows.append({
+            "handle": i.get("name") or i.get("displayName") or iid,
+            "platform": platform,
+            "tier": "burner",
+            "org": "mainstay",
+            "postiz_id": iid,
+        })
+    return rows
+
+
+def resolve_targets(accounts: list[dict] | None) -> list[dict]:
+    """Pick the account list a pack/push should fan out to.
+
+    Precedence: explicit ``accounts`` arg → live Postiz connections → local JSON
+    roster. Live-first means the default is always "everyone connected right now,"
+    each row already carrying its postiz_id, with zero manual upkeep.
+    """
+    if accounts:
+        return accounts
+    live = live_targets()
+    if live:
+        return live
+    return get_accounts()
 
 
 # ---------------------------------------------------------------------------
@@ -150,29 +205,49 @@ _POSTIZ_SCRIPT_DIR = Path(
 )
 
 
-def push_to_postiz(job_id: str, accounts: list[dict] | None = None) -> dict:
-    """Push a job's pack into Postiz as DRAFTS — nothing auto-publishes.
+def push_to_postiz(job_id: str, accounts: list[dict] | None = None, *,
+                   caption_override: str | None = None,
+                   schedule_at: str | None = None) -> dict:
+    """Push a job's pack into Postiz.
+
+    ``caption_override`` — if set, every post uses this exact caption (verbatim,
+    no auto CTA/hashtags) instead of the generated one.
+    ``schedule_at`` — UTC ISO datetime; if set, posts are **scheduled** to fire at
+    that time (staggered per account) instead of landing as drafts.
 
     Each account in the roster must carry a ``postiz_id`` (its connected Postiz
     integration). Accounts without one are reported as ``skipped`` so the gap
     (un-connected Mainstay accounts) is visible, never silently swallowed.
     """
-    import subprocess
     import tempfile
     from datetime import datetime, timedelta
-    from core.forge import library
+    from core.forge import library, postiz_client
 
     pack = build_pack(job_id, accounts)
     posts = pack.get("posts", [])
     roster = {a.get("handle"): a for a in pack.get("accounts", [])}
 
-    script = _POSTIZ_SCRIPT_DIR / "postiz.py"
-    if not script.exists():
-        return {"job_id": job_id, "error": f"postiz script missing: {script}",
-                "pushed": [], "skipped": [], "counts": {"pushed": 0, "skipped": len(posts)}}
+    # Exact-caption override (verbatim — bypasses the auto hook+CTA+hashtags build).
+    if caption_override:
+        for p in posts:
+            p["caption"] = caption_override
+
+    if not postiz_client.is_configured():
+        return {"job_id": job_id,
+                "error": "Mainstay Postiz org not configured (POSTIZ_MAINSTAY_API_KEY)",
+                "pushed": [], "skipped": [],
+                "counts": {"drafts_created": 0, "failed": 0, "skipped": len(posts)}}
 
     pushed, skipped = [], []
-    base = datetime.utcnow()
+    scheduled = bool(schedule_at)
+    if schedule_at:
+        s = schedule_at.replace("Z", "").replace("+00:00", "")
+        try:
+            base = datetime.fromisoformat(s)
+        except ValueError:
+            base = datetime.utcnow()
+    else:
+        base = datetime.utcnow()
     for p in posts:
         acct = roster.get(p["account"], {})
         integration_id = acct.get("postiz_id")
@@ -190,17 +265,19 @@ def push_to_postiz(job_id: str, accounts: list[dict] | None = None) -> dict:
                 fh.write(data)
             when = (base + timedelta(minutes=p.get("stagger_minutes", 0))) \
                 .replace(microsecond=0).isoformat()
-            proc = subprocess.run(
-                ["python3", str(script), "create-draft",
-                 p["caption"], integration_id, tmp, when],
-                cwd=str(_POSTIZ_SCRIPT_DIR), capture_output=True, text=True, timeout=180)
-            out = (proc.stdout or "").strip().splitlines()
-            parsed = json.loads(out[-1]) if out else {"ok": False, "error": "no output"}
+            res = postiz_client.create_draft(
+                p["caption"], integration_id,
+                media_path=tmp,
+                platform=(p.get("platform") or acct.get("platform") or "tiktok"),
+                when=when,
+                title=acct.get("handle", ""),
+                scheduled=scheduled,
+            )
             entry = {"post_id": p["post_id"], "account": p["account"],
-                     "platform": p["platform"], "ok": bool(parsed.get("ok")),
-                     "draft": parsed.get("result")}
-            if not parsed.get("ok"):
-                entry["error"] = parsed.get("error") or proc.stderr[-300:]
+                     "platform": p["platform"], "ok": bool(res.get("ok")),
+                     "draft": res.get("postId")}
+            if not res.get("ok"):
+                entry["error"] = res.get("error")
             pushed.append(entry)
         except Exception as exc:
             pushed.append({"post_id": p["post_id"], "account": p["account"],
@@ -246,7 +323,7 @@ def build_pack(job_id: str, accounts: list[dict] | None = None) -> dict:
         except Exception:
             pass
 
-    accounts = accounts or get_accounts()
+    accounts = resolve_targets(accounts)
     posts = assign_posts(job_id, files, accounts, caption=caption)
 
     pm = posted_map([p["post_id"] for p in posts])

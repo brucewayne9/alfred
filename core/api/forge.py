@@ -270,6 +270,60 @@ def register(app: FastAPI) -> None:
             raise HTTPException(status_code=404, detail="source not found")
         return source
 
+    @app.get("/forge/sources/{source_id}/video")
+    async def stream_source_video(source_id: str, request: Request = None,
+                                  user: dict = Depends(require_auth)):
+        """Stream a source's raw media with HTTP Range so the montage scrubber's
+        <video> can load and seek anywhere. Reads byte ranges straight off disk
+        (seek + bounded read) — never slurps the whole file into memory, since an
+        ingested source can be a full YouTube/IG/TikTok download.
+        """
+        from pathlib import Path as _P
+        from core.forge import ingest
+
+        source = ingest.get_source(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="source not found")
+        fp = source.get("file_path")
+        if not fp or not _P(fp).exists():
+            raise HTTPException(status_code=409, detail="source media missing on disk")
+        path = _P(fp)
+        total = path.stat().st_size
+        ctype = {"mp4": "video/mp4", "mov": "video/quicktime", "webm": "video/webm",
+                 "mkv": "video/x-matroska", "m4v": "video/mp4"}.get(
+                     path.suffix.lower().lstrip("."), "video/mp4")
+        CHUNK = 2 * 1024 * 1024  # cap one Range response so memory stays bounded
+        rng = (request.headers.get("range") if request else None) or ""
+        if rng.startswith("bytes="):
+            first, _, last = rng[6:].split(",")[0].strip().partition("-")
+            start = int(first) if first else 0
+            end = int(last) if last else total - 1
+            start = max(0, start)
+            end = min(end, total - 1, start + CHUNK - 1)  # bound open-ended ranges
+            if start > end:
+                start, end = 0, min(total - 1, CHUNK - 1)
+            with open(path, "rb") as fh:
+                fh.seek(start)
+                chunk = fh.read(end - start + 1)
+            return Response(content=chunk, status_code=206, media_type=ctype, headers={
+                "Content-Range": f"bytes {start}-{end}/{total}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(len(chunk)),
+            })
+        # No Range — stream the file in chunks rather than loading it whole.
+        from starlette.responses import StreamingResponse
+
+        def _iter():
+            with open(path, "rb") as fh:
+                while True:
+                    b = fh.read(CHUNK)
+                    if not b:
+                        break
+                    yield b
+        return StreamingResponse(_iter(), media_type=ctype,
+                                 headers={"Accept-Ranges": "bytes",
+                                          "Content-Length": str(total)})
+
     @app.get("/forge/sources/{source_id}/search")
     async def search_source_segments(
         source_id: str,
@@ -381,6 +435,14 @@ def register(app: FastAPI) -> None:
         from core.forge import distribution
         return {"accounts": distribution.get_accounts()}
 
+    @app.get("/forge/distribution/connected")
+    async def dist_connected(user: dict = Depends(require_auth)):
+        """Every channel currently connected in the Mainstay Postiz org — the live
+        war-room roster. This is who a push actually fans out to."""
+        from core.forge import distribution
+        accts = distribution.live_targets()
+        return {"accounts": accts, "count": len(accts)}
+
     @app.post("/forge/distribution/accounts")
     async def dist_set_accounts(payload: dict = Body(...), user: dict = Depends(require_auth)):
         from core.forge import distribution
@@ -406,4 +468,21 @@ def register(app: FastAPI) -> None:
         job_id = payload.get("job_id")
         if not job_id:
             raise HTTPException(status_code=400, detail="job_id required")
-        return distribution.push_to_postiz(job_id)
+        return distribution.push_to_postiz(
+            job_id,
+            caption_override=(payload.get("caption") or "").strip() or None,
+            schedule_at=(payload.get("schedule_at") or "").strip() or None,
+        )
+
+    # --- Intelligence ------------------------------------------------------
+    @app.get("/forge/intel/board")
+    async def intel_board(unit: str = "sound", user: dict = Depends(require_auth)):
+        """Sound/variant leaderboard + winner call, with account & post drill-downs."""
+        from core.forge import intel
+        return intel.board(unit=unit)
+
+    @app.post("/forge/intel/refresh")
+    async def intel_refresh(user: dict = Depends(require_auth)):
+        """Pull fresh stats from TikTok for every connected account (gated on audit)."""
+        from core.forge import intel
+        return intel.pull_now()

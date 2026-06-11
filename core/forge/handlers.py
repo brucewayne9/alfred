@@ -217,7 +217,18 @@ def _multi_montage_handler(params: dict) -> dict:
     picks = params.get("picks") or []
     if not picks:
         raise RuntimeError("multi_montage: no picks provided")
-    stealth = int(params.get("variations", 3) or 3)
+    # Default the stealth-copy count to cover every connected account so each gets a
+    # unique render (master + copies >= accounts). Operator can still override via
+    # `variations`. Falls back to 3 if the roster can't be resolved.
+    if params.get("variations"):
+        stealth = int(params["variations"])
+    else:
+        try:
+            from core.forge import distribution
+            n_accounts = len(distribution.resolve_targets(None))
+            stealth = max(3, n_accounts - 1)
+        except Exception:  # noqa: BLE001
+            stealth = 3
     base = (params.get("subfolder") or "Intelligent Clips").strip()
     stamp = int(time.time())
     aspect_ids = sizes.resolve_list(params)  # one montage per selected size

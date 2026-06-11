@@ -61,18 +61,35 @@ def _resolve_bed(params: dict) -> Path | None:
     return None
 
 
-def _prepare_bed(bed_src: Path, target_seconds: float, out_path: Path) -> Path:
+def _prepare_bed(bed_src: Path, target_seconds: float, out_path: Path,
+                 start: float = 0.0, end: float | None = None) -> Path:
     """Loop+trim *bed_src* to exactly *target_seconds* as 44.1k stereo AAC.
 
-    Looping guarantees the bed covers the full montage even if the song is
-    shorter; the trim caps it so make_branded's -shortest lands on the video.
+    *start*/*end* (seconds) let the operator pick which slice of the song to
+    use: the chosen region is extracted first, then looped to cover the full
+    montage even if that slice is shorter; the trim caps it so make_branded's
+    -shortest lands on the video.
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    src = Path(bed_src)
+    start = max(0.0, float(start or 0.0))
+
+    # If a region was picked, extract [start, end] (or start→EOF) before looping.
+    if start > 0.0 or end is not None:
+        region = out_path.parent / "bed_region.m4a"
+        args = ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.3f}", "-i", str(src)]
+        if end is not None and float(end) > start + 0.2:
+            args += ["-t", f"{float(end) - start:.3f}"]
+        args += ["-vn", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2", str(region)]
+        rp = subprocess.run(args, capture_output=True, text=True)
+        if rp.returncode == 0 and region.exists() and region.stat().st_size > 0:
+            src = region
+
     proc = subprocess.run(
         [
             "ffmpeg", "-y", "-v", "error",
-            "-stream_loop", "-1", "-i", str(bed_src),
+            "-stream_loop", "-1", "-i", str(src),
             "-t", f"{max(0.5, float(target_seconds)):.3f}",
             "-vn", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
             str(out_path),
@@ -82,6 +99,34 @@ def _prepare_bed(bed_src: Path, target_seconds: float, out_path: Path) -> Path:
     if proc.returncode != 0 or not out_path.exists():
         raise RuntimeError(f"_prepare_bed failed: {proc.stderr[-500:]}")
     return out_path
+
+
+def _song_caption_events(bed_path: Path, max_words: int = 6):
+    """Transcribe a song bed slice into karaoke lyric line events.
+
+    Returns ``([(start_s, end_s, text), ...], words)`` on the montage timeline
+    (the bed plays from t=0 in replace mode, so the slice-local word timings map
+    straight onto the output), or ``([], None)`` if no lyrics were detected.
+    """
+    try:
+        from core.forge import audio
+        from core.forge.renderers.kinetic_lyric import build_karaoke_lines
+        words = audio.transcribe_words(bed_path)
+    except Exception:  # noqa: BLE001
+        return [], None
+    if not words:
+        return [], None
+    fps = 30.0
+    events: list[tuple[float, float, str]] = []
+    for ln in build_karaoke_lines(words, max_words=max_words, uppercase=False):
+        if not ln:
+            continue
+        s = min(w["startFrame"] for w in ln) / fps
+        e = max(w["endFrame"] for w in ln) / fps
+        txt = " ".join(w["text"] for w in ln).strip()
+        if txt and e > s:
+            events.append((s, e, txt))
+    return events, words
 
 
 def _duck_mix(
@@ -200,49 +245,73 @@ def render(params: dict, out_path: str | Path) -> Path:
             seg_paths, work / "body.mp4", has_video=True, work_dir=work / "cwork",
         )
 
-        # 3. Captions — style-aware, following the words across sources.
+        # 3-4. Captions + audio.
+        from core.forge import audio
         captioned = work / "captioned.mp4"
         cfg = CAPTION_STYLES.get(caption_style, CAPTION_STYLES[DEFAULT_CAPTION_STYLE])
-        words = None
-        if cfg["karaoke"]:
-            try:
-                from core.forge import audio
-                words = audio.transcribe_words(body)
-            except Exception:  # noqa: BLE001
-                words = None
-        fine_by_source = {
-            sid: ingest.get_segments(sid)
-            for sid in {p["source_id"] for p in picks}
-        }
-        events = build_multiclip_events(picks, fine_by_source)
-        if (cfg["karaoke"] and words) or events:
-            overlay_timed_captions(
-                body, events, captioned, work / "caps",
-                style=caption_style, position=caption_position, words=words,
-                font=caption_font, color=caption_color, w=W, h=H,
-            )
-        else:
-            overlay_captions(body, (picks[0].get("text") or "")[:120], captioned)
-
-        # 4. Audio track.  Optional song bed:
-        #      duck (default) — keep the interview voice up front, music ducked
-        #                       underneath (sidechain compression on speech).
-        #      replace        — music only (for talk-free music-video montages).
-        #    No bed → keep the picks' own audio.
         bed_src = _resolve_bed(params)
-        bed_mode = (params.get("bed_mode") or "duck").lower()
-        voice_audio = work / "voice.m4a"
-        _extract_audio(captioned, voice_audio)
-        if bed_src is not None:
-            from core.forge import audio
-            target = audio.duration_seconds(captioned)
-            bed = _prepare_bed(bed_src, target, work / "bed.m4a")
-            if bed_mode == "replace":
-                hook_audio = bed
+        body_seconds = audio.duration_seconds(body)
+
+        if (params.get("caption_source") or "").lower() == "song" and bed_src is not None:
+            # Music-video montage: the song bed IS the audio (always replace) and
+            # the caption source — transcribe the chosen song slice into karaoke
+            # lyric lines and burn them, synced to the music, over the visuals.
+            bed = _prepare_bed(bed_src, body_seconds, work / "bed.m4a",
+                               start=params.get("bed_start") or 0.0,
+                               end=params.get("bed_end"))
+            lyric_events, lyric_words = _song_caption_events(bed)
+            if lyric_events:
+                overlay_timed_captions(
+                    body, lyric_events, captioned, work / "caps",
+                    style=caption_style,  # honour the operator's chosen lyric style
+                    position=caption_position, words=lyric_words,
+                    font=caption_font, color=caption_color, w=W, h=H,
+                )
             else:
-                hook_audio = _duck_mix(voice_audio, bed, work / "mixed.m4a")
+                import shutil as _sh
+                _sh.copy(body, captioned)  # no lyrics detected — leave uncaptioned
+            hook_audio = bed
         else:
-            hook_audio = voice_audio
+            # Interview / b-roll montage: captions follow the picks' transcript
+            # (or a typed caption); bed is optional and ducks under the voice.
+            words = None
+            if cfg["karaoke"]:
+                try:
+                    words = audio.transcribe_words(body)
+                except Exception:  # noqa: BLE001
+                    words = None
+            fine_by_source = {
+                sid: ingest.get_segments(sid)
+                for sid in {p["source_id"] for p in picks}
+            }
+            events = build_multiclip_events(picks, fine_by_source)
+            manual_caption = (params.get("caption_text") or "").strip()
+            if manual_caption:
+                overlay_timed_captions(
+                    body, [(0.0, max(1.0, body_seconds), manual_caption[:200])],
+                    captioned, work / "caps",
+                    style=caption_style, position=caption_position, words=None,
+                    font=caption_font, color=caption_color, w=W, h=H,
+                )
+            elif (cfg["karaoke"] and words) or events:
+                overlay_timed_captions(
+                    body, events, captioned, work / "caps",
+                    style=caption_style, position=caption_position, words=words,
+                    font=caption_font, color=caption_color, w=W, h=H,
+                )
+            else:
+                overlay_captions(body, (picks[0].get("text") or "")[:120], captioned)
+
+            bed_mode = (params.get("bed_mode") or "duck").lower()
+            voice_audio = work / "voice.m4a"
+            _extract_audio(captioned, voice_audio)
+            if bed_src is not None:
+                bed = _prepare_bed(bed_src, audio.duration_seconds(captioned), work / "bed.m4a",
+                                   start=params.get("bed_start") or 0.0,
+                                   end=params.get("bed_end"))
+                hook_audio = bed if bed_mode == "replace" else _duck_mix(voice_audio, bed, work / "mixed.m4a")
+            else:
+                hook_audio = voice_audio
 
         # 5. Brand: logo overlay + audio mux.
         make_branded(captioned, hook_audio, "", out_path)

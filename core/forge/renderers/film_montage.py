@@ -170,31 +170,21 @@ def _cut_segment(src: str | Path, seconds: float, out: str | Path,
 
 
 def make_branded(body: str | Path, hook: str | Path, caption: str, out_path: str | Path) -> Path:
-    """Overlay the Mainstay logo bottom-right and mux the hook audio with explicit stream mapping.
+    """Mux the hook audio onto the body with explicit stream mapping. No logo overlay.
 
-    Caption drawtext is intentionally skipped (apostrophes/quotes break ffmpeg drawtext and
-    would risk the whole render). If the logo is absent, fall back to a plain audio mux.
+    The Mainstay corner logo was removed per Mike (2026-06-11) — outputs ship clean so the
+    burner accounts read as native, not branded. Function name kept for call-site stability.
+    Caption drawtext is intentionally skipped (apostrophes/quotes break ffmpeg drawtext).
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    if LOGO_PATH.exists():
-        cmd = [
-            "ffmpeg", "-y", "-v", "error",
-            "-i", str(body), "-i", str(LOGO_PATH), "-i", str(hook),
-            "-filter_complex",
-            "[1:v]scale=150:-1[lg];[0:v][lg]overlay=W-w-40:H-h-60:format=auto[v]",
-            "-map", "[v]", "-map", "2:a:0",
-            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k", "-shortest", str(out_path),
-        ]
-    else:
-        cmd = [
-            "ffmpeg", "-y", "-v", "error",
-            "-i", str(body), "-i", str(hook),
-            "-map", "0:v:0", "-map", "1:a:0",
-            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k", "-shortest", str(out_path),
-        ]
+    cmd = [
+        "ffmpeg", "-y", "-v", "error",
+        "-i", str(body), "-i", str(hook),
+        "-map", "0:v:0", "-map", "1:a:0",
+        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k", "-shortest", str(out_path),
+    ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0 or not out_path.exists():
         raise RuntimeError(f"make_branded failed: {proc.stderr[-500:]}")

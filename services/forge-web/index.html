@@ -206,6 +206,23 @@
   .dsec>.dhead h2{font:900 18px/1 var(--serif);margin:0}
   .dsec>.dhead .dsub{color:var(--mute);font-size:12.5px;margin-left:auto}
   .roster{padding:14px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,#15151b,#111016)}
+  .cc-badge{display:inline-block;min-width:22px;text-align:center;padding:1px 8px;margin-left:8px;border-radius:999px;background:#1c3a25;color:#7ee2a0;font:800 12px/1.5 var(--sans);vertical-align:middle}
+  .crow{display:grid;grid-template-columns:auto auto 1.4fr 1fr auto;gap:12px;align-items:center;padding:10px 6px;border-bottom:1px solid var(--line)}
+  .crow:last-child{border-bottom:none}
+  .cdot{width:9px;height:9px;border-radius:50%;background:#43d17a;box-shadow:0 0 0 3px rgba(67,209,122,.16)}
+  .cplat{font-size:16px}
+  .chandle{font:700 14px/1.2 var(--sans);color:#f5f0e6}
+  .cmeta{font:500 12px/1.2 var(--sans);color:var(--mute)}
+  .cstat{font:700 11px/1 var(--sans);letter-spacing:.04em;color:#7ee2a0;justify-self:end;white-space:nowrap}
+  .iunit{display:inline-flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+  .iunit .ibtn{padding:8px 14px;border:none;background:#14141a;color:var(--mute);font:700 12.5px/1 var(--sans);cursor:pointer;border-right:1px solid var(--line2)}
+  .iunit .ibtn:last-child{border-right:none}
+  .iunit .ibtn.sel{background:linear-gradient(180deg,#2a2418,#1d1a12);color:var(--gold-hi)}
+  .intel-empty{text-align:center;padding:54px 28px;border:1px dashed var(--line2);border-radius:14px;background:linear-gradient(180deg,#15151b,#111016)}
+  .intel-empty .ie-ic{font-size:40px;color:var(--gold-dim);opacity:.7}
+  .intel-empty .ie-h{font:900 19px/1.2 var(--serif);margin:12px 0 8px}
+  .intel-empty .ie-p{max-width:560px;margin:0 auto;color:var(--mute);font-size:13.5px;line-height:1.6}
+  .intel-empty .ie-n{margin:18px auto 0;max-width:520px;font-size:12.5px;color:var(--gold-hi);background:rgba(201,161,74,.08);border:1px solid var(--gold-dim);border-radius:9px;padding:9px 12px}
   .rrow{display:grid;grid-template-columns:1.4fr 1fr .9fr auto;gap:10px;align-items:center;margin-bottom:10px}
   .rrow input,.rrow select{padding:10px 11px;font-size:13px}
   .rx{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid var(--line2);background:#14141a;color:var(--mute);cursor:pointer;font-size:15px;transition:.15s}
@@ -234,6 +251,13 @@
   .pmini.postiz{margin-left:auto;border-color:var(--gold);color:var(--gold-hi)}
   .pmini.postiz:disabled{opacity:.5;cursor:default}
   .pzstatus{font:500 11px/1 var(--sans);color:var(--ink-mut);margin-left:10px}
+  .pzopts{display:flex;gap:12px;align-items:flex-start;margin:0 0 14px;flex-wrap:wrap}
+  .pzopts .pzcap{flex:1;min-width:240px;min-height:52px;resize:vertical;padding:10px 12px;border-radius:10px;border:1px solid var(--line2);background:#13131a;color:var(--ink);font:500 13px/1.5 var(--sans)}
+  .pzsched{display:flex;flex-direction:column;gap:5px}
+  .pzsched label{font:700 10px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .pzsched input{padding:9px 11px;border-radius:10px;border:1px solid var(--line2);background:#13131a;color:var(--ink);font:500 13px var(--sans);color-scheme:dark}
+  .pzsched .pzhint{font-size:10.5px;color:var(--mute)}
+  @media(max-width:640px){.pzopts{flex-direction:column}.pzsched input{width:100%}}
   .pcheck{display:inline-flex;align-items:center;gap:8px;font:600 12px/1 var(--sans);color:var(--mute);cursor:pointer;user-select:none}
   .pcheck input{width:17px;height:17px;accent-color:var(--done);cursor:pointer}
   .post.done .pcheck{color:var(--done)}
@@ -350,6 +374,27 @@
   .player-head .x{cursor:pointer;color:var(--mute);font-size:23px;line-height:1;border:1px solid var(--line);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center}
   .player-head .x:hover{color:var(--ink);border-color:var(--gold-dim)}
   .player-box video{max-height:84vh;max-width:min(94vw,520px);border-radius:14px;background:#000;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  /* Montage tray — add-from-link visual scrubber */
+  .mlink{margin:12px 0 4px;padding:13px 14px;border:1px solid var(--line,#333);border-radius:10px;background:rgba(255,255,255,.02)}
+  .mlink-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .mlink-row input[type=text]{flex:1;min-width:220px;padding:9px 11px;border-radius:8px;border:1px solid var(--line,#333);background:#15151a;color:#f5f0e6;font:500 13px/1.2 var(--sans)}
+  .mlink-hint{font:500 12px/1.5 var(--sans);color:var(--mute);margin-top:7px}
+  .mscrub{margin-top:13px;display:none}
+  .mscrub video{width:100%;max-height:280px;background:#000;border-radius:10px;display:block}
+  .mscrub-bar{position:relative;height:34px;margin:11px 0 4px;border-radius:8px;background:#1c1c22;border:1px solid var(--line,#333);touch-action:none;user-select:none}
+  .mscrub-sel{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(201,161,74,.22);border-left:2px solid var(--gold,#caa14a);border-right:2px solid var(--gold,#caa14a)}
+  .mscrub-h{position:absolute;top:-3px;left:0;width:14px;height:40px;margin-left:-7px;border-radius:5px;background:var(--gold,#caa14a);cursor:ew-resize;box-shadow:0 1px 4px rgba(0,0,0,.5);touch-action:none}
+  .mscrub-ph{position:absolute;top:0;bottom:0;left:0;width:2px;background:#fff;display:none;pointer-events:none}
+  .mscrub-read{font:600 13px/1.2 var(--mono,monospace);color:var(--gold-hi,#e7c574)}
+  .mscrub-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .bed-h{position:absolute;top:-3px;left:0;width:14px;height:40px;margin-left:-7px;border-radius:5px;background:#6ea8fe;cursor:ew-resize;box-shadow:0 1px 4px rgba(0,0,0,.5);touch-action:none}
+  .bedscrub{display:none;margin-top:11px;padding:11px 12px;border:1px solid var(--line,#333);border-radius:10px;background:rgba(110,168,254,.05)}
+  .bedscrub .mscrub-sel{background:rgba(110,168,254,.22);border-color:#6ea8fe}
+  .mcap{margin:11px 0 2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .mcap input[type=text]{flex:1;min-width:200px;padding:9px 11px;border-radius:8px;border:1px solid var(--line,#333);background:#15151a;color:#f5f0e6;font:500 13px/1.2 var(--sans)}
+  .mcap select{padding:9px 11px;border-radius:8px;border:1px solid var(--line,#333);background:#15151a;color:#f5f0e6;font:500 13px/1.2 var(--sans)}
+  .mcap label{font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+  .mstep{font:700 12px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--gold,#caa14a);margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -362,10 +407,11 @@
     </div>
     <div class="navitem active" data-tab="create"><span class="ic">✦</span> Create <span class="tag">live</span></div>
     <div class="navitem" data-tab="topic"><span class="ic">⌖</span> Topic <span class="tag">new</span></div>
+    <div class="navitem" data-tab="montage"><span class="ic">⧉</span> Montage <span class="tag">new</span></div>
     <div class="navitem" data-tab="library"><span class="ic">▦</span> Library</div>
     <div class="navitem" data-tab="queue"><span class="ic">≋</span> Queue <span class="tag" id="qbadge">0</span></div>
     <div class="navitem" data-tab="distribution"><span class="ic">⊞</span> Distribute</div>
-    <div class="navitem" data-tab="intelligence"><span class="ic">◔</span> Intel <span class="tag">soon</span></div>
+    <div class="navitem" data-tab="intelligence"><span class="ic">◔</span> Intel</div>
     <div class="navitem adminonly" data-tab="users" style="display:none"><span class="ic">⚷</span> Users <span class="tag">admin</span></div>
     <div class="foot"><b>Campaign:</b> Rod Wave —<br>Don't Look Down · <span class="count" id="dday">21d</span> to drop</div>
   </aside>
@@ -388,8 +434,7 @@
         <p class="sub">Pick a format, drop the hook, set the caption. Forge spins it into a master and multiplies it into non-duplicate variants ready to seed across the pages.</p>
         <div class="fmts">
           <div class="fmt" data-fmt="kinetic_lyric"><span class="px">A</span><span class="glyph">𝄞</span><h3>Kinetic Lyric</h3><p>Aesthetic vessel + the hook, lyric building word-by-word in time with the vocal.</p><span class="fstat livep">live now</span></div>
-          <div class="fmt" data-fmt="film_montage"><span class="px">B</span><span class="glyph">▶</span><h3>Film Montage</h3><p>Emotional clips stitched to the hook — pull from YouTube, a search, or generate. Branded outro.</p><span class="fstat livep">live now</span></div>
-          <div class="fmt sel" data-fmt="leak_graphic"><span class="px">C</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>AI cover art from your caption — generated on Higgsfield, then multiplied.</p><span class="fstat livep">live now</span></div>
+          <div class="fmt sel" data-fmt="leak_graphic"><span class="px">B</span><span class="glyph">◆</span><h3>Leak Graphic</h3><p>AI cover art from your caption — generated on Higgsfield, then multiplied.</p><span class="fstat livep">live now</span></div>
         </div>
         <form class="form panel" style="padding:22px" id="createForm">
           <div class="field full">
@@ -596,22 +641,104 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
           <input id="topicVariantCount" type="number" value="3" min="1" max="10" style="width:64px;padding:8px 10px;font-size:13px">
           <button class="btn" type="button" onclick="assembleVariants()"><span class="k">&#x29C9;</span> Assemble variants</button>
         </div>
-        <!-- MONTAGE TRAY — hand-pick moments across sources, stitch in order -->
-        <div class="mtray" style="margin-top:10px;padding:12px 18px;border:1px dashed var(--line,#444);border-radius:10px">
-          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <span style="font:700 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#caa14a)">Montage tray</span>
-            <button class="btn-ghost" type="button" onclick="addToMontage()">＋ Add selection</button>
-            <span id="montageTrayStatus" style="font:600 13px/1 var(--sans);color:var(--mute)">empty — add picks from any source, then assemble</span>
-            <label style="font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-left:auto">Song bed</label>
-            <input id="montageBedFile" type="file" accept="audio/*,.m4a,.aac,.mp3,.wav,.m4b,.caf,.ogg,.flac" style="font-size:12px;max-width:180px" title="Optional: add a music bed under the montage">
-            <select id="montageBedMode" style="padding:8px 10px;font-size:13px" title="How the song bed sits with the clip audio">
-              <option value="duck">Under voice (duck)</option>
-              <option value="replace">Replace audio</option>
-            </select>
-            <button class="btn-ghost" type="button" onclick="clearMontage()">Clear</button>
-            <button class="btn" type="button" onclick="assembleMontage()"><span class="k">&#x29C9;</span> Assemble montage</button>
+      </section>
+
+      <!-- MONTAGE — link → scrub → song-lyrics → assemble (its own tab) -->
+      <section data-panel="montage" style="display:none">
+        <h1 class="page">Montage</h1>
+        <p class="sub">Stitch real clips from links into a music-video montage — your song plays over it and its lyrics become the captions.</p>
+
+        <!-- STEP 1: add clips -->
+        <div class="panel" style="padding:22px">
+          <div class="mstep">1 · Add clips</div>
+          <div class="mlink" style="margin-top:0;border:none;padding:0;background:none">
+            <div class="mlink-row">
+              <input type="text" id="mlinkUrl" placeholder="Paste a YouTube / TikTok / Instagram link…"
+                     onkeydown="if(event.key==='Enter')mlinkFetch()">
+              <button class="btn" type="button" id="mlinkBtn" onclick="mlinkFetch()"><span class="k">&#x2913;</span> Fetch clip</button>
+            </div>
+            <div class="mlink-row" style="margin-top:9px">
+              <span style="font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);white-space:nowrap">or pick an already-fetched clip</span>
+              <select id="mlinkPick" onchange="mscrubPick(this.value)" style="flex:1;min-width:200px;padding:9px 11px;border-radius:8px;border:1px solid var(--line,#333);background:#15151a;color:#f5f0e6;font:500 13px/1.2 var(--sans)"><option value="">Loading your clips…</option></select>
+              <button class="btn-ghost" type="button" onclick="mscrubLoadList()" style="white-space:nowrap;padding:9px 12px">&#x21BA; Refresh</button>
+            </div>
+            <div class="mlink-hint" id="mlinkStatus">Paste a link or pick a fetched clip, drag the gold handles to set the exact in/out, then Add to montage.</div>
+            <div class="mscrub" id="mscrub">
+              <video id="mscrubVid" preload="metadata" playsinline></video>
+              <div class="mscrub-bar" id="mscrubBar">
+                <div class="mscrub-sel" id="mscrubSel"></div>
+                <div class="mscrub-ph" id="mscrubPh"></div>
+                <div class="mscrub-h" id="mscrubIn" data-h="in"></div>
+                <div class="mscrub-h" id="mscrubOut" data-h="out"></div>
+              </div>
+              <div class="mscrub-tools">
+                <span class="mscrub-read" id="mscrubRead">0:00 &rarr; 0:00 &middot; 0s</span>
+                <button class="btn-ghost" type="button" onclick="mscrubPlay()">&#9654; Preview window</button>
+                <button class="btn" type="button" onclick="mscrubAdd()" style="margin-left:auto"><span class="k">&#xFF0B;</span> Add to montage</button>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <!-- STEP 2: your montage (added clips, reorder) -->
+        <div class="panel" style="padding:22px;margin-top:16px">
+          <div class="mstep">2 · Your montage <span id="montageTrayStatus" style="font:600 12px/1 var(--sans);color:var(--mute);text-transform:none;letter-spacing:0;margin-left:8px">empty — add clips above</span></div>
           <ul id="montageTrayList" style="list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px"></ul>
+        </div>
+
+        <!-- STEP 3: song + lyric captions -->
+        <div class="panel" style="padding:22px;margin-top:16px">
+          <div class="mstep">3 · Song &amp; lyrics</div>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:2px">
+            <label style="font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)">Song (plays over the montage)</label>
+            <input id="montageBedFile" type="file" accept="audio/*,.m4a,.aac,.mp3,.wav,.m4b,.caf,.ogg,.flac" onchange="bedPick(this)" style="font-size:12px;max-width:220px" title="The song plays over the montage; its lyrics become the captions">
+          </div>
+          <div class="bedscrub" id="bedscrub">
+            <div style="font:600 11px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:#6ea8fe;margin-bottom:7px">Drag to pick the part of the song to use</div>
+            <audio id="bedAudio" preload="metadata"></audio>
+            <div class="mscrub-bar" id="bedBar">
+              <div class="mscrub-sel" id="bedSel"></div>
+              <div class="mscrub-ph" id="bedPh"></div>
+              <div class="bed-h" id="bedIn" data-bh="in"></div>
+              <div class="bed-h" id="bedOut" data-bh="out"></div>
+            </div>
+            <div class="mscrub-tools">
+              <span class="mscrub-read" id="bedRead" style="color:#9cc3ff">0:00 &rarr; 0:00 &middot; 0s</span>
+              <button class="btn-ghost" type="button" onclick="bedPlay()">&#9654; Preview part</button>
+              <span style="font:500 12px/1.4 var(--sans);color:var(--mute)">The montage uses this slice (looped if shorter than the video).</span>
+            </div>
+          </div>
+          <div class="mcap">
+            <label>Captions</label>
+            <span style="font:500 13px/1.3 var(--sans);color:var(--mute)">the song's lyrics, auto-synced 🎤</span>
+            <label style="margin-left:14px">Style</label>
+            <select id="montageCapStyle">
+              <option value="karaoke">Karaoke (word highlight)</option>
+              <option value="clean">Clean</option>
+              <option value="bold">Bold caps</option>
+            </select>
+            <label>Color</label>
+            <select id="montageCapColor">
+              <option value="gold">Gold</option>
+              <option value="white">White</option>
+              <option value="pink">Hot pink</option>
+              <option value="lime">Lime</option>
+              <option value="cyan">Cyan</option>
+              <option value="red">Red</option>
+            </select>
+            <label>Position</label>
+            <select id="montageCapPos">
+              <option value="lower">Lower third</option>
+              <option value="center">Center</option>
+              <option value="upper">Upper</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- STEP 4: assemble -->
+        <div style="display:flex;align-items:center;gap:12px;margin-top:18px">
+          <button class="btn" type="button" onclick="assembleMontage()"><span class="k">&#x29C9;</span> Assemble montage</button>
+          <button class="btn-ghost" type="button" onclick="clearMontage()">Clear all</button>
         </div>
       </section>
 
@@ -647,7 +774,19 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
         <p class="sub">Organize the seed without pulling the trigger. Manage your roster, build a ready-to-post pack from any delivered batch, then check each post off as a human taps it live.</p>
 
         <div class="dsec">
-          <div class="dhead"><h2>Account roster</h2><span class="dsub">Who the pack gets staggered across</span></div>
+          <div class="dhead"><h2>Connected accounts <span id="connectedCount" class="cc-badge">…</span></h2><span class="dsub">Live from Postiz — every push fans out to all of these</span></div>
+          <div class="roster">
+            <div id="connectedRows"><div class="libloading">Loading connected accounts…</div></div>
+            <div class="rtools">
+              <button class="btn-ghost" type="button" onclick="loadConnected()">↻ Refresh from Postiz</button>
+              <span class="dsub" style="margin-left:auto">Connect a new account in Postiz and it appears here automatically.</span>
+            </div>
+          </div>
+        </div>
+
+        <details class="dsec" style="margin-top:18px">
+          <summary style="cursor:pointer;font:700 14px/1.3 var(--sans);color:var(--mute)">Custom roster labels (optional) ▾</summary>
+          <div class="dsub" style="margin:6px 0 10px">Connected accounts above are the source of truth. Use this only to add a hand-labeled entry.</div>
           <div class="roster">
             <div id="rosterRows"><div class="libloading">Loading roster…</div></div>
             <div class="rtools">
@@ -655,7 +794,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
               <button class="btn" type="button" onclick="saveRoster()">Save roster</button>
             </div>
           </div>
-        </div>
+        </details>
 
         <div class="badge-safe">🛡 No auto-posting. Forge arms the operator with a ready-to-post package; a human taps the button.</div>
 
@@ -670,24 +809,18 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 
       <!-- INTELLIGENCE -->
       <section data-panel="intelligence" style="display:none">
-        <h1 class="page" style="display:flex;align-items:center;gap:14px">Intelligence <span class="soon">Coming online</span></h1>
+        <h1 class="page" style="display:flex;align-items:center;gap:14px">Intelligence</h1>
         <p class="sub">Sound-test first, scale the proven one. Track every sound and every variant, then funnel the big pages onto the winner.</p>
-        <div class="winner">
-          <div class="trophy">🏆</div>
-          <div><div class="wl">Winning sound</div><div class="wn">"Letter From Houston" — hook</div><div class="wd">68% avg retention · 41k saves across 6 pilot pages · pulling 3.2× the field on shares.</div></div>
+        <div class="rtools" style="margin:4px 0 16px;display:flex;align-items:center;gap:12px">
+          <div class="iunit">
+            <button class="ibtn sel" data-unit="sound" onclick="setIntelUnit('sound')">By sound</button>
+            <button class="ibtn" data-unit="account" onclick="setIntelUnit('account')">By account</button>
+            <button class="ibtn" data-unit="post" onclick="setIntelUnit('post')">By post</button>
+          </div>
+          <button class="btn-ghost" type="button" onclick="loadIntel()">↻ Refresh</button>
+          <span id="intelStatus" class="dsub" style="margin-left:auto"></span>
         </div>
-        <div class="panel boardwrap" style="padding:8px 14px 6px">
-          <table class="board">
-            <thead><tr><th>Sound</th><th class="num">Plays</th><th class="num">Retention</th><th class="num">Saves</th><th>Momentum</th></tr></thead>
-            <tbody>
-              <tr><td>Letter From Houston (hook)</td><td class="num">412k</td><td class="num">68%</td><td class="num">41.0k</td><td><div class="bar"><i style="width:92%"></i></div></td></tr>
-              <tr><td>Still Broke (snippet)</td><td class="num">288k</td><td class="num">59%</td><td class="num">24.3k</td><td><div class="bar"><i style="width:71%"></i></div></td></tr>
-              <tr><td>I Ain't Mad (bridge)</td><td class="num">196k</td><td class="num">54%</td><td class="num">18.1k</td><td><div class="bar"><i style="width:58%"></i></div></td></tr>
-              <tr><td>Tears In The Dark (intro)</td><td class="num">133k</td><td class="num">47%</td><td class="num">9.6k</td><td><div class="bar"><i style="width:39%"></i></div></td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="rec">▲ <b>Funnel call:</b> "Letter From Houston" hook is the clear winner. Push <b>Variant #7</b> (the @diariesofateengal montage cut) to the established pages now — it's converting saves at 1.7× the next best variant.</div>
+        <div id="intelBoard"><div class="libloading">Loading intelligence…</div></div>
       </section>
 
       <!-- USERS (admin only) -->
@@ -723,6 +856,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 <nav class="mobnav">
   <div class="mi active" data-tab="create"><span class="ic">✦</span>Create</div>
   <div class="mi" data-tab="topic"><span class="ic">⌖</span>Topic</div>
+  <div class="mi" data-tab="montage"><span class="ic">⧉</span>Montage</div>
   <div class="mi" data-tab="library"><span class="ic">▦</span>Library</div>
   <div class="mi" data-tab="queue"><span class="ic">≋</span>Queue</div>
   <div class="mi" data-tab="distribution"><span class="ic">⊞</span>Distribute</div>
@@ -847,7 +981,9 @@ function tabTo(name){
   if(name==='library') loadLibrary();
   if(name==='distribution') loadDistribution();
   if(name==='topic' && !_topicSourcesLoaded){ loadTopicSources(); loadCloudFiles(); }
+  if(name==='montage'){ mscrubLoadList(); }
   if(name==='users') loadUsers();
+  if(name==='intelligence') loadIntel();
 }
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(LABELS[h])tabTo(h);});
 document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>tabTo(el.dataset.tab)));
@@ -1258,7 +1394,91 @@ document.getElementById('libUndo').addEventListener('click',undoLast);
 const PLATFORMS=["TikTok","Instagram Reels","YouTube Shorts"];
 const TIERS=["burner","official"];
 
-function loadDistribution(){ loadRoster(); loadJobPicker(); }
+function loadDistribution(){ loadConnected(); loadRoster(); loadJobPicker(); }
+
+const PLAT_ICON={tiktok:'🎵',TikTok:'🎵','Instagram Reels':'📸','YouTube Shorts':'▶️'};
+
+// ---- Intelligence ----
+let intelUnit='sound', _intelData=null;
+function intelFmt(n){n=+n||0; if(n>=1e6)return (n/1e6).toFixed(n>=1e7?0:1)+'M'; if(n>=1e3)return (n/1e3).toFixed(n>=1e4?0:1)+'k'; return ''+n;}
+function setIntelUnit(u){
+  intelUnit=u;
+  document.querySelectorAll('.iunit .ibtn').forEach(b=>b.classList.toggle('sel',b.dataset.unit===u));
+  if(_intelData) renderIntel(_intelData); else loadIntel();
+}
+async function loadIntel(){
+  const box=document.getElementById('intelBoard');
+  const st=document.getElementById('intelStatus');
+  box.innerHTML='<div class="libloading">Loading intelligence…</div>';
+  try{
+    const r=await fetch(API+'/forge/intel/board?unit='+encodeURIComponent(intelUnit),{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    _intelData=await r.json();
+    if(st) st.textContent=_intelData.totals?('Tracking '+_intelData.totals.videos+' clips · '+intelFmt(_intelData.totals.views)+' views · '+_intelData.totals.accounts_tracked+' accounts'):'';
+    renderIntel(_intelData);
+  }catch(e){box.innerHTML='<div class="liberr">Could not load intelligence ('+esc(e.message)+').</div>';}
+}
+function renderIntel(d){
+  const box=document.getElementById('intelBoard');
+  if(!d.has_data){
+    box.innerHTML='<div class="intel-empty">'
+      +'<div class="ie-ic">◔</div>'
+      +'<div class="ie-h">No performance data yet</div>'
+      +'<div class="ie-p">As soon as clips are posted to the connected accounts, their views, likes, comments and shares flow in here — ranked by sound so you can see what\'s winning and push more of it.</div>'
+      +'<div class="ie-n">⏳ Live TikTok pull switches on when the production audit clears (this week). Until then this board fills from any data captured.</div>'
+      +'</div>';
+    return;
+  }
+  let h='';
+  if(d.winner){
+    h+='<div class="winner"><div class="trophy">🏆</div><div>'
+      +'<div class="wl">Winning sound</div>'
+      +'<div class="wn">'+esc(d.winner.sound)+'</div>'
+      +'<div class="wd">'+intelFmt(d.winner.views)+' plays · '+d.winner.engagement+'% engagement · '+intelFmt(d.winner.shares)+' shares across '+d.winner.posts+' post'+(d.winner.posts===1?'':'s')+'.</div>'
+      +'</div></div>';
+  }
+  h+='<div class="panel boardwrap" style="padding:8px 14px 6px">'+intelTable(d)+'</div>';
+  if(d.winner) h+='<div class="rec">▲ <b>Funnel call:</b> '+esc(d.winner.sound)+' is leading the field — push more cuts of it to the established pages.</div>';
+  box.innerHTML=h;
+}
+function intelTable(d){
+  if(intelUnit==='account'){
+    let rows=(d.accounts||[]).map(a=>'<tr><td>'+esc(a.account)+'</td><td class="num">'+intelFmt(a.followers)+'</td><td class="num">'+intelFmt(a.views)+'</td><td class="num">'+a.engagement+'%</td><td class="num">'+a.posts+'</td></tr>').join('');
+    return '<table class="board"><thead><tr><th>Account</th><th class="num">Followers</th><th class="num">Plays</th><th class="num">Eng.</th><th class="num">Posts</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5" class="empty">No accounts yet</td></tr>')+'</tbody></table>';
+  }
+  if(intelUnit==='post'){
+    let rows=(d.posts||[]).map(p=>'<tr><td>'+esc((p.caption||p.sound||'—').slice(0,48))+'</td><td>'+esc(p.account_handle||'—')+'</td><td class="num">'+intelFmt(p.views)+'</td><td class="num">'+intelFmt(p.likes)+'</td><td class="num">'+intelFmt(p.shares)+'</td><td class="num">'+p.engagement+'%</td></tr>').join('');
+    return '<table class="board"><thead><tr><th>Post</th><th>Account</th><th class="num">Views</th><th class="num">Likes</th><th class="num">Shares</th><th class="num">Eng.</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6" class="empty">No posts yet</td></tr>')+'</tbody></table>';
+  }
+  // sound (default)
+  let rows=(d.sounds||[]).map(s=>'<tr><td>'+esc(s.sound)+'</td><td class="num">'+intelFmt(s.plays)+'</td><td class="num">'+s.engagement+'%</td><td class="num">'+intelFmt(s.shares)+'</td><td><div class="bar"><i style="width:'+s.momentum+'%"></i></div></td></tr>').join('');
+  return '<table class="board"><thead><tr><th>Sound</th><th class="num">Plays</th><th class="num">Eng.</th><th class="num">Shares</th><th>Momentum</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5" class="empty">No sounds yet</td></tr>')+'</tbody></table>';
+}
+async function loadConnected(){
+  const box=document.getElementById('connectedRows');
+  const cnt=document.getElementById('connectedCount');
+  box.innerHTML='<div class="libloading">Loading connected accounts…</div>';
+  try{
+    const r=await fetch(API+'/forge/distribution/connected',{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const {accounts,count}=await r.json();
+    if(cnt) cnt.textContent=count;
+    if(!accounts||!accounts.length){
+      box.innerHTML='<div class="empty">No accounts connected in Postiz yet. Connect them in Postiz and hit refresh.</div>';
+      return;
+    }
+    box.innerHTML='';
+    accounts.forEach(a=>{
+      const row=document.createElement('div'); row.className='crow';
+      row.innerHTML='<span class="cdot" title="Connected"></span>'
+        +'<span class="cplat">'+(PLAT_ICON[a.platform]||'🔗')+'</span>'
+        +'<span class="chandle">'+esc(a.handle||'—')+'</span>'
+        +'<span class="cmeta">'+esc(a.platform||'')+'</span>'
+        +'<span class="cstat">● Connected</span>';
+      box.appendChild(row);
+    });
+  }catch(e){box.innerHTML='<div class="liberr">Could not load connected accounts ('+esc(e.message)+').</div>';}
+}
 
 async function loadRoster(){
   const box=document.getElementById('rosterRows');
@@ -1334,8 +1554,14 @@ function renderPack(d){
   let html='<div class="packhdr"><span class="pcount" id="packCount">'+(counts.posted||0)+' / '+counts.posts+'</span>'
     +'<span class="plabel">posted</span>'
     +(d.caption?'<span class="pcap" title="'+esc(d.caption)+'">“'+esc(d.caption)+'”</span>':'')
-    +'<button class="pmini postiz" type="button" onclick="pushPostiz(this)" title="Create drafts in Postiz — nothing publishes until a human hits send">⇪ Push to Postiz (drafts)</button>'
+    +'<button class="pmini postiz" type="button" onclick="pushPostiz(this)" title="Push to Postiz — leave the time blank to save as drafts, or set a time to schedule">⇪ Push to Postiz</button>'
     +'<span class="pzstatus" id="pzStatus"></span></div>';
+  html+='<div class="pzopts">'
+    +'<textarea id="pzCaption" class="pzcap" placeholder="Optional — write the exact caption to post (blank = use each clip’s auto caption + #DontLookDown tags)"></textarea>'
+    +'<div class="pzsched"><label for="pzSchedule">Schedule (your time)</label>'
+      +'<input type="datetime-local" id="pzSchedule">'
+      +'<span class="pzhint">blank = save as drafts</span></div>'
+    +'</div>';
   html+=posts.map(p=>{
     const url=FILEURL(p.file_path);
     const stag=(p.stagger_minutes>0)?'<span class="pbadge stag">+'+p.stagger_minutes+' min</span>':'<span class="pbadge stag">now</span>';
@@ -1354,13 +1580,26 @@ function renderPack(d){
 async function pushPostiz(btn){
   if(!currentPackJob){toast('no batch selected');return;}
   const st=document.getElementById('pzStatus');
-  btn.disabled=true; if(st) st.textContent='pushing drafts…';
+  const capEl=document.getElementById('pzCaption');
+  const schEl=document.getElementById('pzSchedule');
+  const caption=(capEl&&capEl.value.trim())||'';
+  // datetime-local is the operator's local time → convert to UTC ISO for Postiz.
+  let schedule_at='';
+  if(schEl&&schEl.value){
+    const dt=new Date(schEl.value);
+    if(!isNaN(dt.getTime())) schedule_at=dt.toISOString();
+  }
+  const scheduling=!!schedule_at;
+  btn.disabled=true; if(st) st.textContent=scheduling?'scheduling…':'pushing drafts…';
   try{
-    const r=await fetch(API+'/forge/distribution/postiz',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({job_id:currentPackJob})});
+    const r=await fetch(API+'/forge/distribution/postiz',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({job_id:currentPackJob, caption:caption, schedule_at:schedule_at})});
     if(!r.ok) throw new Error(r.status);
     const d=await r.json();
     const c=d.counts||{};
-    let msg=(c.drafts_created||0)+' drafts created';
+    const noun=scheduling?'scheduled':'drafts created';
+    let msg=(c.drafts_created||0)+' '+noun;
+    if(scheduling&&schEl.value) msg+=' for '+schEl.value.replace('T',' ');
     if(c.failed) msg+=', '+c.failed+' failed';
     if(c.skipped) msg+=', '+c.skipped+' skipped (account not connected to Postiz)';
     if(st) st.textContent=msg;
@@ -1821,22 +2060,187 @@ function addToMontage(){
   toast('Added ' + picks.length + ' from ' + sname + ' (tray: ' + montageTray.length + ')');
 }
 function clearMontage(){ montageTray = []; renderMontageStatus(); toast('Montage tray cleared'); }
+
+// ---- Add-from-link visual scrubber (montage tray) ----
+let mscrubState = null;  // {sid, name, dur, tin, tout}
+function _mfmt(t){ t=Math.max(0,t||0); const m=Math.floor(t/60), s=Math.floor(t%60); return m+':'+String(s).padStart(2,'0'); }
+function _mclipName(spec){
+  let s=(spec||'clip').trim();
+  if(/^https?:\/\//i.test(s)){
+    try{ const u=new URL(s); let h=u.hostname.replace(/^www\./,'').split('.')[0];
+      const m=u.pathname.match(/@([^\/]+)/); return (m?('@'+m[1]+' · '):'')+h; }catch(_){ }
+  }
+  return s.length>42 ? s.slice(0,42)+'…' : s;
+}
+let _mclips={};  // sid -> {name, dur}
+async function mscrubLoadList(){
+  const sel=document.getElementById('mlinkPick'); if(!sel) return;
+  try{
+    const r=await fetch(API+'/forge/sources?status=done',{credentials:'include'});
+    const list=(r.ok?(await r.json()).sources:[])||[];
+    _mclips={};
+    const opts=['<option value="">— pick a fetched clip —</option>'];
+    list.filter(s=>(s.duration_s||0)>0).forEach(s=>{
+      _mclips[s.id]={name:_mclipName(s.spec), dur:Number(s.duration_s)||0};
+      opts.push('<option value="'+s.id+'">'+_mclipName(s.spec)+' · '+Math.round(s.duration_s)+'s</option>');
+    });
+    sel.innerHTML = opts.length>1 ? opts.join('') : '<option value="">No fetched clips yet — paste a link above</option>';
+  }catch(_){ sel.innerHTML='<option value="">Couldn’t load clips — Refresh</option>'; }
+}
+function mscrubPick(sid){
+  if(!sid) return; const c=_mclips[sid]; if(!c){ toast('Pick a clip'); return; }
+  mscrubMount(sid, c.name, c.dur);
+}
+async function mlinkFetch(){
+  const inp=document.getElementById('mlinkUrl');
+  const url=(inp.value||'').trim();
+  const st=document.getElementById('mlinkStatus');
+  const btn=document.getElementById('mlinkBtn');
+  if(!/^https?:\/\//i.test(url)){ toast('Paste a valid link first'); return; }
+  btn.disabled=true; st.style.color='var(--gold-hi)';
+  st.textContent='⤓ Fetching the clip — this can take a moment for a long video…';
+  try{
+    const r=await fetch(API+'/forge/ingest/url',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({url})});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.detail||r.status); }
+    const sid=(await r.json()).source_id;
+    inp.value=''; if(typeof refreshJobs==='function') refreshJobs();
+    // Poll until the media is downloaded + processed (status 'done', duration known).
+    let tries=0;
+    const poll=setInterval(async()=>{
+      tries++;
+      try{
+        const sr=await fetch(API+'/forge/sources/'+encodeURIComponent(sid),{credentials:'include'});
+        if(sr.ok){
+          const s=await sr.json();
+          if(s.status==='error'){ clearInterval(poll); btn.disabled=false; st.style.color='var(--error)';
+            st.textContent='Couldn’t fetch that link ('+(s.error||'failed')+'). If it’s private or age-gated, download it and use the drop folder.'; return; }
+          if(s.status==='done' && (s.duration_s||0)>0){
+            clearInterval(poll); btn.disabled=false;
+            mscrubMount(sid, s.spec||url, Number(s.duration_s)||0);
+          } else {
+            st.textContent='⤓ Working… ('+(s.status||'pending')+') — the scrubber opens as soon as it’s ready.';
+          }
+        }
+      }catch(_){}
+      if(tries>=90){ clearInterval(poll); btn.disabled=false; st.style.color='var(--error)';
+        st.textContent='Still processing — check the Queue, then paste the link again in a minute.'; }
+    },5000);
+  }catch(e){ btn.disabled=false; st.style.color='var(--error)'; st.textContent='Could not fetch that link ('+e.message+').'; }
+}
+function mscrubMount(sid,name,dur){
+  mscrubState={ sid:sid, name:name, dur:dur, tin:0, tout:Math.min(dur, Math.max(2, Math.min(8,dur))) };
+  const v=document.getElementById('mscrubVid');
+  v.src=API+'/forge/sources/'+encodeURIComponent(sid)+'/video';
+  document.getElementById('mscrub').style.display='block';
+  const st=document.getElementById('mlinkStatus');
+  st.style.color='var(--gold-hi)';
+  st.textContent='Drag the gold handles to set in/out, preview the window, then Add to montage.';
+  // If metadata gives a more exact duration than the DB, trust it.
+  v.onloadedmetadata=()=>{ if(v.duration && isFinite(v.duration)){ mscrubState.dur=v.duration; if(mscrubState.tout>v.duration) mscrubState.tout=v.duration; mscrubPaint(); } };
+  v.ontimeupdate=()=>{ const ph=document.getElementById('mscrubPh'); if(!mscrubState) return;
+    ph.style.left=(v.currentTime/(mscrubState.dur||1))*100+'%';
+    if(v.currentTime>=mscrubState.tout){ v.pause(); ph.style.display='none'; } };
+  mscrubPaint();
+  mscrubLoadList();
+}
+function mscrubPaint(){
+  const s=mscrubState; if(!s) return;
+  const l=(s.tin/(s.dur||1))*100, r=(s.tout/(s.dur||1))*100;
+  const sel=document.getElementById('mscrubSel');
+  sel.style.left=l+'%'; sel.style.width=Math.max(0,r-l)+'%';
+  document.getElementById('mscrubIn').style.left=l+'%';
+  document.getElementById('mscrubOut').style.left=r+'%';
+  document.getElementById('mscrubRead').textContent=_mfmt(s.tin)+' → '+_mfmt(s.tout)+' · '+Math.round(s.tout-s.tin)+'s';
+}
+function mscrubPlay(){ const s=mscrubState; if(!s) return; const v=document.getElementById('mscrubVid');
+  v.currentTime=s.tin; document.getElementById('mscrubPh').style.display='block'; v.play(); }
+function mscrubAdd(){
+  const s=mscrubState; if(!s){ toast('Fetch a clip first'); return; }
+  if((s.tout-s.tin)<1){ toast('Window too short — widen the handles'); return; }
+  montageTray.push({ source_id:s.sid, source_name:(s.name||'clip').slice(0,60),
+                     start_s:Math.round(s.tin*100)/100, end_s:Math.round(s.tout*100)/100, text:'' });
+  renderMontageStatus();
+  toast('Added '+Math.round(s.tout-s.tin)+'s to montage (tray: '+montageTray.length+')');
+}
+// Dual-handle drag for the montage scrubber.
+(function(){
+  let drag=null;
+  document.addEventListener('pointerdown',function(e){
+    const h=e.target.closest&&e.target.closest('.mscrub-h');
+    if(!h||!mscrubState) return; drag=h.dataset.h; e.preventDefault();
+  });
+  document.addEventListener('pointermove',function(e){
+    if(!drag||!mscrubState) return;
+    const bar=document.getElementById('mscrubBar'); const rect=bar.getBoundingClientRect();
+    let f=(e.clientX-rect.left)/(rect.width||1); f=Math.max(0,Math.min(1,f));
+    const t=f*mscrubState.dur;
+    if(drag==='in'){ mscrubState.tin=Math.max(0, Math.min(t, mscrubState.tout-1)); }
+    else { mscrubState.tout=Math.min(mscrubState.dur, Math.max(t, mscrubState.tin+1)); }
+    mscrubPaint();
+  });
+  document.addEventListener('pointerup',function(){ drag=null; });
+})();
+
+// ---- Song-bed region scrubber ----
+let bedState=null;
+function bedPick(input){
+  const f=input&&input.files&&input.files[0];
+  const wrap=document.getElementById('bedscrub');
+  if(!f){ wrap.style.display='none'; bedState=null; return; }
+  const a=document.getElementById('bedAudio'); a.src=URL.createObjectURL(f);
+  bedState={dur:0,start:0,end:0};
+  a.onloadedmetadata=()=>{ const d=(a.duration&&isFinite(a.duration))?a.duration:0;
+    bedState.dur=d; bedState.start=0; bedState.end=Math.min(d, Math.max(5, Math.min(20,d)));
+    wrap.style.display='block'; bedPaint(); };
+  a.ontimeupdate=()=>{ const ph=document.getElementById('bedPh'); if(!bedState) return;
+    ph.style.left=(a.currentTime/(bedState.dur||1))*100+'%';
+    if(a.currentTime>=bedState.end){ a.pause(); ph.style.display='none'; } };
+}
+function bedPaint(){ const s=bedState; if(!s) return;
+  const l=(s.start/(s.dur||1))*100, r=(s.end/(s.dur||1))*100;
+  const sel=document.getElementById('bedSel'); sel.style.left=l+'%'; sel.style.width=Math.max(0,r-l)+'%';
+  document.getElementById('bedIn').style.left=l+'%'; document.getElementById('bedOut').style.left=r+'%';
+  document.getElementById('bedRead').textContent=_mfmt(s.start)+' → '+_mfmt(s.end)+' · '+Math.round(s.end-s.start)+'s'; }
+function bedPlay(){ const s=bedState; if(!s) return; const a=document.getElementById('bedAudio');
+  a.currentTime=s.start; document.getElementById('bedPh').style.display='block'; a.play(); }
+(function(){ let drag=null;
+  document.addEventListener('pointerdown',function(e){ const h=e.target.closest&&e.target.closest('.bed-h'); if(!h||!bedState) return; drag=h.dataset.bh; e.preventDefault(); });
+  document.addEventListener('pointermove',function(e){ if(!drag||!bedState) return;
+    const bar=document.getElementById('bedBar'); const rect=bar.getBoundingClientRect();
+    let f=(e.clientX-rect.left)/(rect.width||1); f=Math.max(0,Math.min(1,f)); const t=f*bedState.dur;
+    if(drag==='in'){ bedState.start=Math.max(0,Math.min(t,bedState.end-1)); }
+    else { bedState.end=Math.min(bedState.dur,Math.max(t,bedState.start+1)); } bedPaint(); });
+  document.addEventListener('pointerup',function(){ drag=null; });
+})();
+
 async function assembleMontage(){
   if(!montageTray.length){ toast('Montage tray is empty — add picks first'); return; }
   const total = montageTray.reduce((a,p)=>a+(p.end_s-p.start_s),0);
   if(total < 10){ toast('Montage too short (~' + Math.round(total) + 's; need ≥10s)'); return; }
   const params = {picks: montageTray, ...captionOpts()};
-  // Optional song bed — upload first, pass the id.
+  // Captions = the song's lyrics (auto), bed always replaces the clip audio.
+  params.caption_source = 'song';
+  const capStyle = (document.getElementById('montageCapStyle')||{}).value || '';
+  if(capStyle) params.caption_style = capStyle;
+  const capColor = (document.getElementById('montageCapColor')||{}).value || '';
+  if(capColor) params.caption_color = capColor;
+  const capPos = (document.getElementById('montageCapPos')||{}).value || '';
+  if(capPos) params.caption_position = capPos;
+  // Song bed — upload first, pass the id + chosen region.
   const bedInput = document.getElementById('montageBedFile');
   const bedFile = bedInput && bedInput.files && bedInput.files[0];
   try {
     if(bedFile){
-      toast('Uploading song bed…');
+      toast('Uploading song…');
       const fd = new FormData(); fd.append('file', bedFile);
       const up = await fetch(API+'/forge/uploads',{method:'POST',credentials:'include',body:fd});
       if(!up.ok) throw new Error('bed upload '+up.status);
       params.bed_audio_upload_id = (await up.json()).upload_id;
-      params.bed_mode = (document.getElementById('montageBedMode')||{}).value || 'duck';
+      params.bed_mode = 'replace';
+      if(bedState){
+        params.bed_start = Math.round(bedState.start*100)/100;
+        if(bedState.end > bedState.start) params.bed_end = Math.round(bedState.end*100)/100;
+      }
     }
     const r = await fetch(API + '/forge/jobs', {
       method: 'POST',
