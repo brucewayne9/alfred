@@ -26,6 +26,16 @@ def test_health_is_public(tmp_path, monkeypatch):
     assert r.json()["status"] == "ok"
 
 
+def test_transitions_catalog_lists_auto_first(client):
+    r = client.get("/forge/transitions")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["default"] == "auto"
+    assert body["transitions"][0]["key"] == "auto"
+    keys = [t["key"] for t in body["transitions"]]
+    assert "dissolve" in keys and "cut" in keys
+
+
 def test_create_job_returns_pending(client):
     r = client.post("/forge/jobs", json={"job_type": "echo", "params": {"a": 1}})
     assert r.status_code == 200

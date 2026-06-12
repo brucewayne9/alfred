@@ -504,6 +504,10 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <input type="hidden" id="captionStyle" value="box_gold">
             <input type="hidden" id="font" value="gallery">
           </div>
+          <div class="field full montagefield" style="display:none">
+            <label>Transition <span style="color:var(--mute);font-weight:400">— how clips cut together (Auto keeps it tasteful)</span></label>
+            <select id="transition"></select>
+          </div>
           <div class="field full sizefield" style="display:none">
             <label>Output sizes <span style="color:var(--mute);font-weight:400">— pick one or more; each is rendered (full variant set per size)</span></label>
             <div class="seg" id="aspectSeg">
@@ -997,6 +1001,22 @@ function pickCapStyle(id,name,family){
   closeCapGallery();
 }
 loadCaptionStyles();
+async function loadTransitions(){
+  const sel = document.getElementById('transition');
+  if(!sel) return;
+  try{
+    const r = await fetch(API+'/forge/transitions',{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    sel.innerHTML = data.transitions.map(t=>
+      `<option value="${t.key}"${t.key===data.default?' selected':''}>${t.label}</option>`).join('');
+  }catch(e){
+    // Safe fallback so the picker is never empty if the catalog fetch fails.
+    sel.innerHTML = '<option value="auto" selected>Auto</option>'
+      + '<option value="cut">Cut</option><option value="dissolve">Dissolve</option>';
+  }
+}
+loadTransitions();
 const LABELS = {create:"Create",topic:"Topic",autoclips:"Auto-Clips",library:"Library",queue:"Queue",distribution:"Distribute",intelligence:"Intelligence",users:"Users"};
 let curFmt = "leak_graphic";
 
@@ -1088,6 +1108,7 @@ document.getElementById('createForm').addEventListener('submit',async e=>{
     caption:document.getElementById('caption').value,
     font:document.getElementById('font').value,
     caption_style:(document.getElementById('captionStyle')||{}).value||'box_gold',
+    transition:(document.getElementById('transition')||{}).value||'auto',
     aspects:readAspects('aspectSeg'),
     subfolder:document.getElementById('subfolder').value.replace(/ \/ /g,'/'),
     variations:Number(vars.value),

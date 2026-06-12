@@ -63,9 +63,13 @@ fall back to `Dissolve`. `Cut` routes to the hard-cut concat (skip xfade entirel
    left/right per boundary for visual variety within one style.
 3. **`film_montage.render`** — read `params.get("transition")`, resolve via catalog; `Cut` →
    existing hard-cut path; else xfade with the resolved type.
-4. **`multi_montage.render`** — route its `_concat_segments` call through the same
-   transition resolution so the operator-pick montage gains transitions too. `Cut` preserves
-   today's behavior (default for multi until user picks otherwise).
+4. **`multi_montage.render`** — **DEFERRED to its own sub-task (M1.2).** Discovered during build:
+   `_concat_xfade` is video-only (`-an`), and `multi_montage`'s interview path extracts voice audio
+   from the concatenated body while its captions are placed at *cumulative segment offsets*. Routing
+   it through xfade naively would (a) drop the body's voice audio and (b) desync those caption
+   offsets by the per-boundary overlap. Correct support needs an audio-preserving concat
+   (`acrossfade` or post-mux) **and** recomputed caption offsets — built and tested separately so
+   the existing operator-pick montage isn't regressed. `multi_montage` keeps hard cuts until then.
 5. **`handlers.py`** — no logic change; `transition` rides in `params` already. Validate/whitelist
    the key against the catalog (reject unknown to a safe default).
 6. **forge-web UI** — add a transition `<select>` to the montage create panel, populated from the

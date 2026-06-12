@@ -1,4 +1,28 @@
-from core.forge.renderers.film_montage import plan_segments, assign_offsets
+from core.forge.renderers.film_montage import (
+    plan_segments,
+    assign_offsets,
+    build_xfade_filter,
+)
+
+
+def test_xfade_filter_uses_requested_transition():
+    filt, _final = build_xfade_filter([2.0, 2.0, 2.0], transition="fade", fade=0.18)
+    assert all("transition=fade" in f for f in filt)
+
+
+def test_directional_transition_alternates_left_right():
+    # Whip/wipe/blur read better when successive cuts push opposite directions.
+    filt, _final = build_xfade_filter(
+        [2.0, 2.0, 2.0], transition="slideleft", fade=0.18, directional=True
+    )
+    assert "transition=slideleft" in filt[0]
+    assert "transition=slideright" in filt[1]
+
+
+def test_xfade_first_offset_accounts_for_fade_overlap():
+    filt, final = build_xfade_filter([2.0, 2.0], transition="fade", fade=0.2)
+    assert "offset=1.800" in filt[0]  # 2.0 - 0.2
+    assert final == "vx1"
 
 
 def test_covers_hook_with_enough_segments():

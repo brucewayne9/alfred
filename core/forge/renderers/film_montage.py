@@ -14,7 +14,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from core.forge import audio, clips, uploads, caption_styles
+from core.forge import audio, clips, uploads, caption_styles, transitions
 from core.forge.renderers.kinetic_lyric import build_karaoke_lines, _node_env, REMOTION
 
 LOGO_PATH = Path("/home/aialfred/remotion/public/mainstay-logo.png")
@@ -25,14 +25,56 @@ LOGO_PATH = Path("/home/aialfred/remotion/public/mainstay-logo.png")
 TRANSITION_FADE = 0.18
 
 
-def _concat_xfade(seg_paths: list[Path], out: Path, fade: float = TRANSITION_FADE) -> Path:
-    """Concat segments with a quick crossfade dissolve at every boundary.
+def _flip_direction(name: str) -> str:
+    """Mirror a directional xfade (left<->right, up<->down) for alternation."""
+    for a, b in (("left", "right"), ("up", "down")):
+        if a in name:
+            return name.replace(a, b)
+        if b in name:
+            return name.replace(b, a)
+    return name
 
-    Chains ffmpeg ``xfade`` filters. Each transition overlaps two clips by
-    ``fade`` seconds, so the running composite duration is tracked to place every
-    offset correctly. Segments are cut ``fade`` seconds long (see render) so the
-    overlap is absorbed and total duration ≈ the sum of requested seconds — the
-    lyric captions stay synced. Falls back to a copy for a single segment.
+
+def build_xfade_filter(
+    durations: list[float],
+    transition: str = "fade",
+    fade: float = TRANSITION_FADE,
+    directional: bool = False,
+) -> tuple[list[str], str]:
+    """Build the ffmpeg ``xfade`` filter chain for a list of segment durations.
+
+    Returns ``(filter_strings, final_video_label)``. Each boundary overlaps two
+    clips by ``fade`` seconds; the running composite duration is tracked so every
+    transition lands at the right offset. Directional transitions (whip/wipe/blur)
+    alternate left/right per boundary so successive cuts don't all push one way.
+    Pure — no ffmpeg invocation — so it can be unit-tested.
+    """
+    filt, prev, acc = [], "0:v", durations[0]
+    for i in range(1, len(durations)):
+        off = max(0.0, acc - fade)
+        label = f"vx{i}"
+        trans = _flip_direction(transition) if directional and (i - 1) % 2 == 1 else transition
+        filt.append(
+            f"[{prev}][{i}:v]xfade=transition={trans}:duration={fade}:"
+            f"offset={off:.3f}[{label}]")
+        prev, acc = label, acc + durations[i] - fade
+    return filt, prev
+
+
+def _concat_xfade(
+    seg_paths: list[Path],
+    out: Path,
+    fade: float = TRANSITION_FADE,
+    transition: str = "fade",
+    directional: bool = False,
+) -> Path:
+    """Concat segments with a quick ``xfade`` transition at every boundary.
+
+    ``transition`` is any ffmpeg ``xfade`` type (``fade``, ``slideleft``,
+    ``wipeleft``, ``zoomin``, …). Segments are cut ``fade`` seconds long (see
+    render) so the overlap is absorbed and total duration ≈ the sum of requested
+    seconds — the lyric captions stay synced. Falls back to a copy for a single
+    segment.
     """
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -51,14 +93,7 @@ def _concat_xfade(seg_paths: list[Path], out: Path, fade: float = TRANSITION_FAD
     for p in seg_paths:
         inputs += ["-i", str(p)]
 
-    filt, prev, acc = [], "0:v", durs[0]
-    for i in range(1, len(seg_paths)):
-        off = max(0.0, acc - fade)
-        label = f"vx{i}"
-        filt.append(
-            f"[{prev}][{i}:v]xfade=transition=fade:duration={fade}:"
-            f"offset={off:.3f}[{label}]")
-        prev, acc = label, acc + durs[i] - fade
+    filt, prev = build_xfade_filter(durs, transition=transition, fade=fade, directional=directional)
 
     proc = subprocess.run(
         ["ffmpeg", "-y", "-v", "error", *inputs,
@@ -253,9 +288,9 @@ def render(params: dict, out_path: str | Path) -> Path:
             except Exception:
                 durations.append(0.0)
         segs = assign_offsets(segs, durations)
-        # Quick dissolve by default; "cut" gives a hard splice (already clean).
-        transition = (params.get("transition") or "fade").lower()
-        fade = TRANSITION_FADE if transition != "cut" and len(segs) > 1 else 0.0
+        # Resolve the chosen transition (Auto/cut/concrete) once, up front.
+        tspec = transitions.render_spec(params)
+        fade = 0.0 if (tspec["hard_cut"] or len(segs) <= 1) else TRANSITION_FADE
         seg_paths: list[Path] = []
         for i, seg in enumerate(segs):
             # Pad each segment by `fade` so the crossfade overlap is absorbed and
@@ -268,7 +303,8 @@ def render(params: dict, out_path: str | Path) -> Path:
         # 5. Stitch: crossfade dissolve (default) or clean hard concat.
         body = work / "body.mp4"
         if fade > 0.0:
-            _concat_xfade(seg_paths, body, fade=fade)
+            _concat_xfade(seg_paths, body, fade=fade,
+                          transition=tspec["xfade"], directional=tspec["directional"])
         else:
             concat_txt = work / "concat.txt"
             concat_txt.write_text(

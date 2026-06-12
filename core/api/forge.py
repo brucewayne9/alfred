@@ -27,6 +27,12 @@ def register(app: FastAPI) -> None:
                 "families": caption_styles.families(),
                 "default": caption_styles.DEFAULT_STYLE}
 
+    @app.get("/forge/transitions")
+    async def forge_transitions(user: dict = Depends(require_auth)):
+        """Montage transition catalog for the picker (Auto first)."""
+        from core.forge import transitions
+        return {"transitions": transitions.menu(), "default": "auto"}
+
     @app.get("/forge/authcheck")
     async def forge_authcheck(request: Request):
         """Caddy forward_auth target: validate Basic credentials against the
