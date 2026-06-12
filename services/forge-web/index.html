@@ -407,6 +407,7 @@
     </div>
     <div class="navitem active" data-tab="create"><span class="ic">✦</span> Create <span class="tag">live</span></div>
     <div class="navitem" data-tab="topic"><span class="ic">⌖</span> Topic <span class="tag">new</span></div>
+    <div class="navitem" data-tab="autoclips"><span class="ic">★</span> Auto-Clips <span class="tag">new</span></div>
     <div class="navitem" data-tab="montage"><span class="ic">⧉</span> Montage <span class="tag">new</span></div>
     <div class="navitem" data-tab="library"><span class="ic">▦</span> Library</div>
     <div class="navitem" data-tab="queue"><span class="ic">≋</span> Queue <span class="tag" id="qbadge">0</span></div>
@@ -643,6 +644,31 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
         </div>
       </section>
 
+      <!-- AUTO-CLIPS — AI editor reads the transcript and ranks viral moments (Phase 08) -->
+      <section data-panel="autoclips" style="display:none">
+        <h1 class="page">Auto-Clips</h1>
+        <p class="sub">Let the AI editor read a whole interview and rank the moments most likely to pop — each scored 0–100 with a hook, a reason, and a ready-to-post caption. One click cuts the clip.</p>
+
+        <div class="panel" style="padding:22px">
+          <div class="form">
+            <div class="field full">
+              <label>Source</label>
+              <div style="display:flex;gap:10px;align-items:center">
+                <select id="autoSource" style="flex:1"><option value="">Loading sources…</option></select>
+                <button class="btn-ghost" type="button" onclick="loadAutoSources()" style="white-space:nowrap;padding:11px 14px">↺ Refresh</button>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn" id="autoScoreBtn" type="button" onclick="scoreSource()"><span class="k">★</span> Score this source</button>
+              <span class="hint">→ reads the full transcript and ranks the best 15–60s moments. Usually ~10–30s.</span>
+            </div>
+          </div>
+          <div id="autoStatus" style="margin-top:12px;font:500 13px/1.4 var(--sans);color:var(--gold-hi);display:none"></div>
+        </div>
+
+        <div id="autoResults" style="margin-top:24px"><div class="empty">Pick a source and score it — the ranked grid lands here.</div></div>
+      </section>
+
       <!-- MONTAGE — link → scrub → song-lyrics → assemble (its own tab) -->
       <section data-panel="montage" style="display:none">
         <h1 class="page">Montage</h1>
@@ -856,6 +882,7 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 <nav class="mobnav">
   <div class="mi active" data-tab="create"><span class="ic">✦</span>Create</div>
   <div class="mi" data-tab="topic"><span class="ic">⌖</span>Topic</div>
+  <div class="mi" data-tab="autoclips"><span class="ic">★</span>Auto-Clips</div>
   <div class="mi" data-tab="montage"><span class="ic">⧉</span>Montage</div>
   <div class="mi" data-tab="library"><span class="ic">▦</span>Library</div>
   <div class="mi" data-tab="queue"><span class="ic">≋</span>Queue</div>
@@ -966,7 +993,7 @@ function pickCapStyle(id,name,family){
   closeCapGallery();
 }
 loadCaptionStyles();
-const LABELS = {create:"Create",topic:"Topic",library:"Library",queue:"Queue",distribution:"Distribute",intelligence:"Intelligence",users:"Users"};
+const LABELS = {create:"Create",topic:"Topic",autoclips:"Auto-Clips",library:"Library",queue:"Queue",distribution:"Distribute",intelligence:"Intelligence",users:"Users"};
 let curFmt = "leak_graphic";
 
 // d-day countdown to 2026-06-19 (computed from a fixed render baseline; demo uses 21d)
@@ -981,6 +1008,7 @@ function tabTo(name){
   if(name==='library') loadLibrary();
   if(name==='distribution') loadDistribution();
   if(name==='topic' && !_topicSourcesLoaded){ loadTopicSources(); loadCloudFiles(); }
+  if(name==='autoclips' && !_autoSourcesLoaded){ loadAutoSources(); }
   if(name==='montage'){ mscrubLoadList(); }
   if(name==='users') loadUsers();
   if(name==='intelligence') loadIntel();
@@ -1990,6 +2018,139 @@ async function assembleVariants(){
     toast('Assembling ' + variantCount + ' variants — watch the queue');
     refreshJobs(); tabTo('queue');
   } catch(e) { toast('Could not start assembly (' + e.message + ')'); }
+}
+
+// ---- Auto-Clips: AI-scored viral moments (Phase 08) ----
+let _autoSourcesLoaded = false;
+const autoState = {};   // sourceId -> candidates[]
+const EMO = {vulnerable:'💔','hot-take':'🔥','origin-story':'📈',quotable:'🗣️',funny:'😂',aspirational:'✨'};
+
+async function loadAutoSources(){
+  const sel = document.getElementById('autoSource');
+  sel.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const r = await fetch(API + '/forge/sources?status=done', {credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const {sources} = await r.json();
+    if(!sources || !sources.length){
+      sel.innerHTML = '<option value="">No sources yet — add one in the Topic tab first</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">Pick a source…</option>' + sources.map(s => {
+      let raw = s.name || s.spec || s.id;
+      try { raw = decodeURIComponent(raw); } catch(_){}
+      const hint = s.duration_s ? (' · ' + fmtTime(s.duration_s)) : '';
+      return '<option value="'+esc(s.id)+'">'+esc(raw)+hint+'</option>';
+    }).join('');
+    _autoSourcesLoaded = true;
+  } catch(e){
+    sel.innerHTML = '<option value="">Could not load sources ('+esc(e.message)+')</option>';
+  }
+}
+
+// Poll a job id until terminal or timeout (seconds). Returns the job dict or null.
+async function pollJob(jobId, timeoutS){
+  const deadline = Date.now() + (timeoutS*1000);
+  while(Date.now() < deadline){
+    await new Promise(r => setTimeout(r, 2500));
+    try {
+      const r = await fetch(API + '/forge/jobs/' + encodeURIComponent(jobId), {credentials:'include'});
+      if(r.ok){ const j = await r.json();
+        if(j.status==='done' || j.status==='error' || j.status==='cancelled') return j; }
+    } catch(_){}
+  }
+  return null;
+}
+
+async function scoreSource(){
+  const id = document.getElementById('autoSource').value;
+  if(!id){ toast('Pick a source first'); return; }
+  const btn = document.getElementById('autoScoreBtn');
+  const st = document.getElementById('autoStatus');
+  btn.disabled = true;
+  st.style.display=''; st.style.color='var(--gold-hi)';
+  st.textContent = '★ Reading the transcript and ranking moments…';
+  try {
+    const r = await fetch(API + '/forge/sources/' + encodeURIComponent(id) + '/score', {
+      method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:'{}'});
+    if(!r.ok){ const e = await r.json().catch(()=>({})); throw new Error(e.detail||r.status); }
+    const {job_id} = await r.json();
+    refreshJobs();
+    const done = await pollJob(job_id, 120);
+    if(done && done.status === 'error') throw new Error(done.error || 'scoring failed');
+    await loadCandidates(id);
+    st.style.display='none';
+  } catch(e){
+    st.style.color='var(--error)';
+    st.textContent = 'Could not score that source ('+e.message+').';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function loadCandidates(sourceId){
+  const box = document.getElementById('autoResults');
+  try {
+    const r = await fetch(API + '/forge/sources/' + encodeURIComponent(sourceId) + '/candidates', {credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const {candidates} = await r.json();
+    renderCandidates(sourceId, candidates || []);
+  } catch(e){
+    box.innerHTML = '<div class="empty">Could not load candidates ('+esc(e.message)+')</div>';
+  }
+}
+
+function _scoreColor(s){ return s>=85?'#37d67a':(s>=70?'var(--gold,#caa14a)':(s>=50?'#e0a93a':'var(--mute)')); }
+
+function renderCandidates(sourceId, cands){
+  autoState[sourceId] = cands;
+  const box = document.getElementById('autoResults');
+  if(!cands.length){ box.innerHTML = '<div class="empty">No clips scored yet — hit “Score this source”.</div>'; return; }
+  box.innerHTML = '<div style="display:grid;gap:14px">' + cands.map((c,i) => {
+    const emo = EMO[c.emotion] || '🎬';
+    const dur = Math.round(c.end_s - c.start_s);
+    return '<div class="panel" style="padding:18px;display:flex;gap:16px;align-items:flex-start">'
+      +'<div style="flex:0 0 auto;text-align:center;min-width:56px">'
+        +'<div style="font:800 30px/1 var(--sans);color:'+_scoreColor(c.score)+'">'+c.score+'</div>'
+        +'<div style="font:600 10px/1.4 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute2)">score</div>'
+      +'</div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'
+          +'<span class="tag" style="background:rgba(255,255,255,.06);color:var(--ink)">'+emo+' '+esc(c.emotion||'clip')+'</span>'
+          +'<span style="font:600 12px/1 var(--mono,monospace);color:var(--mute)">'+fmtTime(c.start_s)+'–'+fmtTime(c.end_s)+' · '+dur+'s</span>'
+        +'</div>'
+        +(c.hook?'<div style="font:700 16px/1.35 var(--sans);color:var(--ink);margin-bottom:6px">“'+esc(c.hook)+'”</div>':'')
+        +(c.reason?'<div style="font:500 13px/1.45 var(--sans);color:var(--mute);margin-bottom:8px">'+esc(c.reason)+'</div>':'')
+        +(c.caption?'<div style="font:500 13px/1.4 var(--sans);color:var(--gold-hi);background:rgba(202,161,74,.08);border-radius:8px;padding:8px 11px;margin-bottom:10px">📣 '+esc(c.caption)+'</div>':'')
+        +'<div style="display:flex;gap:9px;flex-wrap:wrap">'
+          +'<button class="btn" type="button" style="padding:9px 15px" onclick="renderAutoClip(\''+esc(sourceId)+'\','+i+')"><span class="k">⧉</span> Cut this clip</button>'
+          +'<button class="btn-ghost" type="button" style="padding:9px 13px" onclick="copyAutoCaption(\''+esc(sourceId)+'\','+i+')">⧉ Copy caption</button>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  }).join('') + '</div>';
+}
+
+function copyAutoCaption(sourceId, idx){
+  const c = (autoState[sourceId]||[])[idx];
+  if(!c || !navigator.clipboard){ return; }
+  navigator.clipboard.writeText(c.caption || c.hook || '').then(
+    () => toast('Caption copied'), () => toast('Copy failed'));
+}
+
+async function renderAutoClip(sourceId, idx){
+  const c = (autoState[sourceId]||[])[idx];
+  if(!c){ toast('Clip not found — re-score the source'); return; }
+  const segments = [{start_s:c.start_s, end_s:c.end_s, text:c.hook||c.caption||'', speaker:null, score:c.score}];
+  try {
+    const r = await fetch(API + '/forge/jobs', {method:'POST',
+      headers:{'Content-Type':'application/json'}, credentials:'include',
+      body: JSON.stringify({job_type:'topic_clip',
+        params:{source_id:sourceId, segments, variant_count:1, caption:(c.caption||c.hook||'')}})});
+    if(!r.ok) throw new Error(r.status);
+    toast('Cutting your clip — watch the Queue');
+    refreshJobs(); tabTo('queue');
+  } catch(e){ toast('Could not start the cut ('+e.message+')'); }
 }
 
 // ---- Shared caption options (style/position/font/color) ----
