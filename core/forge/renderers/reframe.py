@@ -158,16 +158,75 @@ def plan_reframe(
     ``[{start_s, end_s, crop:(x,y,w,h)}, ...]`` sorted by time — one static crop per
     speaker span, with hard cuts at the boundaries.
     """
-    plan: list[dict] = []
+    # Clip speaker windows to the span.
+    spk: list[tuple[float, float, tuple]] = []
     for w in windows:
         s = max(float(w["start_s"]), start_s)
         e = min(float(w["end_s"]), end_s)
         if e <= s:
             continue
-        crop = crop_window(w["bbox"], src_w, src_h, ar_w, ar_h)
-        plan.append({"start_s": s, "end_s": e, "crop": crop})
-    plan.sort(key=lambda p: p["start_s"])
+        spk.append((s, e, crop_window(w["bbox"], src_w, src_h, ar_w, ar_h)))
+    if not spk:
+        return []
+    spk.sort(key=lambda x: x[0])
+
+    # Center cover-crop for gaps (before/between/after speaker windows), so the plan
+    # covers the FULL [start_s, end_s] span — never shrink the clip.
+    center = crop_window((src_w / 2.0, src_h / 2.0, 0, 0), src_w, src_h, ar_w, ar_h)
+    plan: list[dict] = []
+    cur = start_s
+    for s, e, crop in spk:
+        if s > cur + 1e-6:
+            plan.append({"start_s": cur, "end_s": s, "crop": center})
+        seg_start = max(s, cur)
+        if e > seg_start + 1e-6:
+            plan.append({"start_s": seg_start, "end_s": e, "crop": crop})
+        cur = max(cur, e)
+    if cur < end_s - 1e-6:
+        plan.append({"start_s": cur, "end_s": end_s, "crop": center})
     return plan
+
+
+def resolve_active_windows(
+    windows: list[dict],
+    fps: float = 25.0,
+    min_dwell: float = 1.2,
+) -> list[dict]:
+    """Collapse the ASD provider's (possibly overlapping) per-track windows into a
+    single non-overlapping active-speaker timeline.
+
+    Provider returns ``{start_s,end_s,bbox,track_id}`` per track, which can overlap
+    during crosstalk. Per frame the longest covering window wins; ``build_segments``
+    then applies min-dwell/hysteresis so brief overlaps don't ping-pong. Returns
+    non-overlapping ``[{start_s,end_s,bbox}, ...]`` ready for :func:`plan_reframe`.
+    """
+    if not windows:
+        return []
+    t0 = min(float(w["start_s"]) for w in windows)
+    t1 = max(float(w["end_s"]) for w in windows)
+    n = max(1, int(round((t1 - t0) * fps)))
+
+    timeline: list = [None] * n
+    for i in range(n):
+        t = t0 + (i + 0.5) / fps
+        covering = [w for w in windows if w["start_s"] <= t < w["end_s"]]
+        if covering:
+            best = max(covering, key=lambda w: w["end_s"] - w["start_s"])
+            timeline[i] = best["track_id"]
+
+    out: list[dict] = []
+    for s, e, tid in build_segments(timeline, fps=fps, min_dwell=min_dwell):
+        if tid is None:
+            continue
+        a, b = t0 + s, t0 + e
+        mid = (a + b) / 2
+        cand = [w for w in windows if w["track_id"] == tid and w["start_s"] <= mid < w["end_s"]]
+        if not cand:
+            cand = [w for w in windows if w["track_id"] == tid]
+        if not cand:
+            continue
+        out.append({"start_s": a, "end_s": b, "bbox": cand[0]["bbox"]})
+    return out
 
 
 # ---- ffmpeg orchestration (verified end-to-end on real video) ----

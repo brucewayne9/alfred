@@ -121,3 +121,50 @@ def test_plan_reframe_drops_nonoverlapping_window():
 
 def test_plan_reframe_empty_windows():
     assert reframe.plan_reframe([], 0.0, 4.0, 1920, 1080) == []
+
+
+def test_plan_reframe_fills_gaps_for_full_coverage():
+    # One speaker window mid-span; the before/after gaps must be center-filled so
+    # the plan covers the WHOLE [0,4] span (else the clip shrinks and desyncs).
+    windows = [_win(1.0, 2.0, (900, 400, 120, 120))]
+    plan = reframe.plan_reframe(windows, 0.0, 4.0, 1920, 1080)
+    assert plan[0]["start_s"] == 0.0
+    assert plan[-1]["end_s"] == 4.0
+    # contiguous, no gaps
+    for a, b in zip(plan, plan[1:]):
+        assert abs(a["end_s"] - b["start_s"]) < 1e-6
+    total = sum(p["end_s"] - p["start_s"] for p in plan)
+    assert abs(total - 4.0) < 1e-6
+
+
+# ---- resolve_active_windows: per-track (overlapping) -> single active timeline ----
+
+def _tw(s, e, bbox, tid):
+    return {"start_s": s, "end_s": e, "bbox": bbox, "track_id": tid}
+
+
+def test_resolve_non_overlapping_passthrough():
+    wins = [_tw(0, 2, (100, 100, 50, 50), 0), _tw(2, 4, (800, 100, 50, 50), 1)]
+    out = reframe.resolve_active_windows(wins, fps=25.0, min_dwell=1.2)
+    assert len(out) == 2
+    assert out[0]["bbox"] == (100, 100, 50, 50)
+    assert out[1]["bbox"] == (800, 100, 50, 50)
+
+
+def test_resolve_overlap_longer_track_wins():
+    # track 0 spans the whole time; track 1 is a short overlap inside it.
+    wins = [_tw(0, 3, (100, 100, 50, 50), 0), _tw(1, 2, (800, 100, 50, 50), 1)]
+    out = reframe.resolve_active_windows(wins, fps=25.0, min_dwell=1.2)
+    assert len(out) == 1
+    assert out[0]["bbox"] == (100, 100, 50, 50)
+
+
+def test_resolve_output_is_non_overlapping_and_sorted():
+    wins = [_tw(0, 2.5, (100, 100, 50, 50), 0), _tw(2.0, 4.0, (800, 100, 50, 50), 1)]
+    out = reframe.resolve_active_windows(wins, fps=25.0, min_dwell=1.0)
+    for a, b in zip(out, out[1:]):
+        assert a["end_s"] <= b["start_s"] + 1e-6
+
+
+def test_resolve_empty():
+    assert reframe.resolve_active_windows([], fps=25.0) == []

@@ -118,3 +118,6 @@ config/youtube_cookies.txt
 # Central Casting runtime data (library DB, voice clips, previews)
 data/casting.db
 data/casting/
+vendor/
+data/forge_asd_cache/
+data/asd_test/

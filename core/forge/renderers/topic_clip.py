@@ -1024,7 +1024,25 @@ def render(params: dict, out_path: str | Path) -> Path:
     if has_video and (params.get("reframe") == "speaker"):
         try:
             from core.forge.renderers import asd_provider
-            reframe_windows = asd_provider.detect_active_speakers(source_path) or None
+            from core.forge.renderers import reframe as _reframe
+            # Cache ASD per source (it's ~realtime-slow; don't re-run on every cut).
+            _cache_dir = Path("data/forge_asd_cache")
+            _cache_dir.mkdir(parents=True, exist_ok=True)
+            _cache = _cache_dir / f"{source_id}.json"
+            _mtime = source_path.stat().st_mtime
+            _resolved = None
+            if _cache.exists():
+                try:
+                    _c = json.loads(_cache.read_text())
+                    if abs(_c.get("mtime", 0) - _mtime) < 1.0:
+                        _resolved = _c.get("windows")
+                except Exception:  # noqa: BLE001
+                    _resolved = None
+            if _resolved is None:
+                _raw = asd_provider.detect_active_speakers(source_path)
+                _resolved = _reframe.resolve_active_windows(_raw)
+                _cache.write_text(json.dumps({"mtime": _mtime, "windows": _resolved}))
+            reframe_windows = _resolved or None
             if reframe_windows:
                 _dim = subprocess.run(
                     ["ffprobe", "-v", "error", "-select_streams", "v:0",
