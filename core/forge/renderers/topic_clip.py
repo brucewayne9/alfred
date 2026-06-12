@@ -846,6 +846,9 @@ def assemble_variant(
     image_source: str = "higgsfield",
     image_model: str | None = None,
     aspect: str | None = None,
+    reframe_windows: list[dict] | None = None,
+    src_w: int | None = None,
+    src_h: int | None = None,
 ) -> Path:
     """Assemble one structural variant into a branded master at w x h.
 
@@ -873,14 +876,20 @@ def assemble_variant(
     seg_paths: list[Path] = []
     ext = ".mp4" if has_video else ".m4a"
     for i, seg in enumerate(segments):
-        sp = _cut_segment(
-            source_path,
-            seg["start_s"],
-            seg["end_s"],
-            work_dir / f"seg_{label}_{i:03d}{ext}",
-            has_video=has_video,
-            w=w, h=h,
-        )
+        seg_out = work_dir / f"seg_{label}_{i:03d}{ext}"
+        if has_video and reframe_windows and src_w and src_h:
+            # Speaker-aware reframe (follows the active speaker; clips the absolute
+            # windows to this segment, falls back to center-crop internally).
+            from core.forge.renderers import reframe as _reframe
+            sp = _reframe.reframe_segment(
+                source_path, seg["start_s"], seg["end_s"], seg_out,
+                w=w, h=h, active_bboxes=reframe_windows, src_w=src_w, src_h=src_h,
+            )
+        else:
+            sp = _cut_segment(
+                source_path, seg["start_s"], seg["end_s"], seg_out,
+                has_video=has_video, w=w, h=h,
+            )
         seg_paths.append(sp)
 
     # 2. Concat all cuts -> body.
@@ -1008,6 +1017,23 @@ def render(params: dict, out_path: str | Path) -> Path:
 
     has_video = _detect_has_video(source_path)
 
+    # Speaker-aware reframe (opt-in via params["reframe"] == "speaker"). Runs the
+    # ASD pipeline ONCE per source; any failure -> None -> static center-crop.
+    reframe_windows = None
+    reframe_src_w = reframe_src_h = None
+    if has_video and (params.get("reframe") == "speaker"):
+        try:
+            from core.forge.renderers import asd_provider
+            reframe_windows = asd_provider.detect_active_speakers(source_path) or None
+            if reframe_windows:
+                _dim = subprocess.run(
+                    ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                     "-show_entries", "stream=width,height", "-of", "csv=p=0",
+                     str(source_path)], capture_output=True, text=True)
+                reframe_src_w, reframe_src_h = (int(x) for x in _dim.stdout.strip().split(",")[:2])
+        except Exception:  # noqa: BLE001 — never let reframe break a cut
+            reframe_windows = None
+
     # Fine-grained transcript phrases for rolling speech-synced captions.
     # Falls back to a single static caption if unavailable.
     try:
@@ -1043,6 +1069,9 @@ def render(params: dict, out_path: str | Path) -> Path:
             image_source=params.get("image_source", "higgsfield"),
             image_model=params.get("image_model"),
             aspect=params.get("aspect"),
+            reframe_windows=reframe_windows,
+            src_w=reframe_src_w,
+            src_h=reframe_src_h,
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)
