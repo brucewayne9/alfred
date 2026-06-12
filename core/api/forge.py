@@ -526,3 +526,16 @@ def register(app: FastAPI) -> None:
         """Pull fresh stats from TikTok for every connected account (gated on audit)."""
         from core.forge import intel
         return intel.pull_now()
+
+    @app.get("/forge/intel/calibration")
+    async def intel_calibration(user: dict = Depends(require_auth)):
+        """Is the Auto-Clips score predictive? Editorial signal (live) + engagement bands (gated)."""
+        from core.forge import intel
+        return intel.calibration()
+
+    @app.post("/forge/candidates/{candidate_id}/rendered")
+    async def mark_candidate_rendered(candidate_id: int, user: dict = Depends(require_auth)):
+        """Flag a scored candidate as cut — the live editorial-selection signal."""
+        from core.forge import scorer
+        scorer.mark_rendered(candidate_id)
+        return {"candidate_id": candidate_id, "rendered": True}

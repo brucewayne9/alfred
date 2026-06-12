@@ -847,6 +847,10 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
           <span id="intelStatus" class="dsub" style="margin-left:auto"></span>
         </div>
         <div id="intelBoard"><div class="libloading">Loading intelligence…</div></div>
+
+        <h2 class="page" style="font-size:20px;margin-top:30px">Score calibration <span class="tag">new</span></h2>
+        <p class="sub" style="margin-bottom:14px">Is the Auto-Clips virality score any good? Two read-outs — does the team cut the high-scored clips (live now), and do high-scored clips earn more views (lights up when TikTok stats flow).</p>
+        <div id="calibBoard"><div class="libloading">Loading calibration…</div></div>
       </section>
 
       <!-- USERS (admin only) -->
@@ -1445,6 +1449,60 @@ async function loadIntel(){
     if(st) st.textContent=_intelData.totals?('Tracking '+_intelData.totals.videos+' clips · '+intelFmt(_intelData.totals.views)+' views · '+_intelData.totals.accounts_tracked+' accounts'):'';
     renderIntel(_intelData);
   }catch(e){box.innerHTML='<div class="liberr">Could not load intelligence ('+esc(e.message)+').</div>';}
+  loadCalibration();
+}
+
+async function loadCalibration(){
+  const box=document.getElementById('calibBoard');
+  if(!box) return;
+  try{
+    const r=await fetch(API+'/forge/intel/calibration',{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    renderCalibration(await r.json());
+  }catch(e){ box.innerHTML='<div class="liberr">Could not load calibration ('+esc(e.message)+').</div>'; }
+}
+
+function renderCalibration(d){
+  const box=document.getElementById('calibBoard');
+  const ed=d.editorial||{}, eng=d.engagement||{};
+  // Editorial card — live now.
+  let edHtml;
+  if(ed.has_data){
+    const lift=ed.lift||0;
+    const verdict = lift>=15 ? '✓ The team is choosing the high-scored clips — the score tracks human taste.'
+      : (lift>=0 ? 'Editors lean toward the higher scores, but mildly.' : '⚠ Editors are cutting lower-scored clips — the rubric may need a tune.');
+    edHtml='<div class="panel" style="padding:20px">'
+      +'<div style="font:700 13px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--gold-hi);margin-bottom:14px">Editorial signal · live</div>'
+      +'<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end">'
+        +'<div><div style="font:800 30px/1 var(--sans);color:#37d67a">+'+lift+'</div><div style="font:600 11px/1.4 var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--mute2)">score lift (cut vs skipped)</div></div>'
+        +'<div><div style="font:800 22px/1 var(--sans);color:var(--ink)">'+ed.avg_score_rendered+'</div><div style="font:600 11px/1.4 var(--sans);color:var(--mute2)">avg score of clips CUT</div></div>'
+        +'<div><div style="font:800 22px/1 var(--sans);color:var(--mute)">'+ed.avg_score_skipped+'</div><div style="font:600 11px/1.4 var(--sans);color:var(--mute2)">avg score SKIPPED</div></div>'
+        +'<div><div style="font:800 22px/1 var(--sans);color:var(--ink)">'+ed.rendered+' / '+ed.scored+'</div><div style="font:600 11px/1.4 var(--sans);color:var(--mute2)">clips cut / scored</div></div>'
+      +'</div>'
+      +'<div style="margin-top:14px;font:500 13px/1.45 var(--sans);color:var(--mute)">'+verdict+'</div>'
+    +'</div>';
+  } else {
+    edHtml='<div class="panel" style="padding:20px"><div style="font:700 13px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--gold-hi);margin-bottom:10px">Editorial signal · live</div>'
+      +'<div style="font:500 14px/1.5 var(--sans);color:var(--mute)">No clips cut from Auto-Clips yet. As the team scores sources and cuts clips, this shows whether they pick the high-scored ones — a live check that the rubric matches human taste, no TikTok data needed.</div></div>';
+  }
+  // Engagement card — gated.
+  let engHtml;
+  if(eng.has_data){
+    engHtml='<div class="panel" style="padding:20px;margin-top:14px">'
+      +'<div style="font:700 13px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--gold-hi);margin-bottom:14px">Engagement signal · '+eng.tracked+' tracked</div>'
+      +'<div style="display:grid;gap:8px">'
+      + (eng.bands||[]).map(b=>'<div style="display:flex;align-items:center;gap:14px">'
+          +'<span style="flex:0 0 64px;font:700 13px/1 var(--mono,monospace);color:var(--ink)">'+esc(b.band)+'</span>'
+          +'<span style="flex:0 0 56px;font:500 12px/1 var(--sans);color:var(--mute2)">'+b.posts+' post'+(b.posts===1?'':'s')+'</span>'
+          +'<span style="font:700 14px/1 var(--sans);color:var(--gold,#caa14a)">'+intelFmt(b.avg_views)+' avg views</span>'
+          +'<span style="font:500 12px/1 var(--sans);color:var(--mute)">· '+b.avg_engagement+'% eng</span>'
+        +'</div>').join('')
+      +'</div></div>';
+  } else {
+    engHtml='<div class="panel" style="padding:20px;margin-top:14px"><div style="font:700 13px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-bottom:10px">Engagement signal · pending TikTok audit</div>'
+      +'<div style="font:500 14px/1.5 var(--sans);color:var(--mute)">Lights up when real view counts flow (TikTok production audit). Then it buckets posted clips by score band so you can see if the 85–100s actually out-perform the 50s.</div></div>';
+  }
+  box.innerHTML = edHtml + engHtml;
 }
 function renderIntel(d){
   const box=document.getElementById('intelBoard');
@@ -2118,6 +2176,7 @@ function renderCandidates(sourceId, cands){
         +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'
           +'<span class="tag" style="background:rgba(255,255,255,.06);color:var(--ink)">'+emo+' '+esc(c.emotion||'clip')+'</span>'
           +'<span style="font:600 12px/1 var(--mono,monospace);color:var(--mute)">'+fmtTime(c.start_s)+'–'+fmtTime(c.end_s)+' · '+dur+'s</span>'
+          +(c.rendered?'<span class="tag" style="background:rgba(55,214,122,.14);color:#37d67a">✓ cut</span>':'')
         +'</div>'
         +(c.hook?'<div style="font:700 16px/1.35 var(--sans);color:var(--ink);margin-bottom:6px">“'+esc(c.hook)+'”</div>':'')
         +(c.reason?'<div style="font:500 13px/1.45 var(--sans);color:var(--mute);margin-bottom:8px">'+esc(c.reason)+'</div>':'')
@@ -2146,8 +2205,12 @@ async function renderAutoClip(sourceId, idx){
     const r = await fetch(API + '/forge/jobs', {method:'POST',
       headers:{'Content-Type':'application/json'}, credentials:'include',
       body: JSON.stringify({job_type:'topic_clip',
-        params:{source_id:sourceId, segments, variant_count:1, caption:(c.caption||c.hook||'')}})});
+        params:{source_id:sourceId, segments, variant_count:1, caption:(c.caption||c.hook||''),
+                candidate_id:c.id, predicted_score:c.score}})});
     if(!r.ok) throw new Error(r.status);
+    // Record the editorial-selection signal (which scores the team actually cuts).
+    if(c.id){ fetch(API + '/forge/candidates/' + c.id + '/rendered',
+      {method:'POST', credentials:'include'}).catch(()=>{}); c.rendered = 1; }
     toast('Cutting your clip — watch the Queue');
     refreshJobs(); tabTo('queue');
   } catch(e){ toast('Could not start the cut ('+e.message+')'); }

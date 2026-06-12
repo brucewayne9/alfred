@@ -196,6 +196,40 @@ def save_candidates(source_id: str, candidates: list[dict],
     return len(candidates)
 
 
+_CANDIDATE_COLS = (
+    "id, source_id, start_s, end_s, score, hook, emotion, reason, "
+    "caption, judge_model, rendered, posted, created_at"
+)
+
+
+def get_candidate(candidate_id: int) -> dict | None:
+    """Return one candidate by id, or None."""
+    init_db()
+    with _conn() as c:
+        row = c.execute(
+            f"SELECT {_CANDIDATE_COLS} FROM clip_candidates WHERE id = ?",
+            (candidate_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def mark_rendered(candidate_id: int) -> None:
+    """Flag a candidate as rendered (the editorial-selection signal). No-op if absent."""
+    init_db()
+    with _conn() as c:
+        c.execute("UPDATE clip_candidates SET rendered = 1 WHERE id = ?", (candidate_id,))
+
+
+def mark_posted(candidate_id: int) -> None:
+    """Flag a candidate as posted (implies rendered). No-op if absent."""
+    init_db()
+    with _conn() as c:
+        c.execute(
+            "UPDATE clip_candidates SET posted = 1, rendered = 1 WHERE id = ?",
+            (candidate_id,),
+        )
+
+
 def get_candidates(source_id: str) -> list[dict]:
     """Return a source's clip candidates, highest score first."""
     init_db()

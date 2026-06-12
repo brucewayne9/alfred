@@ -64,6 +64,12 @@ def init_intel() -> None:
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_intel_videos_sound ON intel_videos(sound)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_intel_videos_acct ON intel_videos(account_handle)")
+        # Phase 08 calibration: the Auto-Clips score this video was cut from, so
+        # we can later ask "did high-scored clips actually get more views?".
+        # Idempotent migration for DBs created before this column existed.
+        cols = {r[1] for r in c.execute("PRAGMA table_info(intel_videos)").fetchall()}
+        if "predicted_score" not in cols:
+            c.execute("ALTER TABLE intel_videos ADD COLUMN predicted_score INTEGER")
 
 
 def _now() -> int:
@@ -78,21 +84,29 @@ def record_video(video_id: str, *, account_handle: str = "", postiz_id: str = ""
                  platform: str = "TikTok", sound: str = "", variant: str = "",
                  post_id: str = "", job_id: str = "", caption: str = "",
                  views: int = 0, likes: int = 0, comments: int = 0, shares: int = 0,
-                 posted_at: Optional[int] = None) -> None:
-    """Upsert one video's latest stats (puller calls this each refresh)."""
+                 posted_at: Optional[int] = None,
+                 predicted_score: Optional[int] = None) -> None:
+    """Upsert one video's latest stats (puller calls this each refresh).
+
+    ``predicted_score`` is the Auto-Clips virality score the clip was cut from,
+    stamped at post time so calibration can join it to real engagement later.
+    """
     init_intel()
     with _conn() as c:
         c.execute(
             "INSERT INTO intel_videos (video_id, account_handle, postiz_id, platform, sound, "
-            "variant, post_id, job_id, caption, views, likes, comments, shares, posted_at, captured_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+            "variant, post_id, job_id, caption, views, likes, comments, shares, posted_at, "
+            "predicted_score, captured_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(video_id) DO UPDATE SET "
             "views=excluded.views, likes=excluded.likes, comments=excluded.comments, "
             "shares=excluded.shares, captured_at=excluded.captured_at, "
             "sound=COALESCE(NULLIF(excluded.sound,''), intel_videos.sound), "
-            "variant=COALESCE(NULLIF(excluded.variant,''), intel_videos.variant)",
+            "variant=COALESCE(NULLIF(excluded.variant,''), intel_videos.variant), "
+            "predicted_score=COALESCE(excluded.predicted_score, intel_videos.predicted_score)",
             (video_id, account_handle, postiz_id, platform, sound, variant, post_id,
-             job_id, caption, views, likes, comments, shares, posted_at, _now()),
+             job_id, caption, views, likes, comments, shares, posted_at,
+             predicted_score, _now()),
         )
 
 
@@ -199,6 +213,70 @@ def board(unit: str = "sound") -> dict:
             "accounts_tracked": len(accts),
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Calibration — is the Auto-Clips virality score any good? (Phase 08, Phase 2)
+# ---------------------------------------------------------------------------
+
+# Score bands for the engagement readout. High → low so the board reads top-down.
+_BANDS = [("85-100", 85, 100), ("70-84", 70, 84), ("50-69", 50, 69), ("0-49", 0, 49)]
+
+
+def calibration() -> dict:
+    """Two read-outs on whether the virality score predicts reality.
+
+    editorial (LIVE NOW, no TikTok audit needed): do editors actually cut the
+        high-scored clips? Compares the mean score of rendered vs skipped
+        candidates — a positive ``lift`` means the scorer agrees with human taste.
+
+    engagement (GATED on the TikTok audit + post attribution): once real view
+        counts flow, bucket posted clips by score band and show mean views per
+        band. Empty until tracked views with a predicted_score exist.
+    """
+    init_intel()
+    with _conn() as c:
+        cand = _rows_to_dicts(c.execute(
+            "SELECT score, rendered, posted FROM clip_candidates").fetchall())
+        tracked = _rows_to_dicts(c.execute(
+            "SELECT predicted_score, views, likes, comments, shares FROM intel_videos "
+            "WHERE predicted_score IS NOT NULL AND views > 0").fetchall())
+
+    # --- editorial signal --------------------------------------------------
+    rendered = [r["score"] for r in cand if r["rendered"]]
+    skipped = [r["score"] for r in cand if not r["rendered"]]
+    posted = [r for r in cand if r["posted"]]
+    avg_r = round(sum(rendered) / len(rendered), 1) if rendered else 0.0
+    avg_s = round(sum(skipped) / len(skipped), 1) if skipped else 0.0
+    editorial = {
+        "scored": len(cand),
+        "rendered": len(rendered),
+        "posted": len(posted),
+        "avg_score_rendered": avg_r,
+        "avg_score_skipped": avg_s,
+        "lift": round(avg_r - avg_s, 1) if rendered and skipped else 0.0,
+        "has_data": bool(rendered),
+    }
+
+    # --- engagement signal -------------------------------------------------
+    bands = []
+    for label, lo, hi in _BANDS:
+        rows = [t for t in tracked if lo <= (t["predicted_score"] or 0) <= hi]
+        if rows:
+            n = len(rows)
+            bands.append({
+                "band": label,
+                "posts": n,
+                "avg_views": round(sum(t["views"] for t in rows) / n),
+                "avg_engagement": round(sum(
+                    _engagement_rate(t["views"], t["likes"], t["comments"], t["shares"])
+                    for t in rows) / n, 1),
+            })
+        else:
+            bands.append({"band": label, "posts": 0, "avg_views": 0, "avg_engagement": 0.0})
+    engagement = {"bands": bands, "tracked": len(tracked), "has_data": bool(tracked)}
+
+    return {"editorial": editorial, "engagement": engagement}
 
 
 # ---------------------------------------------------------------------------

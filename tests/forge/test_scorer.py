@@ -164,6 +164,34 @@ def test_get_candidates_returns_empty_for_unknown_source(db):
     assert scorer.get_candidates("nope") == []
 
 
+# ── mark_rendered / mark_posted / get_candidate (Phase 2 instrumentation) ──
+
+def test_mark_rendered_flags_a_candidate(db):
+    scorer.save_candidates("src1", [{"start_s": 0, "end_s": 5, "score": 88}], now=1)
+    cid = scorer.get_candidates("src1")[0]["id"]
+    assert scorer.get_candidate(cid)["rendered"] == 0
+    scorer.mark_rendered(cid)
+    assert scorer.get_candidate(cid)["rendered"] == 1
+    assert scorer.get_candidate(cid)["posted"] == 0
+
+
+def test_mark_posted_implies_rendered(db):
+    scorer.save_candidates("src1", [{"start_s": 0, "end_s": 5, "score": 88}], now=1)
+    cid = scorer.get_candidates("src1")[0]["id"]
+    scorer.mark_posted(cid)
+    c = scorer.get_candidate(cid)
+    assert c["posted"] == 1
+    assert c["rendered"] == 1   # posting something means it was rendered
+
+
+def test_get_candidate_returns_none_for_unknown_id(db):
+    assert scorer.get_candidate(999999) is None
+
+
+def test_mark_rendered_is_a_noop_for_unknown_id(db):
+    scorer.mark_rendered(999999)  # must not raise
+
+
 # ── score_source (orchestration, judge injected) ──────────────────────────
 
 def _seed_source(db, source_id="src1"):
