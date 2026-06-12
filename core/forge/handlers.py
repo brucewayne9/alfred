@@ -36,7 +36,9 @@ def _run_remix_format(render, params: dict, *, fmt: str, default_subfolder: str)
     from core.forge import delivery, sizes
 
     remixes = build_remixes(params, int(params.get("remix", 1) or 1))
-    n = int(params.get("variations", 18) or 18)
+    # Default to ONE deliverable — the team raises variations manually when they
+    # actually want anti-suppression copies (Mike's rule 2026-06-12).
+    n = int(params.get("variations", 1) or 1)
     base = (params.get("subfolder") or default_subfolder).strip()
     stamp = int(time.time())
     aspect_ids = sizes.resolve_list(params)  # one full output set per selected size
