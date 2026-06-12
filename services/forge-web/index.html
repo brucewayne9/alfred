@@ -2188,7 +2188,16 @@ function renderCandidates(sourceId, cands){
   box.innerHTML = '<div style="display:grid;gap:14px">' + cands.map((c,i) => {
     const emo = EMO[c.emotion] || '🎬';
     const dur = Math.round(c.end_s - c.start_s);
+    const mid = ((c.start_s + c.end_s) / 2).toFixed(1);
     return '<div class="panel" style="padding:18px;display:flex;gap:16px;align-items:flex-start">'
+      +'<div class="acthumb" id="acthumb-'+esc(sourceId)+'-'+i+'" onclick="previewAutoClip(\''+esc(sourceId)+'\','+i+')" title="Click to watch this moment" '
+        +'style="flex:0 0 168px;position:relative;cursor:pointer;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:16/9">'
+        +'<img src="'+API+'/forge/sources/'+esc(sourceId)+'/frame?t='+mid+'" loading="lazy" '
+          +'style="width:100%;height:100%;object-fit:cover;display:block" '
+          +'onerror="this.style.display=\'none\';this.parentNode.style.background=\'#14141a\'">'
+        +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">'
+          +'<span style="font-size:30px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.7);opacity:.92">▶</span></div>'
+      +'</div>'
       +'<div style="flex:0 0 auto;text-align:center;min-width:56px">'
         +'<div style="font:800 30px/1 var(--sans);color:'+_scoreColor(c.score)+'">'+c.score+'</div>'
         +'<div style="font:600 10px/1.4 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute2)">score</div>'
@@ -2209,6 +2218,26 @@ function renderCandidates(sourceId, cands){
       +'</div>'
     +'</div>';
   }).join('') + '</div>';
+}
+
+// Click a thumbnail → play just that moment inline (seeks the source video to
+// the candidate's window and pauses at the end). No render needed.
+function previewAutoClip(sourceId, idx){
+  const c = (autoState[sourceId]||[])[idx];
+  if(!c) return;
+  const box = document.getElementById('acthumb-'+sourceId+'-'+idx);
+  if(!box || box.dataset.playing === '1') return;
+  box.dataset.playing = '1';
+  box.style.cursor = 'default'; box.onclick = null;
+  const v = document.createElement('video');
+  v.src = API + '/forge/sources/' + encodeURIComponent(sourceId) + '/video';
+  v.controls = true; v.preload = 'auto'; v.playsInline = true;
+  v.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;display:block';
+  const start = c.start_s, end = c.end_s;
+  v.addEventListener('loadedmetadata', () => { try { v.currentTime = start; } catch(_){} v.play().catch(()=>{}); });
+  v.addEventListener('timeupdate', () => { if(v.currentTime >= end) v.pause(); });
+  v.addEventListener('error', () => { box.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mute2);font:500 12px/1.4 var(--sans);padding:10px;text-align:center">Preview needs Chrome (AV1) — the cut still works.</div>'; });
+  box.innerHTML = ''; box.appendChild(v);
 }
 
 function copyAutoCaption(sourceId, idx){

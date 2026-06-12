@@ -3,6 +3,7 @@ import base64
 import binascii
 
 from fastapi import Body, Depends, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi.responses import FileResponse
 
 from core.forge import jobs as forge_jobs
 from core.forge import users as forge_users
@@ -329,6 +330,34 @@ def register(app: FastAPI) -> None:
         return StreamingResponse(_iter(), media_type=ctype,
                                  headers={"Accept-Ranges": "bytes",
                                           "Content-Length": str(total)})
+
+    @app.get("/forge/sources/{source_id}/frame")
+    async def source_frame(source_id: str, t: float = Query(default=0.0, ge=0.0),
+                           user: dict = Depends(require_auth)):
+        """Return a single JPEG still from the source at *t* seconds.
+
+        Powers the Auto-Clips thumbnail/preview — see the moment before cutting.
+        Extracted with ffmpeg on first request, then cached on disk.
+
+        Errors:
+            404 — source not found
+            409 — source media missing on disk (or audio-only, no video frame)
+            500 — frame extraction failed
+        """
+        from pathlib import Path as _P
+        from core.forge import ingest, frames as _frames
+        source = ingest.get_source(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="source not found")
+        fp = source.get("file_path")
+        if not fp or not _P(fp).exists():
+            raise HTTPException(status_code=409, detail="source media missing on disk")
+        ts = _frames.clamp_t(t, source.get("duration_s"))
+        out = _frames.frame_cache_path(source_id, ts)
+        if not _frames.extract_frame(fp, ts, out):
+            raise HTTPException(status_code=409, detail="no video frame at that moment (audio-only?)")
+        return FileResponse(out, media_type="image/jpeg",
+                            headers={"Cache-Control": "public, max-age=86400"})
 
     @app.get("/forge/sources/{source_id}/search")
     async def search_source_segments(
