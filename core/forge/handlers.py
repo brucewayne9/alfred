@@ -107,9 +107,35 @@ def _ingest_transcribe_handler(params: dict) -> dict:
 
     Lazy import keeps faster-whisper and CUDA initialisation out of module
     import time, consistent with the renderer-handler pattern above.
+
+    On a successful transcript, auto-enqueue a score_source job so Auto-Clips
+    populate without a second operator action (the data-flywheel seam).
     """
     from core.forge import ingest
-    return ingest.transcribe_handler(params)
+    result = ingest.transcribe_handler(params)
+    source_id = params.get("source_id")
+    if source_id:
+        try:
+            forge_jobs.enqueue("score_source", {"source_id": source_id})
+        except Exception:  # noqa: BLE001 — scoring is best-effort, never fail the transcript
+            pass
+    return result
+
+
+def _score_source_handler(params: dict) -> dict:
+    """Score a transcribed source into ranked viral clip candidates."""
+    from core.forge import scorer
+    source_id = params.get("source_id")
+    if not source_id:
+        raise RuntimeError("score_source: no source_id provided")
+    max_clips = int(params.get("max_clips", 20) or 20)
+    candidates = scorer.score_source(source_id, max_clips=max_clips)
+    return {
+        "format": "score_source",
+        "source_id": source_id,
+        "candidates": len(candidates),
+        "top_score": candidates[0]["score"] if candidates else None,
+    }
 
 
 def _topic_clip_handler(params: dict) -> dict:
@@ -285,3 +311,4 @@ def register_default_handlers() -> None:
     forge_jobs.register_handler("ingest_transcribe", _ingest_transcribe_handler)
     forge_jobs.register_handler("topic_clip", _topic_clip_handler)
     forge_jobs.register_handler("multi_montage", _multi_montage_handler)
+    forge_jobs.register_handler("score_source", _score_source_handler)

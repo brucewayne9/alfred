@@ -83,6 +83,27 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_segments_source
                 ON transcript_segments(source_id, seq);
+
+            -- Phase 08 "Auto-Clips": viral-scored clip candidates for a source.
+            -- Re-scoring a source replaces its rows (delete-before-insert).
+            -- 'rendered'/'posted' close the loop back to intel.py engagement.
+            CREATE TABLE IF NOT EXISTS clip_candidates (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id    TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+                start_s      REAL NOT NULL,
+                end_s        REAL NOT NULL,
+                score        INTEGER NOT NULL,
+                hook         TEXT,
+                emotion      TEXT,
+                reason       TEXT,
+                caption      TEXT,
+                judge_model  TEXT,
+                rendered     INTEGER NOT NULL DEFAULT 0,
+                posted       INTEGER NOT NULL DEFAULT 0,
+                created_at   INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_candidates_source
+                ON clip_candidates(source_id, score DESC);
             """
         )
         # Idempotent migration: add jobs.created_by to pre-existing DBs.

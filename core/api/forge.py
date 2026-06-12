@@ -363,6 +363,46 @@ def register(app: FastAPI) -> None:
         )
         return {"source_id": source_id, "query": q, "results": results}
 
+    @app.post("/forge/sources/{source_id}/score")
+    async def score_source_endpoint(
+        source_id: str,
+        payload: dict = Body(default={}),
+        user: dict = Depends(require_auth),
+    ):
+        """Queue viral scoring (Auto-Clips) for a transcribed source.
+
+        Returns the enqueued job id; poll /forge/jobs/{id} for completion, then
+        read /forge/sources/{id}/candidates for the ranked grid.
+
+        Errors:
+            404 — source_id not found
+            409 — source not yet done (status != 'done')
+        """
+        from core.forge import ingest, jobs as forge_jobs
+        source = ingest.get_source(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="source not found")
+        if source.get("status") != "done":
+            raise HTTPException(
+                status_code=409, detail=f"source not ready: {source.get('status')}")
+        params = {"source_id": source_id}
+        if payload.get("max_clips"):
+            params["max_clips"] = int(payload["max_clips"])
+        job_id = forge_jobs.enqueue("score_source", params)
+        return {"source_id": source_id, "job_id": job_id}
+
+    @app.get("/forge/sources/{source_id}/candidates")
+    async def list_source_candidates(source_id: str, user: dict = Depends(require_auth)):
+        """Return a source's viral-scored clip candidates, highest score first.
+
+        Empty list if the source exists but has not been scored yet.
+        404 if the source_id is unknown.
+        """
+        from core.forge import ingest, scorer
+        if ingest.get_source(source_id) is None:
+            raise HTTPException(status_code=404, detail="source not found")
+        return {"source_id": source_id, "candidates": scorer.get_candidates(source_id)}
+
     @app.get("/forge/sources/{source_id}/transcript")
     async def get_source_transcript(source_id: str, user: dict = Depends(require_auth)):
         """Return ordered, speaker-labelled transcript segments for a source.
