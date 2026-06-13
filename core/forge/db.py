@@ -104,9 +104,42 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_candidates_source
                 ON clip_candidates(source_id, score DESC);
+
+            -- Multi-tenancy: one row per company (tenant).
+            CREATE TABLE IF NOT EXISTS orgs (
+                id         TEXT PRIMARY KEY,
+                name       TEXT NOT NULL,
+                created_at INTEGER NOT NULL DEFAULT 0
+            );
+
+            -- Distribution post ledger (was implicit; make it explicit + org-scoped).
+            CREATE TABLE IF NOT EXISTS dist_posts (
+                post_id   TEXT PRIMARY KEY,
+                posted    INTEGER NOT NULL DEFAULT 0,
+                posted_at INTEGER,
+                org_id    TEXT NOT NULL DEFAULT 'mainstay'
+            );
             """
         )
         # Idempotent migration: add jobs.created_by to pre-existing DBs.
         cols = {r[1] for r in c.execute("PRAGMA table_info(jobs)").fetchall()}
         if "created_by" not in cols:
             c.execute("ALTER TABLE jobs ADD COLUMN created_by TEXT")
+        # Multi-tenancy: add org_id to scoped tables (DEFAULT backfills old rows
+        # to 'mainstay' automatically). Idempotent — skip if already present.
+        for table in ("sources", "jobs", "clip_candidates", "dist_posts"):
+            tcols = {r[1] for r in c.execute(f"PRAGMA table_info({table})").fetchall()}
+            if "org_id" not in tcols:
+                c.execute(
+                    f"ALTER TABLE {table} ADD COLUMN org_id TEXT NOT NULL DEFAULT 'mainstay'"
+                )
+        # Index for org-filtered listing.
+        c.execute("CREATE INDEX IF NOT EXISTS idx_sources_org ON sources(org_id, status)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_jobs_org ON jobs(org_id, created_at)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_candidates_org ON clip_candidates(org_id)")
+        # Seed the three known orgs (idempotent via INSERT OR IGNORE).
+        for oid, name in (("mainstay", "Mainstay Music Group"),
+                          ("rucktalk", "RuckTalk"),
+                          ("groundrush", "Ground Rush")):
+            c.execute("INSERT OR IGNORE INTO orgs (id, name, created_at) VALUES (?, ?, 0)",
+                      (oid, name))

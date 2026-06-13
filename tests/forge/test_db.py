@@ -42,4 +42,5 @@ def test_jobs_table_has_expected_columns(forge_db):
     assert cols == {
         "id", "job_type", "status", "params",
         "result", "error", "created_by", "created_at", "updated_at",
+        "org_id",
     }
