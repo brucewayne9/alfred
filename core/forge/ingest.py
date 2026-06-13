@@ -35,6 +35,7 @@ def create_source(
     kind: str,
     spec: str,
     file_path: str | None = None,
+    org: str = "mainstay",
 ) -> str:
     """Insert a new source row; return its id (uuid hex)."""
     source_id = uuid.uuid4().hex
@@ -42,10 +43,10 @@ def create_source(
     with _conn() as c:
         c.execute(
             """
-            INSERT INTO sources (id, kind, spec, file_path, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'pending', ?, ?)
+            INSERT INTO sources (id, kind, spec, file_path, status, org_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
             """,
-            (source_id, kind, spec, file_path, now, now),
+            (source_id, kind, spec, file_path, org, now, now),
         )
     return source_id
 
@@ -213,19 +214,21 @@ def assign_speakers(segments: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def list_sources(status: str | None = None) -> list[dict]:
-    """Return source rows newest-first, optionally filtered by status."""
+def list_sources(status: str | None = None, org: str | None = None) -> list[dict]:
+    """Return source rows newest-first, optionally filtered by status and/or org."""
+    clauses, params = [], []
+    if status:
+        clauses.append("status = ?")
+        params.append(status)
+    if org:
+        clauses.append("org_id = ?")
+        params.append(org)
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     with _conn() as c:
-        if status:
-            rows = c.execute(
-                "SELECT * FROM sources WHERE status = ? ORDER BY rowid DESC",
-                (status,),
-            ).fetchall()
-        else:
-            rows = c.execute(
-                "SELECT * FROM sources ORDER BY rowid DESC"
-            ).fetchall()
-        return [dict(r) for r in rows]
+        rows = c.execute(
+            f"SELECT * FROM sources{where} ORDER BY rowid DESC", params
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def get_segments(source_id: str) -> list[dict]:
