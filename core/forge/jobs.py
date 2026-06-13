@@ -75,15 +75,15 @@ def _row_to_dict(row) -> dict:
 
 
 def enqueue(job_type: str, params: Optional[dict] = None, now: Optional[int] = None,
-            created_by: Optional[str] = None) -> str:
+            created_by: Optional[str] = None, org: str = "mainstay") -> str:
     init_db()
     job_id = uuid.uuid4().hex
     ts = now if now is not None else _now()
     with _conn() as c:
         c.execute(
-            "INSERT INTO jobs (id, job_type, status, params, created_by, created_at, updated_at) "
-            "VALUES (?, ?, 'pending', ?, ?, ?, ?)",
-            (job_id, job_type, json.dumps(params or {}), created_by, ts, ts),
+            "INSERT INTO jobs (id, job_type, status, params, created_by, org_id, created_at, updated_at) "
+            "VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)",
+            (job_id, job_type, json.dumps(params or {}), created_by, org, ts, ts),
         )
     return job_id
 
@@ -95,18 +95,20 @@ def get_job(job_id: str) -> Optional[dict]:
     return _row_to_dict(row) if row else None
 
 
-def list_jobs(status: Optional[str] = None, limit: int = 100) -> list[dict]:
+def list_jobs(status: Optional[str] = None, limit: int = 100,
+              org: Optional[str] = None) -> list[dict]:
     init_db()
+    clauses, params = [], []
+    if status:
+        clauses.append("status = ?"); params.append(status)
+    if org:
+        clauses.append("org_id = ?"); params.append(org)
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    params.append(limit)
     with _conn() as c:
-        if status:
-            rows = c.execute(
-                "SELECT * FROM jobs WHERE status = ? ORDER BY created_at DESC LIMIT ?",
-                (status, limit),
-            ).fetchall()
-        else:
-            rows = c.execute(
-                "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
-            ).fetchall()
+        rows = c.execute(
+            f"SELECT * FROM jobs{where} ORDER BY created_at DESC LIMIT ?", params
+        ).fetchall()
     return [_row_to_dict(r) for r in rows]
 
 
