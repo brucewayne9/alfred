@@ -133,21 +133,30 @@ def register(app: FastAPI) -> None:
         return {"jobs": forge_jobs.list_jobs(status=status, org=_scoped_org(scope))}
 
     @app.get("/forge/jobs/{job_id}")
-    async def get_job(job_id: str, user: dict = Depends(require_auth)):
+    async def get_job(job_id: str, request: Request, user: dict = Depends(require_auth)):
+        scope = _scope(request, user)
         job = forge_jobs.get_job(job_id)
-        if not job:
+        if not job or not scope.can_read_org(job.get("org_id", "mainstay")):
             raise HTTPException(status_code=404, detail="job not found")
         return job
 
     @app.post("/forge/jobs/{job_id}/cancel")
-    async def cancel_job(job_id: str, user: dict = Depends(require_auth)):
+    async def cancel_job(job_id: str, request: Request, user: dict = Depends(require_auth)):
+        scope = _scope(request, user)
+        existing = forge_jobs.get_job(job_id)
+        if not existing or not scope.can_write_org(existing.get("org_id", "mainstay")):
+            raise HTTPException(status_code=404, detail="job not found")
         job = forge_jobs.cancel_job(job_id)
         if not job:
             raise HTTPException(status_code=404, detail="job not found")
         return job
 
     @app.delete("/forge/jobs/{job_id}")
-    async def delete_job(job_id: str, user: dict = Depends(require_auth)):
+    async def delete_job(job_id: str, request: Request, user: dict = Depends(require_auth)):
+        scope = _scope(request, user)
+        existing = forge_jobs.get_job(job_id)
+        if not existing or not scope.can_write_org(existing.get("org_id", "mainstay")):
+            raise HTTPException(status_code=404, detail="job not found")
         if not forge_jobs.delete_job(job_id):
             raise HTTPException(status_code=404, detail="job not found")
         return {"ok": True, "deleted": job_id}
