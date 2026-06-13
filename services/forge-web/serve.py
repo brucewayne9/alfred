@@ -34,8 +34,8 @@ register_default_handlers()  # echo + leak_graphic (real ComfyUI-Cloud render)
 from core.forge import users as _forge_users  # noqa: E402
 _forge_users.ensure_seeded()
 
-# Fallback admins if the X-Forge-Role header is ever missing.
-FORGE_ADMINS = {"mike", "mainstay"}
+# Fallback super-admins if the X-Forge-Role header is ever missing.
+FORGE_SUPER = {"mike", "mainstay"}
 
 
 # Auth: Caddy forward_auth hits /forge/authcheck, which validates the login
@@ -45,9 +45,10 @@ FORGE_ADMINS = {"mike", "mainstay"}
 def _forge_user(request: Request) -> dict:
     username = request.headers.get("X-Forge-User") or "mainstay"
     role = request.headers.get("X-Forge-Role")
-    if role not in ("admin", "team"):
-        role = "admin" if username in FORGE_ADMINS else "team"
-    return {"username": username, "role": role}
+    org = request.headers.get("X-Forge-Org") or "mainstay"
+    if role not in ("member", "org_admin", "super_admin"):
+        role = "super_admin" if username in FORGE_SUPER else "member"
+    return {"username": username, "role": role, "org": org}
 
 
 app.dependency_overrides[require_auth] = _forge_user

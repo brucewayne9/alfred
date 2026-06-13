@@ -56,7 +56,11 @@ def register(app: FastAPI) -> None:
             return unauth
         return Response(
             status_code=200,
-            headers={"X-Forge-User": u["username"], "X-Forge-Role": u["role"]},
+            headers={
+                "X-Forge-User": u["username"],
+                "X-Forge-Role": u["role"],
+                "X-Forge-Org": u.get("org", "mainstay"),
+            },
         )
 
     # ---- User management (admin only) -------------------------------------
