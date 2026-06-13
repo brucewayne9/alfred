@@ -159,7 +159,9 @@ def score_source(source_id: str, max_clips: int = _DEFAULT_MAX_CLIPS,
     messages = build_prompt(build_transcript_text(segments), max_clips)
     raw = chat(messages, model)
     candidates = [snap_to_words(c, segments) for c in parse_candidates(raw)]
-    save_candidates(source_id, candidates, judge_model=model, now=now)
+    from core.forge import ingest as _ingest  # noqa: PLC0415 — local to avoid import cycle
+    source_org = (_ingest.get_source(source_id) or {}).get("org_id", "mainstay")
+    save_candidates(source_id, candidates, judge_model=model, now=now, org=source_org)
     logger.info("score_source: %s -> %d candidates (judge=%s)",
                 source_id, len(candidates), model)
     return get_candidates(source_id)
