@@ -15,10 +15,6 @@ def _require_manage(user: dict) -> None:
         raise HTTPException(status_code=403, detail="admin only")
 
 
-def _require_super(user: dict) -> None:
-    if (user or {}).get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="super admin only")
-
 
 def register(app: FastAPI) -> None:
     from core.forge.scope import scope_from_user
@@ -126,6 +122,7 @@ def register(app: FastAPI) -> None:
 
     @app.get("/forge/orgs")
     async def list_orgs(user: dict = Depends(require_auth)):
+        _require_manage(user)
         from core.forge import db
         with db._conn() as c:
             orgs = [dict(r) for r in c.execute("SELECT id, name FROM orgs ORDER BY name")]
