@@ -7,6 +7,9 @@ from core.forge import uploads
 
 def _client(tmp_path, monkeypatch):
     monkeypatch.setenv("FORGE_UPLOAD_DIR", str(tmp_path))
+    monkeypatch.setenv("FORGE_DB_PATH", str(tmp_path / "forge.db"))
+    from core.forge import db as _db
+    _db.init_db()
     app = FastAPI()
     register(app)
     app.dependency_overrides[require_auth] = lambda: {"username": "t", "role": "team"}
