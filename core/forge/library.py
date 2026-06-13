@@ -31,7 +31,7 @@ def _safe_library_path(path: str) -> str:
     return p
 
 
-def list_done_jobs(limit: int = 100) -> list[dict]:
+def list_done_jobs(limit: int = 100, org: str | None = None) -> list[dict]:
     """Done jobs as library cards (newest first).
 
     Batches the user has deleted live in trash (recoverable via undo); their job
@@ -40,7 +40,7 @@ def list_done_jobs(limit: int = 100) -> list[dict]:
     """
     hidden = _trashed_job_ids()
     out: list[dict] = []
-    for j in forge_jobs.list_jobs(status="done", limit=limit):
+    for j in forge_jobs.list_jobs(status="done", limit=limit, org=org):
         if j["id"] in hidden:
             continue
         res = j.get("result") or {}

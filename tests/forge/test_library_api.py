@@ -12,7 +12,7 @@ def _client():
 
 def test_library_index_ok(monkeypatch):
     import core.forge.library as lib
-    monkeypatch.setattr(lib, "list_done_jobs", lambda limit=100: [{"id": "x", "format": "leak_graphic"}])
+    monkeypatch.setattr(lib, "list_done_jobs", lambda limit=100, org=None: [{"id": "x", "format": "leak_graphic"}])
     monkeypatch.setattr(lib, "trash_state", lambda: {"count": 0, "label": None})
     r = _client().get("/forge/library")
     body = r.json()

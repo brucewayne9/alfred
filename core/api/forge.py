@@ -153,9 +153,10 @@ def register(app: FastAPI) -> None:
         return {"ok": True, "deleted": job_id}
 
     @app.get("/forge/library")
-    async def library_index(user: dict = Depends(require_auth)):
+    async def library_index(request: Request, user: dict = Depends(require_auth)):
         from core.forge import library
-        return {"jobs": library.list_done_jobs(), "undo": library.trash_state()}
+        scope = _scope(request, user)
+        return {"jobs": library.list_done_jobs(org=_scoped_org(scope)), "undo": library.trash_state()}
 
     @app.get("/forge/library/files")
     async def library_files(dir: str = Query(...), user: dict = Depends(require_auth)):
