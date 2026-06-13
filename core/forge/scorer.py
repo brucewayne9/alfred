@@ -166,7 +166,8 @@ def score_source(source_id: str, max_clips: int = _DEFAULT_MAX_CLIPS,
 
 
 def save_candidates(source_id: str, candidates: list[dict],
-                    judge_model: str = "", now: int | None = None) -> int:
+                    judge_model: str = "", now: int | None = None,
+                    org: str = "mainstay") -> int:
     """Persist scored candidates for a source, replacing any prior scores.
 
     Delete-before-insert so re-scoring a source never leaves stale rows.
@@ -181,8 +182,8 @@ def save_candidates(source_id: str, candidates: list[dict],
                 """
                 INSERT INTO clip_candidates
                     (source_id, start_s, end_s, score, hook, emotion, reason,
-                     caption, judge_model, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     caption, judge_model, org_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     source_id,
@@ -190,7 +191,7 @@ def save_candidates(source_id: str, candidates: list[dict],
                     int(cand.get("score", 0)),
                     cand.get("hook", ""), cand.get("emotion", ""),
                     cand.get("reason", ""), cand.get("caption", ""),
-                    judge_model, ts,
+                    judge_model, org, ts,
                 ),
             )
     return len(candidates)
@@ -198,7 +199,7 @@ def save_candidates(source_id: str, candidates: list[dict],
 
 _CANDIDATE_COLS = (
     "id, source_id, start_s, end_s, score, hook, emotion, reason, "
-    "caption, judge_model, rendered, posted, created_at"
+    "caption, judge_model, org_id, rendered, posted, created_at"
 )
 
 
@@ -237,7 +238,7 @@ def get_candidates(source_id: str) -> list[dict]:
         rows = c.execute(
             """
             SELECT id, source_id, start_s, end_s, score, hook, emotion, reason,
-                   caption, judge_model, rendered, posted, created_at
+                   caption, judge_model, org_id, rendered, posted, created_at
               FROM clip_candidates
              WHERE source_id = ?
              ORDER BY score DESC, start_s ASC
