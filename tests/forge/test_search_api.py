@@ -84,7 +84,7 @@ def client(tmp_path, monkeypatch, stub_search_module):
 def test_list_sources_returns_sources(client, monkeypatch):
     """GET /forge/sources proxies ingest.list_sources and wraps result."""
     import core.forge.ingest as _ingest
-    monkeypatch.setattr(_ingest, "list_sources", lambda status=None: [
+    monkeypatch.setattr(_ingest, "list_sources", lambda status=None, org=None: [
         {"id": "abc123", "status": "done", "spec": "test.mp4"},
     ])
     r = client.get("/forge/sources")
@@ -99,7 +99,7 @@ def test_list_sources_passes_status_filter(client, monkeypatch):
     import core.forge.ingest as _ingest
     captured = {}
 
-    def _fake(status=None):
+    def _fake(status=None, org=None):
         captured["status"] = status
         return []
 
