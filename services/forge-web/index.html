@@ -425,6 +425,7 @@
         <span class="chip"><span class="dot"></span> Rod Wave · Don't Look Down</span>
         <span class="chip">June 19 · <span class="count" id="dday2">21d</span></span>
         <span class="chip" id="whoami" style="border-color:var(--gold-dim);color:var(--gold-hi)">…</span>
+        <select id="org-switcher" title="View org" style="display:none;padding:7px 11px;font-size:13px;background:#101015;color:var(--ink);border:1px solid var(--gold-dim);border-radius:999px"></select>
       </div>
     </div>
     <div class="scroll">
@@ -873,9 +874,11 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
             <input id="uName" placeholder="username (e.g. dharmic)" style="flex:1 1 150px;padding:11px 13px;font-size:14px">
             <input id="uPass" placeholder="password" style="flex:1 1 150px;padding:11px 13px;font-size:14px">
             <select id="uRole" style="padding:11px 13px;font-size:14px">
-              <option value="team">Team</option>
-              <option value="admin">Admin</option>
+              <option value="member">Member</option>
+              <option value="org_admin">Org admin</option>
+              <option value="super_admin">Super admin</option>
             </select>
+            <select id="uOrg" style="display:none;padding:11px 13px;font-size:14px"></select>
             <button class="btn" type="button" onclick="addUser()"><span class="k">＋</span> Add user</button>
           </div>
         </div>
@@ -928,6 +931,14 @@ https://www.youtube.com/watch?v=…" style="min-height:84px"></textarea>
 
 <script>
 const API = ""; // same origin as the demo/prod server
+
+// Super-admin org focus. When set, data fetches append ?org=<id>/&org=<id> so
+// the super_admin can view a single org's sources/jobs/library/search.
+window.FORGE_ORG = "";
+function withOrg(url){
+  if(!window.FORGE_ORG) return url;
+  return url + (url.indexOf('?')>=0 ? '&' : '?') + 'org=' + encodeURIComponent(window.FORGE_ORG);
+}
 
 // ---- Caption-style gallery -------------------------------------------------
 let CAP_STYLES=null, CAP_LOADED=false;
@@ -1186,7 +1197,7 @@ function ago(ts){const s=Math.max(0,Math.floor(Date.now()/1000)-ts);if(s<60)retu
 
 async function refreshJobs(){
   try{
-    const r=await fetch(API+'/forge/jobs',{credentials:'include'});
+    const r=await fetch(withOrg(API+'/forge/jobs'),{credentials:'include'});
     if(!r.ok) return;
     const {jobs}=await r.json();
     const counts={running:0,pending:0,done:0,error:0};
@@ -1235,15 +1246,47 @@ async function loadWhoami(){
     const r=await fetch(API+'/forge/me',{credentials:'include'});
     if(!r.ok) return;
     const m=await r.json();
+    const isManager = m.role==='org_admin' || m.role==='super_admin';
     const el=document.getElementById('whoami');
     if(el && m.username){
-      const badge = m.role==='admin' ? ' · admin' : '';
-      el.textContent = '◑ '+m.username+badge;
-      el.title = 'Signed in as '+m.username+(m.role==='admin'?' (admin)':'');
+      const label = m.role==='super_admin' ? ' · super admin' : (m.role==='org_admin' ? ' · admin' : '');
+      el.textContent = '◑ '+m.username+label;
+      el.title = 'Signed in as '+m.username+' ('+(m.role||'member')+')';
     }
-    // Reveal admin-only nav (Users) for admins.
-    if(m.role==='admin') document.querySelectorAll('.adminonly').forEach(n=>n.style.display='');
+    // Reveal admin-only nav (Users) for org/super admins.
+    if(isManager) document.querySelectorAll('.adminonly').forEach(n=>n.style.display='');
+    // Super-admin only: org switcher + add-user org select.
+    if(m.role==='super_admin') await initOrgSwitcher();
   }catch(e){}
+}
+
+// Populate + reveal the super-admin org switcher and the add-user org select.
+async function initOrgSwitcher(){
+  let orgs=[];
+  try{
+    const r=await fetch(API+'/forge/orgs',{credentials:'include'});
+    if(r.ok){ orgs=(await r.json()).orgs||[]; }
+  }catch(e){}
+  const sw=document.getElementById('org-switcher');
+  if(sw){
+    sw.innerHTML='<option value="">All orgs</option>'+
+      orgs.map(o=>'<option value="'+esc(o.id)+'">'+esc(o.name||o.id)+'</option>').join('');
+    sw.style.display='';
+    sw.onchange=()=>{ window.FORGE_ORG = sw.value; refreshForOrg(); };
+  }
+  const uo=document.getElementById('uOrg');
+  if(uo){
+    uo.innerHTML=orgs.map(o=>'<option value="'+esc(o.id)+'">'+esc(o.name||o.id)+'</option>').join('');
+    uo.style.display='';
+  }
+}
+
+// Re-pull the active panel's data after the super-admin switches org focus.
+function refreshForOrg(){
+  try{ if(typeof refreshJobs==='function') refreshJobs(); }catch(e){}
+  try{ if(typeof loadLibrary==='function') loadLibrary(); }catch(e){}
+  try{ if(typeof loadTopicSources==='function') loadTopicSources(); }catch(e){}
+  try{ if(typeof loadAutoSources==='function') loadAutoSources(); }catch(e){}
 }
 loadWhoami();
 
@@ -1269,9 +1312,12 @@ async function addUser(){
   const p=document.getElementById('uPass').value;
   const role=document.getElementById('uRole').value;
   if(!u||!p){ toast('Username and password required'); return; }
+  const body={username:u,password:p,role};
+  const uo=document.getElementById('uOrg');
+  if(uo && uo.style.display!=='none' && uo.value) body.org=uo.value;  // super-admin picks org
   try{
     const r=await fetch(API+'/forge/users',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
-      body:JSON.stringify({username:u,password:p,role})});
+      body:JSON.stringify(body)});
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.detail||r.status); }
     document.getElementById('uName').value=''; document.getElementById('uPass').value='';
     toast('Added '+u+' — give them the password'); loadUsers();
@@ -1295,7 +1341,7 @@ async function loadLibrary(){
   const cnt=document.getElementById('libCount');
   grid.innerHTML='<div class="libloading">Pulling delivered batches from Nextcloud…</div>';
   try{
-    const r=await fetch(API+'/forge/library',{credentials:'include'});
+    const r=await fetch(withOrg(API+'/forge/library'),{credentials:'include'});
     if(!r.ok) throw new Error(r.status);
     const {jobs,undo}=await r.json();
     setUndo(undo);
@@ -1630,7 +1676,7 @@ async function saveRoster(){
 async function loadJobPicker(){
   const sel=document.getElementById('packJob');
   try{
-    const r=await fetch(API+'/forge/library',{credentials:'include'});
+    const r=await fetch(withOrg(API+'/forge/library'),{credentials:'include'});
     if(!r.ok) throw new Error(r.status);
     const {jobs}=await r.json();
     const ready=(jobs||[]).filter(j=>(j.dirs&&j.dirs.length));
@@ -1756,7 +1802,7 @@ async function loadTopicSources(){
   const sel = document.getElementById('topicSource');
   sel.innerHTML = '<option value="">Loading…</option>';
   try {
-    const r = await fetch(API + '/forge/sources?status=done', {credentials:'include'});
+    const r = await fetch(withOrg(API + '/forge/sources?status=done'), {credentials:'include'});
     if(!r.ok) throw new Error(r.status);
     const {sources} = await r.json();
     if(!sources || !sources.length){
@@ -1875,7 +1921,7 @@ async function runTopicSearch(){
     let url = API + '/forge/sources/' + encodeURIComponent(id) + '/search?q=' + encodeURIComponent(q)
       + '&top_k=' + k + '&threshold=' + t;
     if(spk) url += '&speaker=' + encodeURIComponent(spk);
-    const r = await fetch(url, {credentials:'include'});
+    const r = await fetch(withOrg(url), {credentials:'include'});
     if(r.status === 409){ toast('Source still processing — try again shortly'); box.innerHTML='<div class="empty">Source not ready.</div>'; return; }
     if(r.status === 404){ toast('Source not found'); box.innerHTML='<div class="empty">Source not found.</div>'; return; }
     if(!r.ok) throw new Error(r.status);
@@ -2112,7 +2158,7 @@ async function loadAutoSources(){
   const sel = document.getElementById('autoSource');
   sel.innerHTML = '<option value="">Loading…</option>';
   try {
-    const r = await fetch(API + '/forge/sources?status=done', {credentials:'include'});
+    const r = await fetch(withOrg(API + '/forge/sources?status=done'), {credentials:'include'});
     if(!r.ok) throw new Error(r.status);
     const {sources} = await r.json();
     if(!sources || !sources.length){
@@ -2366,7 +2412,7 @@ let _mclips={};  // sid -> {name, dur}
 async function mscrubLoadList(){
   const sel=document.getElementById('mlinkPick'); if(!sel) return;
   try{
-    const r=await fetch(API+'/forge/sources?status=done',{credentials:'include'});
+    const r=await fetch(withOrg(API+'/forge/sources?status=done'),{credentials:'include'});
     const list=(r.ok?(await r.json()).sources:[])||[];
     _mclips={};
     const opts=['<option value="">— pick a fetched clip —</option>'];

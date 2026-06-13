@@ -10,9 +10,14 @@ from core.forge import users as forge_users
 from core.security.auth import require_auth
 
 
-def _require_admin(user: dict) -> None:
-    if (user or {}).get("role") != "admin":
+def _require_manage(user: dict) -> None:
+    if (user or {}).get("role") not in ("org_admin", "super_admin"):
         raise HTTPException(status_code=403, detail="admin only")
+
+
+def _require_super(user: dict) -> None:
+    if (user or {}).get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="super admin only")
 
 
 def register(app: FastAPI) -> None:
@@ -80,38 +85,57 @@ def register(app: FastAPI) -> None:
     # ---- User management (admin only) -------------------------------------
     @app.get("/forge/users")
     async def list_forge_users(user: dict = Depends(require_auth)):
-        _require_admin(user)
+        _require_manage(user)
         return {"users": forge_users.list_users(), "me": user.get("username")}
 
     @app.post("/forge/users")
     async def add_forge_user(payload: dict = Body(...), user: dict = Depends(require_auth)):
-        _require_admin(user)
+        _require_manage(user)
         username = (payload.get("username") or "").strip().lower()
         password = payload.get("password") or ""
-        role = "admin" if payload.get("role") == "admin" else "team"
+        role = payload.get("role")
+        if role not in ("member", "org_admin", "super_admin"):
+            role = "member"
+        if user.get("role") == "super_admin":
+            org = (payload.get("org") or "mainstay").strip().lower()
+        else:
+            org = user.get("org", "mainstay")          # org_admin forced to own org
+            role = "member" if role == "super_admin" else role   # no escalation to super
         if not username or not password:
             raise HTTPException(status_code=400, detail="username and password required")
-        forge_users.create_user(username, password, role)
+        forge_users.create_user(username, password, role, org)
         return {"ok": True, "users": forge_users.list_users()}
 
     @app.delete("/forge/users/{username}")
     async def remove_forge_user(username: str, user: dict = Depends(require_auth)):
-        _require_admin(user)
+        _require_manage(user)
         username = (username or "").strip().lower()
         if username == user.get("username"):
             raise HTTPException(status_code=400, detail="can't remove your own login")
         roster = forge_users.list_users()
-        admins = [u for u in roster if u["role"] == "admin"]
         target = next((u for u in roster if u["username"] == username), None)
-        if target and target["role"] == "admin" and len(admins) <= 1:
-            raise HTTPException(status_code=400, detail="can't remove the last admin")
+        if target is None:
+            raise HTTPException(status_code=404, detail="user not found")
+        if user.get("role") == "org_admin" and target["org"] != user.get("org"):
+            raise HTTPException(status_code=403, detail="can only remove users in your org")
+        supers = [u for u in roster if u["role"] == "super_admin"]
+        if target["role"] == "super_admin" and len(supers) <= 1:
+            raise HTTPException(status_code=400, detail="can't remove the last super admin")
         forge_users.delete_user(username)
         return {"ok": True, "users": forge_users.list_users()}
+
+    @app.get("/forge/orgs")
+    async def list_orgs(user: dict = Depends(require_auth)):
+        from core.forge import db
+        with db._conn() as c:
+            orgs = [dict(r) for r in c.execute("SELECT id, name FROM orgs ORDER BY name")]
+        return {"orgs": orgs, "me_org": user.get("org"), "role": user.get("role")}
 
     @app.get("/forge/me")
     async def forge_me(user: dict = Depends(require_auth)):
         """Who am I — for the 'Signed in as…' indicator."""
-        return {"username": user.get("username"), "role": user.get("role", "team")}
+        return {"username": user.get("username"), "role": user.get("role", "member"),
+                "org": user.get("org", "mainstay")}
 
     @app.post("/forge/jobs")
     async def create_job(request: Request, payload: dict = Body(...),
