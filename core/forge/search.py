@@ -136,11 +136,17 @@ def build_windows(
 # ---------------------------------------------------------------------------
 
 
-def upsert_windows(source_id: str, windows: list[dict]) -> None:
+def upsert_windows(source_id: str, windows: list[dict], org: str = "mainstay") -> None:
     """Upsert a list of window dicts into the shared collection.
 
     Coerces ``speaker`` to ``""`` when ``None`` — ChromaDB metadata does not
     accept ``None`` values.
+
+    Args:
+        source_id: The source this window set belongs to.
+        windows:   Window dicts produced by :func:`build_windows`.
+        org:       Organisation slug stored as ``org_id`` metadata; used by
+                   :func:`search_segments` to scope queries to one tenant.
     """
     if not windows:
         return
@@ -151,6 +157,7 @@ def upsert_windows(source_id: str, windows: list[dict]) -> None:
         metadatas=[
             {
                 "source_id": source_id,
+                "org_id": org,
                 "start_s": float(w["start_s"]),
                 "end_s": float(w["end_s"]),
                 "speaker": w.get("speaker") or "",
@@ -174,6 +181,9 @@ def embed_source_windows(source_id: str) -> int:
     dependency).  Returns the number of windows upserted (0 if no segments).
 
     Delete-before-upsert ensures no orphan win_ids survive a re-embed.
+
+    The source's ``org_id`` is looked up from the DB and forwarded to
+    :func:`upsert_windows` so embedded windows carry the correct tenant tag.
     """
     # Lazy import to break circular: ingest imports nothing from search;
     # search imports ingest only inside this function.
@@ -205,7 +215,11 @@ def embed_source_windows(source_id: str) -> int:
         # recent ChromaDB versions but some older builds raise; swallow it.
         logger.debug("embed_source_windows: delete-before-upsert swallowed an exception for %s", source_id)
 
-    upsert_windows(source_id, windows)
+    # Thread org_id from the source row so windows are correctly tenant-tagged.
+    source_row = _ingest.get_source(source_id)
+    org = (source_row or {}).get("org_id") or "mainstay"
+
+    upsert_windows(source_id, windows, org=org)
     logger.info(
         "embed_source_windows: %s -> %d windows embedded",
         source_id,
@@ -232,23 +246,25 @@ def has_windows(source_id: str) -> bool:
 
 
 def search_segments(
-    source_id: str,
-    query: str,
+    source_id: str | None = None,
+    query: str = "",
     top_k: int = 10,
     speaker: str | None = None,
     score_threshold: float = 0.45,
+    org: str | None = None,
 ) -> list[dict]:
-    """Return ranked windows from *source_id* matching *query*.
+    """Return ranked windows matching *query*, optionally scoped by org and/or source.
 
     Scores are inverted cosine distances in [0, 1] (higher = more relevant).
     Raw ChromaDB distances are NEVER returned to callers.
 
     Args:
-        source_id:       Scope results to this source.
+        source_id:       Scope results to this source (optional).
         query:           Natural-language topic string.
         top_k:           Maximum number of results to consider from ChromaDB.
         speaker:         If truthy, restrict to windows dominated by this speaker.
         score_threshold: Discard windows with score < threshold.
+        org:             If set, restrict results to this org's windows only.
 
     Returns:
         List of dicts sorted by score descending::
@@ -262,16 +278,28 @@ def search_segments(
     if total == 0:
         return []
 
-    # Build where clause — ChromaDB requires $and for multiple conditions.
-    if speaker:
-        where: dict = {
-            "$and": [
-                {"source_id": {"$eq": source_id}},
-                {"speaker": {"$eq": speaker}},
-            ]
-        }
+    # Build org+source where clause first, then layer in speaker if needed.
+    # ChromaDB requires $and when combining multiple conditions.
+    if source_id and org:
+        base_where: dict | None = {"$and": [{"source_id": source_id}, {"org_id": org}]}
+    elif source_id:
+        base_where = {"source_id": source_id}
+    elif org:
+        base_where = {"org_id": org}
     else:
-        where = {"source_id": {"$eq": source_id}}
+        base_where = None
+
+    if speaker:
+        speaker_clause: dict = {"speaker": {"$eq": speaker}}
+        if base_where is None:
+            where: dict | None = speaker_clause
+        elif "$and" in base_where:
+            # Already a $and list — append speaker clause.
+            where = {"$and": base_where["$and"] + [speaker_clause]}
+        else:
+            where = {"$and": [base_where, speaker_clause]}
+    else:
+        where = base_where
 
     n_results = min(top_k, total)
     raw = col.query(
