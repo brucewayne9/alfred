@@ -45,6 +45,19 @@ def _env(name: str, default: str | None = None) -> str | None:
     return os.environ.get(name, default)
 
 
+# Per-org Postiz API keys. Each org's burners live in its own Postiz org,
+# reached with its own key. mainstay = Rod Wave burners; rucktalk = the
+# RuckTalk / Ground Rush org.
+_ORG_KEY_ENV = {
+    "mainstay": "POSTIZ_MAINSTAY_API_KEY",
+    "rucktalk": "POSTIZ_RUCKTALK_API_KEY",
+}
+
+
+def key_for_org(org: str) -> str | None:
+    return _env(_ORG_KEY_ENV.get(org, ""))
+
+
 def _base() -> str:
     return (_env("POSTIZ_BASE_URL") or _DEFAULT_BASE).rstrip("/")
 
@@ -68,11 +81,11 @@ def _jwt() -> str | None:
     )
 
 
-def list_integrations() -> list[dict]:
-    """All channels connected in the Mainstay org (id, name, provider)."""
-    key = _env("POSTIZ_MAINSTAY_API_KEY")
+def list_integrations(org: str = "mainstay") -> list[dict]:
+    """All channels connected in ``org``'s Postiz org (id, name, provider)."""
+    key = key_for_org(org)
     if not key:
-        logger.error("POSTIZ_MAINSTAY_API_KEY missing — cannot list integrations")
+        logger.error("Postiz API key for org '%s' missing — cannot list integrations", org)
         return []
     try:
         r = requests.get(f"{_base()}/public/v1/integrations",
@@ -138,17 +151,19 @@ def create_draft(content: str, integration_id: str, *,
                  platform: str = "tiktok",
                  when: str | None = None,
                  title: str = "",
-                 scheduled: bool = False) -> dict:
-    """Create ONE Postiz post on ``integration_id`` (Mainstay org).
+                 scheduled: bool = False,
+                 org: str = "mainstay") -> dict:
+    """Create ONE Postiz post on ``integration_id`` (in ``org``'s Postiz org).
 
-    ``scheduled=False`` → a **draft** (sits in Postiz until a human sends it).
+    ``scheduled=False`` → a **draft** (sits in Postiz until a human hits send).
     ``scheduled=True``  → a **scheduled** post that auto-fires at ``when`` (UTC ISO).
 
     Returns ``{"ok": bool, "postId": str|None, "error": str|None}``.
     """
-    key = _env("POSTIZ_MAINSTAY_API_KEY")
+    key = key_for_org(org)
     if not key:
-        return {"ok": False, "postId": None, "error": "POSTIZ_MAINSTAY_API_KEY missing"}
+        return {"ok": False, "postId": None,
+                "error": f"Postiz API key for org '{org}' missing"}
 
     image_list: list[dict] = []
     if media_path:

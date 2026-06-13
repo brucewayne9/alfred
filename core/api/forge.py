@@ -587,9 +587,15 @@ def register(app: FastAPI) -> None:
         return {"accounts": distribution.set_accounts(payload.get("accounts") or [])}
 
     @app.get("/forge/distribution/pack")
-    async def dist_pack(job_id: str = Query(...), user: dict = Depends(require_auth)):
+    async def dist_pack(request: Request, job_id: str = Query(...),
+                        user: dict = Depends(require_auth)):
         from core.forge import distribution
-        return distribution.build_pack(job_id)
+        scope = _scope(request, user)
+        job = forge_jobs.get_job(job_id)
+        if not job or not scope.can_read_org(job.get("org_id", "mainstay")):
+            raise HTTPException(status_code=404, detail="job not found")
+        post_org = job.get("org_id", "mainstay")
+        return distribution.build_pack(job_id, org=post_org)
 
     @app.post("/forge/distribution/posted")
     async def dist_posted(payload: dict = Body(...), user: dict = Depends(require_auth)):
@@ -601,15 +607,22 @@ def register(app: FastAPI) -> None:
         return {"ok": True}
 
     @app.post("/forge/distribution/postiz")
-    async def dist_postiz(payload: dict = Body(...), user: dict = Depends(require_auth)):
+    async def dist_postiz(request: Request, payload: dict = Body(...),
+                          user: dict = Depends(require_auth)):
         from core.forge import distribution
         job_id = payload.get("job_id")
         if not job_id:
             raise HTTPException(status_code=400, detail="job_id required")
+        scope = _scope(request, user)
+        job = forge_jobs.get_job(job_id)
+        if not job or not scope.can_write_org(job.get("org_id", "mainstay")):
+            raise HTTPException(status_code=404, detail="job not found")
+        post_org = job.get("org_id", "mainstay")
         return distribution.push_to_postiz(
             job_id,
             caption_override=(payload.get("caption") or "").strip() or None,
             schedule_at=(payload.get("schedule_at") or "").strip() or None,
+            org=post_org,
         )
 
     # --- Intelligence ------------------------------------------------------

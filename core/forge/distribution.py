@@ -93,8 +93,8 @@ def set_accounts(accounts: list[dict]) -> list[dict]:
     return accounts
 
 
-def live_targets() -> list[dict]:
-    """Every channel currently connected in the Mainstay Postiz org, as roster rows.
+def live_targets(org: str = "mainstay") -> list[dict]:
+    """Every channel currently connected in ``org``'s Postiz org, as roster rows.
 
     This is the source of truth for "send it to everybody": connect an account in
     Postiz and it lands here automatically — no hand-maintained file, no copying
@@ -103,7 +103,7 @@ def live_targets() -> list[dict]:
     """
     try:
         from core.forge import postiz_client
-        ints = postiz_client.list_integrations()
+        ints = postiz_client.list_integrations(org)
     except Exception:  # noqa: BLE001 — never let a Postiz hiccup break the pack
         return []
     rows = []
@@ -121,13 +121,13 @@ def live_targets() -> list[dict]:
             "handle": i.get("name") or i.get("displayName") or iid,
             "platform": platform,
             "tier": "burner",
-            "org": "mainstay",
+            "org": org,
             "postiz_id": iid,
         })
     return rows
 
 
-def resolve_targets(accounts: list[dict] | None) -> list[dict]:
+def resolve_targets(accounts: list[dict] | None, org: str = "mainstay") -> list[dict]:
     """Pick the account list a pack/push should fan out to.
 
     Precedence: explicit ``accounts`` arg → live Postiz connections → local JSON
@@ -136,7 +136,7 @@ def resolve_targets(accounts: list[dict] | None) -> list[dict]:
     """
     if accounts:
         return accounts
-    live = live_targets()
+    live = live_targets(org)
     if live:
         return live
     return get_accounts()
@@ -207,7 +207,8 @@ _POSTIZ_SCRIPT_DIR = Path(
 
 def push_to_postiz(job_id: str, accounts: list[dict] | None = None, *,
                    caption_override: str | None = None,
-                   schedule_at: str | None = None) -> dict:
+                   schedule_at: str | None = None,
+                   org: str = "mainstay") -> dict:
     """Push a job's pack into Postiz.
 
     ``caption_override`` — if set, every post uses this exact caption (verbatim,
@@ -223,7 +224,7 @@ def push_to_postiz(job_id: str, accounts: list[dict] | None = None, *,
     from datetime import datetime, timedelta
     from core.forge import library, postiz_client
 
-    pack = build_pack(job_id, accounts)
+    pack = build_pack(job_id, accounts, org=org)
     posts = pack.get("posts", [])
     roster = {a.get("handle"): a for a in pack.get("accounts", [])}
 
@@ -232,9 +233,9 @@ def push_to_postiz(job_id: str, accounts: list[dict] | None = None, *,
         for p in posts:
             p["caption"] = caption_override
 
-    if not postiz_client.is_configured():
+    if not postiz_client.key_for_org(org):
         return {"job_id": job_id,
-                "error": "Mainstay Postiz org not configured (POSTIZ_MAINSTAY_API_KEY)",
+                "error": f"Postiz org '{org}' not configured (no API key)",
                 "pushed": [], "skipped": [],
                 "counts": {"drafts_created": 0, "failed": 0, "skipped": len(posts)}}
 
@@ -272,6 +273,7 @@ def push_to_postiz(job_id: str, accounts: list[dict] | None = None, *,
                 when=when,
                 title=acct.get("handle", ""),
                 scheduled=scheduled,
+                org=org,
             )
             entry = {"post_id": p["post_id"], "account": p["account"],
                      "platform": p["platform"], "ok": bool(res.get("ok")),
@@ -295,7 +297,8 @@ def push_to_postiz(job_id: str, accounts: list[dict] | None = None, *,
     }
 
 
-def build_pack(job_id: str, accounts: list[dict] | None = None) -> dict:
+def build_pack(job_id: str, accounts: list[dict] | None = None,
+               org: str = "mainstay") -> dict:
     """Assemble a ready-to-post pack for a delivered job (hits Nextcloud for files)."""
     from core.forge import jobs as fj, library
 
@@ -323,7 +326,7 @@ def build_pack(job_id: str, accounts: list[dict] | None = None) -> dict:
         except Exception:
             pass
 
-    accounts = resolve_targets(accounts)
+    accounts = resolve_targets(accounts, org)
     posts = assign_posts(job_id, files, accounts, caption=caption)
 
     pm = posted_map([p["post_id"] for p in posts])
