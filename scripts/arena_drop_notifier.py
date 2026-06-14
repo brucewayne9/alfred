@@ -55,6 +55,7 @@ LINKS_PATH = _ROOT / "data" / "mainstay" / "tour" / "arena_folder_links.json"
 NOTIFY_STATE = _ROOT / "data" / "mainstay" / "arena_portal" / "drop_notify_state.json"
 
 DOWNLOAD_SUBFOLDER = "1. DOWNLOAD - Finished Assets From Ground Rush"
+UPLOAD_SUBFOLDER = "2. UPLOAD - Your Logo + Ad Specs Here"
 VENUE_SENDER = "groundrushinc"        # Mike Johnson <mjohnson@groundrushinc.com> (Workspace)
 INTERNAL_SENDER = "groundrush info"   # info@groundrushlabs.com — for the heads-up to Mike
 PORTAL_URL = "https://venues.groundrushlabs.com"
@@ -130,7 +131,10 @@ def _walk_files(decoded_path: str) -> list[dict]:
     base = _key(decoded_path)
     for it in items:
         k = _key(it.get("path") or "")
-        if not k or k == base:
+        # leading-slash-insensitive self-skip: WebDAV returns the folder itself
+        # (URL-encoded) on special-char paths; without this it recurses into
+        # itself and every file gets listed twice. (fix 2026-06-14)
+        if not k or k.lstrip("/") == base.lstrip("/"):
             continue
         if it.get("is_folder"):
             out.extend(_walk_files(k))
@@ -272,48 +276,105 @@ def main(argv: list[str]) -> int:
 
     for a in arenas:
         idx = str(a.get("idx"))
-        dl_path = f"{a['folder']}/{DOWNLOAD_SUBFOLDER}"
-        current = _walk_files(dl_path)
-        seen = set(st_arenas.get(idx, {}).get("seen", []))
-        new = [f for f in current if f["path"] not in seen]
+        entry = st_arenas.get(idx, {})
         recipients = members.get(idx, [])
 
-        if not new:
-            continue
+        # DOWNLOAD = finished assets we send OUT to the building.
+        dl_current = _walk_files(f"{a['folder']}/{DOWNLOAD_SUBFOLDER}")
+        dl_seen = set(entry.get("seen", []))
+        dl_new = [f for f in dl_current if f["path"] not in dl_seen]
+
+        # UPLOAD = logos + ad specs coming IN from the building (or staged by us).
+        up_current = _walk_files(f"{a['folder']}/{UPLOAD_SUBFOLDER}")
+        up_seen = set(entry.get("seen_up", []))
+        up_new = [f for f in up_current if f["path"] not in up_seen]
 
         if baseline:
-            st_arenas[idx] = {"seen": sorted(f["path"] for f in current)}
-            _log(f"baseline {a['city']}: seeded {len(current)} file(s).")
+            if dl_current or up_current:
+                st_arenas[idx] = {
+                    "seen": sorted(f["path"] for f in dl_current),
+                    "seen_up": sorted(f["path"] for f in up_current),
+                    "welcomed": sorted(recipients),
+                }
+                _log(f"baseline {a['city']}: seeded {len(dl_current)} download "
+                     f"+ {len(up_current)} upload file(s).")
             continue
 
-        total_new += len(new)
-        _log(f"{a['city']}: {len(new)} new file(s); {len(recipients)} contact(s).")
+        # "welcomed" = contacts already told about this arena's folder (via a drop
+        # or a backfill). First run after this feature shipped = migrating: assume
+        # the members already on file are caught up, so we don't retroactively blast.
+        migrating = "welcomed" not in entry
+        welcomed = set(recipients) if migrating else set(entry.get("welcomed", []))
+        delta_recipients = [m for m in recipients if m in welcomed]          # get the new drop only
+        backfill_members = [m for m in recipients if m not in welcomed] if dl_current else []  # signed in late
 
-        if dry:
-            for f in new:
-                _log(f"   would notify -> {recipients or '(no contacts yet)'} : {f['category']}/{f['name']}")
-            continue
+        if dl_new:
+            total_new += len(dl_new)
+            _log(f"{a['city']} [download]: {len(dl_new)} new file(s); {len(delta_recipients)} caught-up contact(s).")
+            if dry:
+                for f in dl_new:
+                    _log(f"   would notify -> {delta_recipients or '(none)'} : {f['category']}/{f['name']}")
+            else:
+                cc = _alert_recipients()
+                if delta_recipients:
+                    subject, html, text = _build_venue_email(a, dl_new)
+                    for to in delta_recipients:
+                        try:
+                            r = email_client.send_email(account=VENUE_SENDER, to=to, subject=subject,
+                                                        body=html, html=True, text_body=text,
+                                                        cc=[c for c in cc if c != to])
+                            if isinstance(r, dict) and r.get("error"):
+                                _log(f"   ! send error to {to}: {r['error']}")
+                            else:
+                                total_mailed += 1
+                                _log(f"   sent (drop) -> {to}")
+                        except Exception as e:
+                            _log(f"   ! send exception to {to}: {e}")
+                else:
+                    _log(f"   (no caught-up contacts for {a['city']} yet — internal heads-up only)")
+                _internal_summary(a, dl_new, delta_recipients)
 
-        if recipients:
-            subject, html, text = _build_venue_email(a, new)
-            for to in recipients:
-                try:
-                    r = email_client.send_email(account=VENUE_SENDER, to=to, subject=subject,
-                                                body=html, html=True, text_body=text)
-                    if isinstance(r, dict) and r.get("error"):
-                        _log(f"   ! send error to {to}: {r['error']}")
-                    else:
-                        total_mailed += 1
-                        _log(f"   sent -> {to}")
-                except Exception as e:
-                    _log(f"   ! send exception to {to}: {e}")
-            _internal_summary(a, new, recipients)
-        else:
-            _log(f"   (no signed-up contacts for {a['city']} yet — recording as seen)")
+        # Welcome backfill: a contact who signs in AFTER delivery gets auto-told what's
+        # ALREADY in their folder, so nothing they can grab goes unannounced.
+        if backfill_members and not migrating:
+            _log(f"{a['city']} [backfill]: {len(backfill_members)} new sign-in(s); folder has {len(dl_current)} file(s).")
+            if dry:
+                for m in backfill_members:
+                    _log(f"   would backfill -> {m} : {len(dl_current)} existing file(s)")
+            else:
+                cc = _alert_recipients()
+                subject, html, text = _build_venue_email(a, dl_current)
+                subject = f"Your Rod Wave tour assets are ready, {a.get('city','your city')}"
+                for to in backfill_members:
+                    try:
+                        r = email_client.send_email(account=VENUE_SENDER, to=to, subject=subject,
+                                                    body=html, html=True, text_body=text,
+                                                    cc=[c for c in cc if c != to])
+                        if isinstance(r, dict) and r.get("error"):
+                            _log(f"   ! backfill error to {to}: {r['error']}")
+                        else:
+                            total_mailed += 1
+                            _log(f"   backfilled -> {to}")
+                    except Exception as e:
+                        _log(f"   ! backfill exception to {to}: {e}")
 
-        # record seen regardless, so we never re-notify the same files
-        merged = seen | {f["path"] for f in current}
-        st_arenas[idx] = {"seen": sorted(merged)}
+        if up_new:
+            total_new += len(up_new)
+            _log(f"{a['city']} [upload]: {len(up_new)} new file(s).")
+            if dry:
+                for f in up_new:
+                    _log(f"   would alert (upload) -> Mike + Dre : {f['category']}/{f['name']}")
+            else:
+                _upload_summary(a, up_new)
+
+        # Persist seen + welcomed every run (not just on changes) so late sign-ins
+        # are tracked the moment they appear.
+        if not dry:
+            st_arenas[idx] = {
+                "seen": sorted(dl_seen | {f["path"] for f in dl_current}),
+                "seen_up": sorted(up_seen | {f["path"] for f in up_current}),
+                "welcomed": sorted(welcomed | set(recipients)),
+            }
 
     if baseline:
         state["baseline_done"] = True
@@ -327,20 +388,53 @@ def main(argv: list[str]) -> int:
 
 
 def _internal_summary(arena: dict, files: list[dict], recipients: list[str]) -> None:
-    """Plain heads-up to Mike so he sees each drop go out."""
+    """Plain heads-up to Mike + Dre the moment a drop lands — fires whether or
+    not any venue contact has signed up through the portal yet."""
     to_list = _alert_recipients()
     if not to_list:
         return
     names = "\n".join(f"  - {f['category']}/{f['name']} ({_fmt_size(f['size'])})" for f in files)
+    if recipients:
+        lead = (f"Notified {len(recipients)} contact(s) at {arena['venue']} ({arena['city']}) "
+                f"about {len(files)} new file(s) in their download folder:")
+        tail = f"\n\nContacts: {', '.join(recipients)}\n"
+        subj = f"[Arena drops] {arena['city']} notified — {len(files)} file(s)"
+    else:
+        lead = (f"{len(files)} new file(s) just landed in the {arena['venue']} ({arena['city']}) "
+                f"download folder. No venue contacts have signed up through the portal yet, "
+                f"so nothing went out to the building — this is a heads-up to you and Dre only:")
+        tail = "\n"
+        subj = f"[Arena drops] {arena['city']} — {len(files)} file(s) landed"
+    body = f"{lead}\n\n{names}{tail}"
+    for to in to_list:
+        try:
+            email_client.send_email(account=INTERNAL_SENDER, to=to,
+                                    subject=subj, body=body, html=False)
+        except Exception:
+            pass
+
+
+def _upload_summary(arena: dict, files: list[dict]) -> None:
+    """Internal-only alert to Mike + Dre when logos/specs land in an UPLOAD folder.
+    Uploads come IN from the building (or are staged by us), so nothing goes out
+    to the venue — this just tells the team what arrived and where."""
+    to_list = _alert_recipients()
+    if not to_list:
+        return
+    folder = f"{arena['folder']}/{UPLOAD_SUBFOLDER}"
+    names = "\n".join(f"  - {f['category']}/{f['name']} ({_fmt_size(f['size'])})" for f in files)
+    n = len(files)
+    noun = "file" if n == 1 else "files"
     body = (
-        f"Notified {len(recipients)} contact(s) at {arena['venue']} ({arena['city']}) "
-        f"about {len(files)} new file(s) in their download folder:\n\n{names}\n\n"
-        f"Contacts: {', '.join(recipients)}\n"
+        f"{n} {noun} just landed in the UPLOAD folder for {arena['venue']} "
+        f"({arena['city']}):\n\n{names}\n\n"
+        f"Folder: {folder}\n"
+        f"Portal: {arena.get('link') or PORTAL_URL}\n"
     )
     for to in to_list:
         try:
             email_client.send_email(account=INTERNAL_SENDER, to=to,
-                                    subject=f"[Arena drops] {arena['city']} notified — {len(files)} file(s)",
+                                    subject=f"[Arena uploads] {arena['city']} — {n} {noun} received",
                                     body=body, html=False)
         except Exception:
             pass
