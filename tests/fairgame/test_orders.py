@@ -80,6 +80,59 @@ def test_cannot_buy_same_listing_twice(monkeypatch):
         orders.create_order("buyer_2", lst["id"])
 
 
+def test_atomic_claim_no_held_payment_for_loser(monkeypatch):
+    """The loser of the seat race must never get funds held (escrow integrity).
+
+    create_order claims the listing with a conditional UPDATE BEFORE holding any
+    money, so a second buyer of an already-sold seat is rejected and no order /
+    held payment is ever created for them.
+    """
+    listings, stripe_connect, _, orders = _setup(monkeypatch)
+    lst = _listing(listings)
+    o1 = orders.create_order("buyer_1", lst["id"])
+    assert o1["state"] == "paid"
+    with pytest.raises(orders.OrderError):
+        orders.create_order("buyer_2", lst["id"])
+    # Exactly one order/held payment exists for this seat — no double-hold.
+    from core.fairgame import db
+    with db.connect() as conn:
+        n = conn.execute(
+            "SELECT COUNT(*) AS n FROM orders WHERE listing_id=?", (lst["id"],)
+        ).fetchone()["n"]
+    assert n == 1
+
+
+def test_held_order_can_be_driven_to_terminal(monkeypatch):
+    """A crash that left an order stuck in legacy 'held' must still be resumable.
+
+    Simulates a process death mid-transition (state forced to 'held' with no
+    stripe advance) and asserts confirm_transfer can still drive it to a terminal
+    state — the buyer's funds are never frozen forever.
+    """
+    listings, stripe_connect, _, orders = _setup(monkeypatch)
+    from core.fairgame import db
+    lst = _listing(listings)
+    order = orders.create_order("buyer_1", lst["id"])
+    # Force the unrecoverable-looking intermediate state a crash could leave.
+    with db.connect() as conn:
+        conn.execute("UPDATE orders SET state='held' WHERE id=?", (order["id"],))
+    # Recovery: confirm still works (held is accepted as resumable).
+    released = orders.confirm_transfer(order["id"])
+    assert released["state"] == "released"
+
+
+def test_held_order_can_be_refunded(monkeypatch):
+    """Same recovery guarantee on the refund side."""
+    listings, stripe_connect, _, orders = _setup(monkeypatch)
+    from core.fairgame import db
+    lst = _listing(listings)
+    order = orders.create_order("buyer_1", lst["id"])
+    with db.connect() as conn:
+        conn.execute("UPDATE orders SET state='held' WHERE id=?", (order["id"],))
+    refunded = orders.fail_transfer(order["id"])
+    assert refunded["state"] == "refunded"
+
+
 # --------------------------------------------------------------------------- #
 # Happy path: paid -> released
 # --------------------------------------------------------------------------- #

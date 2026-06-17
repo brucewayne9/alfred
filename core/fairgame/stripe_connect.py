@@ -20,10 +20,12 @@ twice for the same order/seller is a no-op that returns the same row/ref.
 Schema is owned by the Foundation phase (core/fairgame/db.py); this module only
 reads/writes the ``connect_accounts`` and ``orders`` tables, never alters them.
 
-Escrow state machine (orders.state):
+Escrow state machine (orders.state). ``release``/``refund`` accept the orders
+module's ``'paid'`` vocabulary as well as our own ``'held'`` so the orders flow
+can drive a payout/refund directly, with no observable intermediate state:
     (no row | pending) --create_held_payment--> 'held'
-                  'held' --release_to_seller--> 'released'
-                  'held' --refund-----------> 'refunded'
+            'held' | 'paid' --release_to_seller--> 'released'
+            'held' | 'paid' --refund-----------> 'refunded'
 """
 from __future__ import annotations
 
@@ -245,7 +247,9 @@ def release_to_seller(order_id: str) -> dict:
             raise StripeError("no order to release")
         if row["state"] == "released":
             return dict(row)
-        if row["state"] != "held":
+        # Accept both the orders-module 'paid' vocabulary and our own legacy
+        # 'held' so the payout can be driven directly with no intermediate state.
+        if row["state"] not in ("held", "paid"):
             raise StripeError(f"cannot release order in state '{row['state']}'")
 
         if not _sim_mode():
@@ -281,6 +285,10 @@ def refund(order_id: str) -> dict:
             return dict(row)
         if row["state"] == "released":
             raise StripeError("cannot refund an already-released order")
+        # Accept both the orders-module 'paid' vocabulary and our own legacy
+        # 'held' so the refund can be driven directly with no intermediate state.
+        if row["state"] not in ("held", "paid"):
+            raise StripeError(f"cannot refund order in state '{row['state']}'")
 
         if not _sim_mode():
             stripe = _stripe()

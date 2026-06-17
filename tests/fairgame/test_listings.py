@@ -102,3 +102,29 @@ def test_negative_face_rejected(monkeypatch):
     listings = _setup(monkeypatch)
     with pytest.raises(ValueError):
         listings.create_listing("fan_1", "show_1", "Floor", -100)
+
+
+# ---- anti-gouge: declared face cannot exceed the section's true primary face ----
+
+def _setup_with_inventory(monkeypatch):
+    listings = _setup(monkeypatch)
+    from core.fairgame import events
+    importlib.reload(events)
+    events.add_inventory("show_9", "Lower", 100, 9500)  # true face = $95
+    return listings, events
+
+
+def test_face_above_true_face_rejected(monkeypatch):
+    listings, _ = _setup_with_inventory(monkeypatch)
+    # Scalper declares a $300 "face" on a $95 seat -> rejected, cap can't be gamed.
+    with pytest.raises(ValueError):
+        listings.create_listing("scalper", "show_9", "Lower", 30000)
+
+
+def test_face_at_or_below_true_face_allowed(monkeypatch):
+    listings, _ = _setup_with_inventory(monkeypatch)
+    # Exactly face is fine; selling under face (fan-friendly) is fine too.
+    at = listings.create_listing("fan_a", "show_9", "Lower", 9500)
+    assert at["face_price_cents"] == 9500
+    under = listings.create_listing("fan_b", "show_9", "Lower", 6000)
+    assert under["face_price_cents"] == 6000

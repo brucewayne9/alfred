@@ -105,6 +105,23 @@ def get_inventory(show_id: str) -> list:
     return [dict(r) for r in rows]
 
 
+def section_face_cents(show_id: str, section: str):
+    """Original primary face price (cents) for a show's section, or None.
+
+    The anti-scalper cap is computed off the TRUE face, not a seller-declared
+    one, so resale callers look the face up here instead of trusting the client.
+    Returns None when the show has no inventory row for that section (e.g. in
+    unit tests that don't seed inventory — callers decide how to handle that).
+    """
+    with db.connect() as c:
+        row = c.execute(
+            "SELECT face_price_cents FROM inventory WHERE show_id=? AND section=? "
+            "ORDER BY created_at ASC LIMIT 1",
+            (show_id, section),
+        ).fetchone()
+    return int(row["face_price_cents"]) if row else None
+
+
 def remaining(show_id: str) -> int:
     """Total tickets still available across all sections for a show."""
     with db.connect() as c:

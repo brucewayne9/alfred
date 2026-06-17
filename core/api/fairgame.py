@@ -26,6 +26,7 @@ tests and local dev can complete the flow with no provider — NEVER set in prod
 """
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 import sys
@@ -57,7 +58,10 @@ _WAVE_OPEN_FROM = 0
 _WAVE_OPEN_TO = 3_000_000_000
 _DEFAULT_WAVE_MAX_QTY = 4
 
-ADMIN_TOKEN = os.environ.get("FAIRGAME_ADMIN_TOKEN", "rodwave-admin-dev")
+# No baked-in default: if FAIRGAME_ADMIN_TOKEN is unset the admin API is hard
+# 401'd (an empty token can never match). Source the real token from the
+# environment / config/.env — never a publicly-known string committed to the repo.
+ADMIN_TOKEN = os.environ.get("FAIRGAME_ADMIN_TOKEN", "")
 
 
 def _dev_echo() -> bool:
@@ -185,7 +189,9 @@ def _fan_summary(fan: dict) -> dict:
 
 
 def _require_admin(token: str) -> None:
-    if token != ADMIN_TOKEN:
+    # Unconfigured admin token => locked (no default secret to brute or leak).
+    # Constant-time compare to avoid leaking the token via response timing.
+    if not ADMIN_TOKEN or not hmac.compare_digest(token or "", ADMIN_TOKEN):
         raise HTTPException(status_code=401, detail="admin token required")
 
 
@@ -327,11 +333,14 @@ async def show_detail(show_id: str):
 
 @app.post("/fairgame/api/access")
 async def grant(req: Request, authorization: str = Header(default="")):
+    # The acting fan is ALWAYS the Bearer session — never a body-supplied fan_id
+    # (that would let an unauthenticated caller grant access AS any fan and drain
+    # inventory). This is the presale gate; verified fans only.
+    fan = _require_fan(authorization)
+    if fan["status"] != "verified":
+        raise HTTPException(status_code=403, detail="fan is not verified")
+    fid = fan["id"]
     b = await req.json()
-    fid = b.get("fan_id")
-    if not fid:
-        # Allow Bearer session as the fan identity if no explicit fan_id given.
-        fid = _require_fan(authorization)["id"]
     show_id = b.get("show_id")
     qty = int(b.get("qty", 1))
     if not show_id:
@@ -385,8 +394,38 @@ async def buy(req: Request, authorization: str = Header(default="")):
     return {"order": order}
 
 
+def _is_admin(token: str) -> bool:
+    """True if the supplied admin token is configured and matches (const-time)."""
+    return bool(ADMIN_TOKEN) and hmac.compare_digest(token or "", ADMIN_TOKEN)
+
+
+def _require_order_actor(order_id: str, authorization: str, admin_token: str):
+    """Load the order and assert the caller is its buyer (session) or an admin.
+
+    Escrow terminal transitions and order reads move money / leak PII, so they
+    are never world-callable. Returns the order row.
+    """
+    order = orders.get_order(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="order not found")
+    if _is_admin(admin_token):
+        return order
+    # Otherwise the caller must be the order's own buyer, via a Bearer session.
+    fan = _require_fan(authorization)
+    if fan["id"] != order.get("buyer_fan_id"):
+        raise HTTPException(status_code=403, detail="forbidden")
+    return order
+
+
 @app.post("/fairgame/api/orders/{order_id}/confirm")
-async def confirm_order(order_id: str):
+async def confirm_order(
+    order_id: str,
+    authorization: str = Header(default=""),
+    x_fairgame_admin: str = Header(default=""),
+):
+    # Buyer confirms receipt of the transfer, or an admin/TM webhook settles it.
+    # Never let an anonymous client force-release a seller's escrowed funds.
+    _require_order_actor(order_id, authorization, x_fairgame_admin)
     try:
         order = orders.confirm_transfer(order_id)
     except orders.OrderError as e:
@@ -395,7 +434,10 @@ async def confirm_order(order_id: str):
 
 
 @app.post("/fairgame/api/orders/{order_id}/fail")
-async def fail_order(order_id: str):
+async def fail_order(order_id: str, x_fairgame_admin: str = Header(default="")):
+    # Refund / fraud-wall is admin (or TM webhook) only — never the buyer and
+    # never anonymous, so nobody can force-refund a legitimately settled seat.
+    _require_admin(x_fairgame_admin)
     try:
         order = orders.fail_transfer(order_id)
     except orders.OrderError as e:
@@ -404,10 +446,13 @@ async def fail_order(order_id: str):
 
 
 @app.get("/fairgame/api/orders/{order_id}")
-async def get_order(order_id: str):
-    order = orders.get_order(order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="order not found")
+async def get_order(
+    order_id: str,
+    authorization: str = Header(default=""),
+    x_fairgame_admin: str = Header(default=""),
+):
+    # Order rows carry buyer_fan_id / amount / payment refs — buyer or admin only.
+    order = _require_order_actor(order_id, authorization, x_fairgame_admin)
     return {"order": order}
 
 

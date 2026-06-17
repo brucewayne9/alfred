@@ -338,8 +338,10 @@ async function runOrder(listingId, total, section) {
     steps[0].state='done'; steps[1].state='spin'; body.innerHTML = stepsView(steps);
     await sleep(450);
 
-    // 2) confirm the TM transfer -> server releases escrow
-    const cr = await fetch(API + '/orders/' + encodeURIComponent(orderId) + '/confirm', {method:'POST'});
+    // 2) buyer confirms receipt of the TM transfer -> server releases escrow
+    //    (buyer-confirms-receipt: must carry the fan's Bearer session)
+    const cr = await fetch(API + '/orders/' + encodeURIComponent(orderId) + '/confirm',
+      {method:'POST', headers:{...authHeaders()}});
     const cdata = await cr.json().catch(()=>({}));
     if (!cr.ok) throw new Error(cdata.detail || 'Transfer could not be confirmed');
 
@@ -367,13 +369,13 @@ async function runOrder(listingId, total, section) {
 async function pollOrderUntil(orderId, pred, tries) {
   for (let i=0;i<tries;i++) {
     try {
-      const r = await fetch(API + '/orders/' + encodeURIComponent(orderId), {headers:{'Accept':'application/json'}});
+      const r = await fetch(API + '/orders/' + encodeURIComponent(orderId), {headers:{'Accept':'application/json', ...authHeaders()}});
       if (r.ok) { const d = await r.json(); const st = (d.order||{}).state; if (pred(st)) return st; }
     } catch {}
     await sleep(350);
   }
   // best-effort: return whatever the last state was via one more read
-  try { const r = await fetch(API + '/orders/' + encodeURIComponent(orderId)); const d = await r.json(); return (d.order||{}).state; }
+  try { const r = await fetch(API + '/orders/' + encodeURIComponent(orderId), {headers:{...authHeaders()}}); const d = await r.json(); return (d.order||{}).state; }
   catch { return 'paid'; }
 }
 

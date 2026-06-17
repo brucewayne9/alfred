@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from . import db
+from . import db, events
 
 # Fixed resale cap split (cents). Buyer pays face + 1500; seller is made whole on
 # face and pockets $10; Rod takes $5. Never scales — flat per ticket in v1.
@@ -52,9 +52,22 @@ def create_listing(
     The split is fixed (see SELLER_MARKUP_CENTS / PLATFORM_FEE_CENTS): the seller
     is made whole on face plus $10, Rod takes $5, the buyer pays face + $15. New
     listings start `status='active'`.
+
+    Anti-gouge: the declared ``face_price_cents`` may never EXCEED the section's
+    true primary face (looked up from inventory). A scalper can't claim a $300
+    "face" on a $60 seat and have the cap computed off the lie — the listing is
+    rejected. A seller may declare a lower face (selling under face is fan-
+    friendly and allowed). Shows with no inventory row for the section (e.g. not
+    yet seeded) skip the cap check since there is no true face to enforce against.
     """
     if int(face_price_cents) < 0:
         raise ValueError("face_price_cents must be non-negative")
+    true_face = events.section_face_cents(show_id, section)
+    if true_face is not None and int(face_price_cents) > true_face:
+        raise ValueError(
+            f"face_price_cents {int(face_price_cents)} exceeds the section's "
+            f"primary face of {true_face} (resale cannot gouge above face)"
+        )
     q = quote(face_price_cents)
     lid = "lst_" + uuid.uuid4().hex[:12]
     now = int(time.time())
