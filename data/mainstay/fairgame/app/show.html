@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fair Game — Show</title>
+<meta name="description" content="Get fair-priced Rod Wave tickets straight from Rod's booth, or buy from a verified fan's capped resale.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="fairgame.css">
+<style>
+  .show-hero { position: relative; padding: 40px 0 8px; }
+  .show-hero .back { font-size: .82rem; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  .show-hero .back:hover { color: var(--gold); }
+  .show-hero h1 { font-family: var(--font-display); font-size: clamp(2.6rem, 9vw, 5rem); line-height: .9; text-transform: uppercase; margin-top: 16px; }
+  .show-hero .meta { color: var(--gold); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: .82rem; margin-top: 10px; }
+  .show-hero .venue { color: var(--muted); margin-top: 4px; font-size: 1rem; }
+
+  .grid2 { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 900px) { .grid2 { grid-template-columns: 1.05fr .95fr; } }
+
+  .block-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .block-head h2 { font-family: var(--font-display); font-size: 1.6rem; text-transform: uppercase; }
+
+  .inv-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
+  .inv-row:last-child { border-bottom: 0; }
+  .inv-row .sec { font-weight: 700; }
+  .inv-row .face { font-family: var(--font-display); font-size: 1.35rem; }
+  .inv-row .avail { font-size: .76rem; color: var(--muted-2); }
+
+  .listing { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .listing:last-child { border-bottom: 0; }
+  .listing .sec { font-weight: 700; }
+  .listing .price { font-family: var(--font-display); font-size: 1.3rem; }
+  .listing .break { font-size: .72rem; color: var(--muted-2); margin-top: 3px; }
+
+  .buybar { padding: 18px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .qty { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: var(--r-pill); overflow: hidden; }
+  .qty button { background: var(--black-2); border: 0; color: var(--cream); width: 40px; height: 42px; font-size: 1.2rem; cursor: pointer; }
+  .qty button:hover { color: var(--orange); }
+  .qty span { min-width: 42px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .gate { text-align: center; padding: 40px 24px; }
+  .order-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .ostep { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--black-2); color: var(--muted); font-size: .9rem; }
+  .ostep .b { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line-2); display: grid; place-items: center; font-size: .7rem; flex: 0 0 22px; }
+  .ostep.active { color: var(--cream); border-color: var(--orange); }
+  .ostep.active .b { border-color: var(--orange); color: var(--orange); }
+  .ostep.done { color: var(--green); border-color: rgba(61,220,132,.4); }
+  .ostep.done .b { border-color: var(--green); background: var(--green); color: var(--black); }
+  .ostep.spin .b { border-top-color: var(--orange); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<nav class="fg-nav">
+  <div class="fg-nav-inner">
+    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
+      <span class="fg-logo-mark"><span>FG</span></span>
+      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
+    </a>
+    <div class="fg-nav-right" id="navRight">
+      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Sign in</a>
+    </div>
+  </div>
+</nav>
+
+<header class="show-hero">
+  <div class="fg-wrap">
+    <a class="back" href="index.html">&larr; All shows</a>
+    <div id="showHead">
+      <h1 style="opacity:.4">Loading…</h1>
+    </div>
+  </div>
+</header>
+
+<main class="fg-section" style="padding-top:24px">
+  <div class="fg-wrap">
+    <div class="grid2">
+
+      <!-- ===== PRIMARY (capped fair-price buy) ===== -->
+      <section class="fg-card">
+        <div style="padding:18px 18px 0">
+          <div class="block-head">
+            <h2>Get tickets</h2>
+            <span class="fg-chip resale">Fair price · capped</span>
+          </div>
+          <p class="fg-muted" style="font-size:.86rem; margin-bottom:10px">
+            Straight from Rod's booth. Verified fans only, capped quantity &mdash; no scalper markup, ever.
+          </p>
+        </div>
+        <div id="inventory"><div class="fg-skeleton" style="height:64px;margin:0 18px"></div></div>
+        <div class="buybar" id="buybar">
+          <div class="qty" role="group" aria-label="Quantity">
+            <button type="button" id="qMinus" aria-label="Decrease">&minus;</button>
+            <span id="qVal" aria-live="polite">2</span>
+            <button type="button" id="qPlus" aria-label="Increase">+</button>
+          </div>
+          <button class="fg-btn fg-btn-primary" id="getBtn" style="flex:1">Get tickets (fair price)</button>
+        </div>
+      </section>
+
+      <!-- ===== RESALE EXCHANGE ===== -->
+      <section class="fg-card">
+        <div style="padding:18px 18px 4px">
+          <div class="block-head">
+            <h2>Fan resale</h2>
+            <span class="fg-chip ok">Rod Official</span>
+          </div>
+          <p class="fg-muted" style="font-size:.86rem; margin-bottom:6px">
+            Verified fans reselling seats they can't use &mdash; price-capped at face + $15.
+            Funds are held until the transfer is confirmed.
+          </p>
+        </div>
+        <div id="listings"><div class="fg-skeleton" style="height:64px;margin:6px 18px 18px"></div></div>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<footer class="fg-footer">
+  <div class="fg-wrap fg-footer-inner">
+    <span>Fair Game &copy; 2026 · Fair prices for real fans.</span>
+    <span><a href="index.html">All shows</a> · <a href="account.html">Account</a></span>
+  </div>
+</footer>
+
+<!-- ===== Order modal (resale buy → poll → confirm) ===== -->
+<div class="fg-overlay" id="orderOverlay" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
+  <div class="fg-modal">
+    <div class="fg-between">
+      <h3 id="orderTitle">Secure your seat</h3>
+      <button class="fg-modal-close" id="orderClose" aria-label="Close">&times;</button>
+    </div>
+    <div id="orderBody" class="fg-mt-2"></div>
+  </div>
+</div>
+
+<!-- ===== Gate modal (must be verified) ===== -->
+<div class="fg-overlay" id="gateOverlay" role="dialog" aria-modal="true">
+  <div class="fg-modal fg-center">
+    <h3>Verified fans only</h3>
+    <p class="fg-muted fg-mt-2">Fair Game keeps scalpers out by verifying every fan. Get verified in under a minute &mdash; it's free.</p>
+    <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="account.html">Verify me &amp; come back</a>
+    <button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" id="gateClose">Not now</button>
+  </div>
+</div>
+
+<div class="fg-toast" id="toast" role="status"></div>
+
+<script>
+const API = '/fairgame/api';
+const $ = (s, r=document) => r.querySelector(s);
+const SHOW_ID = new URLSearchParams(location.search).get('id');
+let SHOW = null, QTY = 2, MAXQ = 4;
+
+/* ---------- session ---------- */
+function getSession() {
+  try { return JSON.parse(localStorage.getItem('fairgame_session') || 'null'); }
+  catch { return null; }
+}
+function authHeaders() {
+  const s = getSession();
+  return s && s.token ? {'Authorization': 'Bearer ' + s.token} : {};
+}
+function renderBadge() {
+  const s = getSession(); const right = $('#navRight');
+  if (!s || !s.token) return;
+  const fan = s.fan || {};
+  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
+  right.innerHTML = prio +
+    '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Account</a>';
+}
+
+/* ---------- helpers ---------- */
+function money(c){ if(c==null) return '—'; return '$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:(c%100?2:0),maximumFractionDigits:2}); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='fg-toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='fg-toast '+(k||''),3400); }
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* ---------- gate ---------- */
+function requireVerified() {
+  const s = getSession();
+  if (s && s.token) return true;
+  $('#gateOverlay').classList.add('open');
+  return false;
+}
+$('#gateClose').onclick = ()=> $('#gateOverlay').classList.remove('open');
+
+/* ---------- load show ---------- */
+async function loadShow() {
+  if (!SHOW_ID) { showError('No show selected.'); return; }
+  try {
+    const r = await fetch(API + '/shows/' + encodeURIComponent(SHOW_ID), {headers:{'Accept':'application/json'}});
+    if (r.status === 404) { showError('That show isn\'t on the bill.'); return; }
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    SHOW = await r.json();
+    renderHead(); renderInventory(); renderListings();
+  } catch (e) {
+    showError('We couldn\'t load this show right now.');
+  }
+}
+function showError(msg) {
+  $('#showHead').innerHTML = '<h1 style="opacity:.6">'+esc(msg.split('.')[0])+'</h1>';
+  $('#inventory').innerHTML = '<div class="fg-empty" style="margin:0 18px 18px"><p>'+esc(msg)+'</p>'+
+    '<a class="fg-btn fg-btn-ghost fg-mt-3" href="index.html">Back to shows</a></div>';
+  $('#buybar').classList.add('fg-hidden');
+  $('#listings').innerHTML = '<div class="fg-empty" style="margin:6px 18px 18px"><p>—</p></div>';
+}
+function renderHead() {
+  $('#showHead').innerHTML =
+    '<h1>'+esc(SHOW.city||'TBA')+'</h1>' +
+    '<div class="meta">'+esc(SHOW.show_date||'Dates TBA')+'</div>' +
+    '<div class="venue">'+esc(SHOW.venue||'')+'</div>';
+  document.title = 'Fair Game — ' + (SHOW.city||'Show');
+}
+
+/* ---------- inventory (primary) ---------- */
+function renderInventory() {
+  const inv = (SHOW.inventory||[]);
+  const remaining = SHOW.remaining;
+  if (!inv.length || remaining <= 0) {
+    $('#inventory').innerHTML = '<div class="fg-empty" style="margin:0 18px"><div class="big">Sold out</div>'+
+      '<p>Primary is gone &mdash; check fan resale &rarr; for capped, fair-price seats.</p></div>';
+    $('#buybar').classList.add('fg-hidden');
+    return;
+  }
+  $('#inventory').innerHTML = inv.map(s=>{
+    const avail = s.qty_available;
+    const chip = avail<=0 ? '<span class="fg-chip out">Gone</span>' :
+                 avail<60 ? '<span class="fg-chip low">'+avail+' left</span>' :
+                            '<span class="fg-chip ok">'+avail+' left</span>';
+    return '<div class="inv-row"><div><div class="sec">'+esc(s.section)+'</div>'+
+           '<div class="avail">Face value</div></div>'+
+           '<div class="fg-row"><div style="text-align:right"><div class="face">'+money(s.face_price_cents)+'</div></div>'+chip+'</div></div>';
+  }).join('');
+  MAXQ = Math.min(4, remaining); if (QTY > MAXQ) QTY = MAXQ;
+  $('#qVal').textContent = QTY;
+}
+$('#qMinus').onclick = ()=>{ QTY = Math.max(1, QTY-1); $('#qVal').textContent = QTY; };
+$('#qPlus').onclick  = ()=>{ QTY = Math.min(MAXQ||4, QTY+1); $('#qVal').textContent = QTY; };
+
+$('#getBtn').onclick = async ()=>{
+  if (!requireVerified()) return;
+  const btn = $('#getBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Reserving…';
+  try {
+    const r = await fetch(API + '/access', {
+      method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()},
+      body: JSON.stringify({show_id: SHOW_ID, qty: QTY})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (r.status === 401) { btn.disabled=false; btn.textContent=orig; return requireVerified(); }
+    if (!r.ok) throw new Error(data.detail || 'Could not reserve');
+    const g = data.grant || {};
+    toast('Locked in — ' + (g.qty||QTY) + ' ticket' + ((g.qty||QTY)>1?'s':'') + ' reserved. Check email for Ticketmaster handoff.', 'ok');
+    await loadShow(); // refresh remaining counts
+  } catch (e) {
+    toast(e.message || 'Could not reserve tickets', 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+};
+
+/* ---------- resale listings ---------- */
+function renderListings() {
+  const list = (SHOW.listings||[]);
+  const box = $('#listings');
+  if (!list.length) {
+    box.innerHTML = '<div class="fg-empty" style="margin:6px 18px 18px"><div class="big">No resales yet</div>'+
+      '<p>When a verified fan lists a seat they can\'t use, it shows up here &mdash; always capped, never gouged.</p></div>';
+    return;
+  }
+  box.innerHTML = list.map(l=>(
+    '<div class="listing">' +
+      '<div><div class="sec">'+esc(l.section)+'</div>'+
+        '<div class="break">Face '+money(l.face_price_cents)+' · seller +$10 · Rod +$5</div></div>' +
+      '<div class="fg-row" style="justify-content:flex-end">' +
+        '<div style="text-align:right"><div class="price">'+money(l.buyer_total_cents)+'</div>'+
+          '<div class="break">all-in</div></div>' +
+        '<button class="fg-btn fg-btn-gold fg-btn-sm" data-buy="'+esc(l.id)+'" data-total="'+l.buyer_total_cents+'" data-sec="'+esc(l.section)+'">Buy</button>' +
+      '</div>' +
+    '</div>'
+  )).join('');
+  box.querySelectorAll('[data-buy]').forEach(b=> b.onclick = ()=> startBuy(b.dataset.buy, +b.dataset.total, b.dataset.sec));
+}
+
+/* ---------- resale buy: POST /buy -> poll order -> confirm ---------- */
+const overlay = $('#orderOverlay');
+$('#orderClose').onclick = closeOrder;
+function closeOrder(){ overlay.classList.remove('open'); }
+
+function stepsView(states, active) {
+  // states: ordered list of {key,label}; active key gets spinner
+  return '<div class="order-steps">' + states.map((s,i)=>{
+    const cls = s.state; // done | active | spin | ''
+    const mark = s.state==='done' ? '✓' : (i+1);
+    return '<div class="ostep '+cls+'"><span class="b">'+mark+'</span><span>'+s.label+'</span></div>';
+  }).join('') + '</div>';
+}
+
+async function startBuy(listingId, total, section) {
+  if (!requireVerified()) return;
+  overlay.classList.add('open');
+  const body = $('#orderBody');
+  body.innerHTML =
+    '<p class="fg-muted">'+esc(section)+' · <b style="color:var(--cream)">'+money(total)+'</b> all-in. '+
+    'Your money is held in escrow until the Ticketmaster transfer is confirmed. Capped &mdash; no markup beyond +$15.</p>' +
+    '<button class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="payBtn">Pay '+money(total)+' (held in escrow)</button>' +
+    '<p class="fg-muted fg-center fg-mt-2" style="font-size:.74rem">Test mode · no real charge</p>';
+  $('#payBtn').onclick = ()=> runOrder(listingId, total, section);
+}
+
+async function runOrder(listingId, total, section) {
+  const body = $('#orderBody');
+  const steps = [
+    {key:'pay',    label:'Payment held in escrow',          state:'spin'},
+    {key:'xfer',   label:'Ticketmaster transfer',           state:''},
+    {key:'release',label:'Funds released to seller',        state:''},
+  ];
+  body.innerHTML = stepsView(steps);
+  try {
+    // 1) create order (server holds funds -> state 'paid')
+    const r = await fetch(API + '/buy', {
+      method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()},
+      body: JSON.stringify({listing_id: listingId})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (r.status === 401) { closeOrder(); return requireVerified(); }
+    if (!r.ok) throw new Error(data.detail || 'Could not start the order');
+    const order = data.order; const orderId = order.id;
+
+    // poll for the 'paid' (held) state
+    let st = await pollOrderUntil(orderId, s => s==='paid'||s==='released'||s==='refunded', 8);
+    if (st === 'refunded') throw new Error('Order was auto-refunded');
+    steps[0].state='done'; steps[1].state='spin'; body.innerHTML = stepsView(steps);
+    await sleep(450);
+
+    // 2) confirm the TM transfer -> server releases escrow
+    const cr = await fetch(API + '/orders/' + encodeURIComponent(orderId) + '/confirm', {method:'POST'});
+    const cdata = await cr.json().catch(()=>({}));
+    if (!cr.ok) throw new Error(cdata.detail || 'Transfer could not be confirmed');
+
+    // poll until released
+    st = await pollOrderUntil(orderId, s => s==='released'||s==='refunded', 10);
+    if (st === 'refunded') throw new Error('Transfer failed — you were refunded');
+    steps[1].state='done'; steps[2].state='done'; body.innerHTML = stepsView(steps);
+
+    body.innerHTML +=
+      '<div class="fg-card fg-mt-3" style="padding:18px;text-align:center">' +
+      '<div class="fg-display" style="font-size:1.6rem;color:var(--green)">You\'re in.</div>' +
+      '<p class="fg-muted fg-mt-1">'+esc(section)+' secured for '+money(total)+'. The ticket transfers to you on Ticketmaster.</p>' +
+      '<button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-3" id="doneBtn">Done</button></div>';
+    $('#doneBtn').onclick = ()=>{ closeOrder(); loadShow(); };
+    toast('Seat secured — funds released to seller.', 'ok');
+  } catch (e) {
+    body.innerHTML =
+      '<div class="fg-empty"><div class="big" style="color:var(--red);font-size:1.4rem">Couldn\'t complete</div>' +
+      '<p>'+esc(e.message||'Something went wrong')+'</p>' +
+      '<button class="fg-btn fg-btn-ghost fg-mt-3" id="retryClose">Close</button></div>';
+    $('#retryClose').onclick = ()=>{ closeOrder(); loadShow(); };
+  }
+}
+
+async function pollOrderUntil(orderId, pred, tries) {
+  for (let i=0;i<tries;i++) {
+    try {
+      const r = await fetch(API + '/orders/' + encodeURIComponent(orderId), {headers:{'Accept':'application/json'}});
+      if (r.ok) { const d = await r.json(); const st = (d.order||{}).state; if (pred(st)) return st; }
+    } catch {}
+    await sleep(350);
+  }
+  // best-effort: return whatever the last state was via one more read
+  try { const r = await fetch(API + '/orders/' + encodeURIComponent(orderId)); const d = await r.json(); return (d.order||{}).state; }
+  catch { return 'paid'; }
+}
+
+/* close overlays on backdrop click */
+[overlay, $('#gateOverlay')].forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+renderBadge();
+loadShow();
+</script>
+</body>
+</html>
