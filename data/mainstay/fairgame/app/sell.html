@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fair Game — Resell a ticket</title>
+<meta name="description" content="Can't make the show? Resell your Rod Wave ticket fairly through Rod's booth. You keep $10. No gouging. Cancel anytime.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="fairgame.css">
+<style>
+  .sell-hero { padding: 40px 0 8px; }
+  .sell-hero h1 { font-family: var(--font-display); font-size: clamp(2.4rem, 8vw, 4.4rem); line-height: .9; text-transform: uppercase; }
+  .sell-hero .lede { color: var(--muted); margin-top: 14px; max-width: 50ch; font-size: 1.02rem; }
+  .sell-hero .lede b { color: var(--gold); }
+
+  .sell-wrap { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 900px) { .sell-wrap { grid-template-columns: 1.05fr .95fr; } }
+
+  .sell-card { padding: 26px; }
+  @media (min-width: 600px) { .sell-card { padding: 32px; } }
+  .sell-card h2 { font-family: var(--font-display); font-size: 1.7rem; text-transform: uppercase; margin-bottom: 4px; }
+  .sell-card .sub { color: var(--muted); font-size: .9rem; margin-bottom: 22px; }
+
+  /* price input with $ prefix */
+  .price-wrap { position: relative; }
+  .price-wrap .cur { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted-2); font-size: 1.1rem; font-weight: 700; pointer-events: none; }
+  .price-wrap .fg-input { padding-left: 30px; font-family: var(--font-display); font-size: 1.6rem; letter-spacing: .01em; }
+  select.fg-input { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23b6a896' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; padding-right: 38px; cursor: pointer; }
+
+  /* live split calculator */
+  .calc { margin-top: 8px; border: 1px solid var(--line-2); border-radius: var(--r-md); overflow: hidden; background: var(--black-2); transition: border-color .2s, box-shadow .2s; }
+  .calc.live { border-color: rgba(240,180,41,.4); box-shadow: 0 0 0 3px rgba(240,180,41,.07); }
+  .calc-head { padding: 13px 18px; background: linear-gradient(90deg, rgba(255,90,31,.1), rgba(240,180,41,.05)); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+  .calc-head .t { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  .calc-head .cap { font-size: .72rem; color: var(--muted-2); }
+  .calc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .calc-row:last-child { border-bottom: 0; }
+  .calc-row .who { display: flex; align-items: center; gap: 11px; }
+  .calc-row .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 1rem; background: var(--grad-fire-soft); border: 1px solid var(--line-2); flex: 0 0 30px; }
+  .calc-row .who .lab { font-weight: 700; font-size: .92rem; }
+  .calc-row .who .det { font-size: .74rem; color: var(--muted-2); margin-top: 1px; }
+  .calc-row .amt { font-family: var(--font-display); font-size: 1.45rem; line-height: 1; font-variant-numeric: tabular-nums; }
+  .calc-row.you { background: linear-gradient(90deg, rgba(61,220,132,.08), transparent); }
+  .calc-row.you .amt { color: var(--green); }
+  .calc-row.you .ic { background: linear-gradient(135deg, rgba(61,220,132,.18), rgba(61,220,132,.04)); border-color: rgba(61,220,132,.4); }
+  .calc-row.buyer .amt { color: var(--cream); }
+  .calc-row.rod .amt { color: var(--gold); }
+  .calc-row.rod .ic { background: linear-gradient(135deg, rgba(240,180,41,.16), rgba(240,180,41,.04)); }
+  .calc .plus { color: var(--muted); font-size: .8rem; font-weight: 700; }
+
+  .fairline { display: flex; gap: 10px; align-items: center; margin-top: 18px; padding: 14px 16px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--panel); font-size: .88rem; }
+  .fairline .ic { font-size: 1.2rem; }
+  .fairline b { color: var(--gold); }
+
+  .gate { text-align: center; padding: 30px 0 8px; }
+  .gate h2 { font-family: var(--font-display); font-size: 1.9rem; text-transform: uppercase; }
+
+  /* sidebar: why resell here */
+  .side-card { padding: 24px; }
+  .side-card h3 { font-family: var(--font-display); font-size: 1.3rem; text-transform: uppercase; margin-bottom: 16px; }
+  .reasons { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+  .reasons li { display: flex; gap: 11px; align-items: flex-start; font-size: .9rem; }
+  .reasons li .pk { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--grad-fire-soft); border: 1px solid var(--line-2); font-size: 1rem; }
+  .reasons li small { display: block; color: var(--muted); margin-top: 1px; }
+  .compare { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .compare .cmp-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: .86rem; }
+  .compare .cmp-row .lbl { color: var(--muted); }
+  .compare .cmp-row .seatgeek { color: var(--red); font-weight: 700; }
+  .compare .cmp-row .fg { color: var(--green); font-weight: 700; }
+
+  /* success */
+  .done-burst { text-align: center; }
+  .done-burst .check { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 14px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(61,220,132,.18), rgba(61,220,132,.04)); border: 2px solid rgba(61,220,132,.5); font-size: 2.2rem; color: var(--green); }
+  .done-burst h2 { font-family: var(--font-display); font-size: 1.9rem; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<!-- ===================== NAV ===================== -->
+<nav class="fg-nav">
+  <div class="fg-nav-inner">
+    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
+      <span class="fg-logo-mark"><span>FG</span></span>
+      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
+    </a>
+    <div class="fg-nav-right" id="navRight">
+      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Sign in</a>
+    </div>
+  </div>
+</nav>
+
+<header class="sell-hero">
+  <div class="fg-wrap">
+    <div class="fg-eyebrow">Capped fan resale · Rod Official</div>
+    <h1>Can't make it?<br><span class="fg-text-fire">Pass it on, fairly.</span></h1>
+    <p class="lede">List your seat through Rod's own booth. <b>You keep $10. No gouging. Cancel anytime.</b>
+      Funds are held in escrow until the Ticketmaster transfer is confirmed &mdash; safe for you and the buyer.</p>
+  </div>
+</header>
+
+<main class="fg-section" style="padding-top:24px">
+  <div class="fg-wrap">
+    <div class="sell-wrap">
+
+      <!-- ===== LEFT: list form / gate / success ===== -->
+      <section class="fg-card sell-card">
+
+        <!-- GATE: must be verified -->
+        <div id="gatePane" class="gate fg-hidden">
+          <h2>Verified fans only</h2>
+          <p class="fg-muted fg-mt-2">Only verified fans can resell &mdash; it's how we keep brokers out and listings honest. Get verified in under a minute, it's free.</p>
+          <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="account.html">Get verified to resell</a>
+          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="index.html">Back to shows</a>
+        </div>
+
+        <!-- FORM -->
+        <div id="formPane" class="fg-hidden">
+          <h2>Resell a ticket</h2>
+          <p class="sub">Pick your show and section, enter what you paid (face value), and we'll show the fair split.</p>
+
+          <form id="sellForm" novalidate>
+            <div class="fg-field">
+              <label class="fg-label" for="show">Show</label>
+              <select class="fg-input" id="show" name="show" required>
+                <option value="">Loading shows…</option>
+              </select>
+            </div>
+
+            <div class="fg-field">
+              <label class="fg-label" for="section">Section</label>
+              <select class="fg-input" id="section" name="section" required>
+                <option value="">Pick a show first</option>
+              </select>
+            </div>
+
+            <div class="fg-field">
+              <label class="fg-label" for="face">Face price (what you paid, per ticket)</label>
+              <div class="price-wrap">
+                <span class="cur">$</span>
+                <input class="fg-input fg-mono" type="text" inputmode="decimal" id="face" name="face"
+                       placeholder="0.00" autocomplete="off" required>
+              </div>
+            </div>
+
+            <!-- LIVE SPLIT CALCULATOR -->
+            <div class="calc" id="calc" aria-live="polite">
+              <div class="calc-head">
+                <span class="t">The fair split</span>
+                <span class="cap">Capped at face + $15</span>
+              </div>
+              <div class="calc-row you">
+                <div class="who"><span class="ic">&#128176;</span><span><span class="lab">You get back</span><span class="det">Your face <span id="faceEcho">$0</span> + $10</span></span></div>
+                <span class="amt" id="amtYou">$0</span>
+              </div>
+              <div class="calc-row buyer">
+                <div class="who"><span class="ic">&#127915;</span><span><span class="lab">Buyer pays</span><span class="det">Face + $15, all-in</span></span></div>
+                <span class="amt" id="amtBuyer">$0</span>
+              </div>
+              <div class="calc-row rod">
+                <div class="who"><span class="ic">&#11088;</span><span><span class="lab">Rod's cut</span><span class="det">Flat $5 — keeps the lights on</span></span></div>
+                <span class="amt" id="amtRod">$0</span>
+              </div>
+            </div>
+
+            <div class="fairline">
+              <span class="ic">&#9889;</span>
+              <span><b>You keep $10.</b> No gouging. Cancel anytime before it sells. Funds held in escrow until the transfer confirms.</span>
+            </div>
+
+            <button class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" type="submit" id="listBtn">List my ticket</button>
+            <p class="fg-muted fg-center fg-mt-2" style="font-size:.74rem">By listing you agree to transfer the ticket on Ticketmaster once it sells.</p>
+          </form>
+        </div>
+
+        <!-- SUCCESS -->
+        <div id="donePane" class="fg-hidden">
+          <div class="done-burst">
+            <div class="check">&#10003;</div>
+            <h2>You're listed</h2>
+            <p class="fg-muted fg-mt-1" id="doneMsg">Your seat is live on Rod's booth.</p>
+          </div>
+          <div class="fg-card fg-mt-3" id="doneSummary" style="padding:18px"></div>
+          <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="viewShow" href="index.html">View the listing</a>
+          <button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" id="listAnother">List another</button>
+        </div>
+
+        <div id="loadHint" class="fg-muted fg-center" style="padding:8px 0">Loading&hellip;</div>
+      </section>
+
+      <!-- ===== RIGHT: why resell here ===== -->
+      <aside class="fg-card side-card">
+        <h3>Why sell here</h3>
+        <ul class="reasons">
+          <li><span class="pk">&#128184;</span><span><b>$0 seller fee</b><small>SeatGeek/StubHub skim 10–15%. We take nothing from you.</small></span></li>
+          <li><span class="pk">&#9889;</span><span><b>Instant payout</b><small>Paid the moment the transfer confirms — not weeks after the show.</small></span></li>
+          <li><span class="pk">&#9989;</span><span><b>"Rod Official" trust</b><small>Buyers trust it, so your seat sells faster.</small></span></li>
+          <li><span class="pk">&#128274;</span><span><b>Escrow protection</b><small>The buyer's money is held until you transfer. No scams, either way.</small></span></li>
+        </ul>
+
+        <div class="compare">
+          <div class="cmp-row"><span class="lbl">On a $60 seat, you net</span></div>
+          <div class="cmp-row"><span class="lbl">SeatGeek (after ~12% fee)</span><span class="seatgeek">~$53</span></div>
+          <div class="cmp-row"><span class="lbl">Fair Game</span><span class="fg">$70</span></div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</main>
+
+<footer class="fg-footer">
+  <div class="fg-wrap fg-footer-inner">
+    <span>Fair Game &copy; 2026 · Fair prices for real fans.</span>
+    <span><a href="index.html">All shows</a> · <a href="account.html">Account</a></span>
+  </div>
+</footer>
+
+<div class="fg-toast" id="toast" role="status"></div>
+
+<script>
+const API = '/fairgame/api';
+const $ = (s, r=document) => r.querySelector(s);
+
+/* fixed split (mirrors core/fairgame/listings.py — cents) */
+const SELLER_MARKUP_CENTS = 1000; // $10 to seller, on top of face
+const PLATFORM_FEE_CENTS  = 500;  // $5 to Rod
+
+/* ---------- session ---------- */
+function getSession() {
+  try { return JSON.parse(localStorage.getItem('fairgame_session') || 'null'); }
+  catch { return null; }
+}
+function authHeaders() {
+  const s = getSession();
+  return s && s.token ? {'Authorization': 'Bearer ' + s.token} : {};
+}
+
+/* ---------- helpers ---------- */
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function money(cents){ if(cents==null) return '—'; return '$'+(cents/100).toLocaleString('en-US',{minimumFractionDigits:(cents%100?2:0),maximumFractionDigits:2}); }
+function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='fg-toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='fg-toast '+(k||''),3400); }
+
+/* parse "$1,234.56" / "60" -> integer cents (null if blank/invalid) */
+function parseCents(raw) {
+  const cleaned = (raw||'').replace(/[^0-9.]/g, '');
+  if (cleaned === '' || cleaned === '.') return null;
+  const v = parseFloat(cleaned);
+  if (!isFinite(v) || v < 0) return null;
+  return Math.round(v * 100);
+}
+
+/* ---------- nav badge ---------- */
+function renderBadge() {
+  const s = getSession(); const right = $('#navRight');
+  if (!s || !s.token) return;
+  const fan = s.fan || {};
+  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
+  right.innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Account</a>';
+}
+
+/* ---------- live split calculator ---------- */
+function updateCalc() {
+  const face = parseCents($('#face').value);
+  const calc = $('#calc');
+  if (face == null) {
+    calc.classList.remove('live');
+    $('#faceEcho').textContent = '$0';
+    $('#amtYou').textContent = '$0'; $('#amtBuyer').textContent = '$0'; $('#amtRod').textContent = '$0';
+    return;
+  }
+  calc.classList.add('live');
+  const you   = face + SELLER_MARKUP_CENTS;
+  const buyer = face + SELLER_MARKUP_CENTS + PLATFORM_FEE_CENTS;
+  $('#faceEcho').textContent = money(face);
+  $('#amtYou').textContent   = money(you);
+  $('#amtBuyer').textContent = money(buyer);
+  $('#amtRod').textContent   = money(PLATFORM_FEE_CENTS);
+}
+
+/* ---------- shows + sections ---------- */
+let SHOWS = [];
+
+async function loadShows() {
+  const sel = $('#show');
+  try {
+    const r = await fetch(API + '/shows', {headers:{'Accept':'application/json'}});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    SHOWS = data.shows || [];
+    if (!SHOWS.length) {
+      sel.innerHTML = '<option value="">No shows available yet</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">Select your show…</option>' +
+      SHOWS.map(s => '<option value="' + esc(s.id) + '">' +
+        esc((s.show_date ? s.show_date + ' · ' : '') + (s.city || 'TBA') + (s.venue ? ' — ' + s.venue : '')) +
+      '</option>').join('');
+  } catch (e) {
+    // Degrade gracefully: free-text section, manual face. Still fully usable.
+    sel.innerHTML = '<option value="">Couldn\'t load shows — refresh to retry</option>';
+    toast('Couldn\'t load shows. Refresh to try again.', 'err');
+  }
+}
+
+async function loadSections(showId) {
+  const sel = $('#section');
+  if (!showId) { sel.innerHTML = '<option value="">Pick a show first</option>'; return; }
+  sel.innerHTML = '<option value="">Loading sections…</option>';
+  try {
+    const r = await fetch(API + '/shows/' + encodeURIComponent(showId), {headers:{'Accept':'application/json'}});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const show = await r.json();
+    const inv = (show.inventory || []);
+    if (!inv.length) {
+      // No published sections — let the fan type their own.
+      sel.outerHTML = '<input class="fg-input" id="section" name="section" placeholder="e.g. Floor GA, 110, Lower Bowl" autocomplete="off" required>';
+      return;
+    }
+    // Suggest the section's known face when picked.
+    sel.innerHTML = '<option value="">Select your section…</option>' +
+      inv.map(i => '<option value="' + esc(i.section) + '" data-face="' + (i.face_price_cents||'') + '">' +
+        esc(i.section) + ' — face ' + money(i.face_price_cents) +
+      '</option>').join('');
+  } catch (e) {
+    // Fall back to free-text section input.
+    const ph = document.createElement('input');
+    ph.className = 'fg-input'; ph.id = 'section'; ph.name = 'section';
+    ph.placeholder = 'e.g. Floor GA, 110, Lower Bowl'; ph.autocomplete = 'off'; ph.required = true;
+    sel.replaceWith(ph);
+  }
+}
+
+/* prefill face when a section with a known face is chosen (only if face is empty) */
+function maybePrefillFace(sectionEl) {
+  if (sectionEl.tagName !== 'SELECT') return;
+  const opt = sectionEl.options[sectionEl.selectedIndex];
+  const face = opt && opt.dataset ? opt.dataset.face : '';
+  if (face && !$('#face').value.trim()) {
+    $('#face').value = (parseInt(face,10)/100).toFixed(2).replace(/\.00$/, '');
+    updateCalc();
+  }
+}
+
+/* ---------- submit ---------- */
+async function submitListing(e) {
+  e.preventDefault();
+  const session = getSession();
+  if (!session || !session.token) { showGate(); return; }
+
+  const showId = $('#show').value;
+  const sectionEl = $('#section');
+  const section = (sectionEl.value || '').trim();
+  const face = parseCents($('#face').value);
+
+  if (!showId) { toast('Pick a show first.', 'err'); $('#show').focus(); return; }
+  if (!section) { toast('Enter your section.', 'err'); sectionEl.focus(); return; }
+  if (face == null) { toast('Enter the face price you paid.', 'err'); $('#face').focus(); return; }
+
+  const btn = $('#listBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Listing…';
+  try {
+    const r = await fetch(API + '/listings', {
+      method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()},
+      body: JSON.stringify({show_id: showId, section, face_price_cents: face})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (r.status === 401) { showGate(); return; }
+    if (!r.ok) throw new Error(data.detail || 'Could not list your ticket.');
+    showDone(data.listing, showId);
+    toast('Listed! Your seat is live.', 'ok');
+  } catch (err) {
+    toast(err.message || 'Something went wrong listing your ticket.', 'err');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+function showDone(listing, showId) {
+  listing = listing || {};
+  const show = SHOWS.find(s => s.id === showId) || {};
+  $('#formPane').classList.add('fg-hidden');
+  $('#donePane').classList.remove('fg-hidden');
+  $('#doneMsg').textContent = 'Your ' + (listing.section || 'seat') + ' is live on Rod\'s booth — you\'ll be paid the moment it transfers.';
+  $('#doneSummary').innerHTML =
+    '<div class="calc-row" style="padding:0 0 12px;border-bottom:1px solid var(--line)"><div class="who"><span class="lab">' +
+      esc((show.city||'Your show') + (show.show_date ? ' · ' + show.show_date : '')) + '</span></div>' +
+      '<span class="fg-chip resale">' + esc(listing.section || '') + '</span></div>' +
+    '<div class="calc-row you" style="padding:12px 0 0;border:0"><div class="who"><span class="lab">You get back</span></div>' +
+      '<span class="amt" style="color:var(--green)">' + money(listing.seller_proceeds_cents) + '</span></div>';
+  $('#viewShow').href = showId ? ('show.html?id=' + encodeURIComponent(showId)) : 'index.html';
+}
+
+function showGate() {
+  $('#formPane').classList.add('fg-hidden');
+  $('#donePane').classList.add('fg-hidden');
+  $('#gatePane').classList.remove('fg-hidden');
+}
+
+/* ---------- boot ---------- */
+function boot() {
+  renderBadge();
+  $('#loadHint').classList.add('fg-hidden');
+
+  const s = getSession();
+  if (!s || !s.token) { showGate(); return; }
+
+  $('#formPane').classList.remove('fg-hidden');
+  updateCalc();
+  loadShows();
+
+  $('#face').addEventListener('input', updateCalc);
+  $('#show').addEventListener('change', e => { loadSections(e.target.value); });
+  // Section can be a SELECT (with face data) or fall back to INPUT — listen on the container.
+  $('#formPane').addEventListener('change', e => { if (e.target.id === 'section') maybePrefillFace(e.target); });
+  $('#sellForm').addEventListener('submit', submitListing);
+
+  $('#listAnother').addEventListener('click', () => {
+    $('#donePane').classList.add('fg-hidden');
+    $('#formPane').classList.remove('fg-hidden');
+    $('#sellForm').reset();
+    loadSections('');
+    updateCalc();
+  });
+}
+
+boot();
+</script>
+</body>
+</html>

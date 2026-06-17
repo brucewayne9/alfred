@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fair Game — Get verified</title>
+<meta name="description" content="Become a verified Rod Wave fan. Phone + email verification keeps scalpers out — real fans, real seats, fair prices.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="fairgame.css">
+<style>
+  .auth-hero { padding: 40px 0 8px; }
+  .auth-hero h1 { font-family: var(--font-display); font-size: clamp(2.4rem, 8vw, 4.4rem); line-height: .9; text-transform: uppercase; }
+  .auth-hero .lede { color: var(--muted); margin-top: 14px; max-width: 48ch; font-size: 1.02rem; }
+  .auth-hero .lede b { color: var(--gold); }
+
+  .auth-wrap { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 880px) { .auth-wrap { grid-template-columns: 1.1fr .9fr; } }
+
+  .auth-card { padding: 26px; }
+  @media (min-width: 600px) { .auth-card { padding: 32px; } }
+
+  /* progress rail */
+  .steps { display: flex; align-items: center; gap: 0; margin-bottom: 24px; }
+  .step { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
+  .step .dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line-2); display: grid; place-items: center; font-size: .76rem; font-weight: 700; color: var(--muted-2); flex: 0 0 26px; transition: all .2s var(--ease); }
+  .step .lbl { font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step .line { height: 2px; background: var(--line); flex: 1; margin: 0 8px; min-width: 10px; }
+  .step.active .dot { border-color: var(--orange); color: var(--orange); box-shadow: 0 0 0 4px rgba(255,90,31,.12); }
+  .step.active .lbl { color: var(--cream); }
+  .step.done .dot { border-color: var(--green); background: var(--green); color: var(--black); }
+  .step.done .lbl { color: var(--green); }
+
+  .pane { display: none; animation: fadeIn .25s var(--ease); }
+  .pane.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .pane h2 { font-family: var(--font-display); font-size: 1.7rem; text-transform: uppercase; }
+  .pane .sub { color: var(--muted); font-size: .9rem; margin-top: 6px; margin-bottom: 20px; }
+  .pane .sub b { color: var(--cream); }
+
+  /* OTP code input */
+  .otp { display: flex; gap: 9px; justify-content: space-between; margin-bottom: 6px; }
+  .otp input {
+    flex: 1; min-width: 0; aspect-ratio: 1 / 1.15;
+    text-align: center; font-family: var(--font-display); font-size: clamp(1.4rem, 7vw, 2rem);
+    color: var(--cream); background: var(--black-2);
+    border: 1px solid var(--line-2); border-radius: var(--r-sm);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .otp input:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,90,31,.18); }
+  .otp input.filled { border-color: var(--gold); }
+
+  .resend { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; font-size: .82rem; color: var(--muted-2); }
+  .resend button { background: none; border: 0; color: var(--orange); font-weight: 700; cursor: pointer; font-size: .82rem; font-family: var(--font-body); }
+  .resend button:disabled { color: var(--muted-2); cursor: not-allowed; }
+  .resend button:hover:not(:disabled) { color: var(--gold); }
+
+  .devcode { margin-top: 12px; padding: 10px 12px; border: 1px dashed var(--line-2); border-radius: var(--r-sm); background: rgba(240,180,41,.05); color: var(--gold); font-size: .8rem; font-variant-numeric: tabular-nums; }
+
+  /* success */
+  .done-burst { text-align: center; padding: 8px 0 4px; }
+  .done-burst .check { width: 78px; height: 78px; border-radius: 50%; margin: 0 auto 16px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(61,220,132,.18), rgba(61,220,132,.04)); border: 2px solid rgba(61,220,132,.5); font-size: 2.4rem; color: var(--green); animation: pop .4s var(--ease); }
+  @keyframes pop { from { transform: scale(.5); opacity: 0; } to { transform: none; opacity: 1; } }
+  .done-burst h2 { font-family: var(--font-display); font-size: 2.2rem; text-transform: uppercase; }
+
+  /* account panel rows */
+  .acct-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .acct-row:last-of-type { border-bottom: 0; }
+  .acct-row .k { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-2); }
+  .acct-row .v { font-weight: 700; text-align: right; word-break: break-word; }
+
+  .perks { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  .perks li { display: flex; gap: 11px; align-items: flex-start; font-size: .9rem; color: var(--cream); }
+  .perks li .pk { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--grad-fire-soft); border: 1px solid var(--line-2); font-size: 1rem; }
+  .perks li span small { display: block; color: var(--muted); font-size: .8rem; margin-top: 1px; }
+
+  .side-card { padding: 24px; }
+  .side-card h3 { font-family: var(--font-display); font-size: 1.3rem; text-transform: uppercase; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<!-- ===================== NAV ===================== -->
+<nav class="fg-nav">
+  <div class="fg-nav-inner">
+    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
+      <span class="fg-logo-mark"><span>FG</span></span>
+      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
+    </a>
+    <div class="fg-nav-right" id="navRight">
+      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>
+    </div>
+  </div>
+</nav>
+
+<header class="auth-hero">
+  <div class="fg-wrap">
+    <div class="fg-eyebrow">Verified fans only</div>
+    <h1 id="heroTitle">Get verified</h1>
+    <p class="lede" id="heroLede">One quick check &mdash; <b>phone + email</b> &mdash; and you're a verified Rod Wave fan.
+      It keeps bots and brokers out, so you get real seats at fair prices. Takes under a minute, and it's free.</p>
+  </div>
+</header>
+
+<main class="fg-section" style="padding-top:24px">
+  <div class="fg-wrap">
+    <div class="auth-wrap">
+
+      <!-- ===== LEFT: flow / account ===== -->
+      <section class="fg-card auth-card">
+
+        <!-- progress rail (hidden when already verified) -->
+        <div class="steps" id="steps">
+          <div class="step active" data-step="register"><span class="dot">1</span><span class="lbl">Details</span></div>
+          <div class="line"></div>
+          <div class="step" data-step="sms"><span class="dot">2</span><span class="lbl">Phone</span></div>
+          <div class="line"></div>
+          <div class="step" data-step="email"><span class="dot">3</span><span class="lbl">Email</span></div>
+        </div>
+
+        <!-- STEP 1: register -->
+        <div class="pane active" id="pane-register">
+          <h2>Your details</h2>
+          <p class="sub">We send a code to each so we know it's really you. No spam, ever.</p>
+          <form id="registerForm" novalidate>
+            <div class="fg-field">
+              <label class="fg-label" for="email">Email</label>
+              <input class="fg-input" type="email" id="email" name="email" autocomplete="email" placeholder="you@email.com" required>
+            </div>
+            <div class="fg-field">
+              <label class="fg-label" for="phone">Mobile phone</label>
+              <input class="fg-input" type="tel" id="phone" name="phone" autocomplete="tel" placeholder="(555) 123-4567" required>
+            </div>
+            <button class="fg-btn fg-btn-primary fg-btn-block fg-mt-1" type="submit" id="registerBtn">Send my codes</button>
+            <p class="fg-muted fg-center fg-mt-2" style="font-size:.74rem">By continuing you agree this is your real phone &amp; email. One account per fan.</p>
+          </form>
+        </div>
+
+        <!-- STEP 2: SMS code -->
+        <div class="pane" id="pane-sms">
+          <h2>Check your phone</h2>
+          <p class="sub">We texted a 6-digit code to <b id="smsTarget">your phone</b>.</p>
+          <div class="otp" id="smsOtp" role="group" aria-label="SMS code">
+            <input inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 2">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 3">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 4">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 5">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 6">
+          </div>
+          <div class="devcode fg-hidden" id="smsDevCode"></div>
+          <button class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="smsVerifyBtn">Verify phone</button>
+          <div class="resend">
+            <span>Didn't get it?</span>
+            <button id="smsResend" disabled>Resend code</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: email code -->
+        <div class="pane" id="pane-email">
+          <h2>Check your email</h2>
+          <p class="sub">Last step. We emailed a 6-digit code to <b id="emailTarget">your email</b>.</p>
+          <div class="otp" id="emailOtp" role="group" aria-label="Email code">
+            <input inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 2">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 3">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 4">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 5">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 6">
+          </div>
+          <div class="devcode fg-hidden" id="emailDevCode"></div>
+          <button class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="emailVerifyBtn">Finish &amp; get verified</button>
+          <div class="resend">
+            <span>Wrong details?</span>
+            <button id="startOver">Start over</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: success -->
+        <div class="pane" id="pane-done">
+          <div class="done-burst">
+            <div class="check">&#10003;</div>
+            <h2>Verified <span class="fg-text-fire">&#10003;</span></h2>
+            <p class="fg-muted fg-mt-1">You're a verified Rod Wave fan. Real seats, fair prices, straight from Rod.</p>
+            <div class="fg-row fg-center fg-mt-3" id="doneBadges" style="justify-content:center"></div>
+          </div>
+          <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="index.html">Browse shows</a>
+          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="sell.html">Resell a ticket</a>
+        </div>
+
+        <!-- ACCOUNT PANEL (shown when an existing session is found) -->
+        <div class="pane" id="pane-account">
+          <h2>My account</h2>
+          <p class="sub">Signed in as a verified fan.</p>
+          <div id="acctRows"></div>
+          <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="index.html">Browse shows</a>
+          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="sell.html">Resell a ticket</a>
+          <button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" id="signOut">Sign out</button>
+        </div>
+
+        <div id="loadHint" class="fg-muted fg-center fg-hidden" style="padding:8px 0">Checking your status&hellip;</div>
+      </section>
+
+      <!-- ===== RIGHT: why verify / perks ===== -->
+      <aside class="fg-card side-card">
+        <h3>What you unlock</h3>
+        <ul class="perks">
+          <li><span class="pk">&#127915;</span><span>Fair, capped prices<small>No 5&times; scalper markups &mdash; ever.</small></span></li>
+          <li><span class="pk">&#9889;</span><span>Presale priority<small>DLD waitlist fans jump the queue.</small></span></li>
+          <li><span class="pk">&#8597;</span><span>Resell or gift, capped<small>Can't go? Pass it on for face + $15, max.</small></span></li>
+          <li><span class="pk">&#128274;</span><span>Bot-free box office<small>Phone + email keeps brokers out.</small></span></li>
+        </ul>
+      </aside>
+
+    </div>
+  </div>
+</main>
+
+<footer class="fg-footer">
+  <div class="fg-wrap fg-footer-inner">
+    <span>Fair Game &copy; 2026 · Fair prices for real fans.</span>
+    <span><a href="index.html">All shows</a> · <a href="sell.html">Resell</a></span>
+  </div>
+</footer>
+
+<div class="fg-toast" id="toast" role="status"></div>
+
+<script>
+const API = '/fairgame/api';
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+/* ---------- session ---------- */
+function getSession() {
+  try { return JSON.parse(localStorage.getItem('fairgame_session') || 'null'); }
+  catch { return null; }
+}
+function setSession(s) { localStorage.setItem('fairgame_session', JSON.stringify(s)); }
+function clearSession() { localStorage.removeItem('fairgame_session'); }
+function authHeaders() {
+  const s = getSession();
+  return s && s.token ? {'Authorization': 'Bearer ' + s.token} : {};
+}
+
+/* ---------- helpers ---------- */
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='fg-toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='fg-toast '+(k||''),3400); }
+
+/* ---------- state ---------- */
+let FAN_ID = null;
+let EMAIL = '';
+let PHONE = '';
+
+/* ---------- nav badge ---------- */
+function renderBadge() {
+  const s = getSession(); const right = $('#navRight');
+  if (!s || !s.token) return;
+  const fan = s.fan || {};
+  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
+  right.innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>';
+}
+
+/* ---------- step rail + panes ---------- */
+function showPane(name) {
+  $$('.pane').forEach(p => p.classList.remove('active'));
+  const p = $('#pane-' + name); if (p) p.classList.add('active');
+}
+function setStep(name) {
+  const order = ['register','sms','email'];
+  const idx = order.indexOf(name);
+  $$('.step').forEach(s => {
+    const i = order.indexOf(s.dataset.step);
+    s.classList.toggle('done', i >= 0 && i < idx);
+    s.classList.toggle('active', s.dataset.step === name);
+  });
+  showPane(name);
+}
+function hideRail() { $('#steps').classList.add('fg-hidden'); }
+function showRail() { $('#steps').classList.remove('fg-hidden'); }
+
+/* ---------- OTP behaviour (auto-advance, paste, backspace) ---------- */
+function wireOtp(boxSel, onComplete) {
+  const inputs = $$(boxSel + ' input');
+  inputs.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '').slice(0,1);
+      inp.classList.toggle('filled', !!inp.value);
+      if (inp.value && i < inputs.length - 1) inputs[i+1].focus();
+      if (inputs.every(x => x.value)) onComplete && onComplete();
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !inp.value && i > 0) inputs[i-1].focus();
+    });
+    inp.addEventListener('paste', e => {
+      const d = (e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6);
+      if (!d) return;
+      e.preventDefault();
+      inputs.forEach((x, j) => { x.value = d[j] || ''; x.classList.toggle('filled', !!x.value); });
+      (inputs[Math.min(d.length, inputs.length-1)] || inp).focus();
+      if (d.length >= inputs.length) onComplete && onComplete();
+    });
+  });
+}
+function otpValue(boxSel) { return $$(boxSel + ' input').map(i => i.value).join(''); }
+function otpClear(boxSel) { $$(boxSel + ' input').forEach(i => { i.value=''; i.classList.remove('filled'); }); }
+
+/* ---------- resend cooldown timer ---------- */
+function startCooldown(btn, secs, label) {
+  btn.disabled = true; let n = secs;
+  const tick = () => { btn.textContent = label + ' (' + n + 's)'; if (n-- <= 0) { clearInterval(t); btn.disabled = false; btn.textContent = label; } };
+  tick(); const t = setInterval(tick, 1000);
+}
+
+/* ---------- dev-code echo (tests / local only) ---------- */
+function showDevCode(sel, code) {
+  if (!code) return;
+  const el = $(sel); el.textContent = 'Dev mode — your code is ' + code; el.classList.remove('fg-hidden');
+}
+
+/* ====================== STEP 1: register ====================== */
+$('#registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('#email').value.trim();
+  const phone = $('#phone').value.trim();
+  if (!email || !phone) { toast('Email and phone are both required.', 'err'); return; }
+  const btn = $('#registerBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Sending…';
+  try {
+    const r = await fetch(API + '/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, phone, device_fp: deviceFp()})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (r.status === 429) throw new Error(data.detail || 'Too many tries — give it a minute.');
+    if (!r.ok) throw new Error(data.detail || 'Could not send your code.');
+    FAN_ID = data.fan_id; EMAIL = email; PHONE = phone;
+    $('#smsTarget').textContent = maskPhone(phone);
+    $('#emailTarget').textContent = email;
+    showDevCode('#smsDevCode', data.dev_code);
+    setStep('sms');
+    startCooldown($('#smsResend'), 30, 'Resend code');
+    setTimeout(()=> ($$('#smsOtp input')[0]||{}).focus && $$('#smsOtp input')[0].focus(), 60);
+    toast('Code sent. Check your phone.', 'ok');
+  } catch (err) {
+    toast(err.message || 'Something went wrong.', 'err');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+});
+
+/* ====================== STEP 2: SMS verify ====================== */
+async function verifySms() {
+  const code = otpValue('#smsOtp');
+  if (code.length < 6) { toast('Enter all 6 digits.', 'err'); return; }
+  const btn = $('#smsVerifyBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Verifying…';
+  try {
+    const r = await fetch(API + '/verify', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({fan_id: FAN_ID, code})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(data.detail || 'That code didn\'t match.');
+    showDevCode('#emailDevCode', data.dev_code);
+    setStep('email');
+    startCooldown($('#startOver'), 0, 'Start over'); // no-op cooldown; just resets label
+    $('#startOver').disabled = false; $('#startOver').textContent = 'Start over';
+    setTimeout(()=> $$('#emailOtp input')[0].focus(), 60);
+    toast('Phone verified. One more step.', 'ok');
+  } catch (err) {
+    otpClear('#smsOtp'); $$('#smsOtp input')[0].focus();
+    toast(err.message || 'Verification failed.', 'err');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+$('#smsVerifyBtn').addEventListener('click', verifySms);
+
+$('#smsResend').addEventListener('click', async () => {
+  // Re-registering with the same phone re-issues an SMS code (dedupes to same fan).
+  try {
+    const r = await fetch(API + '/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email: EMAIL, phone: PHONE, device_fp: deviceFp()})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(data.detail || 'Could not resend.');
+    FAN_ID = data.fan_id;
+    showDevCode('#smsDevCode', data.dev_code);
+    startCooldown($('#smsResend'), 30, 'Resend code');
+    toast('New code sent.', 'ok');
+  } catch (err) { toast(err.message || 'Could not resend right now.', 'err'); }
+});
+
+/* ====================== STEP 3: email verify ====================== */
+async function verifyEmail() {
+  const code = otpValue('#emailOtp');
+  if (code.length < 6) { toast('Enter all 6 digits.', 'err'); return; }
+  const btn = $('#emailVerifyBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Verifying…';
+  try {
+    const r = await fetch(API + '/verify-email', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({fan_id: FAN_ID, code, device_fp: deviceFp()})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(data.detail || 'That code didn\'t match.');
+    setSession({token: data.token, fan: data.fan});
+    renderBadge();
+    renderDoneBadges(data.fan);
+    hideRail();
+    showPane('done');
+    toast('You\'re verified! 🎉', 'ok');
+  } catch (err) {
+    otpClear('#emailOtp'); $$('#emailOtp input')[0].focus();
+    toast(err.message || 'Verification failed.', 'err');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+$('#emailVerifyBtn').addEventListener('click', verifyEmail);
+
+$('#startOver').addEventListener('click', () => {
+  FAN_ID = null; otpClear('#smsOtp'); otpClear('#emailOtp');
+  $('#smsDevCode').classList.add('fg-hidden'); $('#emailDevCode').classList.add('fg-hidden');
+  showRail(); setStep('register');
+});
+
+function renderDoneBadges(fan) {
+  fan = fan || {};
+  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
+  $('#doneBadges').innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>';
+}
+
+/* ====================== ACCOUNT PANEL (existing session) ====================== */
+function renderAccount(fan) {
+  fan = fan || {};
+  const prioRow = fan.priority
+    ? '<span class="fg-badge priority"><span class="dot"></span>Priority — waitlist</span>'
+    : '<span class="fg-muted">Standard</span>';
+  $('#acctRows').innerHTML =
+    '<div class="acct-row"><span class="k">Status</span><span class="v"><span class="fg-badge verified"><span class="dot"></span>Verified</span></span></div>' +
+    '<div class="acct-row"><span class="k">Priority</span><span class="v">' + prioRow + '</span></div>' +
+    '<div class="acct-row"><span class="k">Email</span><span class="v">' + esc(fan.email || '—') + '</span></div>' +
+    '<div class="acct-row"><span class="k">Phone</span><span class="v">' + esc(fan.phone ? maskPhone(fan.phone) : '—') + '</span></div>';
+}
+
+$('#signOut').addEventListener('click', () => {
+  clearSession();
+  toast('Signed out.', 'ok');
+  setTimeout(()=> location.reload(), 500);
+});
+
+/* ====================== device fingerprint (light) ====================== */
+function deviceFp() {
+  try {
+    let fp = localStorage.getItem('fairgame_fp');
+    if (!fp) {
+      const seed = [navigator.userAgent, navigator.language, screen.width+'x'+screen.height,
+                    new Date().getTimezoneOffset(), (navigator.hardwareConcurrency||0)].join('|');
+      let h = 0; for (let i=0;i<seed.length;i++){ h=(h*31 + seed.charCodeAt(i))|0; }
+      fp = 'fp_' + (h>>>0).toString(36) + Math.random().toString(36).slice(2,8);
+      localStorage.setItem('fairgame_fp', fp);
+    }
+    return fp;
+  } catch { return null; }
+}
+
+/* ====================== utils ====================== */
+function maskPhone(p) {
+  const d = (p||'').replace(/\D/g,'');
+  if (d.length < 4) return p;
+  return '•••• ' + d.slice(-4);
+}
+
+/* ====================== boot: existing session? ====================== */
+async function boot() {
+  renderBadge();
+  wireOtp('#smsOtp', verifySms);
+  wireOtp('#emailOtp', verifyEmail);
+
+  const s = getSession();
+  if (s && s.token) {
+    // Confirm the session is still valid against /me; fall back to flow if not.
+    hideRail();
+    $('#loadHint').classList.remove('fg-hidden');
+    $('#heroTitle').textContent = 'Your account';
+    $('#heroLede').innerHTML = 'You\'re a <b>verified Rod Wave fan</b>. Manage your status below, or jump straight to the shows.';
+    try {
+      const r = await fetch(API + '/me', {headers: authHeaders()});
+      if (r.ok) {
+        const data = await r.json();
+        renderAccount(data.fan);
+        showPane('account');
+      } else {
+        clearSession();
+        showRail(); setStep('register');
+        resetHero();
+      }
+    } catch {
+      // API down — degrade gracefully to the cached session view.
+      renderAccount(s.fan);
+      showPane('account');
+    } finally {
+      $('#loadHint').classList.add('fg-hidden');
+    }
+    return;
+  }
+  setStep('register');
+}
+function resetHero() {
+  $('#heroTitle').textContent = 'Get verified';
+  $('#heroLede').innerHTML = 'One quick check &mdash; <b>phone + email</b> &mdash; and you\'re a verified Rod Wave fan. ' +
+    'It keeps bots and brokers out, so you get real seats at fair prices. Takes under a minute, and it\'s free.';
+}
+
+boot();
+</script>
+</body>
+</html>
