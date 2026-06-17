@@ -1,0 +1,433 @@
+"""Fair Game — Rod Wave's fan-first, anti-scalper ticket marketplace (public API).
+
+This is the single FastAPI sub-app that wires every Fair Game backend module
+into one HTTP surface, mirroring core/api/arena_portal.py: public endpoints live
+under /fairgame/api/*, the app binds 127.0.0.1 (the operator runs uvicorn; Caddy
+fronts it), and nothing here issues a ticket barcode — Fair Game rides
+Ticketmaster's rails (transfer simulated in v1 via core/fairgame/tm_transfer.py).
+
+What it ties together:
+  identity  -- one-identity-one-account dedupe + DLD-waitlist priority flag
+  verify    -- SMS then email 6-digit codes (anti-bot "medium strength" gate)
+  sessions  -- opaque Bearer token for a verified fan
+  events    -- Rod's 35 DLD shows + per-section inventory
+  access    -- the presale gate: capped-qty primary grant
+  listings  -- capped resale offers (face + $15, seller +$10 / Rod +$5)
+  orders    -- resale escrow state machine (hold -> released | refunded)
+  admin     -- operator rollups (token-gated)
+
+On import the app self-bootstraps: it creates the schema, seeds the shows and
+demo inventory, and opens a default access wave per show so the primary buy flow
+works out of the box. All of that is idempotent.
+
+Sends (SMS/email) no-op gracefully when creds are missing (logged, not raised).
+With FAIRGAME_DEV_ECHO=1 the verification code is echoed in the API response so
+tests and local dev can complete the flow with no provider — NEVER set in prod.
+"""
+from __future__ import annotations
+
+import logging
+import os
+import sys
+import time
+from collections import defaultdict, deque
+from pathlib import Path
+
+# Make the repo root importable when uvicorn loads this module directly.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from fastapi import FastAPI, Header, HTTPException, Request
+
+from core.fairgame import (
+    access,
+    admin,
+    db,
+    events,
+    identity,
+    listings,
+    orders,
+    sessions,
+    verify,
+)
+
+logger = logging.getLogger("fairgame")
+
+# A wave wide enough to always be open in dev/demo (epoch 0 .. year ~2065).
+_WAVE_OPEN_FROM = 0
+_WAVE_OPEN_TO = 3_000_000_000
+_DEFAULT_WAVE_MAX_QTY = 4
+
+ADMIN_TOKEN = os.environ.get("FAIRGAME_ADMIN_TOKEN", "rodwave-admin-dev")
+
+
+def _dev_echo() -> bool:
+    return os.environ.get("FAIRGAME_DEV_ECHO") == "1"
+
+
+# --------------------------------------------------------------------------- #
+# Bootstrap (idempotent) — schema, shows, inventory, a default open wave/show
+# --------------------------------------------------------------------------- #
+
+def _ensure_default_waves() -> None:
+    """Give every show one open, non-priority access wave if it has none."""
+    with db.connect() as c:
+        show_ids = [r["id"] for r in c.execute("SELECT id FROM shows").fetchall()]
+        having = {
+            r["show_id"]
+            for r in c.execute("SELECT DISTINCT show_id FROM access_waves").fetchall()
+        }
+    for sid in show_ids:
+        if sid in having:
+            continue
+        access.create_wave(
+            sid,
+            "General Access",
+            _WAVE_OPEN_FROM,
+            _WAVE_OPEN_TO,
+            priority_only=False,
+            max_qty_per_fan=_DEFAULT_WAVE_MAX_QTY,
+        )
+
+
+def bootstrap() -> None:
+    db.init_db()
+    events.seed_shows()
+    events.seed_demo_inventory()
+    _ensure_default_waves()
+
+
+bootstrap()
+
+app = FastAPI(title="Fair Game — Rod Wave Tickets")
+
+
+# --------------------------------------------------------------------------- #
+# Send wrappers — never raise (missing creds just log + no-op)
+# --------------------------------------------------------------------------- #
+
+def _send_sms(phone: str, code: str) -> None:
+    try:
+        from integrations.twilio.client import send_sms
+
+        send_sms(phone, f"Your Rod Wave (Fair Game) verification code is {code}")
+    except Exception as e:  # noqa: BLE001 - send must never break the flow
+        logger.warning("fairgame sms send skipped/failed: %s", e)
+
+
+def _send_email(email: str, code: str) -> None:
+    try:
+        from integrations.email.client import email_client
+
+        email_client.send_email(
+            account="alfred-gw",
+            to=email,
+            subject="Your Rod Wave (Fair Game) verification code",
+            body=f"Your Fair Game verification code is {code}. It expires in 10 minutes.",
+            html=False,
+        )
+    except Exception as e:  # noqa: BLE001 - send must never break the flow
+        logger.warning("fairgame email send skipped/failed: %s", e)
+
+
+# --------------------------------------------------------------------------- #
+# Lightweight per-IP rate limiting (in-memory) for register/verify
+# --------------------------------------------------------------------------- #
+
+_RL_WINDOW = 60          # seconds
+_RL_MAX = 30             # requests per IP per window on rate-limited routes
+_rl_hits: dict[str, deque] = defaultdict(deque)
+
+
+def _rate_limit(req: Request) -> None:
+    ip = req.client.host if req.client else "?"
+    now = time.time()
+    hits = _rl_hits[ip]
+    while hits and now - hits[0] > _RL_WINDOW:
+        hits.popleft()
+    if len(hits) >= _RL_MAX:
+        raise HTTPException(status_code=429, detail="Too many requests. Slow down.")
+    hits.append(now)
+
+
+# --------------------------------------------------------------------------- #
+# Auth helpers
+# --------------------------------------------------------------------------- #
+
+def _bearer(authorization: str) -> str | None:
+    if not authorization:
+        return None
+    parts = authorization.split(" ", 1)
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1].strip()
+    return authorization.strip() or None
+
+
+def _require_fan(authorization: str) -> dict:
+    """Resolve a Bearer session to a fan dict, or 401."""
+    tok = _bearer(authorization)
+    sess = sessions.resolve(tok) if tok else None
+    if not sess:
+        raise HTTPException(status_code=401, detail="unauthorized")
+    fan = identity.get_fan(sess["fan_id"])
+    if not fan:
+        raise HTTPException(status_code=401, detail="unauthorized")
+    return fan
+
+
+def _fan_summary(fan: dict) -> dict:
+    return {
+        "id": fan["id"],
+        "email": fan["email"],
+        "phone": fan["phone"],
+        "status": fan["status"],
+        "priority": fan["priority"],
+    }
+
+
+def _require_admin(token: str) -> None:
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="admin token required")
+
+
+# --------------------------------------------------------------------------- #
+# Shows view helpers
+# --------------------------------------------------------------------------- #
+
+def _show_card(show: dict) -> dict:
+    inv = events.get_inventory(show["id"])
+    listed = listings.list_active(show["id"])
+    primary_min = min((i["face_price_cents"] for i in inv if i["qty_available"] > 0),
+                      default=None)
+    resale_min = min((l["buyer_total_cents"] for l in listed), default=None)
+    return {
+        "id": show["id"],
+        "idx": show["idx"],
+        "city": show["city"],
+        "venue": show["venue"],
+        "show_date": show["show_date"],
+        "status": show["status"],
+        "remaining": events.remaining(show["id"]),
+        "min_price_cents": primary_min,
+        "resale_from_cents": resale_min,
+        "active_listings": len(listed),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# FANS
+# --------------------------------------------------------------------------- #
+
+@app.post("/fairgame/api/register")
+async def register(req: Request):
+    _rate_limit(req)
+    b = await req.json()
+    email = (b.get("email") or "").strip()
+    phone = (b.get("phone") or "").strip()
+    if not email or not phone:
+        raise HTTPException(status_code=400, detail="email and phone required")
+    ip = req.client.host if req.client else None
+    fan = identity.upsert_fan(email, phone, b.get("device_fp"), ip)
+    holder: dict = {}
+    try:
+        verify.start_verification(
+            fan["id"], "sms",
+            lambda code: (holder.update(code=code), _send_sms(fan["phone"], code)),
+        )
+    except verify.VerifyError as e:
+        raise HTTPException(status_code=429, detail=str(e))
+    out = {"fan_id": fan["id"], "sent": True, "channel": "sms"}
+    if _dev_echo():
+        out["dev_code"] = holder.get("code")
+    return out
+
+
+@app.post("/fairgame/api/verify")
+async def verify_sms(req: Request):
+    _rate_limit(req)
+    b = await req.json()
+    fid = b.get("fan_id")
+    code = b.get("code", "")
+    if not fid:
+        raise HTTPException(status_code=400, detail="fan_id required")
+    try:
+        ok = verify.check_code(fid, "sms", code)
+    except verify.VerifyError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=400, detail="invalid code")
+    fan = identity.get_fan(fid)
+    if not fan:
+        raise HTTPException(status_code=404, detail="fan not found")
+    holder: dict = {}
+    try:
+        verify.start_verification(
+            fid, "email",
+            lambda c: (holder.update(code=c), _send_email(fan["email"], c)),
+        )
+    except verify.VerifyError as e:
+        raise HTTPException(status_code=429, detail=str(e))
+    out = {"verified_sms": True, "channel": "email"}
+    if _dev_echo():
+        out["dev_code"] = holder.get("code")
+    return out
+
+
+@app.post("/fairgame/api/verify-email")
+async def verify_email(req: Request):
+    _rate_limit(req)
+    b = await req.json()
+    fid = b.get("fan_id")
+    code = b.get("code", "")
+    if not fid:
+        raise HTTPException(status_code=400, detail="fan_id required")
+    try:
+        ok = verify.check_code(fid, "email", code)
+    except verify.VerifyError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=400, detail="invalid code")
+    with db.connect() as c:
+        c.execute("UPDATE fans SET status='verified', updated_at=? WHERE id=?",
+                  (int(time.time()), fid))
+    fan = identity.get_fan(fid)
+    ip = req.client.host if req.client else None
+    tok = sessions.issue(fid, b.get("device_fp"), ip)
+    return {"token": tok, "fan": _fan_summary(fan)}
+
+
+@app.get("/fairgame/api/me")
+async def me(authorization: str = Header(default="")):
+    fan = _require_fan(authorization)
+    return {"fan": _fan_summary(fan)}
+
+
+# --------------------------------------------------------------------------- #
+# SHOWS
+# --------------------------------------------------------------------------- #
+
+@app.get("/fairgame/api/shows")
+async def shows():
+    return {"shows": [_show_card(s) for s in events.list_shows()]}
+
+
+@app.get("/fairgame/api/shows/{show_id}")
+async def show_detail(show_id: str):
+    show = events.get_show(show_id)
+    if not show:
+        raise HTTPException(status_code=404, detail="show not found")
+    card = _show_card(show)
+    card["inventory"] = events.get_inventory(show_id)
+    card["listings"] = listings.list_active(show_id)
+    return card
+
+
+# --------------------------------------------------------------------------- #
+# ACCESS (primary capped buy)
+# --------------------------------------------------------------------------- #
+
+@app.post("/fairgame/api/access")
+async def grant(req: Request, authorization: str = Header(default="")):
+    b = await req.json()
+    fid = b.get("fan_id")
+    if not fid:
+        # Allow Bearer session as the fan identity if no explicit fan_id given.
+        fid = _require_fan(authorization)["id"]
+    show_id = b.get("show_id")
+    qty = int(b.get("qty", 1))
+    if not show_id:
+        raise HTTPException(status_code=400, detail="show_id required")
+    try:
+        g = access.grant_access(fid, show_id, qty)
+    except access.AccessError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"grant": g}
+
+
+# --------------------------------------------------------------------------- #
+# RESALE — exchange, listings, escrow orders
+# --------------------------------------------------------------------------- #
+
+@app.get("/fairgame/api/exchange/{show_id}")
+async def exchange(show_id: str):
+    return {"show_id": show_id, "listings": listings.list_active(show_id)}
+
+
+@app.post("/fairgame/api/listings")
+async def create_listing(req: Request, authorization: str = Header(default="")):
+    fan = _require_fan(authorization)
+    b = await req.json()
+    show_id = b.get("show_id")
+    section = b.get("section")
+    try:
+        face = int(b.get("face_price_cents"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="face_price_cents must be an integer")
+    if not show_id or not section:
+        raise HTTPException(status_code=400, detail="show_id and section required")
+    try:
+        lst = listings.create_listing(fan["id"], show_id, section, face)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"listing": lst}
+
+
+@app.post("/fairgame/api/buy")
+async def buy(req: Request, authorization: str = Header(default="")):
+    fan = _require_fan(authorization)
+    b = await req.json()
+    listing_id = b.get("listing_id")
+    if not listing_id:
+        raise HTTPException(status_code=400, detail="listing_id required")
+    try:
+        order = orders.create_order(fan["id"], listing_id)
+    except orders.OrderError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"order": order}
+
+
+@app.post("/fairgame/api/orders/{order_id}/confirm")
+async def confirm_order(order_id: str):
+    try:
+        order = orders.confirm_transfer(order_id)
+    except orders.OrderError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"order": order}
+
+
+@app.post("/fairgame/api/orders/{order_id}/fail")
+async def fail_order(order_id: str):
+    try:
+        order = orders.fail_transfer(order_id)
+    except orders.OrderError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"order": order}
+
+
+@app.get("/fairgame/api/orders/{order_id}")
+async def get_order(order_id: str):
+    order = orders.get_order(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="order not found")
+    return {"order": order}
+
+
+# --------------------------------------------------------------------------- #
+# ADMIN (header-token gated)
+# --------------------------------------------------------------------------- #
+
+@app.get("/fairgame/api/admin/stats")
+async def admin_stats(x_fairgame_admin: str = Header(default="")):
+    _require_admin(x_fairgame_admin)
+    return admin.stats()
+
+
+@app.get("/fairgame/api/admin/fans")
+async def admin_fans(x_fairgame_admin: str = Header(default=""), limit: int = 100):
+    _require_admin(x_fairgame_admin)
+    return {"fans": admin.list_fans(limit)}
+
+
+@app.get("/fairgame/api/admin/orders")
+async def admin_orders(x_fairgame_admin: str = Header(default=""), limit: int = 100):
+    _require_admin(x_fairgame_admin)
+    return {"orders": admin.list_orders(limit)}
