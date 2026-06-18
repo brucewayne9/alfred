@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Tour Pulse — Rod Wave Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@300;400;500;600;700&family=Azeret+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<style>
+  :root{
+    --bg:#080706; --panel:#121010; --panel2:#181312; --line:#2a2320;
+    --orange:#f97316; --orange-br:#fb923c; --orange-dp:#ea580c; --ember:#7c2d12;
+    --ink:#f7f3ef; --muted:#a39a92; --dim:#6b635c;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg); color:var(--ink); font-family:'Sora',sans-serif; -webkit-font-smoothing:antialiased}
+  body{
+    min-height:100vh; overflow-x:hidden;
+    background:
+      radial-gradient(1100px 600px at 50% -10%, rgba(249,115,22,.13), transparent 60%),
+      radial-gradient(800px 500px at 100% 100%, rgba(124,45,18,.18), transparent 55%),
+      var(--bg);
+  }
+  body::before{ /* film grain */
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:999; opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:22px 18px 60px}
+
+  /* ---- header ---- */
+  header{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:20px; flex-wrap:wrap}
+  .brand{display:flex; flex-direction:column; line-height:1}
+  .brand .kick{font-family:'Azeret Mono',monospace; font-size:11px; letter-spacing:.42em; color:var(--orange); text-transform:uppercase; margin-bottom:7px}
+  .brand h1{font-family:'Bebas Neue',sans-serif; font-size:clamp(34px,7vw,58px); letter-spacing:.02em; line-height:.88}
+  .brand h1 span{color:var(--orange)}
+  .brand .sub{font-size:12px; color:var(--muted); margin-top:6px; letter-spacing:.05em}
+  .livebadge{display:flex; align-items:center; gap:9px; font-family:'Azeret Mono',monospace; font-size:12px; letter-spacing:.18em; color:var(--ink); background:linear-gradient(135deg,#1c1410,#0e0b0a); border:1px solid var(--line); padding:9px 14px; border-radius:100px; text-transform:uppercase}
+  .dot{width:9px; height:9px; border-radius:50%; background:var(--orange); box-shadow:0 0 0 0 rgba(249,115,22,.7); animation:beat 1.6s infinite}
+  @keyframes beat{0%{box-shadow:0 0 0 0 rgba(249,115,22,.6)}70%{box-shadow:0 0 0 11px rgba(249,115,22,0)}100%{box-shadow:0 0 0 0 rgba(249,115,22,0)}}
+
+  /* ---- hero ---- */
+  .hero{position:relative; border:1px solid var(--line); border-radius:22px; overflow:hidden;
+    background:linear-gradient(160deg,#1a1310 0%,#0c0a09 60%); padding:30px 26px 26px; margin-bottom:18px}
+  .hero::after{content:""; position:absolute; right:-80px; top:-80px; width:320px; height:320px;
+    background:radial-gradient(circle,rgba(249,115,22,.22),transparent 70%); pointer-events:none}
+  .hero .lbl{font-family:'Azeret Mono',monospace; font-size:12px; letter-spacing:.3em; color:var(--orange-br); text-transform:uppercase}
+  .bignum{font-family:'Bebas Neue',sans-serif; font-size:clamp(76px,20vw,168px); line-height:.82; letter-spacing:.01em;
+    background:linear-gradient(180deg,#fff 0%,#fdba74 55%,var(--orange) 100%); -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 60px rgba(249,115,22,.25); margin:6px 0 2px; font-variant-numeric:tabular-nums}
+  .hero .cap{font-size:15px; color:var(--ink); font-weight:500}
+  .hero .cap b{color:var(--orange-br)}
+  .splits{display:flex; gap:26px; margin-top:18px; flex-wrap:wrap}
+  .split{display:flex; flex-direction:column}
+  .split .n{font-family:'Azeret Mono',monospace; font-size:24px; font-weight:700; font-variant-numeric:tabular-nums}
+  .split .t{font-size:11px; color:var(--muted); letter-spacing:.14em; text-transform:uppercase; margin-top:3px}
+
+  /* ---- grid ---- */
+  .grid{display:grid; grid-template-columns:1.55fr 1fr; gap:18px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .card{background:linear-gradient(165deg,var(--panel2),var(--panel)); border:1px solid var(--line); border-radius:18px; padding:18px 18px 16px; position:relative}
+  .card h3{font-family:'Azeret Mono',monospace; font-size:11px; letter-spacing:.26em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; display:flex; align-items:center; gap:8px}
+  .card h3 .pip{width:6px; height:6px; border-radius:50%; background:var(--orange)}
+
+  /* map */
+  #map-card{padding-bottom:8px}
+  #map{width:100%; aspect-ratio:1.62/1; min-height:230px}
+  #map path.state{fill:#1b1614; stroke:#322824; stroke-width:.6}
+  .city-dot{fill:var(--orange); filter:drop-shadow(0 0 6px rgba(249,115,22,.9))}
+  .city-ring{fill:none; stroke:var(--orange-br); stroke-width:1.2; opacity:.55}
+  .maprow{display:flex; align-items:center; justify-content:space-between; padding:7px 2px; border-top:1px solid #221c19; font-size:13px}
+  .maprow:first-of-type{border-top:none}
+  .maprow .c{display:flex; align-items:center; gap:9px; color:var(--ink)}
+  .maprow .rank{font-family:'Azeret Mono',monospace; color:var(--orange); font-size:11px; width:18px}
+  .maprow .v{font-family:'Azeret Mono',monospace; color:var(--muted); font-variant-numeric:tabular-nums}
+  .intl{margin-top:10px; font-size:12px; color:var(--muted); text-align:center; letter-spacing:.04em}
+  .intl b{color:var(--orange-br); font-family:'Azeret Mono',monospace}
+
+  /* signups */
+  .signupnum{font-family:'Bebas Neue',sans-serif; font-size:64px; line-height:.9; color:var(--orange-br); font-variant-numeric:tabular-nums; text-shadow:0 0 30px rgba(249,115,22,.3)}
+  .signupsub{font-size:13px; color:var(--muted); margin-bottom:16px}
+  .funnel{margin-top:6px}
+  .fbar{height:34px; border-radius:8px; display:flex; align-items:center; padding:0 12px; font-size:12px; font-family:'Azeret Mono',monospace; margin-bottom:8px; color:#0c0a09; font-weight:700; white-space:nowrap; overflow:hidden}
+  .fbar.f1{background:linear-gradient(90deg,#fed7aa,#fdba74)}
+  .fbar.f2{background:linear-gradient(90deg,var(--orange-br),var(--orange))}
+  .fbar.f3{background:linear-gradient(90deg,var(--orange),var(--orange-dp)); color:#fff}
+
+  /* lists / sources */
+  .srow{display:flex; align-items:center; gap:12px; padding:9px 0; border-top:1px solid #221c19}
+  .srow:first-child{border-top:none}
+  .srow .nm{flex:0 0 92px; font-size:13px; color:var(--ink); font-weight:500}
+  .srow .track{flex:1; height:8px; background:#241d19; border-radius:6px; overflow:hidden}
+  .srow .fill{height:100%; background:linear-gradient(90deg,var(--orange-dp),var(--orange-br)); border-radius:6px; transition:width .6s ease}
+  .srow .val{flex:0 0 auto; font-family:'Azeret Mono',monospace; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums}
+
+  /* stat tiles */
+  .tiles{display:grid; grid-template-columns:repeat(2,1fr); gap:12px}
+  .tile{background:#0f0c0b; border:1px solid #241d19; border-radius:14px; padding:14px}
+  .tile .n{font-family:'Azeret Mono',monospace; font-size:22px; font-weight:700; font-variant-numeric:tabular-nums}
+  .tile .t{font-size:10.5px; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; margin-top:4px}
+  .tile .n.o{color:var(--orange-br)}
+
+  /* trend */
+  #trend{width:100%; height:120px}
+  .tline{fill:none; stroke:var(--orange); stroke-width:2.4; filter:drop-shadow(0 3px 8px rgba(249,115,22,.4))}
+  .tarea{fill:url(#tg)}
+  .tdot{fill:#fff; stroke:var(--orange); stroke-width:2}
+  .devbar{display:flex; height:14px; border-radius:8px; overflow:hidden; margin-top:4px; border:1px solid #241d19}
+  .devseg{height:100%}
+  .devlegend{display:flex; gap:16px; margin-top:10px; font-size:12px; color:var(--muted); flex-wrap:wrap}
+  .devlegend i{width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:6px; vertical-align:middle}
+
+  /* collected band */
+  .collected{display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;
+    border:1px solid var(--line); border-radius:18px; margin-bottom:18px; padding:20px 24px;
+    background:linear-gradient(120deg,rgba(124,45,18,.35),rgba(18,16,16,.9) 55%); position:relative; overflow:hidden}
+  .collected::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(var(--orange-br),var(--orange-dp))}
+  .col-main .lbl{font-family:'Azeret Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--orange-br)}
+  .col-big{font-family:'Bebas Neue',sans-serif; font-size:clamp(52px,11vw,86px); line-height:.86; color:#fff; font-variant-numeric:tabular-nums; text-shadow:0 0 40px rgba(249,115,22,.3)}
+  .col-sub{font-size:12.5px; color:var(--muted); max-width:340px}
+  .col-tiles{display:flex; gap:14px}
+  .col-tile{background:#0d0a09; border:1px solid var(--line); border-radius:14px; padding:14px 18px; min-width:120px}
+  .col-tile .n{font-family:'Azeret Mono',monospace; font-size:26px; font-weight:700; color:var(--orange-br); font-variant-numeric:tabular-nums}
+  .col-tile .t{font-size:10.5px; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; margin-top:4px}
+  .mrow{display:flex; align-items:center; gap:11px; padding:8px 0; border-top:1px solid #221c19}
+  .mrow:first-child{border-top:none}
+  .mrow .nm{flex:0 0 96px; font-size:13px; color:var(--ink)}
+  .mrow .track{flex:1; height:8px; background:#241d19; border-radius:6px; overflow:hidden}
+  .mrow .fill{height:100%; background:linear-gradient(90deg,var(--orange-dp),var(--orange-br)); border-radius:6px; transition:width .6s ease}
+  .mrow .val{flex:0 0 auto; font-family:'Azeret Mono',monospace; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums}
+  footer{margin-top:26px; text-align:center; color:var(--dim); font-size:11px; font-family:'Azeret Mono',monospace; letter-spacing:.1em}
+  .updated{display:inline-flex; align-items:center; gap:7px}
+  .gate{max-width:460px; margin:16vh auto; text-align:center; padding:0 24px}
+  .gate h2{font-family:'Bebas Neue'; font-size:40px; color:var(--orange)}
+  .gate p{color:var(--muted); margin-top:10px; line-height:1.6}
+  .fade{animation:fade .5s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+  .span2{grid-column:1 / -1}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" style="display:none">
+  <header>
+    <div class="brand">
+      <span class="kick">Tour Pulse · Live</span>
+      <h1>ROD WAVE <span>/</span> DON'T LOOK DOWN</h1>
+      <span class="sub">Real-time traffic on the tour site — straight from the source</span>
+    </div>
+    <div class="livebadge"><span class="dot"></span> <span id="live-mode">Live</span></div>
+  </header>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="lbl">Fans on the site right now</div>
+    <div class="bignum" id="h-now">—</div>
+    <div class="cap" id="h-cap">Updating…</div>
+    <div class="splits">
+      <div class="split"><span class="n" id="h-us">—</span><span class="t">In the U.S.</span></div>
+      <div class="split"><span class="n" id="h-intl">—</span><span class="t">Worldwide</span></div>
+      <div class="split"><span class="n o" id="h-views" style="color:var(--orange-br)">—</span><span class="t">Page views / 30 min</span></div>
+    </div>
+  </div>
+
+  <!-- COLLECTED (Klaviyo) -->
+  <div class="collected" id="collected-band">
+    <div class="col-main">
+      <div class="lbl">Fans collected so far</div>
+      <div class="col-big" id="k-total">—</div>
+      <div class="col-sub">on the waitlist &amp; pop-up — emails we can hit before every on-sale</div>
+    </div>
+    <div class="col-tiles">
+      <div class="col-tile"><div class="n" id="k-popup">—</div><div class="t">Pop-up leads</div></div>
+      <div class="col-tile"><div class="n" id="k-wait">—</div><div class="t">DLD waitlist</div></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- MAP -->
+    <div class="card" id="map-card">
+      <h3><span class="pip"></span> Where they're watching from — live</h3>
+      <svg id="map"></svg>
+      <div id="cities"></div>
+      <div class="intl" id="intl"></div>
+    </div>
+
+    <!-- SIGNUPS -->
+    <div class="card">
+      <h3><span class="pip"></span> Signing up right now</h3>
+      <div class="signupnum" id="su-now">—</div>
+      <div class="signupsub">waitlist sign-ups in the last 30 minutes</div>
+      <div class="funnel">
+        <div class="fbar f1" id="f-view">—</div>
+        <div class="fbar f2" id="f-start">—</div>
+        <div class="fbar f3" id="f-sub">—</div>
+      </div>
+      <div class="tiles" style="margin-top:16px">
+        <div class="tile"><div class="n o" id="su-today">—</div><div class="t">Waitlist opens today</div></div>
+        <div class="tile"><div class="n o" id="su-week">—</div><div class="t">Opens this week</div></div>
+      </div>
+    </div>
+
+    <!-- SOURCES -->
+    <div class="card">
+      <h3><span class="pip"></span> Where the traffic comes from <span style="color:var(--dim);font-size:9px;letter-spacing:.1em">· 7 days</span></h3>
+      <div id="sources"></div>
+    </div>
+
+    <!-- COLLECTED BY MARKET -->
+    <div class="card">
+      <h3><span class="pip"></span> Collected by market <span style="color:var(--dim);font-size:9px;letter-spacing:.1em">· tour cities</span></h3>
+      <div id="markets"></div>
+    </div>
+
+    <!-- DEVICES + TODAY -->
+    <div class="card">
+      <h3><span class="pip"></span> The numbers</h3>
+      <div class="tiles">
+        <div class="tile"><div class="n" id="t-today">—</div><div class="t">Visitors today</div></div>
+        <div class="tile"><div class="n" id="t-week">—</div><div class="t">Visitors · 7 days</div></div>
+        <div class="tile"><div class="n" id="t-views">—</div><div class="t">Page views · 7d</div></div>
+        <div class="tile"><div class="n" id="t-new">—</div><div class="t">New fans · 7d</div></div>
+      </div>
+      <h3 style="margin-top:18px"><span class="pip"></span> On what device</h3>
+      <div class="devbar" id="devbar"></div>
+      <div class="devlegend" id="devleg"></div>
+    </div>
+
+    <!-- TREND -->
+    <div class="card span2">
+      <h3><span class="pip"></span> Daily visitors — last 14 days</h3>
+      <svg id="trend"></svg>
+    </div>
+  </div>
+
+  <footer>
+    <span class="updated"><span class="dot" style="width:7px;height:7px"></span> updated <span id="ago">just now</span> · auto-refreshing</span>
+  </footer>
+</div>
+
+<div class="gate" id="gate" style="display:none">
+  <h2>TOUR PULSE</h2>
+  <p>This is a private live link. Ask Alfred for your access link to open the Rod Wave tour command center.</p>
+</div>
+
+<script>
+const API = location.pathname.replace(/\/pulse\/?.*$/, "") + "/pulse/api";
+// token from URL; remembered so re-opens / slash-less links still work
+let TOKEN = new URLSearchParams(location.search).get("t") || "";
+try{
+  if(TOKEN){ localStorage.setItem("pulse_t", TOKEN); }
+  else { TOKEN = localStorage.getItem("pulse_t") || ""; }
+}catch(e){}
+const $ = id => document.getElementById(id);
+const fmt = n => (n==null?"—":Number(n).toLocaleString("en-US"));
+
+// smooth count-up
+const _cur = {};
+function tick(id, target){
+  target = +target||0;
+  const from = _cur[id]||0; if(from===target){ $(id).textContent=fmt(target); return; }
+  const t0=performance.now(), dur=700;
+  function step(t){
+    const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3);
+    $(id).textContent=fmt(Math.round(from+(target-from)*e));
+    if(k<1) requestAnimationFrame(step); else _cur[id]=target;
+  }
+  requestAnimationFrame(step); _cur[id]=target;
+}
+
+let usTopo=null, lastTs=Date.now();
+const proj = d3.geoAlbersUsa(), path = d3.geoPath().projection(proj);
+
+async function drawMapBase(){
+  const svg = d3.select("#map");
+  const box = $("map").getBoundingClientRect();
+  const w = box.width||640, h = w/1.62;
+  svg.attr("viewBox",`0 0 ${w} ${h}`);
+  usTopo = await fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(r=>r.json());
+  const states = topojson.feature(usTopo, usTopo.objects.states);
+  proj.fitSize([w,h], states);
+  svg.append("g").selectAll("path").data(states.features).enter()
+     .append("path").attr("class","state").attr("d",path);
+  svg.append("g").attr("id","dots");
+}
+
+function plotCities(cities){
+  if(!usTopo) return;
+  const us = cities.filter(c=>c.us).map(c=>({...c, p:proj([c.lng,c.lat])})).filter(c=>c.p);
+  const max = d3.max(us,c=>c.users)||1;
+  const r = d3.scaleSqrt().domain([1,max]).range([2.5,16]);
+  const g = d3.select("#dots");
+  const sel = g.selectAll("g.cg").data(us, d=>d.city);
+  sel.exit().remove();
+  const ent = sel.enter().append("g").attr("class","cg");
+  ent.append("circle").attr("class","city-ring");
+  ent.append("circle").attr("class","city-dot");
+  const all = ent.merge(sel);
+  all.attr("transform",d=>`translate(${d.p[0]},${d.p[1]})`);
+  all.select(".city-dot").transition().duration(600).attr("r",d=>r(d.users));
+  all.select(".city-ring").attr("r",d=>r(d.users))
+     .each(function(d){
+        const ring=d3.select(this);
+        ring.interrupt();
+        (function pulse(){ ring.attr("r",r(d.users)).attr("opacity",.6)
+          .transition().duration(2200).ease(d3.easeSinOut)
+          .attr("r",r(d.users)+18).attr("opacity",0).on("end",pulse); })();
+     });
+}
+
+function renderLive(d){
+  if(!d || d.warming || d.active_now==null){
+    $("h-cap").textContent = "Connecting to live feed…"; return;
+  }
+  const today = d.mode==="today";
+  tick("h-now", d.active_now);
+
+  // hero label honest to the mode
+  document.querySelector(".hero .lbl").textContent = today ? "Fans on the site today" : "Fans on the site right now";
+  $("h-cap").innerHTML = today
+    ? `<b>${fmt(d.active_now)}</b> fans on the tour site today &nbsp;·&nbsp; <span style="color:var(--muted)">per-second feed resumes shortly</span>`
+    : (d.stale ? `<b>${fmt(d.active_now)}</b> fans — last live reading, refreshing…`
+               : `<b>${fmt(d.active_now)}</b> fans browsing the tour site this minute`);
+  document.getElementById("live-mode").textContent = today ? "Today" : "Live";
+
+  tick("h-us", d.us_now); tick("h-intl", d.intl_now);
+  tick("h-views", today ? d.pageviews_today : d.pageviews_30m);
+  document.querySelector("#h-views").nextElementSibling.textContent = today ? "Page views today" : "Page views / 30 min";
+
+  plotCities(d.cities);
+  $("cities").innerHTML = d.cities.slice(0,7).map((c,i)=>
+    `<div class="maprow"><span class="c"><span class="rank">${i+1}</span>${c.city}${c.us?"":" · "+c.country}</span><span class="v">${fmt(c.users)}</span></div>`).join("");
+  $("intl").innerHTML = d.intl_now>0 ? `+ <b>${fmt(d.intl_now)}</b> ${today?"from":"watching from"} outside the U.S.` : "";
+
+  // signups card
+  if(today){
+    tick("su-now", d.signups_today);
+    document.querySelector(".signupsub").textContent = "waitlist opens today (live sign-up counter resumes shortly)";
+    document.querySelector(".funnel").style.display = "none";
+  }else{
+    tick("su-now", d.signups_30m);
+    document.querySelector(".signupsub").textContent = "waitlist sign-ups in the last 30 minutes";
+    document.querySelector(".funnel").style.display = "";
+    const view=d.pageviews_30m||1, start=d.form_starts_30m||0, sub=d.signups_30m||0;
+    const pct = v => Math.max(8, Math.round(v/view*100));
+    $("f-view").style.width="100%"; $("f-view").textContent=`${fmt(view)} viewed`;
+    $("f-start").style.width=pct(start)+"%"; $("f-start").textContent=`${fmt(start)} opened form`;
+    $("f-sub").style.width=pct(sub)+"%"; $("f-sub").textContent=`${fmt(sub)} signed up`;
+  }
+
+  lastTs=Date.now();
+}
+
+function renderDevices(devs){
+  if(!devs || !devs.length) return;
+  const colors={mobile:"var(--orange)",desktop:"var(--orange-dp)",tablet:"#9a5a2c"};
+  $("devbar").innerHTML = devs.map(x=>`<span class="devseg" style="width:${x.pct}%;background:${colors[x.device]||'#5a4a3a'}"></span>`).join("");
+  $("devleg").innerHTML = devs.map(x=>`<span><i style="background:${colors[x.device]||'#5a4a3a'}"></i>${x.device} ${x.pct}%</span>`).join("");
+}
+
+function renderOverview(d){
+  const s=d.summary_7d||{}, t=d.today||{};
+  tick("t-today", t.active_users); tick("t-week", s.active_users);
+  tick("t-views", s.page_views); tick("t-new", s.new_users);
+  tick("su-today", d.signups.today_starts); tick("su-week", d.signups.week_starts);
+
+  // sources
+  const max = d3.max(d.sources, x=>x.sessions)||1;
+  $("sources").innerHTML = d.sources.map(x=>
+    `<div class="srow"><span class="nm">${x.source}</span><span class="track"><span class="fill" style="width:${Math.round(x.sessions/max*100)}%"></span></span><span class="val">${fmt(x.sessions)}</span></div>`).join("");
+
+  renderDevices(d.devices);
+  drawTrend(d.daily||[]);
+}
+
+function drawTrend(daily){
+  const svg=d3.select("#trend"); svg.selectAll("*").remove();
+  const box=$("trend").getBoundingClientRect(); const w=box.width||640,h=120,m={t:10,r:6,b:6,l:6};
+  svg.attr("viewBox",`0 0 ${w} ${h}`);
+  if(!daily.length) return;
+  const x=d3.scalePoint().domain(daily.map(d=>d.date)).range([m.l,w-m.r]);
+  const y=d3.scaleLinear().domain([0,d3.max(daily,d=>d.users)*1.15]).range([h-m.b,m.t]);
+  const defs=svg.append("defs"); const lg=defs.append("linearGradient").attr("id","tg").attr("x1",0).attr("x2",0).attr("y1",0).attr("y2",1);
+  lg.append("stop").attr("offset","0%").attr("stop-color","rgba(249,115,22,.35)");
+  lg.append("stop").attr("offset","100%").attr("stop-color","rgba(249,115,22,0)");
+  const area=d3.area().x(d=>x(d.date)).y0(h-m.b).y1(d=>y(d.users)).curve(d3.curveMonotoneX);
+  const line=d3.line().x(d=>x(d.date)).y(d=>y(d.users)).curve(d3.curveMonotoneX);
+  svg.append("path").datum(daily).attr("class","tarea").attr("d",area);
+  svg.append("path").datum(daily).attr("class","tline").attr("d",line);
+  const last=daily[daily.length-1];
+  svg.append("circle").attr("class","tdot").attr("cx",x(last.date)).attr("cy",y(last.users)).attr("r",4);
+  svg.append("text").attr("x",x(last.date)).attr("y",y(last.users)-9).attr("text-anchor","end")
+     .attr("fill","#fdba74").attr("font-family","Azeret Mono").attr("font-size","11").text(fmt(last.users));
+}
+
+function renderKlaviyo(d){
+  if(!d || d.error) return;
+  tick("k-total", d.total_collected);
+  const byId = Object.fromEntries(d.lists.map(l=>[l.label,l.count]));
+  tick("k-popup", byId["Pop-up leads"]); tick("k-wait", byId["DLD waitlist"]);
+  const max = d3.max(d.segments, s=>s.count)||1;
+  $("markets").innerHTML = d.segments.map(s=>
+    `<div class="mrow"><span class="nm">${s.market}</span><span class="track"><span class="fill" style="width:${Math.round(s.count/max*100)}%"></span></span><span class="val">${fmt(s.count)}</span></div>`).join("");
+}
+
+async function poll(url){ const r=await fetch(url); if(r.status===403) throw "403"; if(!r.ok) throw "err"; return r.json(); }
+async function refreshLive(){ try{ renderLive(await poll(`${API}/live?t=${TOKEN}`)); }catch(e){ if(e==="403") gate(); } }
+async function refreshOverview(){ try{ renderOverview(await poll(`${API}/overview?t=${TOKEN}`)); }catch(e){} }
+async function refreshKlaviyo(){ try{ renderKlaviyo(await poll(`${API}/klaviyo?t=${TOKEN}`)); }catch(e){} }
+function gate(){ $("app").style.display="none"; $("gate").style.display="block"; }
+
+setInterval(()=>{ const s=Math.round((Date.now()-lastTs)/1000); $("ago").textContent = s<5?"just now":s+"s ago"; },1000);
+
+(async function(){
+  if(!TOKEN){ gate(); return; }
+  // Validate the token against a cheap endpoint; only a real 403 gates.
+  try{ await poll(`${API}/overview?t=${TOKEN}`); }
+  catch(e){ if(e==="403"){ gate(); return; } }
+  $("app").style.display="block"; $("app").classList.add("fade");
+  await drawMapBase();
+  await refreshLive();
+  await refreshOverview();
+  await refreshKlaviyo();
+  setInterval(refreshLive, 15000);
+  setInterval(refreshOverview, 90000);
+  setInterval(refreshKlaviyo, 300000);
+  window.addEventListener("resize",()=>{ d3.select("#map").selectAll("*").remove(); drawMapBase().then(refreshLive); });
+})();
+</script>
+</body>
+</html>

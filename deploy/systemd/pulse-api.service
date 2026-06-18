@@ -1,0 +1,18 @@
+[Unit]
+Description=Tour Pulse API (Rod Wave real-time traffic command center, behind Caddy /pulse*)
+After=network-online.target
+Wants=network-online.target
+# never give up restarting, no matter how often it exits
+StartLimitIntervalSec=0
+
+[Service]
+User=aialfred
+WorkingDirectory=/home/aialfred/alfred
+Environment=PYTHONPATH=/home/aialfred/alfred
+Environment=PULSE_TOKEN=63fda7c3a9f83238fcec5235
+ExecStart=/home/aialfred/alfred/venv/bin/python -m uvicorn core.api.pulse:app --host 127.0.0.1 --port 8404
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
