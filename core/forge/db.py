@@ -11,16 +11,44 @@ def _db_path() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "data" / "forge.db"
 
 
+class _AutoCloseConn(sqlite3.Connection):
+    """A Connection whose ``with`` block also CLOSES the connection on exit.
+
+    Stock ``with sqlite3.connect(...) as c:`` only commits/rolls back the
+    transaction — it leaves the connection (and its file descriptor) open. Every
+    helper here uses ``with _conn() as c:``, and the worker loop opens one every
+    ~2s, so the fds pile up until the process hits its open-files limit and
+    SQLite starts raising ``unable to open database file``. Closing on __exit__
+    plugs the leak at the source for all call sites with no churn.
+    """
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            super().__exit__(exc_type, exc_val, exc_tb)  # commit / rollback
+        finally:
+            self.close()
+
+
 def _conn() -> sqlite3.Connection:
     p = _db_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    c = sqlite3.connect(str(p))
+    c = sqlite3.connect(str(p), factory=_AutoCloseConn)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     return c
 
 
+# DB paths whose schema has already been ensured this process. The worker loop
+# calls init_db() on every iteration; running the full CREATE/ALTER script each
+# time is wasteful, so do it once per path. Keyed by path so per-test temp DBs
+# (each a fresh path) still initialise correctly.
+_INITED: set[str] = set()
+
+
 def init_db() -> None:
+    key = str(_db_path())
+    if key in _INITED:
+        return
     with _conn() as c:
         c.executescript(
             """
@@ -143,3 +171,4 @@ def init_db() -> None:
                           ("groundrush", "Ground Rush")):
             c.execute("INSERT OR IGNORE INTO orgs (id, name, created_at) VALUES (?, ?, 0)",
                       (oid, name))
+    _INITED.add(key)
