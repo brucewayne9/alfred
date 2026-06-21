@@ -29,6 +29,14 @@
   .del{border:none;background:transparent;color:#ff6b6b;cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;border-radius:6px}
   .del:hover{background:rgba(255,107,107,.12)}
   .empty{color:var(--mut);padding:20px 0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:16px 0}
+  .ph{font-size:15px;margin:0 0 2px} .pd{color:var(--mut);font-size:12px;margin:0 0 14px}
+  input[type=file]{padding:8px 10px}
+  .lib{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{display:flex;align-items:center;gap:8px;background:#0c1014;border:1px solid var(--line);border-radius:10px;padding:7px 11px;font-size:12px}
+  .chip b{font-weight:600} .chip .t{color:var(--gold);font-weight:600}
+  .chip a{color:var(--mut);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:11px}
+  .chip a:hover{color:var(--ink);border-color:var(--gold)}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1b2026;border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s}
   .toast.show{opacity:1}
 </style>
@@ -44,18 +52,37 @@
   </div>
 
   <div id="app" style="display:none">
-    <h1>SpotGate Admin</h1>
-    <p class="sub">Mint a unique link per client. Each link = a hard cap of previews, then a paywall, then email delivery.</p>
-    <div class="row">
-      <div><label>Spot</label><select id="spot"></select></div>
-      <div><label>Client label (your reference)</label><input id="label" placeholder="e.g. Pompano Fest — Joe" /></div>
-      <div><label>Previews</label><input id="plays" type="number" value="3" min="1" max="10" style="min-width:90px" /></div>
-      <button onclick="mint()">Mint link</button>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1>SpotGate Admin</h1>
       <button onclick="logout()" style="background:#2a313a;color:var(--ink)">Sign out</button>
     </div>
+
+    <div class="panel">
+      <h2 class="ph">1 · Upload a spot</h2>
+      <p class="pd">Add a new commercial to your library. It's stored privately and archived to Nextcloud (Radio Spots / 30- or 60-Second).</p>
+      <div class="row">
+        <div style="flex:1;min-width:220px"><label>Spot name</label><input id="up_title" placeholder="e.g. Pompano Music Festival — 60s" style="width:100%" /></div>
+        <div><label>Length</label><select id="up_len"></select></div>
+        <div style="flex:1;min-width:220px"><label>Audio file</label><input id="up_file" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" style="width:100%" /></div>
+        <button id="up_btn" onclick="upload()">Upload spot</button>
+      </div>
+      <div id="spotlib" class="lib"></div>
+    </div>
+
+    <div class="panel">
+      <h2 class="ph">2 · Mint a client link</h2>
+      <p class="pd">Pick a spot, copy the link, text it to the client. Each link = 3 previews → paywall → email delivery.</p>
+      <div class="row">
+        <div style="flex:1;min-width:220px"><label>Spot</label><select id="spot"></select></div>
+        <div style="flex:1;min-width:180px"><label>Client label (your reference)</label><input id="label" placeholder="e.g. Joe's Pizza" style="width:100%" /></div>
+        <div><label>Previews</label><input id="plays" type="number" value="3" min="1" max="10" style="min-width:90px" /></div>
+        <button onclick="mint()">Mint link</button>
+      </div>
+    </div>
+
     <table>
       <thead><tr><th>Client</th><th>Spot</th><th>Listens</th><th>Status</th><th>Link</th><th></th></tr></thead>
-      <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -66,30 +93,62 @@ const API='/spot/api';
 let TOKEN = sessionStorage.getItem('sg_admin') || '';
 const $=id=>document.getElementById(id);
 
-function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function hdr(){return {'X-Admin-Token':TOKEN,'Content-Type':'application/json'};}
+function authOnly(){return {'X-Admin-Token':TOKEN};}  // multipart: let browser set Content-Type
 
 function saveToken(){ TOKEN=$('token').value.trim(); sessionStorage.setItem('sg_admin',TOKEN); boot(); }
 function logout(){ sessionStorage.removeItem('sg_admin'); location.reload(); }
 
 async function boot(){
   if(!TOKEN){ $('login').style.display='block'; $('app').style.display='none'; return; }
-  const r = await fetch(`${API}/admin/spots`,{headers:hdr()});
+  const r = await fetch(`${API}/admin/spots`,{headers:authOnly()});
   if(r.status===401){ toast('Bad token'); sessionStorage.removeItem('sg_admin'); TOKEN=''; $('login').style.display='block'; return; }
   $('login').style.display='none'; $('app').style.display='block';
-  const {spots} = await r.json();
-  $('spot').innerHTML = spots.map(s=>`<option value="${s.slug}">${s.title} (${s.price_label})</option>`).join('');
+  loadSpots();
   refresh();
+}
+
+async function loadSpots(){
+  const {spots, tiers} = await (await fetch(`${API}/admin/spots`,{headers:authOnly()})).json();
+  // length picker for upload
+  $('up_len').innerHTML = (tiers||[]).map(t=>`<option value="${t.value}">${t.label} — ${t.price_label}</option>`).join('');
+  // mint dropdown
+  $('spot').innerHTML = spots.length
+    ? spots.map(s=>`<option value="${s.slug}">${s.title} · ${s.tier_label} (${s.price_label})</option>`).join('')
+    : '<option value="">— upload a spot first —</option>';
+  // library chips with Nextcloud archive links
+  $('spotlib').innerHTML = spots.length ? spots.map(s=>`
+    <span class="chip"><b>${s.title}</b><span class="t">${s.tier_label}</span>${
+      s.nextcloud_share?`<a href="${s.nextcloud_share}" target="_blank" rel="noopener">archive ↗</a>`:'<span style="color:#5a636e">no archive</span>'
+    }</span>`).join('') : '<span style="color:#9aa6b2;font-size:12px">No spots yet — upload one above.</span>';
+}
+
+async function upload(){
+  const title=$('up_title').value.trim(), len=$('up_len').value, f=$('up_file').files[0];
+  if(!title){ toast('Give the spot a name'); return; }
+  if(!f){ toast('Choose an audio file'); return; }
+  const fd=new FormData(); fd.append('file',f); fd.append('title',title); fd.append('length',len);
+  $('up_btn').disabled=true; $('up_btn').textContent='Uploading…';
+  try{
+    const r=await fetch(`${API}/admin/spots`,{method:'POST',headers:authOnly(),body:fd});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.detail||'Upload failed');
+    toast(`Uploaded "${j.title}" (${j.tier_label})${j.archived?' · archived':''}`);
+    $('up_title').value=''; $('up_file').value='';
+    loadSpots();
+  }catch(e){ toast(e.message); }
+  $('up_btn').disabled=false; $('up_btn').textContent='Upload spot';
 }
 
 async function refresh(){
   const r = await fetch(`${API}/admin/links`,{headers:hdr()});
   const {links} = await r.json();
-  if(!links.length){ $('rows').innerHTML='<tr><td colspan="5" class="empty">No links yet — mint one above.</td></tr>'; return; }
+  if(!links.length){ $('rows').innerHTML='<tr><td colspan="6" class="empty">No links yet — mint one above.</td></tr>'; return; }
   $('rows').innerHTML = links.map(l=>`
     <tr>
       <td>${l.label||'<span style="color:#9aa6b2">—</span>'}</td>
-      <td>${l.title}</td>
+      <td>${l.title} <span style="color:#9aa6b2">${l.tier_label||''}</span></td>
       <td>${l.plays_used} / ${l.plays_allowed}</td>
       <td>${l.paid?'<span class="pill paid">PAID'+(l.delivered_to?' · sent':'')+'</span>':'<span class="pill open">open</span>'}</td>
       <td><span class="link" onclick="copy('${l.url}')">${l.url}</span><span class="copy" onclick="copy('${l.url}')">copy</span></td>
