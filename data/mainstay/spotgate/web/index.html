@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Your Spot — Ground Rush</title>
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#14181d; --panel2:#1b2026; --line:#2a313a;
+    --ink:#f3f5f7; --mut:#9aa6b2; --gold:#e8b864; --gold2:#caa14e;
+    --good:#3ecf8e; --warn:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #1a2129 0%, var(--bg) 60%);
+    color:var(--ink); font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+    -webkit-user-select:none; user-select:none;
+  }
+  .card{
+    width:100%; max-width:480px; background:linear-gradient(180deg,var(--panel),#0f1318);
+    border:1px solid var(--line); border-radius:20px; padding:30px 28px 26px;
+    box-shadow:0 30px 80px rgba(0,0,0,.55);
+  }
+  .brand{display:flex; align-items:center; gap:10px; color:var(--mut); font-size:12px;
+    letter-spacing:.14em; text-transform:uppercase; margin-bottom:22px}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  h1{font-size:21px; margin:0 0 4px; font-weight:650; letter-spacing:-.01em}
+  .sub{color:var(--mut); font-size:13px; margin:0 0 24px}
+  .player{background:var(--panel2); border:1px solid var(--line); border-radius:16px; padding:22px 20px}
+  .playrow{display:flex; align-items:center; gap:16px}
+  .pbtn{
+    flex:0 0 auto; width:58px; height:58px; border-radius:50%; border:none; cursor:pointer;
+    background:linear-gradient(180deg,var(--gold),var(--gold2)); color:#1a1206;
+    display:flex; align-items:center; justify-content:center; transition:transform .08s ease, filter .2s;
+    box-shadow:0 8px 22px rgba(232,184,100,.28);
+  }
+  .pbtn:hover{filter:brightness(1.06)} .pbtn:active{transform:scale(.95)}
+  .pbtn:disabled{background:#3a4049; color:#7d8794; cursor:not-allowed; box-shadow:none}
+  .pbtn svg{width:24px;height:24px;display:block}
+  .meta{flex:1; min-width:0}
+  .bar{height:6px; background:#0c1014; border-radius:99px; overflow:hidden; margin:10px 0 6px}
+  .fill{height:100%; width:0; background:linear-gradient(90deg,var(--gold2),var(--gold)); transition:width .15s linear}
+  .times{display:flex; justify-content:space-between; color:var(--mut); font-size:11px; font-variant-numeric:tabular-nums}
+  .listens{margin-top:18px; display:flex; align-items:center; gap:8px; color:var(--mut); font-size:13px}
+  .pips{display:flex; gap:6px}
+  .pip{width:9px;height:9px;border-radius:50%;background:#39424d;transition:background .2s}
+  .pip.used{background:var(--gold)}
+  .note{color:var(--mut); font-size:12px; margin-top:16px; text-align:center}
+
+  /* paywall */
+  .gate{margin-top:22px; border-top:1px solid var(--line); padding-top:20px; display:none}
+  .gate.show{display:block}
+  .gate h2{font-size:16px; margin:0 0 6px}
+  .gate p{color:var(--mut); font-size:13px; margin:0 0 16px}
+  .buy{
+    display:block; text-align:center; text-decoration:none; padding:14px 18px; border-radius:12px;
+    background:linear-gradient(180deg,var(--gold),var(--gold2)); color:#1a1206; font-weight:650; font-size:15px;
+    box-shadow:0 8px 22px rgba(232,184,100,.28);
+  }
+  .buy:hover{filter:brightness(1.06)}
+  .price{color:var(--gold); font-weight:700}
+
+  /* delivered / email form */
+  .deliver{margin-top:22px; border-top:1px solid var(--line); padding-top:20px; display:none}
+  .deliver.show{display:block}
+  .deliver h2{font-size:16px;margin:0 0 6px;color:var(--good)}
+  .deliver p{color:var(--mut);font-size:13px;margin:0 0 14px}
+  input[type=email]{
+    width:100%; padding:13px 14px; border-radius:11px; border:1px solid var(--line);
+    background:#0c1014; color:var(--ink); font-size:15px; margin-bottom:12px; -webkit-user-select:text; user-select:text;
+  }
+  input[type=email]:focus{outline:none; border-color:var(--gold)}
+  .send{width:100%; padding:13px; border:none; border-radius:11px; cursor:pointer; font-weight:650; font-size:15px;
+    background:linear-gradient(180deg,var(--good),#2bb377); color:#06281b}
+  .send:disabled{opacity:.6; cursor:wait}
+  .ok{color:var(--good); font-size:13px; text-align:center; margin-top:12px; display:none}
+  .ok.show{display:block}
+  .err{color:var(--warn); font-size:13px; text-align:center; margin-top:12px; min-height:16px}
+</style>
+</head>
+<body oncontextmenu="return false">
+  <div class="card">
+    <div class="brand"><span class="dot"></span> Ground Rush · Private Listen</div>
+    <h1 id="title">Loading…</h1>
+    <p class="sub" id="sub">Preparing your preview</p>
+
+    <div class="player">
+      <div class="playrow">
+        <button class="pbtn" id="play" disabled aria-label="Play">
+          <svg id="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="meta">
+          <div class="bar"><div class="fill" id="fill"></div></div>
+          <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+        </div>
+      </div>
+      <div class="listens">
+        <span id="listenlabel">— listens left</span>
+        <span class="pips" id="pips"></span>
+      </div>
+    </div>
+
+    <div class="gate" id="gate">
+      <h2>You've used all your previews</h2>
+      <p>Purchase the spot for <span class="price" id="priceTag"></span> and I'll send the full MP3 straight to your inbox — yours to keep and use.</p>
+      <a class="buy" id="buy" href="#">Purchase &amp; unlock →</a>
+    </div>
+
+    <div class="deliver" id="deliver">
+      <h2>✓ Payment received</h2>
+      <p>Where would you like me to email the commercial?</p>
+      <input type="email" id="email" placeholder="you@email.com" autocomplete="email" />
+      <button class="send" id="send">Email me the spot</button>
+      <div class="ok" id="okmsg">Sent! Check your inbox.</div>
+      <div class="err" id="err"></div>
+    </div>
+
+    <div class="note" id="note">No download · streaming preview only</div>
+  </div>
+
+<script>
+const API = '/spot/api';
+const params = new URLSearchParams(location.search);
+const T = params.get('t') || '';
+const $ = id => document.getElementById(id);
+
+const audio = new Audio();
+audio.preload = 'none';
+let grant = null, listening = false, state = null;
+
+function fmt(s){ if(!isFinite(s)) return '0:00'; s=Math.max(0,Math.floor(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+
+function renderPips(used, allowed){
+  const wrap = $('pips'); wrap.innerHTML='';
+  for(let i=0;i<allowed;i++){ const p=document.createElement('span'); p.className='pip'+(i<used?' used':''); wrap.appendChild(p); }
+  const left = Math.max(0, allowed-used);
+  $('listenlabel').textContent = state && state.paid ? 'Purchased — unlimited' : `${left} of ${allowed} listens left`;
+}
+
+function applyState(s){
+  state = s;
+  $('title').textContent = s.title || 'Your Spot';
+  $('sub').textContent = s.paid ? 'Purchased — full track unlocked' : 'Preview before you buy';
+  $('priceTag').textContent = s.price_label || '';
+  $('buy').href = s.buy_url || '#';
+  renderPips(s.plays_used, s.plays_allowed);
+
+  // Three states: delivered already, paid (needs email), or preview/paywall.
+  if(s.delivered){
+    $('deliver').classList.add('show');
+    $('okmsg').classList.add('show');
+    $('email').value = s.delivered_to || '';
+    $('email').disabled = true; $('send').disabled = true;
+    $('gate').classList.remove('show');
+  } else if(s.paid){
+    $('deliver').classList.add('show');
+    $('gate').classList.remove('show');
+  } else if(!s.can_listen){
+    $('gate').classList.add('show');
+    $('play').disabled = true;
+  } else {
+    $('play').disabled = false;
+  }
+}
+
+async function loadState(){
+  try{
+    const r = await fetch(`${API}/state?t=${encodeURIComponent(T)}`);
+    if(!r.ok){ $('title').textContent='Link not found'; $('sub').textContent='This link is invalid or has expired.'; return; }
+    applyState(await r.json());
+  }catch(e){ $('sub').textContent='Network error — please refresh.'; }
+}
+
+function setIcon(playing){
+  $('ico').innerHTML = playing
+    ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'      // pause
+    : '<path d="M8 5v14l11-7z"/>';                   // play
+}
+
+$('play').onclick = async () => {
+  if(listening){                      // pause/resume within the same listen
+    if(audio.paused){ audio.play(); setIcon(true); }
+    else { audio.pause(); setIcon(false); }
+    return;
+  }
+  $('play').disabled = true;
+  try{
+    const r = await fetch(`${API}/play?t=${encodeURIComponent(T)}`, {method:'POST'});
+    if(r.status === 402){            // out of previews -> paywall
+      const s = await r.json();
+      $('buy').href = s.buy_url || '#';
+      $('gate').classList.add('show');
+      $('listenlabel').textContent = '0 listens left';
+      return;
+    }
+    const s = await r.json();
+    applyState(s);
+    grant = s.grant;
+    audio.src = `${API}/stream?t=${encodeURIComponent(T)}&g=${encodeURIComponent(grant)}`;
+    audio.load();
+    await audio.play();
+    listening = true; setIcon(true);
+    $('play').disabled = false;
+  }catch(e){
+    $('play').disabled = false;
+    $('err').textContent = 'Could not start playback.';
+  }
+};
+
+audio.ontimeupdate = () => {
+  if(audio.duration){ $('fill').style.width = (audio.currentTime/audio.duration*100)+'%'; }
+  $('cur').textContent = fmt(audio.currentTime);
+};
+audio.onloadedmetadata = () => { $('dur').textContent = fmt(audio.duration); };
+audio.onended = () => {
+  listening = false; grant = null; setIcon(false);
+  $('fill').style.width='0%'; $('cur').textContent='0:00';
+  loadState();                       // refresh counts; may flip to paywall
+};
+
+$('send').onclick = async () => {
+  const email = $('email').value.trim();
+  $('err').textContent='';
+  if(!email || !email.includes('@')){ $('err').textContent='Enter a valid email.'; return; }
+  $('send').disabled = true; $('send').textContent='Sending…';
+  try{
+    const r = await fetch(`${API}/deliver?t=${encodeURIComponent(T)}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email})
+    });
+    const j = await r.json();
+    if(!r.ok){ throw new Error(j.detail || 'Send failed'); }
+    $('okmsg').classList.add('show');
+    $('email').disabled = true; $('send').textContent='Sent ✓';
+  }catch(e){
+    $('send').disabled=false; $('send').textContent='Email me the spot';
+    $('err').textContent = e.message;
+  }
+};
+
+// When the user returns after paying (Stripe webhook unlocks server-side),
+// poll briefly so the email form appears without a manual refresh.
+let polls = 0;
+setInterval(() => {
+  if(state && (state.paid || state.delivered)) return;
+  if(polls++ > 600) return;          // ~30 min ceiling
+  loadState();
+}, 3000);
+
+loadState();
+</script>
+</body>
+</html>

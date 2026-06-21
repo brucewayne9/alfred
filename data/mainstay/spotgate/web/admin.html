@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<title>SpotGate Admin</title>
+<style>
+  :root{--bg:#0b0d10;--panel:#14181d;--line:#2a313a;--ink:#f3f5f7;--mut:#9aa6b2;--gold:#e8b864;--good:#3ecf8e}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 4px}.sub{color:var(--mut);margin:0 0 24px;font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px}
+  label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px}
+  input,select{padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:#0c1014;color:var(--ink);font-size:14px}
+  input{min-width:200px}
+  button{padding:11px 18px;border:none;border-radius:10px;cursor:pointer;font-weight:650;font-size:14px;background:linear-gradient(180deg,var(--gold),#caa14e);color:#1a1206}
+  button:hover{filter:brightness(1.06)}
+  .gate{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;max-width:380px;margin:60px auto}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+  .paid{background:rgba(62,207,142,.15);color:var(--good)}
+  .open{background:rgba(154,166,178,.15);color:var(--mut)}
+  .link{color:var(--gold);cursor:pointer;text-decoration:underline;word-break:break-all}
+  .copy{font-size:11px;color:var(--mut);cursor:pointer;margin-left:6px}
+  .empty{color:var(--mut);padding:20px 0}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1b2026;border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="gate">
+    <h1>SpotGate Admin</h1>
+    <p class="sub">Enter your admin token to mint and manage links.</p>
+    <label>Admin token</label>
+    <input id="token" type="password" placeholder="admin token" style="width:100%;margin-bottom:12px" />
+    <button onclick="saveToken()" style="width:100%">Continue</button>
+  </div>
+
+  <div id="app" style="display:none">
+    <h1>SpotGate Admin</h1>
+    <p class="sub">Mint a unique link per client. Each link = a hard cap of previews, then a paywall, then email delivery.</p>
+    <div class="row">
+      <div><label>Spot</label><select id="spot"></select></div>
+      <div><label>Client label (your reference)</label><input id="label" placeholder="e.g. Pompano Fest — Joe" /></div>
+      <div><label>Previews</label><input id="plays" type="number" value="3" min="1" max="10" style="min-width:90px" /></div>
+      <button onclick="mint()">Mint link</button>
+      <button onclick="logout()" style="background:#2a313a;color:var(--ink)">Sign out</button>
+    </div>
+    <table>
+      <thead><tr><th>Client</th><th>Spot</th><th>Listens</th><th>Status</th><th>Link</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API='/spot/api';
+let TOKEN = sessionStorage.getItem('sg_admin') || '';
+const $=id=>document.getElementById(id);
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);}
+function hdr(){return {'X-Admin-Token':TOKEN,'Content-Type':'application/json'};}
+
+function saveToken(){ TOKEN=$('token').value.trim(); sessionStorage.setItem('sg_admin',TOKEN); boot(); }
+function logout(){ sessionStorage.removeItem('sg_admin'); location.reload(); }
+
+async function boot(){
+  if(!TOKEN){ $('login').style.display='block'; $('app').style.display='none'; return; }
+  const r = await fetch(`${API}/admin/spots`,{headers:hdr()});
+  if(r.status===401){ toast('Bad token'); sessionStorage.removeItem('sg_admin'); TOKEN=''; $('login').style.display='block'; return; }
+  $('login').style.display='none'; $('app').style.display='block';
+  const {spots} = await r.json();
+  $('spot').innerHTML = spots.map(s=>`<option value="${s.slug}">${s.title} (${s.price_label})</option>`).join('');
+  refresh();
+}
+
+async function refresh(){
+  const r = await fetch(`${API}/admin/links`,{headers:hdr()});
+  const {links} = await r.json();
+  if(!links.length){ $('rows').innerHTML='<tr><td colspan="5" class="empty">No links yet — mint one above.</td></tr>'; return; }
+  $('rows').innerHTML = links.map(l=>`
+    <tr>
+      <td>${l.label||'<span style="color:#9aa6b2">—</span>'}</td>
+      <td>${l.title}</td>
+      <td>${l.plays_used} / ${l.plays_allowed}</td>
+      <td>${l.paid?'<span class="pill paid">PAID'+(l.delivered_to?' · sent':'')+'</span>':'<span class="pill open">open</span>'}</td>
+      <td><span class="link" onclick="copy('${l.url}')">${l.url}</span><span class="copy" onclick="copy('${l.url}')">copy</span></td>
+    </tr>`).join('');
+}
+
+async function mint(){
+  const body = JSON.stringify({spot:$('spot').value, label:$('label').value.trim(), plays:Number($('plays').value)||3});
+  const r = await fetch(`${API}/admin/links`,{method:'POST',headers:hdr(),body});
+  const j = await r.json();
+  if(!r.ok){ toast(j.detail||'Failed'); return; }
+  $('label').value='';
+  copy(j.url); toast('Link minted & copied');
+  refresh();
+}
+
+function copy(t){ navigator.clipboard.writeText(t).then(()=>toast('Copied to clipboard')).catch(()=>toast(t)); }
+
+boot();
+</script>
+</body>
+</html>
