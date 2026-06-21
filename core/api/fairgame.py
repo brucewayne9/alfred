@@ -308,6 +308,24 @@ async def me(authorization: str = Header(default="")):
 
 
 # --------------------------------------------------------------------------- #
+# MY ACTIVITY — a fan's own listings + purchases (the "My Tickets" surface)
+# --------------------------------------------------------------------------- #
+
+@app.get("/fairgame/api/my/listings")
+async def my_listings(authorization: str = Header(default="")):
+    """Seats the signed-in fan has listed (any status). Seller-scoped."""
+    fan = _require_fan(authorization)
+    return {"listings": listings.list_by_seller(fan["id"])}
+
+
+@app.get("/fairgame/api/my/orders")
+async def my_orders(authorization: str = Header(default="")):
+    """Tickets the signed-in fan has bought, with live escrow state. Buyer-scoped."""
+    fan = _require_fan(authorization)
+    return {"orders": orders.list_by_buyer(fan["id"])}
+
+
+# --------------------------------------------------------------------------- #
 # SHOWS
 # --------------------------------------------------------------------------- #
 

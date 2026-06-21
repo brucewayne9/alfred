@@ -212,3 +212,23 @@ def get_order(order_id: str) -> dict | None:
     """Return the order row as a dict, or None if it doesn't exist."""
     with db.connect() as c:
         return _row_to_dict(_get_order_row(c, order_id))
+
+
+def list_by_buyer(buyer_fan_id: str) -> list:
+    """A buyer's own orders with seat + show context, newest first — powers "My
+    Tickets". Each row carries the escrow ``state`` (paid / released / refunded)
+    so the fan can always see where their ticket and money stand.
+    """
+    with db.connect() as c:
+        rows = c.execute(
+            "SELECT o.*, l.section AS section, l.show_id AS show_id, "
+            "l.face_price_cents AS face_price_cents, "
+            "l.buyer_total_cents AS buyer_total_cents, "
+            "s.city AS show_city, s.venue AS show_venue, s.show_date AS show_date "
+            "FROM orders o "
+            "LEFT JOIN listings l ON l.id = o.listing_id "
+            "LEFT JOIN shows s ON s.id = l.show_id "
+            "WHERE o.buyer_fan_id=? ORDER BY o.created_at DESC",
+            (buyer_fan_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]

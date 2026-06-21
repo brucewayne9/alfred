@@ -186,6 +186,7 @@
             <div class="fg-row fg-center fg-mt-3" id="doneBadges" style="justify-content:center"></div>
           </div>
           <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="index.html">Browse shows</a>
+          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="mytickets.html">My tickets</a>
           <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="sell.html">Resell a ticket</a>
         </div>
 
@@ -195,6 +196,7 @@
           <p class="sub">Signed in as a verified fan.</p>
           <div id="acctRows"></div>
           <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="index.html">Browse shows</a>
+          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="mytickets.html">My tickets</a>
           <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="sell.html">Resell a ticket</a>
           <button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" id="signOut">Sign out</button>
         </div>
@@ -259,6 +261,7 @@ function renderBadge() {
   const fan = s.fan || {};
   const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
   right.innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="mytickets.html">My Tickets</a>' +
     '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>';
 }
 

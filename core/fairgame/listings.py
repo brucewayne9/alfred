@@ -103,6 +103,23 @@ def list_active(show_id: str) -> list:
     return [dict(r) for r in rows]
 
 
+def list_by_seller(seller_fan_id: str) -> list:
+    """A seller's own listings (any status), newest first — powers "My Listings".
+
+    Joined to the show so the UI can label each row by city/date without a second
+    round trip.
+    """
+    with db.connect() as c:
+        rows = c.execute(
+            "SELECT l.*, s.city AS show_city, s.venue AS show_venue, "
+            "s.show_date AS show_date "
+            "FROM listings l LEFT JOIN shows s ON s.id = l.show_id "
+            "WHERE l.seller_fan_id=? ORDER BY l.created_at DESC",
+            (seller_fan_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def cancel_listing(listing_id: str):
     """Mark a listing cancelled (idempotent). Returns the updated row or None."""
     with db.connect() as c:

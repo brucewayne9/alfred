@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fair Game — My Tickets</title>
+<meta name="description" content="Your Fair Game activity — tickets you bought and seats you listed, with live status.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="fairgame.css">
+<style>
+  .mt-hero { padding: 40px 0 8px; }
+  .mt-hero h1 { font-family: var(--font-display); font-size: clamp(2.2rem, 7vw, 3.8rem); line-height: .9; text-transform: uppercase; }
+  .mt-hero .lede { color: var(--muted); margin-top: 12px; max-width: 48ch; }
+  .mt-section-h { font-family: var(--font-display); text-transform: uppercase; font-size: 1.15rem; letter-spacing: .04em; margin: 28px 0 12px; }
+  .mt-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .mt-row .seat { font-weight:600; }
+  .mt-row .sub { color: var(--muted); font-size:.8rem; margin-top:4px; }
+  .mt-card { margin-bottom: 12px; }
+  .mt-empty { color: var(--muted); }
+  .signin-cta { text-align:center; padding: 18px 0; }
+</style>
+</head>
+<body>
+
+<!-- ===================== NAV ===================== -->
+<nav class="fg-nav">
+  <div class="fg-nav-inner">
+    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
+      <span class="fg-logo-mark"><span>FG</span></span>
+      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
+    </a>
+    <div class="fg-nav-right" id="navRight">
+      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>
+    </div>
+  </div>
+</nav>
+
+<header class="mt-hero">
+  <div class="fg-wrap">
+    <div class="fg-eyebrow">Your activity</div>
+    <h1>My Tickets</h1>
+    <p class="lede">Every seat you buy or list shows up here &mdash; with live status, so you can always come back and see where your ticket and money stand.</p>
+  </div>
+</header>
+
+<main class="fg-section" style="padding-top:16px">
+  <div class="fg-wrap" style="max-width:720px">
+
+    <!-- Signed-out state -->
+    <div id="signedOut" class="fg-card signin-cta fg-hidden">
+      <h2>Sign in first</h2>
+      <p class="fg-muted fg-mt-1">Get verified (phone + email) and your tickets and listings will appear here.</p>
+      <a class="fg-btn fg-btn-primary fg-mt-3" href="account.html">Get verified</a>
+    </div>
+
+    <!-- Signed-in content -->
+    <div id="signedIn" class="fg-hidden">
+      <div class="mt-section-h">Tickets I bought</div>
+      <div id="ordersList"><div class="fg-card mt-card"><span class="mt-empty">Loading…</span></div></div>
+
+      <div class="mt-section-h">Seats I'm selling</div>
+      <div id="listingsList"><div class="fg-card mt-card"><span class="mt-empty">Loading…</span></div></div>
+
+      <div class="fg-row fg-mt-3" style="gap:10px;flex-wrap:wrap">
+        <a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Browse shows</a>
+        <a class="fg-btn fg-btn-ghost fg-btn-sm" href="sell.html">Resell a seat</a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div class="fg-toast" id="toast" role="status"></div>
+
+<script>
+const API = '/fairgame/api';
+const $ = (s, r=document) => r.querySelector(s);
+
+/* ---------- session ---------- */
+function getSession() {
+  try { return JSON.parse(localStorage.getItem('fairgame_session') || 'null'); }
+  catch { return null; }
+}
+function authHeaders() {
+  const s = getSession();
+  return s && s.token ? {'Authorization': 'Bearer ' + s.token} : {};
+}
+
+/* ---------- helpers ---------- */
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function money(c){ return '$' + ((c||0)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+/* ---------- nav badge ---------- */
+function renderBadge() {
+  const s = getSession(); const right = $('#navRight');
+  if (!s || !s.token) return;
+  const fan = s.fan || {};
+  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
+  right.innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>';
+}
+
+/* ---------- status mapping ---------- */
+function orderStatus(state){
+  if (state === 'released') return {label:'Ticket is yours', cls:'verified'};
+  if (state === 'paid')     return {label:'In escrow',       cls:'priority'};
+  if (state === 'refunded') return {label:'Refunded',        cls:'resale'};
+  return {label: state, cls:''};
+}
+function listingStatus(status){
+  if (status === 'active')    return {label:'Live',      cls:'verified'};
+  if (status === 'sold')      return {label:'Sold',      cls:'priority'};
+  if (status === 'cancelled') return {label:'Cancelled', cls:''};
+  return {label: status, cls:''};
+}
+
+/* ---------- render ---------- */
+function orderCard(o){
+  const st = orderStatus(o.state);
+  const where = esc(o.show_city || 'Show') + (o.section ? ' · ' + esc(o.section) : '');
+  const sub = [esc(o.show_date||''), o.amount_cents ? 'paid ' + money(o.amount_cents) : ''].filter(Boolean).join('  ·  ');
+  return '<div class="fg-card mt-card"><div class="mt-row"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
+    '<span class="fg-badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>';
+}
+function listingCard(l){
+  const st = listingStatus(l.status);
+  const where = esc(l.show_city || 'Show') + ' · ' + esc(l.section);
+  const sub = 'face ' + money(l.face_price_cents) + ' · you keep ' + money(l.seller_proceeds_cents);
+  return '<div class="fg-card mt-card"><div class="mt-row"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
+    '<span class="fg-badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>';
+}
+
+async function load(){
+  const s = getSession();
+  if (!s || !s.token){ $('#signedOut').classList.remove('fg-hidden'); return; }
+  $('#signedIn').classList.remove('fg-hidden');
+  try {
+    const [oRes, lRes] = await Promise.all([
+      fetch(API + '/my/orders',   {headers: authHeaders()}),
+      fetch(API + '/my/listings', {headers: authHeaders()}),
+    ]);
+    const orders   = oRes.ok ? (await oRes.json()).orders   : [];
+    const listings = lRes.ok ? (await lRes.json()).listings : [];
+    $('#ordersList').innerHTML = orders.length
+      ? orders.map(orderCard).join('')
+      : '<div class="fg-card mt-card"><span class="mt-empty">No purchases yet. Buy a seat from the resale exchange and it shows up here with its escrow status.</span></div>';
+    $('#listingsList').innerHTML = listings.length
+      ? listings.map(listingCard).join('')
+      : '<div class="fg-card mt-card"><span class="mt-empty">You haven\'t listed a seat. Head to Resell to put one on the exchange — capped at face + $15.</span></div>';
+  } catch (e) {
+    toast('Could not load your tickets', 'err');
+  }
+}
+function toast(m,k){ const t=$('#toast'); if(!t)return; t.textContent=m; t.className='fg-toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='fg-toast '+(k||''),3400); }
+
+renderBadge();
+load();
+</script>
+</body>
+</html>
