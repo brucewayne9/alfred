@@ -68,6 +68,8 @@ PUBLIC_BASE = os.environ.get(
     "SPOTGATE_PUBLIC_BASE", "https://aialfred.groundrushcloud.com"
 )
 FROM_ACCOUNT = os.environ.get("SPOTGATE_EMAIL_ACCOUNT", "alfred-gw")
+# Where SpotGate pings the operator (Mike) on paid / delivered events.
+NOTIFY_EMAIL = os.environ.get("SPOTGATE_NOTIFY_EMAIL", "mjohnson@groundrushinc.com")
 DEFAULT_PLAYS = int(os.environ.get("SPOTGATE_DEFAULT_PLAYS", "3"))
 
 if STRIPE_API_KEY:
@@ -150,6 +152,23 @@ def _link_or_404(c: sqlite3.Connection, token: str) -> sqlite3.Row:
     if not row:
         raise HTTPException(status_code=404, detail="invalid or expired link")
     return row
+
+
+def _notify_operator(subject: str, body_html: str) -> None:
+    """Ping Mike on a money/delivery event. Never raises — a notification
+    failure must not break the client's purchase or delivery."""
+    if not NOTIFY_EMAIL:
+        return
+    try:
+        EmailClient().send_email(
+            account=FROM_ACCOUNT,
+            to=NOTIFY_EMAIL,
+            subject=subject,
+            body=body_html,
+            html=True,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("operator notification failed (non-fatal)")
 
 
 def _buy_url(token: str) -> str:
@@ -314,6 +333,15 @@ def deliver(t: str = Query(...), payload: dict = Body(...)):
         )
         c.commit()
     logger.info("delivered spot %s -> %s", row["spot_slug"], email)
+    _notify_operator(
+        f"📨 SpotGate DELIVERED — {title}",
+        f"<p><strong>The spot was emailed to the client.</strong></p>"
+        f"<ul>"
+        f"<li><strong>Spot:</strong> {title}</li>"
+        f"<li><strong>Client:</strong> {row['label'] or '(no label)'}</li>"
+        f"<li><strong>Sent to:</strong> {email}</li>"
+        f"</ul>",
+    )
     return {"ok": True, "delivered_to": email}
 
 
@@ -346,17 +374,46 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         token = obj["client_reference_id"] if "client_reference_id" in obj else None
         if token:
             now = time.time()
+            newly_paid = False
+            row = None
             with _connect() as c:
                 row = c.execute(
-                    "SELECT token FROM links WHERE token=?", (token,)
+                    "SELECT * FROM links WHERE token=?", (token,)
                 ).fetchone()
                 if row:
+                    newly_paid = row["paid_at"] is None  # only the first time
                     c.execute(
                         "UPDATE links SET paid_at=COALESCE(paid_at,?) WHERE token=?",
                         (now, token),
                     )
                     c.commit()
                     logger.info("stripe: link %s marked PAID", token)
+            # Ping Mike — but only on the first transition (Stripe retries webhooks).
+            if row and newly_paid:
+                spot = SPOTS.get(row["spot_slug"], {})
+                payer = ""
+                if "customer_details" in obj and obj["customer_details"]:
+                    cd = obj["customer_details"]
+                    payer = (cd["email"] if "email" in cd else "") or ""
+                if not payer and "customer_email" in obj:
+                    payer = obj["customer_email"] or ""
+                amount = ""
+                if "amount_total" in obj and obj["amount_total"]:
+                    amount = f"${obj['amount_total']/100:,.2f}"
+                amount = amount or spot.get("price_label", "")
+                label = row["label"] or "(no label)"
+                _notify_operator(
+                    f"💰 SpotGate PAID — {spot.get('title', row['spot_slug'])}",
+                    f"<p><strong>Payment received.</strong></p>"
+                    f"<ul>"
+                    f"<li><strong>Spot:</strong> {spot.get('title', row['spot_slug'])}</li>"
+                    f"<li><strong>Client:</strong> {label}</li>"
+                    f"<li><strong>Amount:</strong> {amount or '—'}</li>"
+                    f"<li><strong>Paid by:</strong> {payer or '—'}</li>"
+                    f"</ul>"
+                    f"<p>They'll now be asked where to email the spot. "
+                    f"You'll get a second note the moment it's delivered.</p>",
+                )
     return {"received": True}
 
 
