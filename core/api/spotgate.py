@@ -182,11 +182,16 @@ def _state_payload(row: sqlite3.Row) -> dict:
 # --------------------------------------------------------------------------- #
 # Public endpoints
 # --------------------------------------------------------------------------- #
+_NOCACHE = {"Cache-Control": "no-store, no-cache, must-revalidate, private", "Pragma": "no-cache"}
+
+
 @app.get("/spot/api/state")
 def get_state(t: str = Query(...)):
     with _connect() as c:
         row = _link_or_404(c, t)
-        return _state_payload(row)
+        # Never let a browser/proxy cache the listen count — a refresh must
+        # always reflect the live server-side total, never a stale "3 of 3".
+        return JSONResponse(content=_state_payload(row), headers=_NOCACHE)
 
 
 @app.post("/spot/api/play")

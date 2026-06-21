@@ -168,7 +168,7 @@ function applyState(s){
 
 async function loadState(){
   try{
-    const r = await fetch(`${API}/state?t=${encodeURIComponent(T)}`);
+    const r = await fetch(`${API}/state?t=${encodeURIComponent(T)}&_=${Date.now()}`, {cache:'no-store'});
     if(!r.ok){ $('title').textContent='Link not found'; $('sub').textContent='This link is invalid or has expired.'; return; }
     applyState(await r.json());
   }catch(e){ $('sub').textContent='Network error — please refresh.'; }
