@@ -26,6 +26,8 @@
   .open{background:rgba(154,166,178,.15);color:var(--mut)}
   .link{color:var(--gold);cursor:pointer;text-decoration:underline;word-break:break-all}
   .copy{font-size:11px;color:var(--mut);cursor:pointer;margin-left:6px}
+  .del{border:none;background:transparent;color:#ff6b6b;cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;border-radius:6px}
+  .del:hover{background:rgba(255,107,107,.12)}
   .empty{color:var(--mut);padding:20px 0}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1b2026;border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s}
   .toast.show{opacity:1}
@@ -52,7 +54,7 @@
       <button onclick="logout()" style="background:#2a313a;color:var(--ink)">Sign out</button>
     </div>
     <table>
-      <thead><tr><th>Client</th><th>Spot</th><th>Listens</th><th>Status</th><th>Link</th></tr></thead>
+      <thead><tr><th>Client</th><th>Spot</th><th>Listens</th><th>Status</th><th>Link</th><th></th></tr></thead>
       <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
     </table>
   </div>
@@ -91,6 +93,7 @@ async function refresh(){
       <td>${l.plays_used} / ${l.plays_allowed}</td>
       <td>${l.paid?'<span class="pill paid">PAID'+(l.delivered_to?' · sent':'')+'</span>':'<span class="pill open">open</span>'}</td>
       <td><span class="link" onclick="copy('${l.url}')">${l.url}</span><span class="copy" onclick="copy('${l.url}')">copy</span></td>
+      <td><button class="del" title="Delete link" onclick="del('${l.token}','${(l.label||'this link').replace(/'/g,"")}')">&times;</button></td>
     </tr>`).join('');
 }
 
@@ -105,6 +108,13 @@ async function mint(){
 }
 
 function copy(t){ navigator.clipboard.writeText(t).then(()=>toast('Copied to clipboard')).catch(()=>toast(t)); }
+
+async function del(token, label){
+  if(!confirm(`Delete the link for "${label}"? This can't be undone — the link will stop working immediately.`)) return;
+  const r = await fetch(`${API}/admin/links/${encodeURIComponent(token)}`,{method:'DELETE',headers:hdr()});
+  if(!r.ok){ const j=await r.json().catch(()=>({})); toast(j.detail||'Delete failed'); return; }
+  toast('Link deleted'); refresh();
+}
 
 boot();
 </script>

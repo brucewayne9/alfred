@@ -437,6 +437,18 @@ def admin_mark_paid(token: str, x_admin_token: str = Header(None)):
     return {"ok": True, "token": token, "paid": True}
 
 
+@app.delete("/spot/api/admin/links/{token}")
+def admin_delete_link(token: str, x_admin_token: str = Header(None)):
+    _require_admin(x_admin_token)
+    with _connect() as c:
+        _link_or_404(c, token)
+        c.execute("DELETE FROM grants WHERE token=?", (token,))
+        c.execute("DELETE FROM links WHERE token=?", (token,))
+        c.commit()
+    logger.info("admin deleted link %s", token)
+    return {"ok": True, "deleted": token}
+
+
 @app.get("/spot/api/health")
 def health():
     return {"ok": True, "service": "spotgate", "spots": list(SPOTS.keys())}
