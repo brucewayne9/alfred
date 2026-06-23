@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discover — Fans First · Every ticket, verified, one search</title>
+<meta name="description" content="Compare verified tickets to sports, concerts, theatre and more. Fans First finds you the real ticket at the best price.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="fairgame.css">
+<style>
+  .dh { padding: 48px 0 18px; }
+  @media (min-width: 768px) { .dh { padding: 72px 0 22px; } }
+  .dh h1 {
+    font-family: var(--font-display); text-transform: uppercase; line-height: .92;
+    font-size: clamp(2.3rem, 8vw, 4.6rem); max-width: 16ch;
+  }
+  .dh p.lede { margin-top: 14px; color: var(--cream); max-width: 52ch; font-size: clamp(1rem,2.2vw,1.18rem); line-height:1.5; }
+  .dh p.lede b { color: var(--gold); }
+
+  .searchbar { margin-top: 26px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .searchbar input {
+    flex: 1 1 320px; min-width: 0; padding: 14px 16px; font-size: 1rem;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 12px; color: var(--cream); outline: none;
+  }
+  .searchbar input:focus { border-color: var(--gold); }
+
+  .chips { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip-btn {
+    padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: .82rem;
+    letter-spacing: .04em; text-transform: uppercase; font-weight: 700;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: var(--muted-2);
+  }
+  .chip-btn.on { background: var(--orange); border-color: var(--orange); color: #1a0f00; }
+
+  .feedflag { margin-top: 18px; font-size: .8rem; display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); color: var(--muted-2); }
+  .feedflag .dot { width: 8px; height: 8px; border-radius: 50%; background: #f5a623; }
+  .feedflag.live .dot { background: #35d07f; }
+
+  .feebar {
+    margin: 20px 0 0; padding: 14px 16px; border-radius: 14px;
+    background: linear-gradient(90deg, rgba(245,166,35,.10), rgba(245,166,35,0));
+    border: 1px solid rgba(245,166,35,.25); color: var(--cream); font-size: .92rem;
+  }
+  .feebar b { color: var(--gold); }
+
+  .results { margin-top: 8px; display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .ev {
+    display: flex; flex-direction: column; padding: 18px; border-radius: 16px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.10);
+  }
+  .ev .seg { font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--orange); }
+  .ev .nm { font-family: var(--font-display); font-size: 1.32rem; line-height: 1.05; margin: 6px 0 4px; text-transform: uppercase; }
+  .ev .meta { color: var(--muted-2); font-size: .9rem; line-height: 1.5; }
+  .ev .bot { margin-top: 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+  .ev .price-l { font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-2); }
+  .ev .price { font-family: var(--font-display); font-size: 1.5rem; color: var(--gold); line-height: 1; }
+  .ev .src { font-size: .7rem; color: var(--muted-2); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<nav class="fg-nav">
+  <div class="fg-nav-inner">
+    <a class="fg-logo" href="index.html" aria-label="Fans First home">
+      <span class="fg-logo-mark"><span>FF</span></span>
+      <span class="fg-logo-word"><b>Fans&nbsp;First</b><small>Every ticket, verified</small></span>
+    </a>
+    <div class="fg-nav-right">
+      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Rod Wave</a>
+      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Sign in</a>
+    </div>
+  </div>
+</nav>
+
+<header class="fg-section dh">
+  <div class="fg-wrap">
+    <div class="fg-eyebrow">Discover · Powered by Fans First</div>
+    <h1>Every ticket.<br><span class="fg-text-fire">Verified.</span> One search.</h1>
+    <p class="lede">Sports, concerts, theatre, the World Cup &mdash; we search every site and bring you the
+      <b>cheapest verified ticket</b>, so you never get scammed hunting it yourself.</p>
+
+    <div class="searchbar">
+      <input id="q" type="search" placeholder="Search teams, artists, events, cities…" autocomplete="off">
+      <button class="fg-btn fg-btn-primary" id="goBtn">Search</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="flag"></div>
+
+    <div class="feebar">
+      🛡️ <b>Verified-ticket guarantee.</b> Every listing here is sourced from a real, verified marketplace.
+      We charge a flat <b>$1</b> sourcing fee so you buy with confidence &mdash; no rabbit holes, no fakes.
+    </div>
+  </div>
+</header>
+
+<section class="fg-section" style="padding-top:18px">
+  <div class="fg-wrap">
+    <div class="results" id="results" aria-live="polite">
+      <div class="fg-skeleton"></div><div class="fg-skeleton"></div><div class="fg-skeleton"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="fg-footer">
+  <div class="fg-wrap fg-footer-inner">
+    <span>Fans First &copy; 2026 · A Mainstay Tech company. We find you the real ticket.</span>
+    <span class="fg-row"><a href="index.html">Rod Wave Tickets</a> · <a href="account.html">Account</a></span>
+  </div>
+</footer>
+
+<script>
+const API = '/fairgame/api';
+const $ = (s, r=document) => r.querySelector(s);
+const SEGMENTS = ['Sports','Music','Arts & Theatre','Film','Miscellaneous'];
+let activeSeg = '';
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function money(v, cur){ if (v==null) return null; return (cur==='USD'||!cur?'$':'') + Number(v).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function prettyDate(d, t){
+  if (!d) return 'Date TBA';
+  try { const dt = new Date(d + (t? 'T'+t : 'T00:00:00'));
+    return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); }
+  catch { return d; }
+}
+
+function renderChips(){
+  const wrap = $('#chips');
+  wrap.innerHTML = ['', ...SEGMENTS].map(s =>
+    '<button class="chip-btn'+(s===activeSeg?' on':'')+'" data-seg="'+esc(s)+'">'+(s||'All')+'</button>'
+  ).join('');
+  wrap.querySelectorAll('.chip-btn').forEach(b =>
+    b.onclick = () => { activeSeg = b.dataset.seg; renderChips(); run(); });
+}
+
+function evCard(e){
+  const price = money(e.min_price, e.currency);
+  const loc = [e.venue, [e.city, e.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  const out = API + '/discover/out?src=' + encodeURIComponent(e.source||'partner') +
+              '&u=' + encodeURIComponent(e.buy_url||'');
+  return (
+  '<div class="ev">' +
+    '<div class="seg">'+esc(e.segment||'Event')+'</div>' +
+    '<div class="nm">'+esc(e.name)+'</div>' +
+    '<div class="meta">'+esc(prettyDate(e.date, e.time))+'<br>'+esc(loc||'Venue TBA')+'</div>' +
+    '<div class="bot">' +
+      '<div>' +
+        '<div class="price-l">'+(price?'From':'Pricing')+'</div>' +
+        '<div class="price">'+(price||'<small>TBA</small>')+'</div>' +
+        '<div class="src">via '+esc(e.source||'partner')+' · verified</div>' +
+      '</div>' +
+      '<a class="fg-btn fg-btn-primary fg-btn-sm" href="'+out+'" target="_blank" rel="noopener nofollow">Get ticket</a>' +
+    '</div>' +
+  '</div>');
+}
+
+async function run(){
+  const grid = $('#results');
+  grid.innerHTML = '<div class="fg-skeleton"></div><div class="fg-skeleton"></div><div class="fg-skeleton"></div>';
+  const params = new URLSearchParams();
+  const q = $('#q').value.trim(); if (q) params.set('q', q);
+  if (activeSeg) params.set('seg', activeSeg);
+  try {
+    const r = await fetch(API + '/discover?' + params.toString());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    // feed flag
+    const flag = $('#flag');
+    if (data.live) {
+      flag.innerHTML = '<span class="feedflag live"><span class="dot"></span>Live feed · '+esc(data.source)+' · '+data.count+' results</span>';
+    } else {
+      flag.innerHTML = '<span class="feedflag"><span class="dot"></span>Demo sample — live feed activates once the Ticketmaster Discovery key is set'+(data.note?(' ('+esc(data.note)+')'):'')+'</span>';
+    }
+    const rows = data.results || [];
+    if (!rows.length) {
+      grid.outerHTML = '<div class="fg-empty"><div class="big">No matches</div><p>Try another team, artist, or city.</p></div>';
+      return;
+    }
+    grid.innerHTML = rows.map(evCard).join('');
+  } catch (e) {
+    grid.outerHTML = '<div class="fg-empty"><div class="big">Search hiccup</div>' +
+      '<p>Couldn\'t reach the feed just now.</p>' +
+      '<button class="fg-btn fg-btn-ghost fg-mt-3" onclick="location.reload()">Try again</button></div>';
+  }
+}
+
+$('#goBtn').onclick = run;
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+renderChips();
+run();
+</script>
+</body>
+</html>

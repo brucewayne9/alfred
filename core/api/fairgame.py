@@ -38,15 +38,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import RedirectResponse
 
 from core.fairgame import (
     access,
     admin,
+    aggregator,
     db,
     events,
     identity,
     listings,
     orders,
+    seatmap,
     sessions,
     verify,
 )
@@ -342,7 +345,34 @@ async def show_detail(show_id: str):
     card = _show_card(show)
     card["inventory"] = events.get_inventory(show_id)
     card["listings"] = listings.list_active(show_id)
+    card["seatmap"] = seatmap.status(show_id)
     return card
+
+
+# --------------------------------------------------------------------------- #
+# SEAT MAPS — venue geometry (open layer; availability overlays later)
+# --------------------------------------------------------------------------- #
+
+@app.get("/fairgame/api/shows/{show_id}/seatmap")
+async def show_seatmap(show_id: str, full: int = 0):
+    """Section-level map for first paint (default), or the complete map with
+    every seat when ?full=1. 404 when no map is ingested for this show yet."""
+    if not events.get_show(show_id):
+        raise HTTPException(status_code=404, detail="show not found")
+    data = seatmap.full(show_id) if full else seatmap.overview(show_id)
+    if data is None:
+        raise HTTPException(status_code=404,
+                            detail=seatmap.status(show_id).get("reason", "no seatmap"))
+    return data
+
+
+@app.get("/fairgame/api/shows/{show_id}/seatmap/section/{section_id}")
+async def show_seatmap_section(show_id: str, section_id: str):
+    """One section's rows + seats, lazy-loaded on zoom. 404 if not found."""
+    sec = seatmap.section(show_id, section_id)
+    if sec is None:
+        raise HTTPException(status_code=404, detail="section not found")
+    return sec
 
 
 # --------------------------------------------------------------------------- #
@@ -472,6 +502,30 @@ async def get_order(
     # Order rows carry buyer_fan_id / amount / payment refs — buyer or admin only.
     order = _require_order_actor(order_id, authorization, x_fairgame_admin)
     return {"order": order}
+
+
+# --------------------------------------------------------------------------- #
+# DISCOVER — the "everything else" aggregator tab (camouflage)
+# We don't hold this inventory: index a real feed, redirect out with our
+# affiliate sub-ID, charge a small "verified ticket" service fee. SPIKE.
+# --------------------------------------------------------------------------- #
+
+@app.get("/fairgame/api/discover")
+async def discover(q: str = "", seg: str = "", city: str = "", size: int = 24):
+    segment = seg.strip() or None
+    return aggregator.search(q.strip(), segment, city.strip() or None, size)
+
+
+@app.get("/fairgame/api/discover/out")
+async def discover_out(u: str, src: str = "partner"):
+    # Outbound redirect to the originating marketplace, carrying our affiliate
+    # sub-ID. Only http(s) targets are allowed so this can't be used as an
+    # open redirect to arbitrary schemes.
+    if not (u.startswith("https://") or u.startswith("http://")):
+        raise HTTPException(status_code=400, detail="invalid target")
+    dest = aggregator.affiliate_url(u, src)
+    logger.info("fairgame discover redirect -> %s (src=%s)", src, dest)
+    return RedirectResponse(dest, status_code=302)
 
 
 # --------------------------------------------------------------------------- #
