@@ -1,192 +1,450 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Discover — Fans First · Every ticket, verified, one search</title>
-<meta name="description" content="Compare verified tickets to sports, concerts, theatre and more. Fans First finds you the real ticket at the best price.">
+<meta name="description" content="Search every marketplace. Fans First surfaces the lowest verified price for sports, concerts, theatre and more — one dollar unlocks every direct buy link.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="fairgame.css">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  .dh { padding: 48px 0 18px; }
-  @media (min-width: 768px) { .dh { padding: 72px 0 22px; } }
-  .dh h1 {
-    font-family: var(--font-display); text-transform: uppercase; line-height: .92;
-    font-size: clamp(2.3rem, 8vw, 4.6rem); max-width: 16ch;
-  }
-  .dh p.lede { margin-top: 14px; color: var(--cream); max-width: 52ch; font-size: clamp(1rem,2.2vw,1.18rem); line-height:1.5; }
-  .dh p.lede b { color: var(--gold); }
+:root{
+  --bg:#0b0a09; --bg2:#121110;
+  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
+  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
+  --line-l:#e4dccc; --line-d:#2a2724;
+  --silver:#aaa49a; --mute:#6f6a60;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#C9A84C;
+  --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
+  --r-btn:11px; --r-card:14px; --r-tag:6px;
+  --sh-l:0 14px 38px rgba(22,18,8,.10);
+  --font-display:'Figtree',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-deep)}
 
-  .searchbar { margin-top: 26px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .searchbar input {
-    flex: 1 1 320px; min-width: 0; padding: 14px 16px; font-size: 1rem;
-    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.14);
-    border-radius: 12px; color: var(--cream); outline: none;
-  }
-  .searchbar input:focus { border-color: var(--gold); }
+/* buttons — squared per design spec */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;
+  border-radius:0;padding:13px 22px;cursor:pointer;border:1px solid transparent;
+  transition:transform .14s,background .14s,border-color .14s;white-space:nowrap;letter-spacing:.01em}
+.btn-gold{background:var(--gold-btn);color:#1a1206;border-color:var(--gold-btn)}
+.btn-gold:hover{background:var(--gold);border-color:var(--gold);transform:translateY(-1px)}
+.btn-line{background:transparent;color:var(--ink);border-color:var(--line-l)}
+.btn-line:hover{border-color:var(--ink-3);background:rgba(0,0,0,.03)}
+.btn-sm{padding:9px 16px;font-size:13px}
+.btn-lg{padding:15px 26px;font-size:15px}
+.btn svg{width:16px;height:16px;flex:0 0 16px;stroke:currentColor;fill:none;stroke-width:2}
 
-  .chips { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
-  .chip-btn {
-    padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: .82rem;
-    letter-spacing: .04em; text-transform: uppercase; font-weight: 700;
-    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: var(--muted-2);
-  }
-  .chip-btn.on { background: var(--orange); border-color: var(--orange); color: #1a0f00; }
+/* announce bar */
+.announce{background:#070605;text-align:center;padding:9px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3a4}
+.announce b{color:var(--gold);font-weight:800}
+.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
 
-  .feedflag { margin-top: 18px; font-size: .8rem; display: inline-flex; align-items: center; gap: 8px;
-    padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); color: var(--muted-2); }
-  .feedflag .dot { width: 8px; height: 8px; border-radius: 50%; background: #f5a623; }
-  .feedflag.live .dot { background: #35d07f; }
+/* nav */
+nav{position:sticky;top:0;z-index:50;background:rgba(11,10,9,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line-d);transition:background .3s,border-color .3s}
+.nav-in{display:flex;align-items:center;gap:16px;height:64px}
+.brand{font-weight:900;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:#fff}
+.brand .mark{width:25px;height:25px;border-radius:0;background:var(--gold-btn);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.nav-right{display:flex;align-items:center;gap:9px;margin-left:auto}
+.nav-link{font-weight:600;font-size:14px;color:rgba(255,255,255,.75);transition:color .2s}
+.nav-link:hover{color:#fff}
+nav.scrolled{background:rgba(245,241,234,.96);border-bottom-color:var(--line-l)}
+nav.scrolled .brand{color:var(--ink)}
+nav.scrolled .nav-link{color:var(--ink-2)}
+nav.scrolled .nav-link:hover{color:var(--ink)}
+@media(max-width:560px){.nav-link.hidem{display:none}}
 
-  .feebar {
-    margin: 20px 0 0; padding: 14px 16px; border-radius: 14px;
-    background: linear-gradient(90deg, rgba(245,166,35,.10), rgba(245,166,35,0));
-    border: 1px solid rgba(245,166,35,.25); color: var(--cream); font-size: .92rem;
-  }
-  .feebar b { color: var(--gold); }
+/* discover header — dark band */
+.dh{background:var(--bg);color:#fff;padding:52px 0 40px}
+.dh .eyebrow{color:var(--gold)}
+.dh h1{font-size:clamp(2.2rem,7vw,4.2rem);font-weight:900;letter-spacing:-.04em;line-height:.96;margin:14px 0 16px}
+.dh h1 .gold{color:var(--gold)}
+.dh .lede{font-size:clamp(.95rem,2vw,1.12rem);color:var(--silver);max-width:58ch;line-height:1.55}
+.dh .lede b{color:var(--gold)}
 
-  .results { margin-top: 8px; display: grid; gap: 14px;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
-  .ev {
-    display: flex; flex-direction: column; padding: 18px; border-radius: 16px;
-    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.10);
-  }
-  .ev .seg { font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--orange); }
-  .ev .nm { font-family: var(--font-display); font-size: 1.32rem; line-height: 1.05; margin: 6px 0 4px; text-transform: uppercase; }
-  .ev .meta { color: var(--muted-2); font-size: .9rem; line-height: 1.5; }
-  .ev .bot { margin-top: 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
-  .ev .price-l { font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-2); }
-  .ev .price { font-family: var(--font-display); font-size: 1.5rem; color: var(--gold); line-height: 1; }
-  .ev .src { font-size: .7rem; color: var(--muted-2); margin-top: 6px; }
+/* search row */
+.searchbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+.searchbar input{flex:1 1 300px;min-width:0;padding:13px 16px;font-size:1rem;font-family:inherit;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:0;
+  color:#fff;outline:none;transition:border-color .2s}
+.searchbar input::placeholder{color:rgba(255,255,255,.45)}
+.searchbar input:focus{border-color:var(--gold-btn)}
+
+/* segment chips */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip-btn{padding:7px 14px;border-radius:0;cursor:pointer;font-size:.8rem;font-family:inherit;
+  letter-spacing:.06em;text-transform:uppercase;font-weight:700;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.6);
+  transition:background .15s,border-color .15s,color .15s}
+.chip-btn:hover{background:rgba(255,255,255,.09);color:#fff}
+.chip-btn.on{background:var(--gold-btn);border-color:var(--gold-btn);color:#1a0f00}
+
+/* live/demo feed flag */
+.feedflag{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:7px 12px;
+  border:1px solid rgba(255,255,255,.14);font-size:.8rem;color:rgba(255,255,255,.55)}
+.feedflag .dot{width:8px;height:8px;border-radius:50%;background:#f5a623;flex:0 0 8px}
+.feedflag.live .dot{background:#35d07f}
+
+/* unlock banner (shown when locked) */
+.unlock-bar{background:var(--paper-alt);border-top:1px solid var(--line-l);border-bottom:1px solid var(--line-l);
+  padding:18px 0}
+.unlock-bar-in{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.unlock-copy{font-size:.95rem;color:var(--ink-2);max-width:560px}
+.unlock-copy b{color:var(--ink);font-weight:800}
+#unlockBar{display:none}
+
+/* result grid */
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;padding:28px 0 60px}
+
+/* event card */
+.ev{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);overflow:hidden;box-shadow:var(--sh-l);display:flex;flex-direction:column}
+.ev-img{aspect-ratio:16/9;background-size:cover;background-position:center;background-color:#15110c}
+.ev-img-ph{display:grid;place-items:center;background:linear-gradient(135deg,#1a1206,#2a1f0c)}
+.ev-img-ph span{font-family:var(--font-display);font-weight:800;color:var(--gold);letter-spacing:.04em;text-transform:uppercase;font-size:.85rem}
+.ev-body{padding:16px 18px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ev-name{font-weight:800;font-size:1.05rem;letter-spacing:-.01em;line-height:1.2}
+.ev-meta{font-size:13px;color:var(--ink-2)}
+.ev-foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:12px;gap:12px;flex-wrap:wrap}
+.price-l{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}
+.price{font-weight:800;font-size:1.45rem;color:var(--gold-deep);line-height:1}
+.price.blur{filter:blur(7px);user-select:none;cursor:default}
+.src-tag{font-size:12px;color:var(--ink-3);margin-top:4px}
+
+/* skeleton */
+.sk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;padding:28px 0 60px}
+.sk{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);overflow:hidden;animation:pulse 1.5s ease-in-out infinite}
+.sk-img{aspect-ratio:16/9;background:#e8e2d8}
+.sk-body{padding:16px 18px}.sk-line{height:14px;background:#e8e2d8;border-radius:4px;margin-bottom:10px}
+.sk-line.w60{width:60%}.sk-line.w80{width:80%}.sk-line.w40{width:40%}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+/* empty + error states */
+.empty-state{text-align:center;padding:64px 24px}
+.empty-state .big{font-size:2rem;font-weight:800;letter-spacing:-.02em;margin-bottom:12px}
+.empty-state p{color:var(--ink-2)}
+
+/* tag pill */
+.tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gold-deep);border:1px solid #e0c486;background:#faf3e2;border-radius:var(--r-tag);padding:4px 9px}
+
+/* toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#17140d;color:#fff;padding:12px 22px;font-size:14px;font-weight:600;
+  border-radius:0;box-shadow:0 8px 30px rgba(0,0,0,.35);opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* footer */
+footer{background:#070605;color:#fff;padding:52px 0 34px}
+.foot{display:flex;justify-content:space-between;gap:36px;flex-wrap:wrap}
+.foot .brand{color:#fff}
+.foot p{color:#8b8576;font-size:14px;max-width:300px;margin-top:12px}
+.fcols{display:flex;gap:48px;flex-wrap:wrap}
+.fcol h5{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b8576;margin-bottom:12px}
+.fcol a{display:block;color:var(--silver);font-size:14px;margin-bottom:10px}
+.fcol a:hover{color:#fff}
+.final{text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #1c1a18;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+
+@media(max-width:700px){
+  .dh{padding:36px 0 28px}
+  .ev-grid,.sk-grid{grid-template-columns:1fr}
+  .unlock-bar-in{flex-direction:column;align-items:flex-start}
+}
+@media(max-width:480px){
+  .wrap{padding:0 18px}
+  .searchbar{flex-direction:column}.searchbar .btn{width:100%}
+}
 </style>
 </head>
 <body>
 
-<nav class="fg-nav">
-  <div class="fg-nav-inner">
-    <a class="fg-logo" href="index.html" aria-label="Fans First home">
-      <span class="fg-logo-mark"><span>FF</span></span>
-      <span class="fg-logo-word"><b>Fans&nbsp;First</b><small>Every ticket, verified</small></span>
-    </a>
-    <div class="fg-nav-right">
-      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Rod Wave</a>
-      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Sign in</a>
+<div class="announce">FANS&nbsp;FIRST<span class="x">x</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
+
+<nav id="nav">
+  <div class="wrap nav-in">
+    <div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div>
+    <div class="nav-right">
+      <a class="nav-link hidem" href="index.html">Rod Wave</a>
+      <a class="nav-link hidem" href="account.html">Sign in</a>
+      <a class="btn btn-gold btn-sm" href="index.html">Get tickets</a>
     </div>
   </div>
 </nav>
 
-<header class="fg-section dh">
-  <div class="fg-wrap">
-    <div class="fg-eyebrow">Discover · Powered by Fans First</div>
-    <h1>Every ticket.<br><span class="fg-text-fire">Verified.</span> One search.</h1>
-    <p class="lede">Sports, concerts, theatre, the World Cup &mdash; we search every site and bring you the
-      <b>cheapest verified ticket</b>, so you never get scammed hunting it yourself.</p>
+<!-- DISCOVER HEADER -->
+<header class="dh">
+  <div class="wrap">
+    <div class="eyebrow">Discover — Fans First</div>
+    <h1>Every ticket.<br><span class="gold">Verified.</span> One search.</h1>
+    <p class="lede">Sports, concerts, theatre — we scan every marketplace and surface the
+      <b>lowest verified price</b> we can find. Unlock every direct buy-link for one dollar.</p>
 
     <div class="searchbar">
-      <input id="q" type="search" placeholder="Search teams, artists, events, cities…" autocomplete="off">
-      <button class="fg-btn fg-btn-primary" id="goBtn">Search</button>
+      <input id="q" type="search" placeholder="Search artists, teams, events, cities…" autocomplete="off">
+      <button class="btn btn-gold" id="goBtn">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        Search
+      </button>
     </div>
     <div class="chips" id="chips"></div>
     <div id="flag"></div>
-
-    <div class="feebar">
-      🛡️ <b>Verified-ticket guarantee.</b> Every listing here is sourced from a real, verified marketplace.
-      We charge a flat <b>$1</b> sourcing fee so you buy with confidence &mdash; no rabbit holes, no fakes.
-    </div>
   </div>
 </header>
 
-<section class="fg-section" style="padding-top:18px">
-  <div class="fg-wrap">
-    <div class="results" id="results" aria-live="polite">
-      <div class="fg-skeleton"></div><div class="fg-skeleton"></div><div class="fg-skeleton"></div>
+<!-- UNLOCK BANNER -->
+<div class="unlock-bar" id="unlockBar">
+  <div class="wrap unlock-bar-in">
+    <p class="unlock-copy">
+      <b>One dollar. One time.</b> Unlocks every verified price and direct buy-link in your search.
+      No subscription, no hidden fees.
+    </p>
+    <button class="btn btn-gold" onclick="openUnlock()">Unlock all for $1</button>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<section style="background:var(--paper)">
+  <div class="wrap">
+    <div id="resultsWrap">
+      <!-- skeleton on load -->
+      <div class="sk-grid" id="skeleton">
+        <div class="sk"><div class="sk-img"></div><div class="sk-body"><div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div>
+        <div class="sk"><div class="sk-img"></div><div class="sk-body"><div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div>
+        <div class="sk"><div class="sk-img"></div><div class="sk-body"><div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div>
+        <div class="sk"><div class="sk-img"></div><div class="sk-body"><div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div>
+        <div class="sk"><div class="sk-img"></div><div class="sk-body"><div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div>
+        <div class="sk"><div class="sk-img"></div><div class="sk-body"><div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div>
+      </div>
+      <div class="ev-grid" id="results" aria-live="polite" style="display:none"></div>
     </div>
   </div>
 </section>
 
-<footer class="fg-footer">
-  <div class="fg-wrap fg-footer-inner">
-    <span>Fans First &copy; 2026 · A Mainstay Tech company. We find you the real ticket.</span>
-    <span class="fg-row"><a href="index.html">Rod Wave Tickets</a> · <a href="account.html">Account</a></span>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div>
+        <p>The fan-first ticket platform. Real seats, verified prices, no scalper games.</p>
+      </div>
+      <div class="fcols">
+        <div class="fcol">
+          <h5>Buy</h5>
+          <a href="index.html">Rod Wave seats</a>
+          <a href="discover.html">Discover anything</a>
+        </div>
+        <div class="fcol">
+          <h5>Account</h5>
+          <a href="account.html">Sign in</a>
+          <a href="account.html">My tickets</a>
+        </div>
+      </div>
+    </div>
+    <div class="final">Fans First - A Mainstay Tech company - Every listing sourced from a verified marketplace</div>
   </div>
 </footer>
 
+<div class="toast" id="toast"></div>
+
 <script>
 const API = '/fairgame/api';
-const $ = (s, r=document) => r.querySelector(s);
-const SEGMENTS = ['Sports','Music','Arts & Theatre','Film','Miscellaneous'];
+const $ = (s, r = document) => r.querySelector(s);
+const SEGMENTS = ['Sports', 'Music', 'Arts & Theatre', 'Film', 'Miscellaneous'];
 let activeSeg = '';
+let lastResults = [];
 
-function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function money(v, cur){ if (v==null) return null; return (cur==='USD'||!cur?'$':'') + Number(v).toLocaleString('en-US',{maximumFractionDigits:0}); }
-function prettyDate(d, t){
-  if (!d) return 'Date TBA';
-  try { const dt = new Date(d + (t? 'T'+t : 'T00:00:00'));
-    return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); }
-  catch { return d; }
+// ----- unlock state (persisted per session) -----
+let UNLOCKED = localStorage.getItem('ff_discover_unlocked') === '1';
+
+// Check URL param (returns from Stripe success)
+if (new URLSearchParams(location.search).get('unlocked') === '1') {
+  localStorage.setItem('ff_discover_unlocked', '1');
+  UNLOCKED = true;
 }
 
-function renderChips(){
+// ----- helpers -----
+function esc(s) {
+  return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function money(v, cur) {
+  if (v == null) return null;
+  const prefix = (cur === 'USD' || !cur) ? '$' : (cur + ' ');
+  return prefix + Number(v).toLocaleString('en-US', {maximumFractionDigits: 0});
+}
+function prettyDate(d, t) {
+  if (!d) return 'Date TBA';
+  try {
+    const dt = new Date(d + (t ? 'T' + t : 'T00:00:00'));
+    return dt.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+  } catch (_) { return d; }
+}
+function catFallback(seg) {
+  const s = (seg || '').toLowerCase();
+  const map = {
+    music: 'cat-concert',
+    sports: 'cat-sports',
+    arts: 'cat-theater',
+    'arts & theatre': 'cat-theater',
+    theatre: 'cat-theater',
+    comedy: 'cat-comedy'
+  };
+  return map[s] ? ('img/' + map[s] + '.jpg') : '';
+}
+
+// ----- toast -----
+function toast(msg, ms = 3200) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ----- event card -----
+function eventCard(e, unlocked) {
+  const img = e.image || catFallback(e.segment);
+  const header = img
+    ? '<div class="ev-img" style="background-image:url(' + JSON.stringify(img) + ')"></div>'
+    : '<div class="ev-img ev-img-ph"><span>' + esc(e.segment || 'Live Event') + '</span></div>';
+
+  const price = money(e.min_price, e.currency);
+  const loc = [e.venue, [e.city, e.state].filter(Boolean).join(', ')].filter(Boolean).join(' - ');
+  const out = API + '/discover/out?src=' + encodeURIComponent(e.source || 'partner') +
+              '&u=' + encodeURIComponent(e.buy_url || '');
+
+  const priceHtml = unlocked
+    ? '<div class="price">' + (price || '<small>TBA</small>') + '</div>'
+    : '<div class="price blur">' + (price || '$00') + '</div>';
+
+  const cta = unlocked
+    ? '<a class="btn btn-gold btn-sm" href="' + out + '" target="_blank" rel="noopener noreferrer">Get verified ticket</a>'
+    : '<button class="btn btn-line btn-sm" onclick="openUnlock()">Unlock for $1</button>';
+
+  return '<article class="ev">' + header +
+    '<div class="ev-body">' +
+      '<div class="ev-name">' + esc(e.name) + '</div>' +
+      '<div class="ev-meta">' + esc(prettyDate(e.date, e.time)) + (loc ? ' &middot; ' + esc(loc) : '') + '</div>' +
+      '<div class="ev-foot">' +
+        '<div>' +
+          '<div class="price-l">Lowest verified</div>' +
+          priceHtml +
+          '<div class="src-tag">via ' + esc(e.source || 'partner') + ' - verified</div>' +
+        '</div>' +
+        cta +
+      '</div>' +
+    '</div>' +
+  '</article>';
+}
+
+// ----- render -----
+function renderResults(rows, unlocked) {
+  const grid = $('#results');
+  $('#skeleton').style.display = 'none';
+  grid.style.display = 'grid';
+
+  if (!rows.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="big">No matches</div><p>Try another artist, team, or city.</p></div>';
+    $('#unlockBar').style.display = 'none';
+    return;
+  }
+
+  grid.innerHTML = rows.map(e => eventCard(e, unlocked)).join('');
+
+  // Show unlock banner only when locked and there are results with prices
+  const hasPrices = rows.some(e => e.min_price != null);
+  $('#unlockBar').style.display = (!unlocked && hasPrices) ? 'block' : 'none';
+}
+
+// ----- $1 unlock -----
+async function openUnlock() {
+  try {
+    const r = await fetch(API + '/discover/unlock', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: '{}'
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (d.unlocked) {
+      localStorage.setItem('ff_discover_unlocked', '1');
+      UNLOCKED = true;
+      renderResults(lastResults, true);
+      toast('Unlocked - every verified link is yours.');
+    } else if (d.checkout_url) {
+      location.href = d.checkout_url;
+    }
+  } catch (_) {
+    toast('Could not start the unlock. Try again.');
+  }
+}
+
+// ----- chips -----
+function renderChips() {
   const wrap = $('#chips');
   wrap.innerHTML = ['', ...SEGMENTS].map(s =>
-    '<button class="chip-btn'+(s===activeSeg?' on':'')+'" data-seg="'+esc(s)+'">'+(s||'All')+'</button>'
+    '<button class="chip-btn' + (s === activeSeg ? ' on' : '') + '" data-seg="' + esc(s) + '">' +
+    (s || 'All') + '</button>'
   ).join('');
   wrap.querySelectorAll('.chip-btn').forEach(b =>
     b.onclick = () => { activeSeg = b.dataset.seg; renderChips(); run(); });
 }
 
-function evCard(e){
-  const price = money(e.min_price, e.currency);
-  const loc = [e.venue, [e.city, e.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
-  const out = API + '/discover/out?src=' + encodeURIComponent(e.source||'partner') +
-              '&u=' + encodeURIComponent(e.buy_url||'');
-  return (
-  '<div class="ev">' +
-    '<div class="seg">'+esc(e.segment||'Event')+'</div>' +
-    '<div class="nm">'+esc(e.name)+'</div>' +
-    '<div class="meta">'+esc(prettyDate(e.date, e.time))+'<br>'+esc(loc||'Venue TBA')+'</div>' +
-    '<div class="bot">' +
-      '<div>' +
-        '<div class="price-l">'+(price?'From':'Pricing')+'</div>' +
-        '<div class="price">'+(price||'<small>TBA</small>')+'</div>' +
-        '<div class="src">via '+esc(e.source||'partner')+' · verified</div>' +
-      '</div>' +
-      '<a class="fg-btn fg-btn-primary fg-btn-sm" href="'+out+'" target="_blank" rel="noopener nofollow">Get ticket</a>' +
-    '</div>' +
-  '</div>');
-}
-
-async function run(){
+// ----- search -----
+async function run() {
+  const skeleton = $('#skeleton');
   const grid = $('#results');
-  grid.innerHTML = '<div class="fg-skeleton"></div><div class="fg-skeleton"></div><div class="fg-skeleton"></div>';
+  skeleton.style.display = 'grid';
+  grid.style.display = 'none';
+  $('#unlockBar').style.display = 'none';
+  lastResults = [];
+
   const params = new URLSearchParams();
-  const q = $('#q').value.trim(); if (q) params.set('q', q);
+  const q = $('#q').value.trim();
+  if (q) params.set('q', q);
   if (activeSeg) params.set('seg', activeSeg);
+
   try {
     const r = await fetch(API + '/discover?' + params.toString());
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
+
     // feed flag
-    const flag = $('#flag');
+    const flagEl = $('#flag');
     if (data.live) {
-      flag.innerHTML = '<span class="feedflag live"><span class="dot"></span>Live feed · '+esc(data.source)+' · '+data.count+' results</span>';
+      flagEl.innerHTML = '<div class="feedflag live"><span class="dot"></span>Live feed - ' +
+        esc(data.source) + ' - ' + data.count + ' results</div>';
     } else {
-      flag.innerHTML = '<span class="feedflag"><span class="dot"></span>Demo sample — live feed activates once the Ticketmaster Discovery key is set'+(data.note?(' ('+esc(data.note)+')'):'')+'</span>';
+      flagEl.innerHTML = '<div class="feedflag"><span class="dot"></span>Demo sample - live feed activates once the Ticketmaster Discovery key is set' +
+        (data.note ? ' (' + esc(data.note) + ')' : '') + '</div>';
     }
-    const rows = data.results || [];
-    if (!rows.length) {
-      grid.outerHTML = '<div class="fg-empty"><div class="big">No matches</div><p>Try another team, artist, or city.</p></div>';
-      return;
-    }
-    grid.innerHTML = rows.map(evCard).join('');
-  } catch (e) {
-    grid.outerHTML = '<div class="fg-empty"><div class="big">Search hiccup</div>' +
-      '<p>Couldn\'t reach the feed just now.</p>' +
-      '<button class="fg-btn fg-btn-ghost fg-mt-3" onclick="location.reload()">Try again</button></div>';
+
+    lastResults = data.results || [];
+    UNLOCKED = localStorage.getItem('ff_discover_unlocked') === '1';
+    renderResults(lastResults, UNLOCKED);
+  } catch (err) {
+    $('#skeleton').style.display = 'none';
+    grid.style.display = 'grid';
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">' +
+      '<div class="big">Search hiccup</div>' +
+      '<p>Could not reach the feed just now.</p>' +
+      '<button class="btn btn-line" style="margin-top:16px" onclick="location.reload()">Try again</button>' +
+      '</div>';
   }
 }
 
+// ----- nav scroll tint -----
+const nav = document.getElementById('nav');
+const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
+window.addEventListener('scroll', onScroll, {passive: true});
+onScroll();
+
+// ----- init -----
 $('#goBtn').onclick = run;
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 renderChips();
