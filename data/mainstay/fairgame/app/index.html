@@ -69,8 +69,10 @@ nav.scrolled .nav-link{color:var(--ink-2)}nav.scrolled .nav-link:hover{color:var
 .hero-copy{position:relative;z-index:3;max-width:560px;padding:44px 0}
 .cobrand{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);border:1px solid var(--line-d);border-radius:99px;padding:7px 14px}
 .cobrand .x{opacity:.6;font-weight:600}
-.hero h1{font-size:clamp(38px,6.3vw,74px);font-weight:900;letter-spacing:-.04em;line-height:.98;margin:20px 0;color:#fff}
+.hero-kicker{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-top:20px}
+.hero h1{font-size:clamp(40px,6.7vw,80px);font-weight:900;letter-spacing:-.045em;line-height:.92;margin:12px 0 20px;color:#fff}
 .hero h1 .gold{color:var(--gold)}
+.hero h1 .ital{font-style:italic;letter-spacing:-.03em}
 .hero-sub{font-size:clamp(16px,2vw,19px);color:var(--silver);max-width:500px;margin-bottom:28px}
 .hero-cta{display:flex;gap:11px;flex-wrap:wrap}
 .hero-trust{display:flex;gap:20px;flex-wrap:wrap;margin-top:28px}
@@ -184,8 +186,9 @@ footer{background:#070605;color:#fff;padding:60px 0 38px}
 @media(max-width:860px){
   .hero-in{grid-template-columns:1fr;min-height:auto}
   .hero-copy{order:2;padding:30px 0 44px}
-  .hero-photo{order:1;min-height:0;height:50vh;max-height:440px;margin:0 -24px}
-  .hero-fade{background:linear-gradient(0deg,var(--bg) 3%,rgba(11,10,9,0) 55%)}
+  .hero-photo{order:1;min-height:0;height:58vh;max-height:520px;margin:0 -24px}
+  .hero-photo img{object-position:64% 26%}
+  .hero-fade{background:linear-gradient(0deg,var(--bg) 4%,rgba(11,10,9,0) 58%)}
   .hero-tag{bottom:18px;right:16px}
   .map-grid,.disc-grid{grid-template-columns:1fr;gap:32px}
   .pgrid{grid-template-columns:1fr 1fr}
@@ -226,8 +229,9 @@ footer{background:#070605;color:#fff;padding:60px 0 38px}
 <header class="hero"><div class="wrap hero-in">
   <div class="hero-copy">
     <div class="cobrand up d1">Fans First <span class="x">×</span> Rod Wave <span class="x">·</span> Official Partner</div>
-    <h1 class="up d2">The best seats<br>Rod ever held.<br><span class="gold">Only here.</span></h1>
-    <p class="hero-sub up d3">Rod pulled premium seats off Ticketmaster and dropped them for the fans, first. Real seats, fair prices, no scalpers — every night of the Don't Look Down Tour.</p>
+    <div class="hero-kicker up d2">Proud to announce</div>
+      <h1 class="up d2">Our first headliner is<br><span class="gold ital">Rod&nbsp;Wave.</span></h1>
+    <p class="hero-sub up d3">We're a brand-new, fan-first ticket platform — and we landed a big one. Rod pulled premium seats off Ticketmaster and dropped them here for the fans: real seats, fair prices, no scalpers, every night of the Don't Look Down Tour.</p>
     <div class="hero-cta up d3">
       <a class="btn btn-gold btn-lg" href="#tour">Find your seat
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
