@@ -291,16 +291,6 @@ footer{background:#070605;color:#fff;padding:52px 0 32px}
         </div>
       </section>
 
-      <!-- ===== RESALE EXCHANGE ===== -->
-      <section class="card">
-        <div class="card-head">
-          <div class="card-eyebrow">Rod Official</div>
-          <h2>Fan resale</h2>
-          <p class="card-sub">Verified fans reselling seats they can't use &mdash; price-capped at face + $15. Funds are held until the transfer is confirmed.</p>
-        </div>
-        <div id="listings"><div style="height:64px;margin:0 20px 20px;background:var(--line-l);border-radius:8px;animation:pulse 1.4s ease infinite"></div></div>
-      </section>
-
     </div>
   </div>
 </main>
@@ -418,7 +408,7 @@ async function loadShow() {
     if (r.status === 404) { showError('That show isn\'t on the bill.'); return; }
     if (!r.ok) throw new Error('HTTP '+r.status);
     SHOW = await r.json();
-    renderHead(); renderInventory(); renderListings(); renderSeatMap();
+    renderHead(); renderInventory(); renderSeatMap();
   } catch (e) {
     showError('We couldn\'t load this show right now.');
   }
@@ -429,7 +419,6 @@ function showError(msg) {
     '<p>'+esc(msg)+'</p>'+
     '<a class="btn btn-line" href="index.html" style="margin-top:14px">Back to shows</a></div>';
   $('#buybar').style.display='none';
-  $('#listings').innerHTML = '<div class="empty"><p>—</p></div>';
 }
 function renderHead() {
   const inv = (SHOW.inventory||[]);
@@ -450,7 +439,7 @@ function renderInventory() {
   const remaining = SHOW.remaining;
   if (!inv.length || remaining <= 0) {
     $('#inventory').innerHTML = '<div class="empty"><div class="big">Sold out</div>'+
-      '<p>Primary is gone &mdash; check fan resale below for capped, fair-price seats.</p></div>';
+      '<p>These seats are sold out for now.</p></div>';
     $('#buybar').style.display='none';
     return;
   }

@@ -132,12 +132,8 @@ main.mt-main{padding:36px 0 80px}.mt-inner{max-width:760px}
     <div class="sec-h">My tickets</div>
     <div id="ordersList"><span class="mt-empty">Loading&hellip;</span></div>
 
-    <div class="sec-h">Seats I'm selling</div>
-    <div id="listingsList"><span class="mt-empty">Loading&hellip;</span></div>
-
     <div class="row-flex mt-3">
       <a class="btn btn-line btn-sm" href="index.html">Browse shows</a>
-      <a class="btn btn-line btn-sm" href="sell.html">Resell a seat</a>
     </div>
   </div>
 
@@ -250,18 +246,11 @@ async function load(){
   if(!s||!s.token){ $('#signedOut').classList.remove('hidden'); return; }
   $('#signedIn').classList.remove('hidden');
   try{
-    const [oRes,lRes]=await Promise.all([
-      fetch(API+'/my/orders',{headers:authHeaders()}),
-      fetch(API+'/my/listings',{headers:authHeaders()}),
-    ]);
-    const orders   = oRes.ok ? (await oRes.json()).orders   : [];
-    const listings = lRes.ok ? (await lRes.json()).listings : [];
+    const oRes = await fetch(API+'/my/orders',{headers:authHeaders()});
+    const orders = oRes.ok ? (await oRes.json()).orders : [];
     $('#ordersList').innerHTML = orders.length
       ? orders.map(ticketCard).join('')
-      : '<span class="mt-empty">No tickets yet. Grab a seat from a Rod Wave show or the resale exchange — it lands here in your wallet with live delivery status.</span>';
-    $('#listingsList').innerHTML = listings.length
-      ? listings.map(listingCard).join('')
-      : '<span class="mt-empty">You haven’t listed a seat. Head to Resell to put one on the exchange — capped at face + $15.</span>';
+      : '<span class="mt-empty">No tickets yet. Grab a seat from a Rod Wave show and it lands here in your wallet with live delivery status.</span>';
   }catch(e){
     toast('Could not load your tickets','err');
     $('#ordersList').innerHTML='<span class="mt-empty">Couldn’t reach your wallet just now. Refresh to try again.</span>';

@@ -372,7 +372,7 @@ async function loadStats(){
     kpi('Won back from scalpers',money(fees),'Gross fees Rod captured on settled resales','hero')+
     kpi('Verified fans',num(d.fans_verified),num(d.fans_total)+' total signups')+
     kpi('Priority fans',num(d.fans_priority),'DLD waitlist — front of the line')+
-    kpi('Active listings',num(d.listings_active),'Capped fan-to-fan resale, live now')+
+    kpi('Active listings',num(d.listings_active),'Fan resale is paused — not live to fans')+
     kpi('Seats remaining',num(d.inventory_remaining),'Across '+num(d.shows)+' tour dates')+
     kpiRaw('Orders by state',num(total)+' total',stateBars(d.orders_by_state));
   stamp('live · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),true);
