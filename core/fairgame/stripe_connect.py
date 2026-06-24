@@ -53,6 +53,36 @@ def _sim_mode() -> bool:
     return not os.environ.get("FAIRGAME_STRIPE_KEY")
 
 
+# Public alias used by the API layer — keeps the underscore internals clean.
+is_sim = _sim_mode
+
+
+def create_unlock_checkout(amount_cents: int) -> str:
+    """Create a Stripe Checkout Session for the $1 Discover unlock (live mode only).
+
+    Returns the hosted checkout URL. Only called when ``is_sim()`` is False.
+    Raises ``StripeError`` if ``FAIRGAME_STRIPE_KEY`` is unset.
+    """
+    stripe = _stripe()
+    base = os.environ.get(
+        "FAIRGAME_PUBLIC_BASE", "https://aialfred.groundrushcloud.com"
+    ).rstrip("/")
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": amount_cents,
+                "product_data": {"name": "Fans First — Verified Ticket Access"},
+            },
+            "quantity": 1,
+        }],
+        success_url=f"{base}/fairgame/app/discover.html?unlocked=1",
+        cancel_url=f"{base}/fairgame/app/discover.html",
+    )
+    return session["url"]
+
+
 def _stripe():
     """Return a configured live Stripe client, or raise if no key is set."""
     key = os.environ.get("FAIRGAME_STRIPE_KEY")

@@ -53,6 +53,7 @@ from core.fairgame import (
     orders,
     seatmap,
     sessions,
+    stripe_connect,
     verify,
 )
 
@@ -560,6 +561,18 @@ async def discover_out(u: str, src: str = "partner"):
     dest = aggregator.affiliate_url(u, src)
     logger.info("fairgame discover redirect -> %s (src=%s)", src, dest)
     return RedirectResponse(dest, status_code=302)
+
+
+@app.post("/fairgame/api/discover/unlock")
+async def discover_unlock(req: Request):
+    """The $1 Discover unlock. Sim mode (no Stripe key) grants instantly so the
+    product is demoable; live mode returns a Stripe checkout URL to complete."""
+    amount = aggregator.SERVICE_FEE_CENTS  # 100 = $1
+    if stripe_connect.is_sim():
+        return {"unlocked": True, "sim": True, "amount_cents": amount}
+    # Live: create a $1 checkout. Buyer completes payment, returns unlocked.
+    url = stripe_connect.create_unlock_checkout(amount)
+    return {"unlocked": False, "checkout_url": url, "amount_cents": amount}
 
 
 # --------------------------------------------------------------------------- #
