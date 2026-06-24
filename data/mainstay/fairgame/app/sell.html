@@ -3,220 +3,289 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fans First — Resell a ticket</title>
-<meta name="description" content="Can't make the show? Resell your Rod Wave ticket fairly through our verified booth. You keep $10. No gouging. Cancel anytime.">
+<title>Fans First — Resell a seat</title>
+<meta name="description" content="Can't make the show? Pass your Rod Wave seat on, fairly. Capped resale through our verified booth — you keep face + $10, no gouging, cancel anytime.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="fairgame.css">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  .sell-hero { padding: 40px 0 8px; }
-  .sell-hero h1 { font-family: var(--font-display); font-size: clamp(2.4rem, 8vw, 4.4rem); line-height: .9; text-transform: uppercase; }
-  .sell-hero .lede { color: var(--muted); margin-top: 14px; max-width: 50ch; font-size: 1.02rem; }
-  .sell-hero .lede b { color: var(--gold); }
+:root{
+  --bg:#0b0a09; --bg2:#121110;
+  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
+  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
+  --line-l:#e4dccc; --line-d:#2a2724;
+  --silver:#aaa49a; --mute:#6f6a60;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
+  --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
+  --r-btn:11px; --r-card:14px; --r-tag:6px;
+  --sh-l:0 14px 38px rgba(22,18,8,.10); --sh-d:0 22px 60px rgba(0,0,0,.6);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
 
-  .sell-wrap { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
-  @media (min-width: 900px) { .sell-wrap { grid-template-columns: 1.05fr .95fr; } }
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
+.btn svg{width:17px;height:17px;flex:0 0 17px;stroke-width:2;fill:none}
+.btn-gold{background:var(--gold-btn);color:#1a1206}
+.btn-gold:hover{background:var(--gold);transform:translateY(-2px)}
+.btn-line{background:transparent;color:var(--ink);border-color:var(--line-l)}
+.btn-line:hover{border-color:var(--ink-3);background:rgba(0,0,0,.03)}
+.btn-sm{padding:10px 16px;font-size:13px}
+.btn-block{width:100%}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
-  .sell-card { padding: 26px; }
-  @media (min-width: 600px) { .sell-card { padding: 32px; } }
-  .sell-card h2 { font-family: var(--font-display); font-size: 1.7rem; text-transform: uppercase; margin-bottom: 4px; }
-  .sell-card .sub { color: var(--muted); font-size: .9rem; margin-bottom: 22px; }
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-deep)}
+.announce{background:#070605;text-align:center;padding:9px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3a4}
+.announce b{color:var(--gold);font-weight:800}.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
 
-  /* price input with $ prefix */
-  .price-wrap { position: relative; }
-  .price-wrap .cur { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted-2); font-size: 1.1rem; font-weight: 700; pointer-events: none; }
-  .price-wrap .fg-input { padding-left: 30px; font-family: var(--font-display); font-size: 1.6rem; letter-spacing: .01em; }
-  select.fg-input { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23b6a896' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; padding-right: 38px; cursor: pointer; }
+footer{background:#070605;color:#fff;padding:60px 0 38px}
+.foot{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
+.foot .brand{color:#fff;font-weight:900;font-size:19px;display:flex;align-items:center;gap:8px}
+.foot .brand .mark{width:25px;height:25px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.foot p{color:#8b8576;font-size:14px;max-width:300px;margin-top:14px}
+.fcols{display:flex;gap:50px;flex-wrap:wrap}
+.fcol h5{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b8576;margin-bottom:14px}
+.fcol a{display:block;color:var(--silver);font-size:14px;margin-bottom:10px}.fcol a:hover{color:#fff}
+.final{text-align:center;margin-top:46px;padding-top:22px;border-top:1px solid #1c1a18;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 
-  /* live split calculator */
-  .calc { margin-top: 8px; border: 1px solid var(--line-2); border-radius: var(--r-md); overflow: hidden; background: var(--black-2); transition: border-color .2s, box-shadow .2s; }
-  .calc.live { border-color: rgba(240,180,41,.4); box-shadow: 0 0 0 3px rgba(240,180,41,.07); }
-  .calc-head { padding: 13px 18px; background: linear-gradient(90deg, rgba(255,90,31,.1), rgba(240,180,41,.05)); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
-  .calc-head .t { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
-  .calc-head .cap { font-size: .72rem; color: var(--muted-2); }
-  .calc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
-  .calc-row:last-child { border-bottom: 0; }
-  .calc-row .who { display: flex; align-items: center; gap: 11px; }
-  .calc-row .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 1rem; background: var(--grad-fire-soft); border: 1px solid var(--line-2); flex: 0 0 30px; }
-  .calc-row .who .lab { font-weight: 700; font-size: .92rem; }
-  .calc-row .who .det { font-size: .74rem; color: var(--muted-2); margin-top: 1px; }
-  .calc-row .amt { font-family: var(--font-display); font-size: 1.45rem; line-height: 1; font-variant-numeric: tabular-nums; }
-  .calc-row.you { background: linear-gradient(90deg, rgba(61,220,132,.08), transparent); }
-  .calc-row.you .amt { color: var(--green); }
-  .calc-row.you .ic { background: linear-gradient(135deg, rgba(61,220,132,.18), rgba(61,220,132,.04)); border-color: rgba(61,220,132,.4); }
-  .calc-row.buyer .amt { color: var(--cream); }
-  .calc-row.rod .amt { color: var(--gold); }
-  .calc-row.rod .ic { background: linear-gradient(135deg, rgba(240,180,41,.16), rgba(240,180,41,.04)); }
-  .calc .plus { color: var(--muted); font-size: .8rem; font-weight: 700; }
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:11px 20px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--sh-l);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:#f0c6c6;color:#8b1f1f}.toast.ok{border-color:#b8e8c6;color:#0e5e2a}
 
-  .fairline { display: flex; gap: 10px; align-items: center; margin-top: 18px; padding: 14px 16px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--panel); font-size: .88rem; }
-  .fairline .ic { font-size: 1.2rem; }
-  .fairline b { color: var(--gold); }
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:99px;padding:5px 11px;border:1px solid}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge-green{color:#0e8c43;border-color:rgba(19,189,87,.32);background:rgba(19,189,87,.09)}
+.badge-gold{color:var(--gold-deep);border-color:rgba(156,111,35,.3);background:#faf3e2}
 
-  .gate { text-align: center; padding: 30px 0 8px; }
-  .gate h2 { font-family: var(--font-display); font-size: 1.9rem; text-transform: uppercase; }
+.hidden{display:none!important}.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.text-muted{color:var(--ink-3)}.text-center{text-align:center}
 
-  /* sidebar: why resell here */
-  .side-card { padding: 24px; }
-  .side-card h3 { font-family: var(--font-display); font-size: 1.3rem; text-transform: uppercase; margin-bottom: 16px; }
-  .reasons { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
-  .reasons li { display: flex; gap: 11px; align-items: flex-start; font-size: .9rem; }
-  .reasons li .pk { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--grad-fire-soft); border: 1px solid var(--line-2); font-size: 1rem; }
-  .reasons li small { display: block; color: var(--muted); margin-top: 1px; }
-  .compare { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
-  .compare .cmp-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: .86rem; }
-  .compare .cmp-row .lbl { color: var(--muted); }
-  .compare .cmp-row .seatgeek { color: var(--red); font-weight: 700; }
-  .compare .cmp-row .fg { color: var(--green); font-weight: 700; }
+/* hero (dark cinematic) */
+.sell-hero{background:var(--bg);color:#fff;padding:56px 0 48px;margin-top:-64px;padding-top:calc(64px + 40px)}
+.sell-hero .eyebrow{color:var(--gold)}
+.sell-hero h1{font-size:clamp(2.2rem,7vw,3.8rem);font-weight:900;letter-spacing:-.03em;line-height:.95;margin:14px 0 0}
+.sell-hero h1 .gold{color:var(--gold)}
+.sell-hero .lede{color:var(--silver);margin-top:14px;max-width:52ch;font-size:1rem}
+.sell-hero .lede b{color:var(--gold)}
 
-  /* success */
-  .done-burst { text-align: center; }
-  .done-burst .check { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 14px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(61,220,132,.18), rgba(61,220,132,.04)); border: 2px solid rgba(61,220,132,.5); font-size: 2.2rem; color: var(--green); }
-  .done-burst h2 { font-family: var(--font-display); font-size: 1.9rem; text-transform: uppercase; }
+main.sell-main{padding:40px 0 80px}
+.sell-wrap{display:grid;gap:22px;grid-template-columns:1fr;align-items:start}
+@media(min-width:880px){.sell-wrap{grid-template-columns:1.1fr .9fr}}
+
+/* card */
+.card{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:26px}
+@media(min-width:600px){.card{padding:32px}}
+.card h2{font-size:1.55rem;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+.card .sub{color:var(--ink-2);font-size:.9rem;margin-bottom:20px}
+.card .sub b{color:var(--ink);font-weight:700}
+
+/* form fields */
+.field{margin-bottom:14px}
+.lbl{display:block;font-size:.74rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.inp{width:100%;padding:12px 15px;border:1px solid var(--line-l);border-radius:var(--r-btn);font-family:inherit;font-size:14px;color:var(--ink);background:var(--paper);outline:none;transition:border-color .15s,box-shadow .15s}
+.inp::placeholder{color:var(--ink-3)}
+.inp:focus{border-color:var(--gold-deep);box-shadow:0 0 0 3px rgba(156,111,35,.12)}
+select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239c6f23' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 15px center;padding-right:38px;cursor:pointer}
+
+/* price input with $ prefix */
+.price-wrap{position:relative}
+.price-wrap .cur{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--ink-3);font-size:1.3rem;font-weight:800;pointer-events:none}
+.price-wrap .inp{padding-left:32px;font-size:1.5rem;font-weight:800;letter-spacing:-.01em}
+
+/* live split calculator */
+.calc{margin-top:6px;border:1px solid var(--line-l);border-radius:var(--r-card);overflow:hidden;background:var(--paper);transition:border-color .2s,box-shadow .2s}
+.calc.live{border-color:rgba(156,111,35,.4);box-shadow:0 0 0 3px rgba(156,111,35,.08)}
+.calc-head{padding:13px 18px;background:#faf3e2;border-bottom:1px solid var(--line-l);display:flex;align-items:center;justify-content:space-between}
+.calc-head .t{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep);font-weight:700}
+.calc-head .cap{font-size:.72rem;color:var(--ink-3);font-weight:600}
+.calc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line-l)}
+.calc-row:last-child{border-bottom:0}
+.calc-row .who{display:flex;align-items:center;gap:11px}
+.calc-row .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:#faf3e2;border:1px solid #ecd9ab;flex:0 0 32px}
+.calc-row .ic svg{width:16px;height:16px;stroke:var(--gold-deep);fill:none;stroke-width:1.8}
+.calc-row .who .lab{font-weight:700;font-size:.92rem}
+.calc-row .who .det{font-size:.74rem;color:var(--ink-2);margin-top:1px}
+.calc-row .amt{font-size:1.4rem;font-weight:900;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.calc-row.you{background:rgba(19,189,87,.06)}
+.calc-row.you .amt{color:#0e8c43}
+.calc-row.you .ic{background:rgba(19,189,87,.1);border-color:rgba(19,189,87,.32)}
+.calc-row.you .ic svg{stroke:#0e8c43}
+.calc-row.buyer .amt{color:var(--ink)}
+.calc-row.rod .amt{color:var(--gold-deep)}
+
+.fairline{display:flex;gap:11px;align-items:flex-start;margin-top:18px;padding:14px 16px;border-radius:var(--r-card);border:1px solid var(--line-l);background:var(--paper);font-size:.88rem;color:var(--ink-2)}
+.fairline .ic{flex:0 0 18px}
+.fairline .ic svg{width:18px;height:18px;stroke:var(--gold-deep);fill:none;stroke-width:1.8}
+.fairline b{color:var(--ink);font-weight:700}
+
+/* gate */
+.gate{text-align:center;padding:10px 0 4px}
+.gate h2{font-size:1.55rem;font-weight:800;letter-spacing:-.02em;margin-bottom:8px}
+
+/* sidebar */
+.side-card h3{font-size:1.15rem;font-weight:800;letter-spacing:-.01em;margin-bottom:16px}
+.reasons{list-style:none;padding:0;margin:0;display:grid;gap:14px}
+.reasons li{display:flex;gap:11px;align-items:flex-start;font-size:.9rem;color:var(--ink)}
+.reasons li .pk{flex:0 0 32px;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:#faf3e2;border:1px solid #ecd9ab}
+.reasons li .pk svg{width:16px;height:16px;stroke:var(--gold-deep);fill:none;stroke-width:1.8}
+.reasons li b{font-weight:700}
+.reasons li small{display:block;color:var(--ink-2);font-size:.8rem;margin-top:1px}
+.compare{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-l)}
+.cmp-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;font-size:.86rem}
+.cmp-row .lbl{color:var(--ink-2)}
+.cmp-row .other{color:var(--red);font-weight:700}
+.cmp-row .ff{color:#0e8c43;font-weight:800}
+
+/* success */
+.done-burst{text-align:center;padding:8px 0 4px}
+.done-burst .check-ring{width:78px;height:78px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:rgba(19,189,87,.08);border:2px solid rgba(19,189,87,.4)}
+.done-burst .check-ring svg{width:38px;height:38px;stroke:var(--green);stroke-width:2.2;fill:none}
+.done-burst h2{font-size:1.7rem;font-weight:900;letter-spacing:-.02em}
+
+.summary{border:1px solid var(--line-l);border-radius:var(--r-card);padding:18px;background:var(--paper)}
+.summary .calc-row{padding-left:0;padding-right:0}
+
+.load-hint{color:var(--ink-3);font-size:.85rem;text-align:center;padding:8px 0}
+
+@media(max-width:560px){.btn-block-sm{width:100%}}
 </style>
 </head>
-<body data-ffnav-active="rod">
+<body data-ffnav="hero" data-ffnav-active="rod">
 
-<!-- ===================== NAV ===================== -->
-<nav class="fg-nav">
-  <div class="fg-nav-inner">
-    <a class="fg-logo" href="index.html" aria-label="Fans First home">
-      <span class="fg-logo-mark"><span>FF</span></span>
-      <span class="fg-logo-word"><b>Fans&nbsp;First</b><small>Every ticket, verified</small></span>
-    </a>
-    <div class="fg-nav-right" id="navRight">
-      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Sign in</a>
-    </div>
-  </div>
-</nav>
+<div class="announce">FANS&nbsp;FIRST<span class="x">×</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
 
-<header class="sell-hero">
-  <div class="fg-wrap">
-    <div class="fg-eyebrow">Capped fan resale · Rod Official</div>
-    <h1>Can't make it?<br><span class="fg-text-fire">Pass it on, fairly.</span></h1>
-    <p class="lede">List your seat through our verified booth. <b>You keep $10. No gouging. Cancel anytime.</b>
-      Funds are held in escrow until the Ticketmaster transfer is confirmed &mdash; safe for you and the buyer.</p>
-  </div>
-</header>
+<!-- nav.js replaces this placeholder with the shared top nav -->
+<nav><div class="wrap" style="display:flex;align-items:center;height:64px"><a class="brand" href="index.html" style="font-weight:900;color:#fff">FANS&nbsp;FIRST</a></div></nav>
 
-<main class="fg-section" style="padding-top:24px">
-  <div class="fg-wrap">
-    <div class="sell-wrap">
+<header class="sell-hero"><div class="wrap">
+  <div class="eyebrow">Capped fan resale · Rod Official</div>
+  <h1>Can't make it?<br><span class="gold">Pass it on, fairly.</span></h1>
+  <p class="lede">List your seat through our verified booth. <b>You keep face + $10. No gouging. Cancel anytime.</b>
+    Money's held safe until the Ticketmaster transfer confirms &mdash; protected for you and the buyer.</p>
+</div></header>
 
-      <!-- ===== LEFT: list form / gate / success ===== -->
-      <section class="fg-card sell-card">
+<main class="sell-main"><div class="wrap">
+  <div class="sell-wrap">
 
-        <!-- GATE: must be verified -->
-        <div id="gatePane" class="gate fg-hidden">
-          <h2>Verified fans only</h2>
-          <p class="fg-muted fg-mt-2">Only verified fans can resell &mdash; it's how we keep brokers out and listings honest. Get verified in under a minute, it's free.</p>
-          <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="account.html">Get verified to resell</a>
-          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="index.html">Back to shows</a>
-        </div>
+    <!-- ===== LEFT: list form / gate / success ===== -->
+    <section class="card">
 
-        <!-- FORM -->
-        <div id="formPane" class="fg-hidden">
-          <h2>Resell a ticket</h2>
-          <p class="sub">Pick your show and section, enter what you paid (face value), and we'll show the fair split.</p>
+      <!-- GATE: must be verified -->
+      <div id="gatePane" class="gate hidden">
+        <h2>Verified fans only</h2>
+        <p class="text-muted mt-1">Only verified fans can resell &mdash; it's how we keep brokers out and listings honest. Get verified in under a minute, it's free.</p>
+        <a class="btn btn-gold btn-block mt-3" href="account.html">Get verified to resell</a>
+        <a class="btn btn-line btn-block mt-2" href="index.html">Back to shows</a>
+      </div>
 
-          <form id="sellForm" novalidate>
-            <div class="fg-field">
-              <label class="fg-label" for="show">Show</label>
-              <select class="fg-input" id="show" name="show" required>
-                <option value="">Loading shows…</option>
-              </select>
-            </div>
+      <!-- FORM -->
+      <div id="formPane" class="hidden">
+        <h2>Resell a seat</h2>
+        <p class="sub">Pick your show and section, enter what you paid (face value), and we'll show the fair split.</p>
 
-            <div class="fg-field">
-              <label class="fg-label" for="section">Section</label>
-              <select class="fg-input" id="section" name="section" required>
-                <option value="">Pick a show first</option>
-              </select>
-            </div>
-
-            <div class="fg-field">
-              <label class="fg-label" for="face">Face price (what you paid, per ticket)</label>
-              <div class="price-wrap">
-                <span class="cur">$</span>
-                <input class="fg-input fg-mono" type="text" inputmode="decimal" id="face" name="face"
-                       placeholder="0.00" autocomplete="off" required>
-              </div>
-            </div>
-
-            <!-- LIVE SPLIT CALCULATOR -->
-            <div class="calc" id="calc" aria-live="polite">
-              <div class="calc-head">
-                <span class="t">The fair split</span>
-                <span class="cap">Capped at face + $15</span>
-              </div>
-              <div class="calc-row you">
-                <div class="who"><span class="ic">&#128176;</span><span><span class="lab">You get back</span><span class="det">Your face <span id="faceEcho">$0</span> + $10</span></span></div>
-                <span class="amt" id="amtYou">$0</span>
-              </div>
-              <div class="calc-row buyer">
-                <div class="who"><span class="ic">&#127915;</span><span><span class="lab">Buyer pays</span><span class="det">Face + $15, all-in</span></span></div>
-                <span class="amt" id="amtBuyer">$0</span>
-              </div>
-              <div class="calc-row rod">
-                <div class="who"><span class="ic">&#11088;</span><span><span class="lab">Rod's cut</span><span class="det">Flat $5 — keeps the lights on</span></span></div>
-                <span class="amt" id="amtRod">$0</span>
-              </div>
-            </div>
-
-            <div class="fairline">
-              <span class="ic">&#9889;</span>
-              <span><b>You keep $10.</b> No gouging. Cancel anytime before it sells. Funds held in escrow until the transfer confirms.</span>
-            </div>
-
-            <button class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" type="submit" id="listBtn">List my ticket</button>
-            <p class="fg-muted fg-center fg-mt-2" style="font-size:.74rem">By listing you agree to transfer the ticket on Ticketmaster once it sells.</p>
-          </form>
-        </div>
-
-        <!-- SUCCESS -->
-        <div id="donePane" class="fg-hidden">
-          <div class="done-burst">
-            <div class="check">&#10003;</div>
-            <h2>You're listed</h2>
-            <p class="fg-muted fg-mt-1" id="doneMsg">Your seat is live on our verified booth.</p>
+        <form id="sellForm" novalidate>
+          <div class="field">
+            <label class="lbl" for="show">Show</label>
+            <select class="inp" id="show" name="show" required>
+              <option value="">Loading shows…</option>
+            </select>
           </div>
-          <div class="fg-card fg-mt-3" id="doneSummary" style="padding:18px"></div>
-          <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="viewShow" href="index.html">View the listing</a>
-          <button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" id="listAnother">List another</button>
+
+          <div class="field">
+            <label class="lbl" for="section">Section</label>
+            <select class="inp" id="section" name="section" required>
+              <option value="">Pick a show first</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="lbl" for="face">Face price (what you paid, per ticket)</label>
+            <div class="price-wrap">
+              <span class="cur">$</span>
+              <input class="inp" type="text" inputmode="decimal" id="face" name="face"
+                     placeholder="0.00" autocomplete="off" required>
+            </div>
+          </div>
+
+          <!-- LIVE SPLIT CALCULATOR -->
+          <div class="calc" id="calc" aria-live="polite">
+            <div class="calc-head">
+              <span class="t">The fair split</span>
+              <span class="cap">Capped at face + $15</span>
+            </div>
+            <div class="calc-row you">
+              <div class="who"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span><span class="lab">You get back</span><span class="det">Your face <span id="faceEcho">$0</span> + $10</span></span></div>
+              <span class="amt" id="amtYou">$0</span>
+            </div>
+            <div class="calc-row buyer">
+              <div class="who"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 9.5 12 4l9 5.5M5 11v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M9 20v-6h6v6"/></svg></span><span><span class="lab">Buyer pays</span><span class="det">Face + $15, all-in</span></span></div>
+              <span class="amt" id="amtBuyer">$0</span>
+            </div>
+            <div class="calc-row rod">
+              <div class="who"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg></span><span><span class="lab">Rod's cut</span><span class="det">Flat $5 — keeps the lights on</span></span></div>
+              <span class="amt" id="amtRod">$0</span>
+            </div>
+          </div>
+
+          <div class="fairline">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg></span>
+            <span><b>You keep face + $10.</b> No gouging. Cancel anytime before it sells. Money's held safe until the transfer confirms.</span>
+          </div>
+
+          <button class="btn btn-gold btn-block mt-3" type="submit" id="listBtn">List my seat</button>
+          <p class="text-muted text-center mt-2" style="font-size:.74rem">By listing you agree to transfer the ticket on Ticketmaster once it sells.</p>
+        </form>
+      </div>
+
+      <!-- SUCCESS -->
+      <div id="donePane" class="hidden">
+        <div class="done-burst">
+          <div class="check-ring"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <h2>You're listed</h2>
+          <p class="text-muted mt-1" id="doneMsg">Your seat is live on our verified booth.</p>
         </div>
+        <div class="summary mt-3" id="doneSummary"></div>
+        <a class="btn btn-gold btn-block mt-3" id="viewShow" href="index.html">View the listing</a>
+        <button class="btn btn-line btn-block mt-2" id="listAnother">List another</button>
+      </div>
 
-        <div id="loadHint" class="fg-muted fg-center" style="padding:8px 0">Loading&hellip;</div>
-      </section>
+      <div id="loadHint" class="load-hint">Loading&hellip;</div>
+    </section>
 
-      <!-- ===== RIGHT: why resell here ===== -->
-      <aside class="fg-card side-card">
-        <h3>Why sell here</h3>
-        <ul class="reasons">
-          <li><span class="pk">&#128184;</span><span><b>$0 seller fee</b><small>SeatGeek/StubHub skim 10–15%. We take nothing from you.</small></span></li>
-          <li><span class="pk">&#9889;</span><span><b>Instant payout</b><small>Paid the moment the transfer confirms — not weeks after the show.</small></span></li>
-          <li><span class="pk">&#9989;</span><span><b>"Rod Official" trust</b><small>Buyers trust it, so your seat sells faster.</small></span></li>
-          <li><span class="pk">&#128274;</span><span><b>Escrow protection</b><small>The buyer's money is held until you transfer. No scams, either way.</small></span></li>
-        </ul>
+    <!-- ===== RIGHT: why resell here ===== -->
+    <aside class="card side-card">
+      <h3>Why sell here</h3>
+      <ul class="reasons">
+        <li><span class="pk"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span><b>$0 seller fee</b><small>SeatGeek and StubHub skim 10–15%. We take nothing from you.</small></span></li>
+        <li><span class="pk"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span><span><b>Fast payout</b><small>Paid the moment the transfer confirms — not weeks after the show.</small></span></li>
+        <li><span class="pk"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><span><b>"Rod Official" trust</b><small>Buyers trust it, so your seat sells faster.</small></span></li>
+        <li><span class="pk"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span><b>Safe transfer</b><small>The buyer's money is held until you transfer. No scams, either way.</small></span></li>
+      </ul>
 
-        <div class="compare">
-          <div class="cmp-row"><span class="lbl">On a $60 seat, you net</span></div>
-          <div class="cmp-row"><span class="lbl">SeatGeek (after ~12% fee)</span><span class="seatgeek">~$53</span></div>
-          <div class="cmp-row"><span class="lbl">Fans First</span><span class="fg">$70</span></div>
-        </div>
-      </aside>
+      <div class="compare">
+        <div class="cmp-row"><span class="lbl">On a $60 seat, you net</span></div>
+        <div class="cmp-row"><span class="lbl">SeatGeek (after ~12% fee)</span><span class="other">~$53</span></div>
+        <div class="cmp-row"><span class="lbl">Fans First</span><span class="ff">$70</span></div>
+      </div>
+    </aside>
 
+  </div>
+</div></main>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div><div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div><p>The fan-first ticket platform. Real seats, real fans, no scalper games. Official resale partner of Rod Wave's Don't Look Down Tour.</p></div>
+    <div class="fcols">
+      <div class="fcol"><h5>Buy</h5><a href="index.html">Rod Wave seats</a><a href="discover.html">Discover anything</a></div>
+      <div class="fcol"><h5>Account</h5><a href="account.html">Log in / Sign up</a><a href="mytickets.html">My tickets</a><a href="contact.html">Contact</a></div>
     </div>
   </div>
-</main>
+  <div class="final">All sales final · No refunds · Ticketmaster account required for delivery · Not a live store</div>
+</div></footer>
 
-<footer class="fg-footer">
-  <div class="fg-wrap fg-footer-inner">
-    <span>Fans First &copy; 2026 · Fair prices for real fans.</span>
-    <span><a href="index.html">All shows</a> · <a href="account.html">Account</a></span>
-  </div>
-</footer>
-
-<div class="fg-toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const API = '/fairgame/api';
@@ -239,7 +308,7 @@ function authHeaders() {
 /* ---------- helpers ---------- */
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function money(cents){ if(cents==null) return '—'; return '$'+(cents/100).toLocaleString('en-US',{minimumFractionDigits:(cents%100?2:0),maximumFractionDigits:2}); }
-function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='fg-toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='fg-toast '+(k||''),3400); }
+function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast '+(k||''),3400); }
 
 /* parse "$1,234.56" / "60" -> integer cents (null if blank/invalid) */
 function parseCents(raw) {
@@ -253,12 +322,12 @@ function parseCents(raw) {
 /* ---------- nav badge ---------- */
 function renderBadge() {
   const s = getSession(); const right = $('#navRight');
-  if (!s || !s.token) return;
+  if (!right || !s || !s.token) return;
   const fan = s.fan || {};
-  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
-  right.innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="mytickets.html">My Tickets</a>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Account</a>';
+  const prio = fan.priority ? '<span class="badge badge-gold"><span class="dot"></span>Priority Fan</span>' : '';
+  right.innerHTML = prio + '<span class="badge badge-green"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="btn btn-line btn-sm" href="mytickets.html">My Tickets</a>' +
+    '<a class="btn btn-line btn-sm" href="account.html">Account</a>';
 }
 
 /* ---------- live split calculator ---------- */
@@ -316,7 +385,7 @@ async function loadSections(showId) {
     const inv = (show.inventory || []);
     if (!inv.length) {
       // No published sections — let the fan type their own.
-      sel.outerHTML = '<input class="fg-input" id="section" name="section" placeholder="e.g. Floor GA, 110, Lower Bowl" autocomplete="off" required>';
+      sel.outerHTML = '<input class="inp" id="section" name="section" placeholder="e.g. Floor GA, 110, Lower Bowl" autocomplete="off" required>';
       return;
     }
     // Suggest the section's known face when picked.
@@ -327,7 +396,7 @@ async function loadSections(showId) {
   } catch (e) {
     // Fall back to free-text section input.
     const ph = document.createElement('input');
-    ph.className = 'fg-input'; ph.id = 'section'; ph.name = 'section';
+    ph.className = 'inp'; ph.id = 'section'; ph.name = 'section';
     ph.placeholder = 'e.g. Floor GA, 110, Lower Bowl'; ph.autocomplete = 'off'; ph.required = true;
     sel.replaceWith(ph);
   }
@@ -378,33 +447,33 @@ async function submitListing(e) {
 function showDone(listing, showId) {
   listing = listing || {};
   const show = SHOWS.find(s => s.id === showId) || {};
-  $('#formPane').classList.add('fg-hidden');
-  $('#donePane').classList.remove('fg-hidden');
+  $('#formPane').classList.add('hidden');
+  $('#donePane').classList.remove('hidden');
   $('#doneMsg').textContent = 'Your ' + (listing.section || 'seat') + ' is live on Rod\'s booth — you\'ll be paid the moment it transfers.';
   $('#doneSummary').innerHTML =
-    '<div class="calc-row" style="padding:0 0 12px;border-bottom:1px solid var(--line)"><div class="who"><span class="lab">' +
+    '<div class="calc-row" style="padding:0 0 12px;border-bottom:1px solid var(--line-l)"><div class="who"><span class="lab">' +
       esc((show.city||'Your show') + (show.show_date ? ' · ' + show.show_date : '')) + '</span></div>' +
-      '<span class="fg-chip resale">' + esc(listing.section || '') + '</span></div>' +
-    '<div class="calc-row you" style="padding:12px 0 0;border:0"><div class="who"><span class="lab">You get back</span></div>' +
-      '<span class="amt" style="color:var(--green)">' + money(listing.seller_proceeds_cents) + '</span></div>';
+      '<span class="badge badge-gold">' + esc(listing.section || '') + '</span></div>' +
+    '<div class="calc-row you" style="padding:12px 0 0;border:0;background:transparent"><div class="who"><span class="lab">You get back</span></div>' +
+      '<span class="amt" style="color:#0e8c43">' + money(listing.seller_proceeds_cents) + '</span></div>';
   $('#viewShow').href = showId ? ('show.html?id=' + encodeURIComponent(showId)) : 'index.html';
 }
 
 function showGate() {
-  $('#formPane').classList.add('fg-hidden');
-  $('#donePane').classList.add('fg-hidden');
-  $('#gatePane').classList.remove('fg-hidden');
+  $('#formPane').classList.add('hidden');
+  $('#donePane').classList.add('hidden');
+  $('#gatePane').classList.remove('hidden');
 }
 
 /* ---------- boot ---------- */
 function boot() {
   renderBadge();
-  $('#loadHint').classList.add('fg-hidden');
+  $('#loadHint').classList.add('hidden');
 
   const s = getSession();
   if (!s || !s.token) { showGate(); return; }
 
-  $('#formPane').classList.remove('fg-hidden');
+  $('#formPane').classList.remove('hidden');
   updateCalc();
   loadShows();
 
@@ -415,8 +484,8 @@ function boot() {
   $('#sellForm').addEventListener('submit', submitListing);
 
   $('#listAnother').addEventListener('click', () => {
-    $('#donePane').classList.add('fg-hidden');
-    $('#formPane').classList.remove('fg-hidden');
+    $('#donePane').classList.add('hidden');
+    $('#formPane').classList.remove('hidden');
     $('#sellForm').reset();
     loadSections('');
     updateCalc();
