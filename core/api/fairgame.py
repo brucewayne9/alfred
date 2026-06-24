@@ -46,6 +46,7 @@ from core.fairgame import (
     admin,
     aggregator,
     db,
+    delivery,
     events,
     holdings,
     identity,
@@ -640,3 +641,29 @@ async def admin_add_inventory(show_id: str, req: Request, x_fairgame_admin: str 
             raise HTTPException(status_code=400, detail=f"{fname} must be a non-negative integer")
     row = events.add_inventory(show_id, section, qty, face_price_cents)
     return {"inventory": row}
+
+
+@app.get("/fairgame/api/admin/delivery")
+async def admin_delivery_queue(x_fairgame_admin: str = Header(default="")):
+    """Return the operator delivery queue — all purchases needing a TM transfer."""
+    _require_admin(x_fairgame_admin)
+    return {"queue": delivery.queue()}
+
+
+@app.post("/fairgame/api/admin/delivery/mark")
+async def admin_delivery_mark(req: Request, x_fairgame_admin: str = Header(default="")):
+    """Mark a purchase as delivered (operator has completed the TM transfer).
+
+    Body: {kind: 'order'|'grant', id: str}
+    """
+    _require_admin(x_fairgame_admin)
+    b = await req.json()
+    kind = (b.get("kind") or "").strip()
+    item_id = (b.get("id") or "").strip()
+    if not kind or not item_id:
+        raise HTTPException(status_code=400, detail="kind and id are required")
+    try:
+        result = delivery.mark_delivered(kind, item_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"item": result}

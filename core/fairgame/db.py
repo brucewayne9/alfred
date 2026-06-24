@@ -38,6 +38,13 @@ def ensure_checkout_columns(c) -> None:
             c.execute(f"ALTER TABLE {table} ADD COLUMN final_sale_ack INTEGER DEFAULT 0")
 
 
+def ensure_delivery_columns(c) -> None:
+    """Idempotently add delivered_at to access_grants (delivery queue milestone)."""
+    cols = {r["name"] for r in c.execute("PRAGMA table_info(access_grants)").fetchall()}
+    if "delivered_at" not in cols:
+        c.execute("ALTER TABLE access_grants ADD COLUMN delivered_at INTEGER")
+
+
 def init_db() -> None:
     with connect() as c:
         c.executescript(
@@ -183,3 +190,4 @@ def init_db() -> None:
             """
         )
         ensure_checkout_columns(c)
+        ensure_delivery_columns(c)

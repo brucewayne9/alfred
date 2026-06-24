@@ -259,6 +259,21 @@ table.inv-tbl tbody tr:last-child td{border-bottom:0}
   </section>
 </div>
 
+<!-- DELIVERY QUEUE -->
+<div class="wrap">
+  <section class="sec">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Operator queue</div>
+        <h2>Delivery — TM transfers</h2>
+      </div>
+      <span class="sec-meta" id="deliveryMeta"></span>
+    </div>
+    <p style="font-size:13px;color:var(--ink-3);margin-bottom:18px;max-width:600px">Transfers typically open <strong>~3 days before each show</strong>. Complete the transfer in Ticketmaster, then mark it delivered here. This is a supervised queue — no transfer is automated.</p>
+    <div id="deliveryBox"><div class="skel" style="height:180px"></div></div>
+  </section>
+</div>
+
 <!-- FOOTER -->
 <footer style="background:var(--bg);color:#fff;padding:36px 0 28px;margin-top:20px">
   <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
@@ -620,6 +635,85 @@ async function loadOrders(){
     '</table></div></div>';
 }
 
+/* ---- Delivery queue ---- */
+async function loadDelivery(){
+  const box=$('#deliveryBox');
+  if(!getKey()){ box.innerHTML='<div class="empty"><div class="big">Locked</div><p>Enter the admin key above to view the delivery queue.</p></div>'; return; }
+  let r;
+  try{ r=await fetch(API+'/admin/delivery',{headers:adminHeaders()}); }
+  catch(e){ box.innerHTML=errorBox('Delivery offline','Could not load the delivery queue.'); return; }
+  if(r.status===401){ box.innerHTML='<div class="empty"><div class="big">Wrong key</div><p>Re-enter the admin key above.</p></div>'; return; }
+  if(!r.ok){ box.innerHTML=errorBox('Delivery error','HTTP '+r.status); return; }
+  const items=(await r.json()).queue||[];
+  $('#deliveryMeta').textContent=items.length?items.length+' items':'';
+  if(!items.length){ box.innerHTML='<div class="empty"><div class="big">No purchases yet</div><p>Paid primary grants and settled resale orders appear here once there are buyers.</p></div>'; return; }
+  const pending=items.filter(i=>i.state==='pending').length;
+  const rows=items.map(item=>{
+    const isPending=item.state==='pending';
+    const stateHtml=isPending
+      ? '<span class="chip chip-amber">Pending</span>'
+      : '<span class="chip chip-green">Delivered</span>';
+    const kindBadge=item.kind==='order'
+      ? '<span class="chip chip-grey">Resale</span>'
+      : '<span class="chip chip-grey">Primary</span>';
+    const actionHtml=isPending
+      ? '<button class="btn btn-gold btn-xs dlv-btn" data-kind="'+esc(item.kind)+'" data-id="'+esc(item.id)+'" type="button">'+
+          '<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>'+
+          'Mark delivered'+
+        '</button>'
+      : '<span class="t-muted" style="font-size:12px">Done</span>';
+    return '<tr data-dlv-id="'+esc(item.id)+'" data-dlv-kind="'+esc(item.kind)+'">'+
+      '<td>'+kindBadge+'</td>'+
+      '<td class="t-mono" style="font-size:13px">'+esc(item.buyer_tm_email||'—')+'</td>'+
+      '<td class="t-strong">'+esc(item.city||'—')+'</td>'+
+      '<td class="t-muted" style="font-size:12px">'+esc(item.show_date||'—')+'</td>'+
+      '<td>'+esc(item.detail||'—')+'</td>'+
+      '<td>'+stateHtml+'</td>'+
+      '<td>'+actionHtml+'</td>'+
+    '</tr>';
+  }).join('');
+  box.innerHTML=
+    '<div style="font-size:13px;color:var(--ink-3);margin-bottom:12px">'+num(pending)+' pending · '+num(items.length-pending)+' delivered</div>'+
+    '<div class="tbl-wrap"><div class="tbl-scroll"><table class="fg-tbl">'+
+      '<thead><tr>'+
+        '<th>Type</th>'+
+        '<th>Buyer TM email</th>'+
+        '<th>City</th>'+
+        '<th>Show date</th>'+
+        '<th>What</th>'+
+        '<th>State</th>'+
+        '<th></th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table></div></div>';
+  wireDeliveryButtons();
+}
+
+function wireDeliveryButtons(){
+  $$('.dlv-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const kind=btn.dataset.kind;
+      const id=btn.dataset.id;
+      btn.disabled=true;
+      const orig=btn.innerHTML;
+      btn.innerHTML='<svg viewBox="0 0 24 24" style="animation:spin .7s linear infinite"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Marking…';
+      try{
+        const r=await fetch(API+'/admin/delivery/mark',{
+          method:'POST',
+          headers:adminHeaders({'Content-Type':'application/json'}),
+          body:JSON.stringify({kind, id}),
+        });
+        if(r.status===401){ promptKey(true); toast('Wrong admin key','err'); return; }
+        if(!r.ok){ const e=await r.json().catch(()=>{}); toast((e&&e.detail)||'Failed to mark delivered','err'); return; }
+        toast('Marked delivered');
+        // Refresh just the delivery panel
+        await loadDelivery();
+      }catch(e){ toast('Network error','err'); }
+      finally{ if(btn.isConnected){ btn.disabled=false; btn.innerHTML=orig; } }
+    });
+  });
+}
+
 /* ---- orchestrate ---- */
 let _refreshing=false;
 async function refreshAll(){
@@ -629,7 +723,7 @@ async function refreshAll(){
   const orig=btn.innerHTML;
   btn.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin .7s linear infinite"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Refreshing';
   try{
-    await Promise.all([loadStats(), loadShows(), loadOrders()]);
+    await Promise.all([loadStats(), loadShows(), loadOrders(), loadDelivery()]);
     if(_currentShowId) await loadInventory(_currentShowId);
   } finally{
     btn.innerHTML=orig; _refreshing=false;
