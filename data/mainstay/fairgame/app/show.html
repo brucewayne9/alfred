@@ -1,160 +1,352 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fair Game — Show</title>
-<meta name="description" content="Get fair-priced Rod Wave tickets straight from Rod's booth, or buy from a verified fan's capped resale.">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fans First — Show</title>
+<meta name="description" content="Fair-priced, verified tickets — capped resale, no scalper markup.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="fairgame.css">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  .show-hero { position: relative; padding: 40px 0 8px; }
-  .show-hero .back { font-size: .82rem; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
-  .show-hero .back:hover { color: var(--gold); }
-  .show-hero h1 { font-family: var(--font-display); font-size: clamp(2.6rem, 9vw, 5rem); line-height: .9; text-transform: uppercase; margin-top: 16px; }
-  .show-hero .meta { color: var(--gold); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: .82rem; margin-top: 10px; }
-  .show-hero .venue { color: var(--muted); margin-top: 4px; font-size: 1rem; }
+/* ===== DESIGN TOKENS (matches index.html) ===== */
+:root{
+  --bg:#0b0a09; --bg2:#121110;
+  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
+  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
+  --line-l:#e4dccc; --line-d:#2a2724;
+  --silver:#aaa49a; --mute:#6f6a60;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
+  --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
+  --r-btn:11px; --r-card:14px; --r-tag:6px;
+  --sh-l:0 14px 38px rgba(22,18,8,.10); --sh-d:0 22px 60px rgba(0,0,0,.6);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
 
-  .grid2 { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
-  @media (min-width: 900px) { .grid2 { grid-template-columns: 1.05fr .95fr; } }
+/* ===== BUTTONS ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;
+  border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
+.btn svg{width:17px;height:17px;flex:0 0 17px}
+.btn-gold{background:var(--gold-btn);color:#1a1206}
+.btn-gold:hover{background:var(--gold);transform:translateY(-2px)}
+.btn-line{background:transparent;color:var(--ink);border-color:var(--line-l)}
+.btn-line:hover{border-color:var(--ink-3);background:rgba(0,0,0,.03)}
+.btn-sm{padding:10px 16px;font-size:13px}
+.btn-lg{padding:15px 26px;font-size:15px}
+.btn-block{width:100%}
+.btn-ghost{background:transparent;color:var(--ink-2);border-color:var(--line-l)}
+.btn-ghost:hover{color:var(--ink);border-color:var(--ink-3)}
 
-  .block-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-  .block-head h2 { font-family: var(--font-display); font-size: 1.6rem; text-transform: uppercase; }
+/* ===== STATUS TAGS ===== */
+.tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep);border:1px solid #e0c486;background:#faf3e2;border-radius:var(--r-tag);padding:4px 9px}
+.tag-ok{color:var(--gold-deep);border-color:#e0c486;background:#faf3e2}
+.tag-low{color:#a84b1f;border-color:#f5c5a0;background:#fef3eb}
+.tag-out{color:#888;border-color:var(--line-l);background:transparent}
 
-  .inv-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
-  .inv-row:last-child { border-bottom: 0; }
-  .inv-row .sec { font-weight: 700; }
-  .inv-row .face { font-family: var(--font-display); font-size: 1.35rem; }
-  .inv-row .avail { font-size: .76rem; color: var(--muted-2); }
+/* ===== ANNOUNCE BAR ===== */
+.announce{background:#070605;text-align:center;padding:9px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3a4}
+.announce b{color:var(--gold);font-weight:800}
+.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
 
-  .listing { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-  .listing:last-child { border-bottom: 0; }
-  .listing .sec { font-weight: 700; }
-  .listing .price { font-family: var(--font-display); font-size: 1.3rem; }
-  .listing .break { font-size: .72rem; color: var(--muted-2); margin-top: 3px; }
+/* ===== NAV ===== */
+nav{position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;transition:background .3s,border-color .3s}
+.nav-in{display:flex;align-items:center;gap:16px;height:64px}
+.brand{font-weight:900;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:#fff;transition:color .3s}
+.brand .mark{width:25px;height:25px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.nav-right{display:flex;align-items:center;gap:9px;margin-left:auto}
+.nav-link{font-weight:600;font-size:14px;color:rgba(255,255,255,.8);transition:color .3s}
+.nav-link:hover{color:#fff}
+nav.scrolled{background:rgba(245,241,234,.93);backdrop-filter:blur(14px);border-bottom-color:var(--line-l)}
+nav.scrolled .brand{color:var(--ink)}
+nav.scrolled .nav-link{color:var(--ink-2)}
+nav.scrolled .nav-link:hover{color:var(--ink)}
+.nav-badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;padding:6px 12px;border-radius:var(--r-tag);background:#faf3e2;border:1px solid #e0c486;color:var(--gold-deep)}
+.nav-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.nav-badge.priority .dot{background:var(--gold-btn)}
+@media(max-width:720px){.nav-link.hidem{display:none}}
 
-  .buybar { padding: 18px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .qty { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: var(--r-pill); overflow: hidden; }
-  .qty button { background: var(--black-2); border: 0; color: var(--cream); width: 40px; height: 42px; font-size: 1.2rem; cursor: pointer; }
-  .qty button:hover { color: var(--orange); }
-  .qty span { min-width: 42px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* ===== SHOW HERO ===== */
+.show-hero{background:var(--bg);color:#fff;padding:52px 0 44px;margin-top:-64px;padding-top:calc(64px + 44px)}
+.back-link{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--silver);letter-spacing:.04em;transition:color .2s;margin-bottom:22px}
+.back-link:hover{color:#fff}
+.back-link svg{width:16px;height:16px;stroke:currentColor;flex:0 0 16px}
+.show-eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.show-city{font-size:clamp(2.8rem,8vw,5.4rem);font-weight:900;letter-spacing:-.04em;line-height:.96;margin-bottom:10px}
+.show-meta{font-size:14px;font-weight:600;color:var(--silver);margin-top:6px}
+.show-venue{font-size:15px;color:var(--silver);margin-top:4px}
+.show-from{font-size:14px;font-weight:800;color:var(--gold);margin-top:14px;letter-spacing:.02em}
 
-  .gate { text-align: center; padding: 40px 24px; }
-  .order-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-  .ostep { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--black-2); color: var(--muted); font-size: .9rem; }
-  .ostep .b { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line-2); display: grid; place-items: center; font-size: .7rem; flex: 0 0 22px; }
-  .ostep.active { color: var(--cream); border-color: var(--orange); }
-  .ostep.active .b { border-color: var(--orange); color: var(--orange); }
-  .ostep.done { color: var(--green); border-color: rgba(61,220,132,.4); }
-  .ostep.done .b { border-color: var(--green); background: var(--green); color: var(--black); }
-  .ostep.spin .b { border-top-color: var(--orange); animation: spin .8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ===== MAIN CONTENT ===== */
+.show-body{padding:36px 0 72px}
+.grid2{display:grid;gap:22px;grid-template-columns:1fr;align-items:start}
+@media(min-width:900px){.grid2{grid-template-columns:1.05fr .95fr}}
+
+/* ===== CARDS ===== */
+.card{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);box-shadow:var(--sh-l);overflow:hidden}
+.card-head{padding:20px 20px 0}
+.card-eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:6px}
+.card h2{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
+.card-sub{font-size:13px;color:var(--ink-2);margin-bottom:14px}
+
+/* ===== SEAT MAP CARD (dark panel inside light page) ===== */
+.seatmap-card{background:var(--bg);border:1px solid var(--line-d);color:#fff;margin-bottom:22px}
+.seatmap-card .card-eyebrow{color:var(--gold)}
+.seatmap-card h2{color:#fff}
+.seatmap-card .card-sub{color:var(--silver)}
+.seatmap-cap{font-size:12px;font-weight:700;color:var(--silver);margin-left:8px}
+
+#seatmapSvg{width:100%;height:auto;max-height:62vh;display:block;
+  background:radial-gradient(120% 120% at 50% 0%,rgba(255,255,255,.03),transparent 70%);
+  border-radius:10px;touch-action:manipulation}
+
+.sec-shape{cursor:pointer;transition:fill .12s,stroke .12s;fill:rgba(120,132,150,.13);stroke:rgba(150,160,176,.4);stroke-width:10}
+.sec-shape:hover{stroke:var(--gold)!important}
+.sec-shape.avail{fill:rgba(19,189,87,.22);stroke:rgba(19,189,87,.7)}
+.sec-shape.sold{fill:rgba(226,59,59,.18);stroke:rgba(226,59,59,.55)}
+.sec-shape.mine-na{fill:rgba(120,132,150,.10);stroke:rgba(120,132,150,.30)}
+
+.sec-label{font-size:150px;font-weight:700;fill:#cdd2d9;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+.seat-dot{fill:var(--gold)}
+.seat-dot.avail{fill:#13bd57}
+.seat-dot.sold{fill:#e23b3b}
+.seat-dot.mine-na{fill:#3a3a3a}
+.stage-mark{fill:#2a2f3a}
+.stage-mark-label{fill:#8b93a1;font-size:200px;font-weight:800;text-anchor:middle;dominant-baseline:middle;letter-spacing:30px}
+
+.seatmap-stage{position:relative;padding:4px 18px 18px}
+.seatmap-back{position:absolute;top:10px;left:28px;z-index:2}
+.seatmap-tip{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);
+  background:rgba(12,14,18,.92);border:1px solid var(--line-d);border-radius:10px;
+  padding:8px 14px;font-size:.82rem;color:#e7e9ee;pointer-events:none;white-space:nowrap}
+.seatmap-tip b{color:var(--gold)}
+.seatmap-skel{height:340px;display:grid;place-items:center;color:var(--silver);font-size:.9rem}
+
+.sm-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--silver)}
+.sm-legend span{display:flex;align-items:center;gap:7px}
+.sm-legend i{width:13px;height:13px;border-radius:4px;display:inline-block;flex:0 0 13px}
+.sm-muted{margin-top:8px;font-size:13px;color:var(--silver)}
+
+/* ===== INVENTORY ===== */
+.inv-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line-l)}
+.inv-row:last-child{border-bottom:0}
+.inv-row .sec{font-weight:700;font-size:15px}
+.inv-row .face{font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
+.inv-row .face-label{font-size:11px;color:var(--ink-3);font-weight:500;margin-top:2px}
+
+.listing{padding:16px 20px;border-bottom:1px solid var(--line-l);display:flex;align-items:center;justify-content:space-between;gap:14px}
+.listing:last-child{border-bottom:0}
+.listing .sec{font-weight:700}
+.listing .price{font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
+.listing .break{font-size:.72rem;color:var(--ink-2);margin-top:3px}
+
+/* ===== BUY BAR ===== */
+.buybar{padding:18px 20px;border-top:1px solid var(--line-l);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.qty{display:inline-flex;align-items:center;border:1px solid var(--line-l);border-radius:var(--r-btn);overflow:hidden}
+.qty button{background:var(--paper-alt);border:0;color:var(--ink);width:40px;height:42px;font-size:1.2rem;cursor:pointer;font-family:inherit;font-weight:700;transition:background .12s}
+.qty button:hover{background:var(--line-l)}
+.qty span{min-width:42px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+/* ===== EMPTY / ERROR ===== */
+.empty{padding:32px 20px;text-align:center;color:var(--ink-2)}
+.empty .big{font-size:1.25rem;font-weight:800;margin-bottom:8px;color:var(--ink)}
+.empty p{font-size:14px;color:var(--ink-2)}
+
+/* ===== ORDER STEPS (modal) ===== */
+.order-steps{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.ostep{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line-l);border-radius:var(--r-card);background:var(--paper-alt);color:var(--ink-2);font-size:.9rem}
+.ostep .b{width:22px;height:22px;border-radius:50%;border:2px solid var(--line-l);display:grid;place-items:center;font-size:.7rem;flex:0 0 22px}
+.ostep.active{color:var(--ink);border-color:var(--gold)}
+.ostep.active .b{border-color:var(--gold);color:var(--gold-deep)}
+.ostep.done{color:var(--green);border-color:rgba(19,189,87,.4)}
+.ostep.done .b{border-color:var(--green);background:var(--green);color:#fff}
+.ostep.spin .b{border-top-color:var(--gold);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== MODAL / OVERLAY ===== */
+.modal-overlay{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(11,10,9,.7);padding:24px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:var(--r-card);box-shadow:var(--sh-d);width:100%;max-width:460px;padding:28px;max-height:90vh;overflow-y:auto}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-head h3{font-size:18px;font-weight:800}
+.modal-close{background:none;border:0;font-size:22px;cursor:pointer;color:var(--ink-2);line-height:1;padding:4px}
+.modal-close:hover{color:var(--ink)}
+.modal-body{margin-top:0}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);z-index:200;
+  background:var(--ink);color:#fff;border-radius:var(--r-btn);padding:12px 20px;font-size:14px;
+  font-weight:600;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast.ok{background:#0e7a3b}
+.toast.err{background:#a12020}
+
+/* ===== FOOTER ===== */
+footer{background:#070605;color:#fff;padding:52px 0 32px}
+.foot-in{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap}
+.foot-brand{font-weight:900;font-size:18px;display:flex;align-items:center;gap:8px}
+.foot-brand .mark{width:24px;height:24px;border-radius:6px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:12px;font-weight:900}
+.foot-links{display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--silver)}
+.foot-links a:hover{color:#fff}
+.foot-final{margin-top:36px;padding-top:18px;border-top:1px solid #1c1a18;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);text-align:center}
+
+/* ===== MOBILE ===== */
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .wrap{padding:0 18px}
+  .show-body{padding:24px 0 56px}
+  .buybar{flex-wrap:wrap}
+  .buybar .btn{flex:1}
+  .foot-in{flex-direction:column;gap:20px}
+}
 </style>
 </head>
 <body>
 
-<nav class="fg-nav">
-  <div class="fg-nav-inner">
-    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
-      <span class="fg-logo-mark"><span>FG</span></span>
-      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
+<div class="announce">FANS&nbsp;FIRST<span class="x">×</span>ROD&nbsp;WAVE &mdash; Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
+
+<nav id="mainNav">
+  <div class="wrap nav-in">
+    <a class="brand" href="index.html" aria-label="Fans First home">
+      <span class="mark">F</span>FANS&nbsp;FIRST
     </a>
-    <div class="fg-nav-right" id="navRight">
-      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Sign in</a>
+    <div class="nav-right" id="navRight">
+      <a class="nav-link hidem" href="index.html">All shows</a>
+      <a class="btn btn-line btn-sm" href="account.html">Sign in</a>
     </div>
   </div>
 </nav>
 
 <header class="show-hero">
-  <div class="fg-wrap">
-    <a class="back" href="index.html">&larr; All shows</a>
+  <div class="wrap">
+    <a class="back-link" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      All shows
+    </a>
     <div id="showHead">
-      <h1 style="opacity:.4">Loading…</h1>
+      <div class="show-city" style="opacity:.3">Loading&hellip;</div>
     </div>
   </div>
 </header>
 
-<main class="fg-section" style="padding-top:24px">
-  <div class="fg-wrap">
+<main class="show-body">
+  <div class="wrap">
+
+    <!-- ===== SEAT MAP (venue geometry — Ticketmaster open layer) ===== -->
+    <section class="card seatmap-card" id="seatmapCard" hidden>
+      <div class="card-head">
+        <div class="card-eyebrow">Venue seat map</div>
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <h2>Find your section</h2>
+          <span class="seatmap-cap" id="seatmapCap"></span>
+        </div>
+        <p class="card-sub">Tap a section to zoom to the seats.</p>
+        <div class="sm-legend">
+          <span><i style="background:#13bd57"></i> Available &mdash; Rod-held</span>
+          <span><i style="background:#e23b3b"></i> Sold</span>
+          <span><i style="background:#3a3a3a;border:1px solid #4a463f"></i> Not available here</span>
+        </div>
+        <p class="sm-muted">We only sell what Rod gave us &mdash; you can't get the greyed seats anywhere else.</p>
+      </div>
+      <div class="seatmap-stage">
+        <svg id="seatmapSvg" role="img" aria-label="Venue seat map"
+             preserveAspectRatio="xMidYMid meet"></svg>
+        <button type="button" class="btn btn-sm btn-ghost seatmap-back" id="seatmapBack" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+          Whole venue
+        </button>
+        <div class="seatmap-tip" id="seatmapTip" hidden></div>
+      </div>
+    </section>
+
     <div class="grid2">
 
       <!-- ===== PRIMARY (capped fair-price buy) ===== -->
-      <section class="fg-card">
-        <div style="padding:18px 18px 0">
-          <div class="block-head">
-            <h2>Get tickets</h2>
-            <span class="fg-chip resale">Fair price · capped</span>
-          </div>
-          <p class="fg-muted" style="font-size:.86rem; margin-bottom:10px">
-            Straight from Rod's booth. Verified fans only, capped quantity &mdash; no scalper markup, ever.
-          </p>
+      <section class="card">
+        <div class="card-head">
+          <div class="card-eyebrow">Fair price &middot; capped</div>
+          <h2>Get tickets</h2>
+          <p class="card-sub">Verified fans only, capped quantity &mdash; no scalper markup, ever.</p>
         </div>
-        <div id="inventory"><div class="fg-skeleton" style="height:64px;margin:0 18px"></div></div>
+        <div id="inventory"><div style="height:64px;margin:0 20px 20px;background:var(--line-l);border-radius:8px;animation:pulse 1.4s ease infinite"></div></div>
         <div class="buybar" id="buybar">
           <div class="qty" role="group" aria-label="Quantity">
             <button type="button" id="qMinus" aria-label="Decrease">&minus;</button>
             <span id="qVal" aria-live="polite">2</span>
             <button type="button" id="qPlus" aria-label="Increase">+</button>
           </div>
-          <button class="fg-btn fg-btn-primary" id="getBtn" style="flex:1">Get tickets (fair price)</button>
+          <button class="btn btn-gold" id="getBtn" style="flex:1">Get tickets (fair price)</button>
         </div>
       </section>
 
       <!-- ===== RESALE EXCHANGE ===== -->
-      <section class="fg-card">
-        <div style="padding:18px 18px 4px">
-          <div class="block-head">
-            <h2>Fan resale</h2>
-            <span class="fg-chip ok">Rod Official</span>
-          </div>
-          <p class="fg-muted" style="font-size:.86rem; margin-bottom:6px">
-            Verified fans reselling seats they can't use &mdash; price-capped at face + $15.
-            Funds are held until the transfer is confirmed.
-          </p>
+      <section class="card">
+        <div class="card-head">
+          <div class="card-eyebrow">Rod Official</div>
+          <h2>Fan resale</h2>
+          <p class="card-sub">Verified fans reselling seats they can't use &mdash; price-capped at face + $15. Funds are held until the transfer is confirmed.</p>
         </div>
-        <div id="listings"><div class="fg-skeleton" style="height:64px;margin:6px 18px 18px"></div></div>
+        <div id="listings"><div style="height:64px;margin:0 20px 20px;background:var(--line-l);border-radius:8px;animation:pulse 1.4s ease infinite"></div></div>
       </section>
 
     </div>
   </div>
 </main>
 
-<footer class="fg-footer">
-  <div class="fg-wrap fg-footer-inner">
-    <span>Fair Game &copy; 2026 · Fair prices for real fans.</span>
-    <span><a href="index.html">All shows</a> · <a href="account.html">Account</a></span>
+<footer>
+  <div class="wrap">
+    <div class="foot-in">
+      <a class="foot-brand" href="index.html"><span class="mark">F</span>FANS FIRST</a>
+      <div class="foot-links">
+        <a href="index.html">All shows</a>
+        <a href="account.html">Account</a>
+        <a href="mytickets.html">My Tickets</a>
+      </div>
+    </div>
+    <div class="foot-final">All sales final &middot; No refunds &middot; Ticketmaster account required for delivery</div>
   </div>
 </footer>
 
-<!-- ===== Order modal (resale buy → poll → confirm) ===== -->
-<div class="fg-overlay" id="orderOverlay" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
-  <div class="fg-modal">
-    <div class="fg-between">
+<!-- ===== Order modal (resale buy -> poll -> confirm) ===== -->
+<div class="modal-overlay" id="orderOverlay" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
+  <div class="modal">
+    <div class="modal-head">
       <h3 id="orderTitle">Secure your seat</h3>
-      <button class="fg-modal-close" id="orderClose" aria-label="Close">&times;</button>
+      <button class="modal-close" id="orderClose" aria-label="Close">&times;</button>
     </div>
-    <div id="orderBody" class="fg-mt-2"></div>
+    <div id="orderBody" class="modal-body"></div>
   </div>
 </div>
 
 <!-- ===== Gate modal (must be verified) ===== -->
-<div class="fg-overlay" id="gateOverlay" role="dialog" aria-modal="true">
-  <div class="fg-modal fg-center">
-    <h3>Verified fans only</h3>
-    <p class="fg-muted fg-mt-2">Fair Game keeps scalpers out by verifying every fan. Get verified in under a minute &mdash; it's free.</p>
-    <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="account.html">Verify me &amp; come back</a>
-    <button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" id="gateClose">Not now</button>
+<div class="modal-overlay" id="gateOverlay" role="dialog" aria-modal="true">
+  <div class="modal" style="text-align:center">
+    <h3 style="font-size:20px;font-weight:800;margin-bottom:10px">Verified fans only</h3>
+    <p style="color:var(--ink-2);font-size:14px;margin-bottom:20px">Fans First keeps scalpers out by verifying every fan. Get verified in under a minute &mdash; it's free.</p>
+    <a class="btn btn-gold btn-block" href="account.html" style="margin-bottom:10px">Verify me &amp; come back</a>
+    <button class="btn btn-ghost btn-block" id="gateClose">Not now</button>
   </div>
 </div>
 
-<div class="fg-toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<style>
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
 
 <script>
 const API = '/fairgame/api';
 const $ = (s, r=document) => r.querySelector(s);
 const SHOW_ID = new URLSearchParams(location.search).get('id');
 let SHOW = null, QTY = 2, MAXQ = 4;
+
+/* ---------- nav scroll ---------- */
+const nav = $('#mainNav');
+const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
+window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
 
 /* ---------- session ---------- */
 function getSession() {
@@ -169,17 +361,19 @@ function renderBadge() {
   const s = getSession(); const right = $('#navRight');
   if (!s || !s.token) return;
   const fan = s.fan || {};
-  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
+  const prio = fan.priority
+    ? '<span class="nav-badge priority"><span class="dot"></span>Priority Fan</span>'
+    : '';
   right.innerHTML = prio +
-    '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="mytickets.html">My Tickets</a>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Account</a>';
+    '<span class="nav-badge"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="btn btn-sm btn-ghost" href="mytickets.html">My Tickets</a>' +
+    '<a class="btn btn-sm btn-ghost" href="account.html">Account</a>';
 }
 
 /* ---------- helpers ---------- */
 function money(c){ if(c==null) return '—'; return '$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:(c%100?2:0),maximumFractionDigits:2}); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='fg-toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='fg-toast '+(k||''),3400); }
+function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast '+(k||''),3400); }
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 /* ---------- gate ---------- */
@@ -199,24 +393,30 @@ async function loadShow() {
     if (r.status === 404) { showError('That show isn\'t on the bill.'); return; }
     if (!r.ok) throw new Error('HTTP '+r.status);
     SHOW = await r.json();
-    renderHead(); renderInventory(); renderListings();
+    renderHead(); renderInventory(); renderListings(); renderSeatMap();
   } catch (e) {
     showError('We couldn\'t load this show right now.');
   }
 }
 function showError(msg) {
-  $('#showHead').innerHTML = '<h1 style="opacity:.6">'+esc(msg.split('.')[0])+'</h1>';
-  $('#inventory').innerHTML = '<div class="fg-empty" style="margin:0 18px 18px"><p>'+esc(msg)+'</p>'+
-    '<a class="fg-btn fg-btn-ghost fg-mt-3" href="index.html">Back to shows</a></div>';
-  $('#buybar').classList.add('fg-hidden');
-  $('#listings').innerHTML = '<div class="fg-empty" style="margin:6px 18px 18px"><p>—</p></div>';
+  $('#showHead').innerHTML = '<div class="show-city" style="opacity:.5">'+esc(msg.split('.')[0])+'</div>';
+  $('#inventory').innerHTML = '<div class="empty" style="padding:28px 20px"><div class="big">'+esc(msg.split('.')[0])+'</div>'+
+    '<p>'+esc(msg)+'</p>'+
+    '<a class="btn btn-line" href="index.html" style="margin-top:14px">Back to shows</a></div>';
+  $('#buybar').style.display='none';
+  $('#listings').innerHTML = '<div class="empty"><p>—</p></div>';
 }
 function renderHead() {
+  const inv = (SHOW.inventory||[]);
+  const minPrice = inv.reduce((m,s)=>s.face_price_cents!=null&&s.qty_available>0?Math.min(m,s.face_price_cents):m, Infinity);
+  const fromStr = isFinite(minPrice) ? 'From ' + money(minPrice) + ' face value' : '';
   $('#showHead').innerHTML =
-    '<h1>'+esc(SHOW.city||'TBA')+'</h1>' +
-    '<div class="meta">'+esc(SHOW.show_date||'Dates TBA')+'</div>' +
-    '<div class="venue">'+esc(SHOW.venue||'')+'</div>';
-  document.title = 'Fair Game — ' + (SHOW.city||'Show');
+    '<div class="show-eyebrow">Don\'t Look Down Tour &middot; 2026</div>' +
+    '<div class="show-city">'+esc(SHOW.city||'TBA')+'</div>' +
+    '<div class="show-meta">'+esc(SHOW.show_date||'Dates TBA')+'</div>' +
+    '<div class="show-venue">'+esc(SHOW.venue||'')+'</div>' +
+    (fromStr ? '<div class="show-from">'+esc(fromStr)+'</div>' : '');
+  document.title = 'Fans First — ' + (SHOW.city||'Show');
 }
 
 /* ---------- inventory (primary) ---------- */
@@ -224,19 +424,19 @@ function renderInventory() {
   const inv = (SHOW.inventory||[]);
   const remaining = SHOW.remaining;
   if (!inv.length || remaining <= 0) {
-    $('#inventory').innerHTML = '<div class="fg-empty" style="margin:0 18px"><div class="big">Sold out</div>'+
-      '<p>Primary is gone &mdash; check fan resale &rarr; for capped, fair-price seats.</p></div>';
-    $('#buybar').classList.add('fg-hidden');
+    $('#inventory').innerHTML = '<div class="empty"><div class="big">Sold out</div>'+
+      '<p>Primary is gone &mdash; check fan resale below for capped, fair-price seats.</p></div>';
+    $('#buybar').style.display='none';
     return;
   }
   $('#inventory').innerHTML = inv.map(s=>{
     const avail = s.qty_available;
-    const chip = avail<=0 ? '<span class="fg-chip out">Gone</span>' :
-                 avail<60 ? '<span class="fg-chip low">'+avail+' left</span>' :
-                            '<span class="fg-chip ok">'+avail+' left</span>';
+    const chip = avail<=0 ? '<span class="tag tag-out">Gone</span>' :
+                 avail<60 ? '<span class="tag tag-low">'+avail+' left</span>' :
+                            '<span class="tag tag-ok">'+avail+' left</span>';
     return '<div class="inv-row"><div><div class="sec">'+esc(s.section)+'</div>'+
-           '<div class="avail">Face value</div></div>'+
-           '<div class="fg-row"><div style="text-align:right"><div class="face">'+money(s.face_price_cents)+'</div></div>'+chip+'</div></div>';
+           '<div class="face-label">Face value</div></div>'+
+           '<div style="display:flex;align-items:center;gap:10px"><div class="face">'+money(s.face_price_cents)+'</div>'+chip+'</div></div>';
   }).join('');
   MAXQ = Math.min(4, remaining); if (QTY > MAXQ) QTY = MAXQ;
   $('#qVal').textContent = QTY;
@@ -257,7 +457,7 @@ $('#getBtn').onclick = async ()=>{
     if (!r.ok) throw new Error(data.detail || 'Could not reserve');
     const g = data.grant || {};
     toast('Locked in — ' + (g.qty||QTY) + ' ticket' + ((g.qty||QTY)>1?'s':'') + ' reserved. Check email for Ticketmaster handoff.', 'ok');
-    await loadShow(); // refresh remaining counts
+    await loadShow();
   } catch (e) {
     toast(e.message || 'Could not reserve tickets', 'err');
   } finally {
@@ -265,12 +465,99 @@ $('#getBtn').onclick = async ()=>{
   }
 };
 
+/* ---------- seat map ---------- */
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs){ const e=document.createElementNS(SVGNS,tag); for(const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+let SEATMAP = null;
+let HOLD = {};   // section name -> 'available' | 'sold' | 'not_ours'
+
+async function loadHoldings(){
+  try{
+    const r = await fetch(API + '/shows/' + encodeURIComponent(SHOW_ID) + '/seatmap/holdings');
+    HOLD = r.ok ? ((await r.json()).sections || {}) : {};
+  }catch(e){ HOLD = {}; }
+}
+
+function statusClass(name){
+  const s = HOLD[name];
+  return s === 'available' ? 'avail' : s === 'sold' ? 'sold' : 'mine-na';
+}
+
+async function renderSeatMap(){
+  const card = $('#seatmapCard');
+  const sm = (SHOW && SHOW.seatmap) || {};
+  if (!sm.available){ card.hidden = true; return; }   // non-TM venue or map not published yet
+  card.hidden = false;
+  const svg = $('#seatmapSvg');
+  svg.innerHTML = '';
+  $('#seatmapCap').textContent = (sm.capacity ? sm.capacity.toLocaleString('en-US')+' seats' : 'Venue map');
+  try {
+    const r = await fetch(API + '/shows/' + encodeURIComponent(SHOW_ID) + '/seatmap');
+    if (!r.ok){ card.hidden = true; return; }
+    SEATMAP = await r.json();
+    await loadHoldings();
+    drawVenue();
+  } catch(e){ card.hidden = true; }
+}
+
+function drawVenue(){
+  const svg = $('#seatmapSvg'); svg.innerHTML='';
+  const cv = SEATMAP.canvas || {w:10240,h:7680};
+  svg.setAttribute('viewBox', '0 0 '+cv.w+' '+cv.h);
+  $('#seatmapBack').hidden = true; $('#seatmapTip').hidden = true;
+  for (const s of SEATMAP.sections){
+    const [x0,y0,x1,y1] = s.bbox;
+    const w = Math.max(1, x1-x0), h = Math.max(1, y1-y0);
+    const g = svgEl('g', {});
+    const rect = svgEl('rect', {x:x0, y:y0, width:w, height:h, rx:40,
+      'stroke-width':10});
+    rect.setAttribute('class', 'sec-shape ' + statusClass(s.name));
+    g.appendChild(rect);
+    if (w > 380 && h > 240){
+      const t = svgEl('text', {x:s.c[0], y:s.c[1], class:'sec-label'});
+      t.textContent = s.name; g.appendChild(t);
+    }
+    g.style.cursor='pointer';
+    g.addEventListener('click', ()=> zoomSection(s));
+    g.addEventListener('mouseenter', ()=> showTip(s.name + ' · ' + s.n + ' seats' + (s.ga?' · GA':'')));
+    g.addEventListener('mouseleave', ()=> { $('#seatmapTip').hidden = true; });
+    svg.appendChild(g);
+  }
+}
+
+async function zoomSection(s){
+  const svg = $('#seatmapSvg');
+  showTip('Loading ' + s.name + '…');
+  let det;
+  try {
+    const r = await fetch(API + '/shows/' + encodeURIComponent(SHOW_ID) + '/seatmap/section/' + encodeURIComponent(s.id));
+    if (!r.ok) return;
+    det = await r.json();
+  } catch(e){ return; }
+  svg.innerHTML='';
+  const [x0,y0,x1,y1] = det.bbox;
+  const pad = Math.max((x1-x0), (y1-y0)) * 0.12 + 60;
+  svg.setAttribute('viewBox', (x0-pad)+' '+(y0-pad)+' '+((x1-x0)+pad*2)+' '+((y1-y0)+pad*2));
+  const seatR = Math.max(8, Math.min(34, ((x1-x0)+(y1-y0)) / 90));
+  const cls = 'seat-dot ' + statusClass(s.name);
+  for (const row of (det.rows||[])){
+    for (const seat of row.s){
+      svg.appendChild(svgEl('circle', {cx:seat[0], cy:seat[1], r:seatR, class:cls}));
+    }
+  }
+  $('#seatmapBack').hidden = false;
+  showTip('Section ' + det.name + ' · ' + det.n + ' seats' + (det.ga?' · GA':''));
+}
+
+function showTip(html){ const t=$('#seatmapTip'); t.innerHTML='<b>'+esc(html.split('·')[0].trim())+'</b>'+esc(html.slice(html.indexOf('·')>=0?html.indexOf('·'):html.length)); t.hidden=false; }
+$('#seatmapBack').onclick = ()=> drawVenue();
+
 /* ---------- resale listings ---------- */
 function renderListings() {
   const list = (SHOW.listings||[]);
   const box = $('#listings');
   if (!list.length) {
-    box.innerHTML = '<div class="fg-empty" style="margin:6px 18px 18px"><div class="big">No resales yet</div>'+
+    box.innerHTML = '<div class="empty"><div class="big">No resales yet</div>'+
       '<p>When a verified fan lists a seat they can\'t use, it shows up here &mdash; always capped, never gouged.</p></div>';
     return;
   }
@@ -278,10 +565,10 @@ function renderListings() {
     '<div class="listing">' +
       '<div><div class="sec">'+esc(l.section)+'</div>'+
         '<div class="break">Face '+money(l.face_price_cents)+' · seller +$10 · Rod +$5</div></div>' +
-      '<div class="fg-row" style="justify-content:flex-end">' +
+      '<div style="display:flex;align-items:center;gap:10px;justify-content:flex-end">' +
         '<div style="text-align:right"><div class="price">'+money(l.buyer_total_cents)+'</div>'+
           '<div class="break">all-in</div></div>' +
-        '<button class="fg-btn fg-btn-gold fg-btn-sm" data-buy="'+esc(l.id)+'" data-total="'+l.buyer_total_cents+'" data-sec="'+esc(l.section)+'">Buy</button>' +
+        '<button class="btn btn-gold btn-sm" data-buy="'+esc(l.id)+'" data-total="'+l.buyer_total_cents+'" data-sec="'+esc(l.section)+'">Buy</button>' +
       '</div>' +
     '</div>'
   )).join('');
@@ -293,12 +580,10 @@ const overlay = $('#orderOverlay');
 $('#orderClose').onclick = closeOrder;
 function closeOrder(){ overlay.classList.remove('open'); }
 
-function stepsView(states, active) {
-  // states: ordered list of {key,label}; active key gets spinner
+function stepsView(states) {
   return '<div class="order-steps">' + states.map((s,i)=>{
-    const cls = s.state; // done | active | spin | ''
-    const mark = s.state==='done' ? '✓' : (i+1);
-    return '<div class="ostep '+cls+'"><span class="b">'+mark+'</span><span>'+s.label+'</span></div>';
+    const mark = s.state==='done' ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>' : (i+1);
+    return '<div class="ostep '+s.state+'"><span class="b">'+mark+'</span><span>'+s.label+'</span></div>';
   }).join('') + '</div>';
 }
 
@@ -307,10 +592,10 @@ async function startBuy(listingId, total, section) {
   overlay.classList.add('open');
   const body = $('#orderBody');
   body.innerHTML =
-    '<p class="fg-muted">'+esc(section)+' · <b style="color:var(--cream)">'+money(total)+'</b> all-in. '+
+    '<p style="color:var(--ink-2);font-size:14px;margin-bottom:18px">'+esc(section)+' · <b style="color:var(--ink)">'+money(total)+'</b> all-in. '+
     'Your money is held in escrow until the Ticketmaster transfer is confirmed. Capped &mdash; no markup beyond +$15.</p>' +
-    '<button class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="payBtn">Pay '+money(total)+' (held in escrow)</button>' +
-    '<p class="fg-muted fg-center fg-mt-2" style="font-size:.74rem">Test mode · no real charge</p>';
+    '<button class="btn btn-gold btn-block" id="payBtn">Pay '+money(total)+' (held in escrow)</button>' +
+    '<p style="color:var(--ink-3);text-align:center;margin-top:10px;font-size:12px">Test mode · no real charge</p>';
   $('#payBtn').onclick = ()=> runOrder(listingId, total, section);
 }
 
@@ -323,7 +608,6 @@ async function runOrder(listingId, total, section) {
   ];
   body.innerHTML = stepsView(steps);
   try {
-    // 1) create order (server holds funds -> state 'paid')
     const r = await fetch(API + '/buy', {
       method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()},
       body: JSON.stringify({listing_id: listingId})
@@ -333,36 +617,32 @@ async function runOrder(listingId, total, section) {
     if (!r.ok) throw new Error(data.detail || 'Could not start the order');
     const order = data.order; const orderId = order.id;
 
-    // poll for the 'paid' (held) state
     let st = await pollOrderUntil(orderId, s => s==='paid'||s==='released'||s==='refunded', 8);
     if (st === 'refunded') throw new Error('Order was auto-refunded');
     steps[0].state='done'; steps[1].state='spin'; body.innerHTML = stepsView(steps);
     await sleep(450);
 
-    // 2) buyer confirms receipt of the TM transfer -> server releases escrow
-    //    (buyer-confirms-receipt: must carry the fan's Bearer session)
     const cr = await fetch(API + '/orders/' + encodeURIComponent(orderId) + '/confirm',
       {method:'POST', headers:{...authHeaders()}});
     const cdata = await cr.json().catch(()=>({}));
     if (!cr.ok) throw new Error(cdata.detail || 'Transfer could not be confirmed');
 
-    // poll until released
     st = await pollOrderUntil(orderId, s => s==='released'||s==='refunded', 10);
     if (st === 'refunded') throw new Error('Transfer failed — you were refunded');
     steps[1].state='done'; steps[2].state='done'; body.innerHTML = stepsView(steps);
 
     body.innerHTML +=
-      '<div class="fg-card fg-mt-3" style="padding:18px;text-align:center">' +
-      '<div class="fg-display" style="font-size:1.6rem;color:var(--green)">You\'re in.</div>' +
-      '<p class="fg-muted fg-mt-1">'+esc(section)+' secured for '+money(total)+'. The ticket transfers to you on Ticketmaster.</p>' +
-      '<button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-3" id="doneBtn">Done</button></div>';
+      '<div class="card" style="padding:22px;text-align:center;margin-top:18px;background:var(--paper)">' +
+      '<div style="font-size:1.5rem;font-weight:800;color:var(--green);margin-bottom:8px">You\'re in.</div>' +
+      '<p style="font-size:14px;color:var(--ink-2)">'+esc(section)+' secured for '+money(total)+'. The ticket transfers to you on Ticketmaster.</p>' +
+      '<button class="btn btn-line btn-block" id="doneBtn" style="margin-top:14px">Done</button></div>';
     $('#doneBtn').onclick = ()=>{ closeOrder(); loadShow(); };
     toast('Seat secured — funds released to seller.', 'ok');
   } catch (e) {
     body.innerHTML =
-      '<div class="fg-empty"><div class="big" style="color:var(--red);font-size:1.4rem">Couldn\'t complete</div>' +
+      '<div class="empty"><div class="big" style="color:var(--red)">Couldn\'t complete</div>' +
       '<p>'+esc(e.message||'Something went wrong')+'</p>' +
-      '<button class="fg-btn fg-btn-ghost fg-mt-3" id="retryClose">Close</button></div>';
+      '<button class="btn btn-ghost" id="retryClose" style="margin-top:14px">Close</button></div>';
     $('#retryClose').onclick = ()=>{ closeOrder(); loadShow(); };
   }
 }
@@ -375,7 +655,6 @@ async function pollOrderUntil(orderId, pred, tries) {
     } catch {}
     await sleep(350);
   }
-  // best-effort: return whatever the last state was via one more read
   try { const r = await fetch(API + '/orders/' + encodeURIComponent(orderId), {headers:{...authHeaders()}}); const d = await r.json(); return (d.order||{}).state; }
   catch { return 'paid'; }
 }
