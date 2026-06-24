@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fans First — Contact</title>
+<meta name="description" content="Questions about a ticket, a transfer, or your account? Reach the Fans First fan-support team.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0a09; --bg2:#121110;
+  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
+  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
+  --line-l:#e4dccc; --line-d:#2a2724;
+  --silver:#aaa49a; --mute:#6f6a60;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
+  --r-btn:11px; --r-card:14px; --r-tag:6px;
+  --sh-l:0 14px 38px rgba(22,18,8,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
+.btn svg{width:17px;height:17px;flex:0 0 17px}
+.btn-gold{background:var(--gold-btn);color:#1a1206}
+.btn-gold:hover{background:var(--gold);transform:translateY(-2px)}
+.btn-block{width:100%}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-deep)}
+.announce{background:#070605;text-align:center;padding:9px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3a4}
+.announce b{color:var(--gold);font-weight:800}.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
+
+.c-hero{padding:64px 0 26px}
+.c-hero h1{font-size:clamp(2.2rem,6vw,3.4rem);font-weight:900;letter-spacing:-.03em;line-height:1;margin:14px 0 0}
+.c-hero .lede{color:var(--ink-2);margin-top:14px;max-width:52ch;font-size:1.05rem}
+
+.c-grid{display:grid;grid-template-columns:1.3fr .9fr;gap:30px;align-items:start;padding:14px 0 80px}
+@media(max-width:820px){.c-grid{grid-template-columns:1fr;gap:22px}}
+
+.card{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);box-shadow:var(--sh-l)}
+.form-card{padding:26px 26px 28px}
+.form-card h2{font-size:1.35rem;font-weight:800;letter-spacing:-.01em}
+.form-card p.sub{color:var(--ink-3);font-size:.92rem;margin-top:4px;margin-bottom:18px}
+.field{margin-bottom:14px}
+.lbl{display:block;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.inp,.sel,.ta{width:100%;font-family:inherit;font-size:15px;color:var(--ink);background:#fffdf8;border:1px solid var(--line-l);border-radius:10px;padding:12px 13px;transition:border-color .18s,box-shadow .18s}
+.inp:focus,.sel:focus,.ta:focus{outline:none;border-color:var(--gold-deep);box-shadow:0 0 0 3px rgba(156,111,35,.12)}
+.ta{resize:vertical;min-height:120px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:520px){.row2{grid-template-columns:1fr}}
+
+.side h3{font-size:.8rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px}
+.q{padding:16px 18px;border:1px solid var(--line-l);border-radius:12px;background:var(--card);margin-bottom:10px}
+.q b{display:block;font-weight:700;font-size:.98rem;margin-bottom:3px}
+.q span{color:var(--ink-2);font-size:.88rem}
+.side-note{margin-top:18px;font-size:.82rem;color:var(--ink-3);line-height:1.6}
+
+footer{background:#070605;color:#fff;padding:60px 0 38px;margin-top:10px}
+.foot{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
+.foot .brand{color:#fff;font-weight:900;font-size:19px;display:flex;align-items:center;gap:8px}
+.foot .brand .mark{width:25px;height:25px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.foot p{color:#8b8576;font-size:14px;max-width:300px;margin-top:14px}
+.fcols{display:flex;gap:50px;flex-wrap:wrap}
+.fcol h5{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b8576;margin-bottom:14px}
+.fcol a{display:block;color:var(--silver);font-size:14px;margin-bottom:10px}.fcol a:hover{color:#fff}
+.final{text-align:center;margin-top:46px;padding-top:22px;border-top:1px solid #1c1a18;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:11px 20px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--sh-l);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:#b8e8c6;color:#0e5e2a}
+.hidden{display:none!important}
+</style>
+</head>
+<body data-ffnav-active="contact">
+
+<div class="announce">FANS&nbsp;FIRST<span class="x">×</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
+
+<nav><div class="wrap" style="display:flex;align-items:center;height:64px"><a class="brand" href="index.html" style="font-weight:900">FANS&nbsp;FIRST</a></div></nav>
+
+<header class="c-hero"><div class="wrap">
+  <div class="eyebrow">We're here for fans</div>
+  <h1>Get in touch</h1>
+  <p class="lede">A question about a ticket, a transfer, or your account? Send it over and a real person on the Fans First team gets back to you — usually same day.</p>
+</div></header>
+
+<main class="wrap c-grid">
+
+  <form class="card form-card" id="contactForm" novalidate>
+    <h2>Send us a message</h2>
+    <p class="sub">The more detail, the faster we can help. If it's about an order, include the show and city.</p>
+
+    <div class="row2">
+      <div class="field"><label class="lbl" for="name">Name</label><input class="inp" id="name" name="name" autocomplete="name" placeholder="Your name" required></div>
+      <div class="field"><label class="lbl" for="email">Email</label><input class="inp" type="email" id="email" name="email" autocomplete="email" placeholder="you@email.com" required></div>
+    </div>
+
+    <div class="field">
+      <label class="lbl" for="topic">What's this about?</label>
+      <select class="sel" id="topic" name="topic">
+        <option value="order">A ticket I bought</option>
+        <option value="transfer">Getting my ticket / transfer</option>
+        <option value="selling">Selling a seat</option>
+        <option value="account">My account / verification</option>
+        <option value="other">Something else</option>
+      </select>
+    </div>
+
+    <div class="field"><label class="lbl" for="msg">Message</label><textarea class="ta" id="msg" name="msg" placeholder="Tell us what's going on…" required></textarea></div>
+
+    <button class="btn btn-gold btn-block" type="submit" id="sendBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      Send message
+    </button>
+    <p class="sub" style="margin-top:12px;margin-bottom:0">By sending, you confirm the details are yours. We never share your info.</p>
+  </form>
+
+  <aside class="side">
+    <h3>Quick answers</h3>
+    <div class="q"><b>When do I get my ticket?</b><span>Tickets deliver to your account roughly 3 days before the show — that's when the transfer window opens.</span></div>
+    <div class="q"><b>Can I get a refund?</b><span>All sales are final. Every seat is verified before it's sold, so what you buy is what you get.</span></div>
+    <div class="q"><b>How do I know it's real?</b><span>Every listing is a verified ticket from a verified fan. No screenshots, no PDFs, no scalper games.</span></div>
+    <p class="side-note">Prefer to browse first? Check the <a href="index.html" style="color:var(--gold-deep);font-weight:700">Rod Wave shows</a> or <a href="discover.html" style="color:var(--gold-deep);font-weight:700">Discover</a> any event.</p>
+  </aside>
+
+</main>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div><div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div><p>The fan-first ticket platform. Real seats, real fans, no scalper games. Official resale partner of Rod Wave's Don't Look Down Tour.</p></div>
+    <div class="fcols">
+      <div class="fcol"><h5>Buy</h5><a href="index.html">Rod Wave seats</a><a href="discover.html">Discover anything</a></div>
+      <div class="fcol"><h5>Account</h5><a href="account.html">Log in / Sign up</a><a href="mytickets.html">My tickets</a><a href="contact.html">Contact</a></div>
+    </div>
+  </div>
+  <div class="final">All sales final · No refunds · Ticketmaster account required for delivery · Not a live store</div>
+</div></footer>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="nav.js" defer></script>
+<script>
+const $ = (s)=>document.querySelector(s);
+function toast(m,k){const t=$('#toast');t.textContent=m;t.className='toast show '+(k||'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast '+(k||''),3800);}
+$('#contactForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  const name=$('#name').value.trim(), email=$('#email').value.trim(), msg=$('#msg').value.trim();
+  if(!name||!email||!msg){toast('Add your name, email, and a message.');return;}
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('That email looks off — mind checking it?');return;}
+  const btn=$('#sendBtn'); btn.disabled=true; btn.innerHTML='Sending…';
+  // NOTE: front-end only for now — no live inbox wired yet (pending support address).
+  setTimeout(()=>{
+    $('#contactForm').reset();
+    btn.disabled=false; btn.innerHTML='Send message';
+    toast('Thanks — your message is in. We’ll get back to you soon.','ok');
+  },650);
+});
+</script>
+</body>
+</html>

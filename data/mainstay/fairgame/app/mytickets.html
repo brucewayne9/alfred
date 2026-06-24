@@ -4,12 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fans First — My Tickets</title>
-<meta name="description" content="Your Fans First activity — tickets you bought and seats you listed, with live status.">
+<meta name="description" content="Your Fans First wallet — every ticket you bought, with live status and delivery, plus the seats you're selling.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-/* ---- Design tokens ---- */
 :root{
   --bg:#0b0a09; --bg2:#121110;
   --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
@@ -27,148 +26,129 @@ body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-
 img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
 .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
 
-/* ---- Shared components ---- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;
-  border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
 .btn svg{width:17px;height:17px;flex:0 0 17px}
 .btn-gold{background:var(--gold-btn);color:#1a1206}
 .btn-gold:hover{background:var(--gold);transform:translateY(-2px)}
 .btn-line{background:transparent;color:var(--ink);border-color:var(--line-l)}
 .btn-line:hover{border-color:var(--ink-3);background:rgba(0,0,0,.03)}
 .btn-sm{padding:10px 16px;font-size:13px}
-.btn-block{width:100%;justify-content:center}
 .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
 .eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-deep)}
-
-/* announce bar */
 .announce{background:#070605;text-align:center;padding:9px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3a4}
-.announce b{color:var(--gold);font-weight:800}
-.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
+.announce b{color:var(--gold);font-weight:800}.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
 
-/* nav */
-nav{position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;transition:background .3s,border-color .3s}
-.nav-in{display:flex;align-items:center;gap:16px;height:64px}
-.brand{font-weight:900;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:#fff;transition:color .3s}
-.brand .mark{width:25px;height:25px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
-.nav-right{display:flex;align-items:center;gap:9px;margin-left:auto}
-.nav-link{font-weight:600;font-size:14px;color:rgba(255,255,255,.8);transition:color .3s}
-.nav-link:hover{color:#fff}
-nav.scrolled{background:rgba(245,241,234,.93);backdrop-filter:blur(14px);border-bottom-color:var(--line-l)}
-nav.scrolled .brand{color:var(--ink)}
-nav.scrolled .nav-link{color:var(--ink-2)}nav.scrolled .nav-link:hover{color:var(--ink)}
-@media(max-width:720px){.nav-link.hidem{display:none}}
-
-/* footer */
 footer{background:#070605;color:#fff;padding:60px 0 38px}
 .foot{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
-.foot .brand{color:#fff}.foot p{color:#8b8576;font-size:14px;max-width:300px;margin-top:14px}
+.foot .brand{color:#fff;font-weight:900;font-size:19px;display:flex;align-items:center;gap:8px}
+.foot .brand .mark{width:25px;height:25px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.foot p{color:#8b8576;font-size:14px;max-width:300px;margin-top:14px}
 .fcols{display:flex;gap:50px;flex-wrap:wrap}
 .fcol h5{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b8576;margin-bottom:14px}
 .fcol a{display:block;color:var(--silver);font-size:14px;margin-bottom:10px}.fcol a:hover{color:#fff}
 .final{text-align:center;margin-top:46px;padding-top:22px;border-top:1px solid #1c1a18;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 
-/* toast */
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:11px 20px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--sh-l);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.err{border-color:#f0c6c6;color:#8b1f1f}
-.toast.ok{border-color:#b8e8c6;color:#0e5e2a}
+.toast.err{border-color:#f0c6c6;color:#8b1f1f}.toast.ok{border-color:#b8e8c6;color:#0e5e2a}
 
-/* badge */
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:99px;padding:5px 11px;border:1px solid}
-.badge-verified{color:var(--green);border-color:rgba(19,189,87,.3);background:rgba(19,189,87,.08)}
-.badge-priority{color:var(--gold-deep);border-color:rgba(156,111,35,.3);background:#faf3e2}
-.badge-neutral{color:var(--ink-3);border-color:var(--line-l);background:var(--paper-alt)}
 .badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge-green{color:#0e8c43;border-color:rgba(19,189,87,.32);background:rgba(19,189,87,.09)}
+.badge-gold{color:var(--gold-deep);border-color:rgba(156,111,35,.3);background:#faf3e2}
+.badge-neutral{color:var(--ink-3);border-color:var(--line-l);background:var(--paper-alt)}
 
-/* hidden utility */
-.hidden{display:none!important}
-.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
-.text-muted{color:var(--ink-3)}
-.row-flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hidden{display:none!important}.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.text-muted{color:var(--ink-3)}.row-flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 
-/* ---- Page: hero ---- */
+/* hero */
 .mt-hero{background:var(--bg);color:#fff;padding:56px 0 48px;margin-top:-64px;padding-top:calc(64px + 40px)}
 .mt-hero .eyebrow{color:var(--gold)}
 .mt-hero h1{font-size:clamp(2.2rem,7vw,3.8rem);font-weight:900;letter-spacing:-.03em;line-height:.95;margin:14px 0 0}
-.mt-hero .lede{color:var(--silver);margin-top:14px;max-width:52ch}
+.mt-hero .lede{color:var(--silver);margin-top:14px;max-width:54ch}
 
-/* ---- Page: main content ---- */
-main.mt-main{padding:40px 0 80px}
-.mt-inner{max-width:720px}
-
-/* section headings */
-.sec-h{font-size:.85rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:28px 0 12px;display:flex;align-items:center;gap:10px}
+main.mt-main{padding:36px 0 80px}.mt-inner{max-width:760px}
+.sec-h{font-size:.85rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:30px 0 14px;display:flex;align-items:center;gap:10px}
 .sec-h::after{content:'';flex:1;height:1px;background:var(--line-l)}
 
-/* card */
-.card{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:20px 22px;margin-bottom:10px}
+/* ---- WALLET ticket card (stub aesthetic) ---- */
+.tk{position:relative;background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);box-shadow:var(--sh-l);overflow:hidden;margin-bottom:14px}
+.tk::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,var(--gold),var(--gold-deep))}
+.tk-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:20px 22px 16px}
+.tk-where .tk-ey{font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep)}
+.tk-where h3{font-size:1.32rem;font-weight:900;letter-spacing:-.02em;margin-top:5px;line-height:1.05}
+.tk-where .tk-venue{color:var(--ink-2);font-size:.9rem;margin-top:4px}
+.tk-when{text-align:right;flex:0 0 auto}
+.tk-count{font-weight:900;font-size:1.05rem;letter-spacing:-.01em;color:var(--ink)}
+.tk-count small{display:block;font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}
+/* perforated divider */
+.tk-perf{position:relative;height:0;border-top:1.5px dashed var(--line-l);margin:0 16px}
+.tk-perf::before,.tk-perf::after{content:'';position:absolute;top:50%;transform:translateY(-50%);width:18px;height:18px;border-radius:50%;background:var(--paper)}
+.tk-perf::before{left:-25px}.tk-perf::after{right:-25px}
+.tk-bot{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:15px 22px 18px;flex-wrap:wrap}
+.tk-seat{display:flex;gap:22px;flex-wrap:wrap}
+.tk-seat .f{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.tk-seat .v{font-weight:800;font-size:.98rem;margin-top:2px}
+.tk-cta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tk-deliver{font-size:.78rem;color:var(--ink-3);max-width:30ch;line-height:1.45}
+.tk-deliver b{color:var(--ink-2);font-weight:700}
 
-/* ticket rows */
-.trow{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.trow .seat{font-weight:700;font-size:15px}
-.trow .sub{color:var(--ink-3);font-size:.8rem;margin-top:4px}
-.mt-empty{color:var(--ink-3);font-size:.9rem}
+/* listing rows (lighter) */
+.lrow{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:18px 20px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.lrow .seat{font-weight:700;font-size:15px}.lrow .sub{color:var(--ink-3);font-size:.8rem;margin-top:4px}
 
-/* signed-out state */
-.signin-cta{text-align:center;padding:24px}
-.signin-cta h2{font-size:1.3rem;font-weight:800;letter-spacing:-.01em;margin-bottom:8px}
-.signin-cta p{color:var(--ink-2);max-width:36ch;margin:0 auto}
+.mt-empty{color:var(--ink-3);font-size:.92rem;display:block;background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:20px 22px}
+.signin-cta{text-align:center;padding:34px 24px;background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);box-shadow:var(--sh-l)}
+.signin-cta h2{font-size:1.4rem;font-weight:800;letter-spacing:-.01em;margin-bottom:8px}
+.signin-cta p{color:var(--ink-2);max-width:38ch;margin:0 auto}
+
+@media(max-width:560px){.tk-top{flex-direction:column}.tk-when{text-align:left}.tk-bot{flex-direction:column;align-items:flex-start}}
 </style>
 </head>
-<body>
+<body data-ffnav="hero" data-ffnav-active="tickets">
 
 <div class="announce">FANS&nbsp;FIRST<span class="x">×</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
 
-<nav id="nav"><div class="wrap nav-in">
-  <a class="brand" href="index.html"><span class="mark">F</span>FANS&nbsp;FIRST</a>
-  <div class="nav-right" id="navRight">
-    <a class="nav-link hidem" href="index.html">Shows</a>
-    <a class="btn btn-gold btn-sm" href="account.html">Sign up</a>
+<nav><div class="wrap" style="display:flex;align-items:center;height:64px"><a class="brand" href="index.html" style="font-weight:900;color:#fff">FANS&nbsp;FIRST</a></div></nav>
+
+<header class="mt-hero"><div class="wrap">
+  <div class="eyebrow">Your wallet</div>
+  <h1>My Tickets</h1>
+  <p class="lede">Every seat you buy lives right here &mdash; with live status and delivery, so you always know exactly where your ticket and your money stand.</p>
+</div></header>
+
+<main class="mt-main"><div class="wrap mt-inner">
+
+  <!-- Signed-out -->
+  <div id="signedOut" class="signin-cta hidden">
+    <h2>Sign in to see your tickets</h2>
+    <p class="text-muted mt-1">Get verified (phone + email) and every ticket you buy or list shows up here in your wallet.</p>
+    <a class="btn btn-gold mt-3" href="account.html">Get verified</a>
   </div>
-</div></nav>
 
-<header class="mt-hero">
-  <div class="wrap">
-    <div class="eyebrow">Your activity</div>
-    <h1>My Tickets</h1>
-    <p class="lede">Every seat you buy or list shows up here &mdash; with live status, so you can always come back and see where your ticket and money stand.</p>
-  </div>
-</header>
+  <!-- Signed-in -->
+  <div id="signedIn" class="hidden">
+    <div class="sec-h">My tickets</div>
+    <div id="ordersList"><span class="mt-empty">Loading&hellip;</span></div>
 
-<main class="mt-main">
-  <div class="wrap mt-inner">
+    <div class="sec-h">Seats I'm selling</div>
+    <div id="listingsList"><span class="mt-empty">Loading&hellip;</span></div>
 
-    <!-- Signed-out state -->
-    <div id="signedOut" class="card signin-cta hidden">
-      <h2>Sign in first</h2>
-      <p class="text-muted mt-1">Get verified (phone + email) and your tickets and listings will appear here.</p>
-      <a class="btn btn-gold mt-3" href="account.html">Get verified</a>
+    <div class="row-flex mt-3">
+      <a class="btn btn-line btn-sm" href="index.html">Browse shows</a>
+      <a class="btn btn-line btn-sm" href="sell.html">Resell a seat</a>
     </div>
-
-    <!-- Signed-in content -->
-    <div id="signedIn" class="hidden">
-      <div class="sec-h">Tickets I bought</div>
-      <div id="ordersList"><div class="card"><span class="mt-empty">Loading&hellip;</span></div></div>
-
-      <div class="sec-h">Seats I'm selling</div>
-      <div id="listingsList"><div class="card"><span class="mt-empty">Loading&hellip;</span></div></div>
-
-      <div class="row-flex mt-3">
-        <a class="btn btn-line btn-sm" href="index.html">Browse shows</a>
-        <a class="btn btn-line btn-sm" href="sell.html">Resell a seat</a>
-      </div>
-    </div>
-
   </div>
-</main>
+
+</div></main>
 
 <footer><div class="wrap">
   <div class="foot">
     <div><div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div><p>The fan-first ticket platform. Real seats, real fans, no scalper games. Official resale partner of Rod Wave's Don't Look Down Tour.</p></div>
     <div class="fcols">
       <div class="fcol"><h5>Buy</h5><a href="index.html">Rod Wave seats</a><a href="discover.html">Discover anything</a></div>
-      <div class="fcol"><h5>Account</h5><a href="account.html">Log in / Sign up</a><a href="mytickets.html">My tickets</a></div>
+      <div class="fcol"><h5>Account</h5><a href="account.html">Log in / Sign up</a><a href="mytickets.html">My tickets</a><a href="contact.html">Contact</a></div>
     </div>
   </div>
   <div class="final">All sales final · No refunds · Ticketmaster account required for delivery · Not a live store</div>
@@ -176,93 +156,117 @@ main.mt-main{padding:40px 0 80px}
 
 <div class="toast" id="toast" role="status"></div>
 
+<script src="nav.js" defer></script>
 <script>
 const API = '/fairgame/api';
 const $ = (s, r=document) => r.querySelector(s);
 
-/* ---------- nav scroll ---------- */
-const nav = document.getElementById('nav');
-const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
-window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
-
-/* ---------- session ---------- */
-function getSession() {
-  try { return JSON.parse(localStorage.getItem('fairgame_session') || 'null'); }
-  catch { return null; }
-}
-function authHeaders() {
-  const s = getSession();
-  return s && s.token ? {'Authorization': 'Bearer ' + s.token} : {};
-}
-
-/* ---------- helpers ---------- */
+function getSession(){ try{ return JSON.parse(localStorage.getItem('fairgame_session')||'null'); }catch{ return null; } }
+function authHeaders(){ const s=getSession(); return s&&s.token?{'Authorization':'Bearer '+s.token}:{}; }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function money(c){ return '$' + ((c||0)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function money(c){ return '$'+((c||0)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function toast(m,k){ const t=$('#toast'); if(!t)return; t.textContent=m; t.className='toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast '+(k||''),3400); }
 
-/* ---------- nav badge ---------- */
-function renderBadge() {
-  const s = getSession(); const right = $('#navRight');
-  if (!s || !s.token) return;
-  const fan = s.fan || {};
-  const prio = fan.priority ? '<span class="badge badge-priority"><span class="dot"></span>Priority Fan</span>' : '';
-  right.innerHTML = prio + '<span class="badge badge-verified"><span class="dot"></span>Verified Fan</span>' +
-    '<a class="btn btn-line btn-sm" href="index.html">Shows</a>';
+/* date + countdown */
+function fmtDate(d){
+  if(!d) return 'Date TBA';
+  const dt=new Date(d+(d.length<=10?'T20:00:00':''));
+  if(isNaN(dt)) return esc(d);
+  return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+}
+function countdown(d){
+  if(!d) return null;
+  const dt=new Date(d+(d.length<=10?'T20:00:00':''));
+  if(isNaN(dt)) return null;
+  const days=Math.ceil((dt-new Date())/86400000);
+  if(days<0) return {n:'Past', s:'show'};
+  if(days===0) return {n:'Tonight', s:''};
+  if(days===1) return {n:'Tomorrow', s:''};
+  return {n:days, s:'days away'};
 }
 
-/* ---------- status mapping ---------- */
-function orderStatus(state){
-  if (state === 'released') return {label:'Ticket is yours', cls:'badge-verified'};
-  if (state === 'paid')     return {label:'In escrow',       cls:'badge-priority'};
-  if (state === 'refunded') return {label:'Refunded',        cls:'badge-neutral'};
-  return {label: state, cls:'badge-neutral'};
-}
-function listingStatus(status){
-  if (status === 'active')    return {label:'Live',      cls:'badge-verified'};
-  if (status === 'sold')      return {label:'Sold',      cls:'badge-priority'};
-  if (status === 'cancelled') return {label:'Cancelled', cls:'badge-neutral'};
-  return {label: status, cls:'badge-neutral'};
+/* status -> wallet language (Path A: delivers to TM ~3 days before show) */
+function ticketStatus(state){
+  if(state==='released') return {label:'Seat locked in', cls:'badge-green', delivered:true};
+  if(state==='paid')     return {label:'Securing your seat', cls:'badge-gold', delivered:false};
+  if(state==='refunded') return {label:'Refunded', cls:'badge-neutral', refunded:true};
+  return {label:state||'Processing', cls:'badge-neutral'};
 }
 
-/* ---------- render ---------- */
-function orderCard(o){
-  const st = orderStatus(o.state);
-  const where = esc(o.show_city || 'Show') + (o.section ? ' · ' + esc(o.section) : '');
-  const sub = [esc(o.show_date||''), o.amount_cents ? 'paid ' + money(o.amount_cents) : ''].filter(Boolean).join('  ·  ');
-  return '<div class="card"><div class="trow"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
-    '<span class="badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>';
+function ticketCard(o){
+  const st=ticketStatus(o.state);
+  const cd=countdown(o.show_date);
+  const tmEmail=o.tm_email ? esc(o.tm_email) : null;
+  const cdHTML = cd ? '<div class="tk-count"><small>'+(cd.s?'':'When')+'</small>'+esc(String(cd.n))+(cd.s?' <span style="font-weight:600;color:var(--ink-3);font-size:.72rem">'+esc(cd.s)+'</span>':'')+'</div>' : '';
+
+  // CTA + delivery line
+  let deliver, cta;
+  if(st.refunded){
+    deliver='<div class="tk-deliver">This order was refunded — nothing further to do.</div>'; cta='';
+  } else if(st.delivered){
+    deliver='<div class="tk-deliver">Your ticket delivers to '+(tmEmail?'<b>'+tmEmail+'</b>':'your Ticketmaster account')+' about <b>3 days before</b> the show. We’ll let you know the moment it lands.</div>';
+    cta='<a class="btn btn-gold btn-sm" href="https://www.ticketmaster.com/account" target="_blank" rel="noopener">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Open in Ticketmaster</a>';
+  } else {
+    deliver='<div class="tk-deliver">We’re securing your seat. Once it clears, it delivers to '+(tmEmail?'<b>'+tmEmail+'</b>':'your Ticketmaster account')+' ~3 days before the show.</div>';
+    cta='';
+  }
+
+  const paid=o.amount_cents||o.buyer_total_cents;
+  return '<article class="tk">'+
+    '<div class="tk-top"><div class="tk-where">'+
+      '<div class="tk-ey">Rod Wave · Don’t Look Down</div>'+
+      '<h3>'+esc(o.show_city||'Your show')+'</h3>'+
+      '<div class="tk-venue">'+esc(o.show_venue||'')+' · '+fmtDate(o.show_date)+'</div>'+
+    '</div>'+cdHTML+'</div>'+
+    '<div class="tk-perf"></div>'+
+    '<div class="tk-bot">'+
+      '<div class="tk-seat">'+
+        '<div><div class="f">Section</div><div class="v">'+esc(o.section||'—')+'</div></div>'+
+        (paid?'<div><div class="f">Paid</div><div class="v">'+money(paid)+'</div></div>':'')+
+        '<div><div class="f">Status</div><div class="v"><span class="badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>'+
+      '</div>'+
+      '<div class="tk-cta">'+deliver+cta+'</div>'+
+    '</div>'+
+  '</article>';
+}
+
+function listingStatus(s){
+  if(s==='active')   return {label:'Live', cls:'badge-green'};
+  if(s==='sold')     return {label:'Sold', cls:'badge-gold'};
+  if(s==='cancelled')return {label:'Cancelled', cls:'badge-neutral'};
+  return {label:s, cls:'badge-neutral'};
 }
 function listingCard(l){
-  const st = listingStatus(l.status);
-  const where = esc(l.show_city || 'Show') + ' · ' + esc(l.section);
-  const sub = 'face ' + money(l.face_price_cents) + ' · you keep ' + money(l.seller_proceeds_cents);
-  return '<div class="card"><div class="trow"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
-    '<span class="badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>';
+  const st=listingStatus(l.status);
+  const where=esc(l.show_city||'Show')+' · '+esc(l.section||'');
+  const sub='Face '+money(l.face_price_cents)+' · you keep '+money(l.seller_proceeds_cents||0);
+  return '<div class="lrow"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
+    '<span class="badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div>';
 }
 
 async function load(){
-  const s = getSession();
-  if (!s || !s.token){ $('#signedOut').classList.remove('hidden'); return; }
+  const s=getSession();
+  if(!s||!s.token){ $('#signedOut').classList.remove('hidden'); return; }
   $('#signedIn').classList.remove('hidden');
-  try {
-    const [oRes, lRes] = await Promise.all([
-      fetch(API + '/my/orders',   {headers: authHeaders()}),
-      fetch(API + '/my/listings', {headers: authHeaders()}),
+  try{
+    const [oRes,lRes]=await Promise.all([
+      fetch(API+'/my/orders',{headers:authHeaders()}),
+      fetch(API+'/my/listings',{headers:authHeaders()}),
     ]);
     const orders   = oRes.ok ? (await oRes.json()).orders   : [];
     const listings = lRes.ok ? (await lRes.json()).listings : [];
     $('#ordersList').innerHTML = orders.length
-      ? orders.map(orderCard).join('')
-      : '<div class="card"><span class="mt-empty">No purchases yet. Buy a seat from the resale exchange and it shows up here with its escrow status.</span></div>';
+      ? orders.map(ticketCard).join('')
+      : '<span class="mt-empty">No tickets yet. Grab a seat from a Rod Wave show or the resale exchange — it lands here in your wallet with live delivery status.</span>';
     $('#listingsList').innerHTML = listings.length
       ? listings.map(listingCard).join('')
-      : '<div class="card"><span class="mt-empty">You haven\'t listed a seat. Head to Resell to put one on the exchange — capped at face + $15.</span></div>';
-  } catch (e) {
-    toast('Could not load your tickets', 'err');
+      : '<span class="mt-empty">You haven’t listed a seat. Head to Resell to put one on the exchange — capped at face + $15.</span>';
+  }catch(e){
+    toast('Could not load your tickets','err');
+    $('#ordersList').innerHTML='<span class="mt-empty">Couldn’t reach your wallet just now. Refresh to try again.</span>';
   }
 }
-function toast(m,k){ const t=$('#toast'); if(!t)return; t.textContent=m; t.className='toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast '+(k||''),3400); }
-
-renderBadge();
 load();
 </script>
 </body>

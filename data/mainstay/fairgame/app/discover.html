@@ -61,7 +61,7 @@ nav.scrolled .nav-link:hover{color:var(--ink)}
 @media(max-width:560px){.nav-link.hidem{display:none}}
 
 /* discover header — dark band */
-.dh{background:var(--bg);color:#fff;padding:52px 0 40px}
+.dh{background:var(--bg);color:#fff;padding:52px 0 40px;margin-top:-64px;padding-top:calc(64px + 52px)}
 .dh .eyebrow{color:var(--gold)}
 .dh h1{font-size:clamp(2.2rem,7vw,4.2rem);font-weight:900;letter-spacing:-.04em;line-height:.96;margin:14px 0 16px}
 .dh h1 .gold{color:var(--gold)}
@@ -163,7 +163,7 @@ footer{background:#070605;color:#fff;padding:52px 0 34px}
 }
 </style>
 </head>
-<body>
+<body data-ffnav="hero" data-ffnav-active="discover">
 
 <div class="announce">FANS&nbsp;FIRST<span class="x">x</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
 
@@ -450,5 +450,6 @@ $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 renderChips();
 run();
 </script>
+<script src="nav.js" defer></script>
 </body>
 </html>

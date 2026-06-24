@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fair Game — Resell a ticket</title>
-<meta name="description" content="Can't make the show? Resell your Rod Wave ticket fairly through Rod's booth. You keep $10. No gouging. Cancel anytime.">
+<title>Fans First — Resell a ticket</title>
+<meta name="description" content="Can't make the show? Resell your Rod Wave ticket fairly through our verified booth. You keep $10. No gouging. Cancel anytime.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="fairgame.css">
@@ -75,14 +75,14 @@
   .done-burst h2 { font-family: var(--font-display); font-size: 1.9rem; text-transform: uppercase; }
 </style>
 </head>
-<body>
+<body data-ffnav-active="rod">
 
 <!-- ===================== NAV ===================== -->
 <nav class="fg-nav">
   <div class="fg-nav-inner">
-    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
-      <span class="fg-logo-mark"><span>FG</span></span>
-      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
+    <a class="fg-logo" href="index.html" aria-label="Fans First home">
+      <span class="fg-logo-mark"><span>FF</span></span>
+      <span class="fg-logo-word"><b>Fans&nbsp;First</b><small>Every ticket, verified</small></span>
     </a>
     <div class="fg-nav-right" id="navRight">
       <a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Sign in</a>
@@ -94,7 +94,7 @@
   <div class="fg-wrap">
     <div class="fg-eyebrow">Capped fan resale · Rod Official</div>
     <h1>Can't make it?<br><span class="fg-text-fire">Pass it on, fairly.</span></h1>
-    <p class="lede">List your seat through Rod's own booth. <b>You keep $10. No gouging. Cancel anytime.</b>
+    <p class="lede">List your seat through our verified booth. <b>You keep $10. No gouging. Cancel anytime.</b>
       Funds are held in escrow until the Ticketmaster transfer is confirmed &mdash; safe for you and the buyer.</p>
   </div>
 </header>
@@ -178,7 +178,7 @@
           <div class="done-burst">
             <div class="check">&#10003;</div>
             <h2>You're listed</h2>
-            <p class="fg-muted fg-mt-1" id="doneMsg">Your seat is live on Rod's booth.</p>
+            <p class="fg-muted fg-mt-1" id="doneMsg">Your seat is live on our verified booth.</p>
           </div>
           <div class="fg-card fg-mt-3" id="doneSummary" style="padding:18px"></div>
           <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="viewShow" href="index.html">View the listing</a>
@@ -201,7 +201,7 @@
         <div class="compare">
           <div class="cmp-row"><span class="lbl">On a $60 seat, you net</span></div>
           <div class="cmp-row"><span class="lbl">SeatGeek (after ~12% fee)</span><span class="seatgeek">~$53</span></div>
-          <div class="cmp-row"><span class="lbl">Fair Game</span><span class="fg">$70</span></div>
+          <div class="cmp-row"><span class="lbl">Fans First</span><span class="fg">$70</span></div>
         </div>
       </aside>
 
@@ -211,7 +211,7 @@
 
 <footer class="fg-footer">
   <div class="fg-wrap fg-footer-inner">
-    <span>Fair Game &copy; 2026 · Fair prices for real fans.</span>
+    <span>Fans First &copy; 2026 · Fair prices for real fans.</span>
     <span><a href="index.html">All shows</a> · <a href="account.html">Account</a></span>
   </div>
 </footer>
@@ -425,5 +425,6 @@ function boot() {
 
 boot();
 </script>
+<script src="nav.js" defer></script>
 </body>
 </html>
