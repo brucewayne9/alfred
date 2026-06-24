@@ -157,6 +157,49 @@ def _send_email(email: str, code: str) -> None:
         logger.warning("fairgame email send skipped/failed: %s", e)
 
 
+# Where fan contact-form messages land. Placeholder inbox; override via env.
+CONTACT_INBOX = os.environ.get("FAIRGAME_CONTACT_INBOX", "mjohnson@groundrushlabs.com")
+
+_CONTACT_TOPICS = {
+    "order": "A ticket I bought",
+    "transfer": "Getting my ticket / transfer",
+    "selling": "Selling a seat",
+    "account": "Account / verification",
+    "other": "Something else",
+}
+
+
+def _send_contact(name: str, email: str, topic: str, message: str) -> bool:
+    """Email a fan's contact-form message to the support inbox (reply-to the fan).
+    Returns True on apparent success; never raises."""
+    try:
+        from integrations.email.client import email_client
+
+        label = _CONTACT_TOPICS.get(topic, "Contact")
+        body = (
+            "New Fans First contact message\n\n"
+            f"From:  {name} <{email}>\n"
+            f"Topic: {label}\n\n"
+            f"{message}\n\n"
+            "— Sent from the Fans First contact form. Reply to reach the fan directly."
+        )
+        res = email_client.send_email(
+            account="groundrush info",  # info@groundrushlabs.com (Mailcow sender)
+            to=CONTACT_INBOX,
+            subject=f"[Fans First] {label} — {name}",
+            body=body,
+            html=False,
+            reply_to=email,
+        )
+        if isinstance(res, dict) and res.get("error"):
+            logger.warning("fairgame contact email failed: %s", res.get("error"))
+            return False
+        return True
+    except Exception as e:  # noqa: BLE001 - send must never break the flow
+        logger.warning("fairgame contact email error: %s", e)
+        return False
+
+
 # --------------------------------------------------------------------------- #
 # Lightweight per-IP rate limiting (in-memory) for register/verify
 # --------------------------------------------------------------------------- #
@@ -574,6 +617,35 @@ async def discover_unlock(req: Request):
     # Live: create a $1 checkout. Buyer completes payment, returns unlocked.
     url = stripe_connect.create_unlock_checkout(amount)
     return {"unlocked": False, "checkout_url": url, "amount_cents": amount}
+
+
+@app.post("/fairgame/api/contact")
+async def contact(req: Request):
+    """Fan contact form -> support inbox. Honeypot + light gibberish guard,
+    per-IP rate-limited. Never reveals the inbox address."""
+    _rate_limit(req)
+    try:
+        data = await req.json()
+    except Exception:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail="invalid body")
+    # Honeypot: bots fill the hidden 'company' field — accept silently, drop it.
+    if (data.get("company") or "").strip():
+        return {"ok": True}
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip()
+    topic = (data.get("topic") or "other").strip()
+    message = (data.get("message") or data.get("msg") or "").strip()
+    if not name or not _valid_tm_email(email) or len(message) < 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Please add your name, a valid email, and a message.",
+        )
+    if len(name) > 120 or len(email) > 200 or len(message) > 4000:
+        raise HTTPException(status_code=400, detail="That's a bit long — please trim it down.")
+    if not _send_contact(name, email, topic, message):
+        raise HTTPException(status_code=502, detail="Could not send right now. Please try again.")
+    logger.info("fairgame contact from %s <%s> topic=%s", name, email, topic)
+    return {"ok": True}
 
 
 # --------------------------------------------------------------------------- #

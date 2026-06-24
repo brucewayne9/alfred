@@ -72,6 +72,7 @@ footer{background:#070605;color:#fff;padding:60px 0 38px;margin-top:10px}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:11px 20px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--sh-l);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.ok{border-color:#b8e8c6;color:#0e5e2a}
+.hp{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden;opacity:0}
 .hidden{display:none!important}
 </style>
 </head>
@@ -111,6 +112,8 @@ footer{background:#070605;color:#fff;padding:60px 0 38px;margin-top:10px}
 
     <div class="field"><label class="lbl" for="msg">Message</label><textarea class="ta" id="msg" name="msg" placeholder="Tell us what's going on…" required></textarea></div>
 
+    <input class="hp" id="company" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+
     <button class="btn btn-gold btn-block" type="submit" id="sendBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
       Send message
@@ -145,18 +148,25 @@ footer{background:#070605;color:#fff;padding:60px 0 38px;margin-top:10px}
 <script>
 const $ = (s)=>document.querySelector(s);
 function toast(m,k){const t=$('#toast');t.textContent=m;t.className='toast show '+(k||'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast '+(k||''),3800);}
-$('#contactForm').addEventListener('submit',function(e){
+$('#contactForm').addEventListener('submit',async function(e){
   e.preventDefault();
   const name=$('#name').value.trim(), email=$('#email').value.trim(), msg=$('#msg').value.trim();
   if(!name||!email||!msg){toast('Add your name, email, and a message.');return;}
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('That email looks off — mind checking it?');return;}
-  const btn=$('#sendBtn'); btn.disabled=true; btn.innerHTML='Sending…';
-  // NOTE: front-end only for now — no live inbox wired yet (pending support address).
-  setTimeout(()=>{
+  const btn=$('#sendBtn'); btn.disabled=true; const label=btn.innerHTML; btn.innerHTML='Sending…';
+  try{
+    const r=await fetch('/fairgame/api/contact',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,email,topic:$('#topic').value,msg,company:$('#company').value})
+    });
+    if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.detail||'send failed'); }
     $('#contactForm').reset();
-    btn.disabled=false; btn.innerHTML='Send message';
     toast('Thanks — your message is in. We’ll get back to you soon.','ok');
-  },650);
+  }catch(err){
+    toast(err.message||'Could not send right now. Please try again.');
+  }finally{
+    btn.disabled=false; btn.innerHTML=label;
+  }
 });
 </script>
 </body>
