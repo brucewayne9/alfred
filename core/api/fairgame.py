@@ -46,6 +46,7 @@ from core.fairgame import (
     aggregator,
     db,
     events,
+    holdings,
     identity,
     listings,
     orders,
@@ -373,6 +374,19 @@ async def show_seatmap_section(show_id: str, section_id: str):
     if sec is None:
         raise HTTPException(status_code=404, detail="section not found")
     return sec
+
+
+@app.get("/fairgame/api/shows/{show_id}/seatmap/holdings")
+async def show_seatmap_holdings(show_id: str):
+    """Green/red/grey overlay: which sections Rod holds + their status.
+    404 when no map is ingested for this show."""
+    if not events.get_show(show_id):
+        raise HTTPException(status_code=404, detail="show not found")
+    data = holdings.overlay(show_id)
+    if data is None:
+        raise HTTPException(status_code=404,
+                            detail=seatmap.status(show_id).get("reason", "no seatmap"))
+    return data
 
 
 # --------------------------------------------------------------------------- #
