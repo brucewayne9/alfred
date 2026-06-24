@@ -1,418 +1,654 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fair Game — Tour Console</title>
-<meta name="description" content="Rod Wave / Mainstay tour console. Verified fans, capped resale, and the money won back from scalpers.">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fans First — Tour Console</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="fairgame.css">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  /* ---- Page-local: console ---- */
-  .con-head { padding: 30px 0 6px; }
-  @media (min-width: 768px) { .con-head { padding: 44px 0 8px; } }
-  .con-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
-  .con-title h1 {
-    font-family: var(--font-display); text-transform: uppercase;
-    font-size: clamp(2.1rem, 6vw, 3.4rem); line-height: .92; letter-spacing: .01em;
-  }
-  .con-sub { color: var(--muted); margin-top: 8px; font-size: .95rem; max-width: 52ch; }
-  .con-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .con-stamp { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-2); }
-  .con-stamp .live { color: var(--green); }
+/* ===== DESIGN SYSTEM (mirrored from index.html) ===== */
+:root{
+  --bg:#0b0a09; --bg2:#121110;
+  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
+  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
+  --line-l:#e4dccc; --line-d:#2a2724;
+  --silver:#aaa49a; --mute:#6f6a60;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
+  --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
+  --r-btn:11px; --r-card:14px; --r-tag:6px;
+  --sh-l:0 14px 38px rgba(22,18,8,.10); --sh-d:0 22px 60px rgba(0,0,0,.6);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-deep)}
 
-  /* ---- KPI grid ---- */
-  .kpis { display: grid; gap: 14px; grid-template-columns: repeat(2, 1fr); margin-top: 26px; }
-  @media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
-  @media (min-width: 1000px) { .kpis { grid-template-columns: repeat(4, 1fr); } }
+/* Buttons — 11px border-radius, no emoji */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;
+  border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
+.btn svg{width:16px;height:16px;flex:0 0 16px;stroke:currentColor;fill:none;stroke-width:2}
+.btn-gold{background:var(--gold-btn);color:#1a1206;border-color:transparent}
+.btn-gold:hover{background:var(--gold);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--ink-2);border-color:var(--line-l)}
+.btn-ghost:hover{border-color:var(--ink-3);color:var(--ink);background:rgba(0,0,0,.03)}
+.btn-danger{background:transparent;color:var(--red);border-color:#f5d0d0}
+.btn-danger:hover{background:#fdf0f0}
+.btn-sm{padding:9px 14px;font-size:13px}
+.btn-xs{padding:6px 10px;font-size:12px}
 
-  .kpi {
-    position: relative; overflow: hidden;
-    padding: 18px 18px 16px; border-radius: var(--r-lg);
-    border: 1px solid var(--line);
-    background: linear-gradient(180deg, var(--panel-2), var(--panel));
-  }
-  .kpi-label { font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted-2); }
-  .kpi-val { font-family: var(--font-display); font-size: clamp(1.9rem, 4.6vw, 2.7rem); line-height: 1; margin-top: 10px; color: var(--cream); }
-  .kpi-foot { font-size: .76rem; color: var(--muted); margin-top: 9px; }
+/* Nav */
+nav{background:var(--bg);border-bottom:1px solid var(--line-d);position:sticky;top:0;z-index:50}
+.nav-in{display:flex;align-items:center;gap:16px;height:60px}
+.brand{font-weight:900;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:#fff}
+.brand .mark{width:24px;height:24px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:12px;font-weight:900}
+.brand small{font-size:11px;font-weight:600;color:var(--silver);letter-spacing:.05em;margin-left:2px}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.badge-op{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(230,189,114,.35);background:rgba(230,189,114,.08);border-radius:99px;padding:4px 10px}
 
-  /* The money-won-back hero KPI spans + glows */
-  .kpi.hero-money {
-    grid-column: 1 / -1;
-    border-color: var(--line-2);
-    background:
-      radial-gradient(120% 140% at 100% 0%, rgba(255,90,31,.20), transparent 58%),
-      radial-gradient(120% 140% at 0% 100%, rgba(240,180,41,.12), transparent 58%),
-      linear-gradient(180deg, var(--panel-2), var(--panel));
-    box-shadow: 0 14px 44px rgba(255,90,31,.16), var(--shadow);
-  }
-  @media (min-width: 640px) { .kpi.hero-money { grid-column: span 3; } }
-  @media (min-width: 1000px) { .kpi.hero-money { grid-column: span 2; } }
-  .kpi.hero-money .kpi-label { color: var(--gold); }
-  .kpi.hero-money .kpi-val { font-size: clamp(2.6rem, 7vw, 4rem); }
-  .kpi.hero-money .kpi-val { background: var(--grad-fire); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Page header */
+.page-head{padding:40px 0 28px;border-bottom:1px solid var(--line-l)}
+.ph-row{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.ph-title{font-size:clamp(26px,4vw,40px);font-weight:800;letter-spacing:-.03em;margin:10px 0 6px}
+.ph-sub{color:var(--ink-2);font-size:15px;max-width:560px}
+.ph-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:6px}
+.stamp{font-size:11px;color:var(--ink-3);letter-spacing:.06em}
+.stamp .live{color:var(--green)}
 
-  /* Orders-by-state mini bars inside a KPI */
-  .state-bars { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-  .state-row { display: grid; grid-template-columns: 78px 1fr 34px; align-items: center; gap: 8px; }
-  .state-name { font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-  .state-track { height: 7px; border-radius: var(--r-pill); background: rgba(255,255,255,.05); overflow: hidden; }
-  .state-fill { height: 100%; border-radius: var(--r-pill); background: var(--grad-fire); min-width: 2px; transition: width .5s var(--ease); }
-  .state-fill.released { background: var(--green); }
-  .state-fill.refunded { background: var(--red); }
-  .state-fill.failed   { background: var(--red); }
-  .state-n { font-size: .82rem; text-align: right; color: var(--cream); font-variant-numeric: tabular-nums; }
+/* Section spacing */
+.sec{padding:36px 0}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.sec-head h2{font-size:clamp(18px,2.8vw,24px);font-weight:800;letter-spacing:-.02em}
+.sec-meta{font-size:13px;color:var(--ink-3)}
 
-  /* ---- Section heads ---- */
-  .sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin: 38px 0 16px; flex-wrap: wrap; }
-  .sec-head h2 { font-family: var(--font-display); font-size: clamp(1.4rem, 3.6vw, 2rem); text-transform: uppercase; }
-  .sec-head .fg-eyebrow { margin-bottom: 4px; }
+/* KPI grid */
+.kpis{display:grid;gap:14px;grid-template-columns:repeat(2,1fr);margin-top:28px}
+@media(min-width:640px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:960px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{border:1px solid var(--line-l);border-radius:var(--r-card);padding:20px;background:var(--card)}
+.kpi.hero{grid-column:1/-1;border-color:var(--gold);background:linear-gradient(135deg,#fffbf0,var(--card))}
+@media(min-width:640px){.kpi.hero{grid-column:span 2}}
+.kpi-label{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.kpi-val{font-size:clamp(26px,4.5vw,38px);font-weight:800;letter-spacing:-.03em;line-height:1;margin:10px 0 6px;color:var(--ink)}
+.kpi.hero .kpi-val{color:var(--gold-deep)}
+.kpi-foot{font-size:12px;color:var(--ink-3)}
 
-  /* ---- Tables ---- */
-  .tbl-wrap { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--panel); }
-  .tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table.fg-tbl { width: 100%; border-collapse: collapse; font-size: .88rem; min-width: 560px; }
-  table.fg-tbl thead th {
-    text-align: left; font-size: .64rem; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--muted-2); font-weight: 700; padding: 13px 16px;
-    background: var(--black-2); border-bottom: 1px solid var(--line); white-space: nowrap;
-  }
-  table.fg-tbl tbody td { padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  table.fg-tbl tbody tr:last-child td { border-bottom: 0; }
-  table.fg-tbl tbody tr:hover td { background: rgba(255,255,255,.02); }
-  .t-num { font-variant-numeric: tabular-nums; text-align: right; }
-  .t-strong { font-weight: 600; color: var(--cream); }
-  .t-city { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .01em; font-size: 1.02rem; }
-  .t-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; color: var(--muted); }
+/* Tables */
+.tbl-wrap{border:1px solid var(--line-l);border-radius:var(--r-card);overflow:hidden;background:var(--card);box-shadow:var(--sh-l)}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.fg-tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:540px}
+table.fg-tbl thead th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);padding:12px 16px;background:var(--paper-alt);border-bottom:1px solid var(--line-l);white-space:nowrap}
+table.fg-tbl tbody td{padding:13px 16px;border-bottom:1px solid var(--line-l);vertical-align:middle}
+table.fg-tbl tbody tr:last-child td{border-bottom:0}
+table.fg-tbl tbody tr:hover td{background:var(--paper)}
+table.fg-tbl tfoot td{padding:12px 16px;border-top:1px solid var(--line-l);font-weight:700;background:var(--paper-alt)}
+.t-num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.t-strong{font-weight:700;color:var(--ink)}
+.t-muted{color:var(--ink-3);font-size:12px}
+.t-mono{font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;font-size:12px;color:var(--ink-3)}
 
-  /* state pills in tables */
-  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 9px; border-radius: var(--r-pill); border: 1px solid var(--line-2); background: rgba(255,255,255,.03); color: var(--muted); white-space: nowrap; }
-  .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 7px currentColor; }
-  .pill.released { color: var(--green); border-color: rgba(61,220,132,.4); }
-  .pill.held, .pill.paid, .pill.pending { color: var(--gold); border-color: rgba(240,180,41,.38); }
-  .pill.refunded, .pill.failed { color: var(--red); border-color: rgba(255,82,82,.38); }
+/* Status chips */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:4px 9px;border-radius:var(--r-tag);border:1px solid;white-space:nowrap}
+.chip-green{color:#0b7a35;background:#e8faf0;border-color:#b3e8c8}
+.chip-amber{color:#8c5a00;background:#fdf5e3;border-color:#f2d98a}
+.chip-red{color:#a81c1c;background:#fdf0f0;border-color:#f5c0c0}
+.chip-grey{color:var(--mute);background:var(--paper-alt);border-color:var(--line-l)}
 
-  .auth-hint { color: var(--muted-2); font-size: .78rem; }
-  .reload-spin { animation: rspin 1s linear infinite; display: inline-block; }
-  @keyframes rspin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .reload-spin { animation: none; } }
+/* Skeletons */
+.skel{background:linear-gradient(90deg,var(--line-l) 25%,var(--paper-alt) 50%,var(--line-l) 75%);background-size:200% 100%;animation:shimmer 1.6s infinite;border-radius:var(--r-card)}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Empty states */
+.empty{text-align:center;padding:56px 24px;color:var(--ink-2)}
+.empty .big{font-size:18px;font-weight:700;margin-bottom:6px;color:var(--ink)}
+.empty p{font-size:14px;color:var(--ink-3)}
+.empty .btn{margin-top:18px}
+
+/* Auth wall */
+.auth-wall{border:1px solid var(--line-l);border-radius:var(--r-card);padding:40px 28px;text-align:center;background:var(--card)}
+.auth-wall .lock-ico{width:40px;height:40px;margin:0 auto 14px;border-radius:10px;background:var(--paper-alt);border:1px solid var(--line-l);display:grid;place-items:center}
+.auth-wall .lock-ico svg{width:20px;height:20px;stroke:var(--ink-3);fill:none;stroke-width:2}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:11px 22px;border-radius:var(--r-btn);box-shadow:var(--sh-d);pointer-events:none;opacity:0;transition:opacity .22s;z-index:100;white-space:nowrap}
+.toast.show{opacity:1}
+.toast.ok{background:#0f6e32}
+.toast.err{background:#9b1b1b}
+
+/* ===== PRICES & INVENTORY PANEL ===== */
+.inv-panel{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);overflow:hidden;box-shadow:var(--sh-l)}
+.inv-toolbar{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line-l);background:var(--paper-alt);flex-wrap:wrap}
+.inv-toolbar label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.inv-select{font-family:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:9px 14px;min-width:220px;cursor:pointer;flex:1;max-width:360px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23988f7c' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+.inv-select:focus{outline:2px solid var(--gold);outline-offset:1px}
+
+/* Inventory table with inline edits */
+table.inv-tbl{width:100%;border-collapse:collapse;font-size:14px}
+table.inv-tbl thead th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);padding:12px 16px;background:var(--paper-alt);border-bottom:1px solid var(--line-l);white-space:nowrap}
+table.inv-tbl tbody td{padding:10px 16px;border-bottom:1px solid var(--line-l);vertical-align:middle}
+table.inv-tbl tbody tr:last-child td{border-bottom:0}
+.inv-input{font-family:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--paper);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:7px 10px;width:100%;max-width:110px;transition:border-color .14s}
+.inv-input:focus{outline:none;border-color:var(--gold-btn);background:#fff}
+.inv-input.dirty{border-color:var(--gold-btn);background:#fffdf5}
+.inv-input.saved{border-color:var(--green);background:#f0fbf5}
+
+/* Add-section form */
+.add-row{display:flex;align-items:center;gap:10px;padding:14px 16px;border-top:2px dashed var(--line-l);background:var(--paper);flex-wrap:wrap}
+.add-row .add-label{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap;min-width:80px}
+.add-row .inv-input{max-width:140px}
+.add-row .inv-input-section{max-width:160px}
+
+/* State bars (orders by state) */
+.state-bars{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.state-row{display:grid;grid-template-columns:82px 1fr 30px;align-items:center;gap:8px}
+.state-name{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.state-track{height:6px;border-radius:99px;background:var(--line-l);overflow:hidden}
+.state-fill{height:100%;border-radius:99px;background:var(--gold);min-width:2px;transition:width .5s}
+.state-fill.released{background:var(--green)}.state-fill.refunded,.state-fill.failed{background:var(--red)}
+.state-n{font-size:12px;text-align:right;font-weight:600;color:var(--ink)}
+
+@media(max-width:640px){
+  .wrap{padding:0 16px}
+  .ph-row{flex-direction:column}
+  .kpis{grid-template-columns:1fr 1fr}
+  .add-row{flex-direction:column;align-items:flex-start}
+  .add-row .inv-input,.add-row .inv-input-section{max-width:none;width:100%}
+}
 </style>
 </head>
 <body>
 
-<!-- ===================== NAV ===================== -->
-<nav class="fg-nav">
-  <div class="fg-nav-inner">
-    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
-      <span class="fg-logo-mark"><span>FG</span></span>
-      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Tour Console</small></span>
-    </a>
-    <div class="fg-nav-right">
-      <span class="fg-badge priority"><span class="dot"></span>Operator</span>
-      <button class="fg-btn fg-btn-ghost fg-btn-sm" id="reloadBtn" type="button">↻ Refresh</button>
+<!-- NAV -->
+<nav><div class="wrap nav-in">
+  <a class="brand" href="index.html">
+    <span class="mark">F</span>FANS&nbsp;FIRST<small>· Console</small>
+  </a>
+  <div class="nav-right">
+    <span class="badge-op">Operator</span>
+    <button class="btn btn-ghost btn-sm" id="keyBtn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      Admin key
+    </button>
+    <button class="btn btn-ghost btn-sm" id="reloadBtn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      Refresh
+    </button>
+  </div>
+</div></nav>
+
+<!-- PAGE HEADER -->
+<header class="page-head"><div class="wrap">
+  <div class="ph-row">
+    <div>
+      <div class="eyebrow">Don't Look Down · 2026</div>
+      <h1 class="ph-title">Tour Console</h1>
+      <p class="ph-sub">Live dashboard — verified fans, inventory, capped resale, and platform revenue. Edit prices and quantities directly below.</p>
+    </div>
+    <div class="ph-actions">
+      <span class="stamp" id="stamp"><span class="live">●</span> connecting…</span>
     </div>
   </div>
-</nav>
+</div></header>
 
-<!-- ===================== HEADER ===================== -->
-<header class="con-head">
-  <div class="fg-wrap">
-    <div class="con-title">
-      <div>
-        <div class="fg-eyebrow">Don't Look Down · 2026</div>
-        <h1>Tour Console</h1>
-        <p class="con-sub">The whole marketplace at a glance — verified fans, live inventory,
-          capped resale, and the revenue won back from scalpers.</p>
-      </div>
-      <div class="con-actions">
-        <span class="con-stamp" id="stamp"><span class="live">●</span> connecting…</span>
-        <button class="fg-btn fg-btn-ghost fg-btn-sm" id="keyBtn" type="button">Admin key</button>
-      </div>
-    </div>
+<!-- KPIs -->
+<div class="wrap">
+  <div class="kpis" id="kpis" aria-live="polite">
+    <div class="skel" style="height:110px"></div>
+    <div class="skel" style="height:110px"></div>
+    <div class="skel" style="height:110px"></div>
+    <div class="skel" style="height:110px"></div>
   </div>
-</header>
+</div>
 
-<!-- ===================== KPIs ===================== -->
-<section class="fg-section" style="padding-top:10px; padding-bottom:0">
-  <div class="fg-wrap">
-    <div class="kpis" id="kpis" aria-live="polite">
-      <div class="fg-skeleton" style="height:120px"></div>
-      <div class="fg-skeleton" style="height:120px"></div>
-      <div class="fg-skeleton" style="height:120px"></div>
-      <div class="fg-skeleton" style="height:120px"></div>
-    </div>
-  </div>
-</section>
-
-<!-- ===================== SHOWS TABLE ===================== -->
-<section class="fg-section" style="padding-top:0; padding-bottom:0">
-  <div class="fg-wrap">
+<!-- PRICES & INVENTORY MANAGER -->
+<div class="wrap">
+  <section class="sec">
     <div class="sec-head">
       <div>
-        <div class="fg-eyebrow">Inventory</div>
+        <div class="eyebrow">Back office</div>
+        <h2>Prices &amp; inventory</h2>
+      </div>
+      <span class="sec-meta" id="invMeta"></span>
+    </div>
+    <div class="inv-panel">
+      <div class="inv-toolbar">
+        <label for="showPicker">Show</label>
+        <select class="inv-select" id="showPicker">
+          <option value="">— pick a date —</option>
+        </select>
+      </div>
+      <div id="invBody">
+        <div class="empty">
+          <div class="big">Pick a show above</div>
+          <p>Select a tour date to view and edit its ticket prices and available quantities.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- SHOWS TABLE -->
+<div class="wrap">
+  <section class="sec">
+    <div class="sec-head">
+      <div>
+        <div class="eyebrow">Inventory overview</div>
         <h2>Shows &amp; remaining seats</h2>
       </div>
-      <span class="fg-muted" id="showsMeta"></span>
+      <span class="sec-meta" id="showsMeta"></span>
     </div>
-    <div id="showsBox">
-      <div class="fg-skeleton" style="height:200px"></div>
-    </div>
-  </div>
-</section>
+    <div id="showsBox"><div class="skel" style="height:220px"></div></div>
+  </section>
+</div>
 
-<!-- ===================== ORDERS TABLE ===================== -->
-<section class="fg-section" style="padding-top:0">
-  <div class="fg-wrap">
+<!-- ORDERS TABLE -->
+<div class="wrap">
+  <section class="sec">
     <div class="sec-head">
       <div>
-        <div class="fg-eyebrow">Resale escrow</div>
+        <div class="eyebrow">Resale escrow</div>
         <h2>Recent orders</h2>
       </div>
-      <span class="fg-muted" id="ordersMeta"></span>
+      <span class="sec-meta" id="ordersMeta"></span>
     </div>
-    <div id="ordersBox">
-      <div class="fg-skeleton" style="height:200px"></div>
-    </div>
-  </div>
-</section>
+    <div id="ordersBox"><div class="skel" style="height:180px"></div></div>
+  </section>
+</div>
 
-<!-- ===================== FOOTER ===================== -->
-<footer class="fg-footer">
-  <div class="fg-wrap fg-footer-inner">
-    <span>Fair Game Tour Console &copy; 2026 · Rod Wave × Ground Rush. Operator view — internal.</span>
-    <span class="fg-row">
-      <a href="index.html">Storefront</a> ·
-      <span class="auth-hint">Header X-Fairgame-Admin</span>
-    </span>
+<!-- FOOTER -->
+<footer style="background:var(--bg);color:#fff;padding:36px 0 28px;margin-top:20px">
+  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+    <span style="font-size:13px;color:var(--silver)">Fans First Tour Console &copy; 2026 · Rod Wave × Ground Rush. Internal operator view.</span>
+    <a href="index.html" style="font-size:13px;color:var(--silver);display:flex;align-items:center;gap:6px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+      Storefront
+    </a>
   </div>
 </footer>
 
-<div class="fg-toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
+'use strict';
 const API = '/fairgame/api';
 const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 
-/* ---------- admin key (prompt -> localStorage) ---------- */
+/* ---- admin key ---- */
 const KEY_STORE = 'fairgame_admin_key';
-function getKey() { return localStorage.getItem(KEY_STORE) || ''; }
-function setKey(k) { if (k == null) return; localStorage.setItem(KEY_STORE, k.trim()); }
-function promptKey(force) {
+function getKey(){ return localStorage.getItem(KEY_STORE) || ''; }
+function setKey(k){ if(k==null) return; localStorage.setItem(KEY_STORE, k.trim()); }
+function promptKey(force){
   let k = getKey();
-  if (!k || force) {
-    const v = window.prompt('Enter the Fair Game admin key', k || '');
-    if (v == null) return getKey();      // cancelled — keep what we had
+  if(!k || force){
+    const v = window.prompt('Fans First admin key', k || '');
+    if(v == null) return getKey();
     setKey(v); k = v.trim();
   }
   return k;
 }
-function adminHeaders() {
-  return { 'Accept': 'application/json', 'X-Fairgame-Admin': getKey() };
+function adminHeaders(extra){
+  return Object.assign({'Accept':'application/json','X-Fairgame-Admin': getKey()}, extra||{});
 }
 
-/* ---------- helpers ---------- */
-function money(cents) {
-  if (cents == null) return '—';
-  const neg = cents < 0; cents = Math.abs(cents);
-  const s = '$' + (cents/100).toLocaleString('en-US', {minimumFractionDigits:(cents%100?2:0), maximumFractionDigits:2});
-  return neg ? '-' + s : s;
+/* ---- helpers ---- */
+function money(c){ if(c==null) return '—'; return '$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:(c%100?2:0),maximumFractionDigits:2}); }
+function num(n){ return (n==null)?'—':Number(n).toLocaleString('en-US'); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function shortId(s){ s=String(s||''); return s.length>10?s.slice(0,8)+'…':s; }
+function ago(ts){
+  if(!ts) return '—';
+  const d=Math.max(0,Math.floor(Date.now()/1000)-Number(ts));
+  if(d<60) return d+'s ago'; if(d<3600) return Math.floor(d/60)+'m ago';
+  if(d<86400) return Math.floor(d/3600)+'h ago'; return Math.floor(d/86400)+'d ago';
 }
-function num(n) { return (n == null) ? '—' : Number(n).toLocaleString('en-US'); }
-function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function shortId(s){ s = String(s||''); return s.length > 10 ? s.slice(0,8) + '…' : s; }
-function ago(ts) {
-  if (!ts) return '—';
-  const d = Math.max(0, Math.floor(Date.now()/1000) - Number(ts));
-  if (d < 60) return d + 's ago';
-  if (d < 3600) return Math.floor(d/60) + 'm ago';
-  if (d < 86400) return Math.floor(d/3600) + 'h ago';
-  return Math.floor(d/86400) + 'd ago';
+function toast(msg, kind){
+  const t=$('#toast'); t.textContent=msg; t.className='toast show '+(kind||'ok');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast',3000);
 }
-function toast(msg, kind) {
-  const t = $('#toast'); t.textContent = msg; t.className = 'fg-toast show ' + (kind||'');
-  clearTimeout(t._t); t._t = setTimeout(()=> t.className = 'fg-toast ' + (kind||''), 3200);
-}
-function stamp(text, ok) {
-  const el = $('#stamp');
-  el.innerHTML = '<span class="live" style="color:' + (ok===false?'var(--red)':(ok?'var(--green)':'var(--muted-2)')) + '">●</span> ' + esc(text);
+function stamp(text, ok){
+  const el=$('#stamp');
+  el.innerHTML='<span class="live" style="color:'+(ok===false?'var(--red)':(ok?'var(--green)':'var(--ink-3)'))+'" aria-hidden="true">●</span> '+esc(text);
 }
 
-/* ---------- empty / error states ---------- */
-function emptyBox(title, body) {
-  return '<div class="fg-empty"><div class="big">' + esc(title) + '</div><p>' + body + '</p></div>';
+/* ---- chip helpers ---- */
+function stateChip(st){
+  st=String(st||'pending');
+  const cls = {released:'chip-green',paid:'chip-amber',held:'chip-amber',pending:'chip-amber',refunded:'chip-red',failed:'chip-red'}[st]||'chip-grey';
+  return '<span class="chip '+cls+'">'+esc(st)+'</span>';
 }
-function authWall(box) {
-  box.innerHTML = '<div class="fg-empty"><div class="big">Locked</div>' +
-    '<p>This console needs the admin key. Your key is stored only in this browser.</p>' +
-    '<button class="fg-btn fg-btn-primary fg-mt-3" onclick="promptKey(true);refreshAll()">Enter admin key</button></div>';
-}
-function downBox(box, what) {
-  box.innerHTML = '<div class="fg-empty"><div class="big">Box office offline</div>' +
-    '<p>Couldn\'t load ' + esc(what) + ' just now. The console will retry on refresh.</p>' +
-    '<button class="fg-btn fg-btn-ghost fg-mt-3" onclick="refreshAll()">Try again</button></div>';
+function remainingChip(n){
+  if(n==null) return '<span class="chip chip-grey">—</span>';
+  if(n<=0) return '<span class="chip chip-red">Sold out</span>';
+  if(n<120) return '<span class="chip chip-amber">'+num(n)+'</span>';
+  return '<span class="chip chip-green">'+num(n)+'</span>';
 }
 
-/* ---------- KPIs ---------- */
-const STATE_ORDER = ['pending','paid','held','released','refunded','failed'];
-function stateBars(byState) {
-  const entries = Object.entries(byState || {});
-  if (!entries.length) return '<div class="kpi-foot">No orders yet.</div>';
-  entries.sort((a,b) => {
-    const ia = STATE_ORDER.indexOf(a[0]), ib = STATE_ORDER.indexOf(b[0]);
-    return (ia<0?99:ia) - (ib<0?99:ib);
-  });
-  const max = Math.max(1, ...entries.map(e => e[1]));
-  return '<div class="state-bars">' + entries.map(([st, n]) => {
-    const pct = Math.round((n/max)*100);
-    return '<div class="state-row">' +
-      '<span class="state-name">' + esc(st) + '</span>' +
-      '<span class="state-track"><span class="state-fill ' + esc(st) + '" style="width:' + pct + '%"></span></span>' +
-      '<span class="state-n">' + num(n) + '</span>' +
-    '</div>';
-  }).join('') + '</div>';
+/* ---- state bars (KPI) ---- */
+const STATE_ORDER=['pending','paid','held','released','refunded','failed'];
+function stateBars(byState){
+  const entries=Object.entries(byState||{});
+  if(!entries.length) return '<div class="kpi-foot" style="margin-top:8px">No orders yet</div>';
+  entries.sort((a,b)=>{const ia=STATE_ORDER.indexOf(a[0]),ib=STATE_ORDER.indexOf(b[0]);return (ia<0?99:ia)-(ib<0?99:ib);});
+  const max=Math.max(1,...entries.map(e=>e[1]));
+  return '<div class="state-bars">'+entries.map(([st,n])=>{
+    const pct=Math.round((n/max)*100);
+    return '<div class="state-row"><span class="state-name">'+esc(st)+'</span><span class="state-track"><span class="state-fill '+esc(st)+'" style="width:'+pct+'%"></span></span><span class="state-n">'+num(n)+'</span></div>';
+  }).join('')+'</div>';
 }
-function kpiCard(label, val, foot, cls) {
-  return '<div class="kpi ' + (cls||'') + '">' +
-    '<div class="kpi-label">' + esc(label) + '</div>' +
-    '<div class="kpi-val">' + val + '</div>' +
-    (foot ? '<div class="kpi-foot">' + foot + '</div>' : '') +
-  '</div>';
-}
-async function loadStats() {
-  const box = $('#kpis');
-  if (!getKey()) { authWall(box); return false; }
+
+/* ---- KPIs ---- */
+async function loadStats(){
+  const box=$('#kpis');
+  if(!getKey()){ renderAuthWall(box,'Load dashboard'); return false; }
   let r;
-  try { r = await fetch(API + '/admin/stats', { headers: adminHeaders() }); }
-  catch (e) { downBox(box, 'the dashboard'); return false; }
-  if (r.status === 401) {
-    box.innerHTML = '<div class="fg-empty" style="grid-column:1/-1"><div class="big">Wrong key</div>' +
-      '<p>That admin key was rejected. Try again with the correct key.</p>' +
-      '<button class="fg-btn fg-btn-primary fg-mt-3" onclick="promptKey(true);refreshAll()">Re-enter key</button></div>';
-    stamp('unauthorized', false);
-    return false;
-  }
-  if (!r.ok) { downBox(box, 'the dashboard'); return false; }
-  const d = await r.json();
-  const fees = d.gross_platform_fees_cents || 0;
-  box.innerHTML =
-    kpiCard("Won back from scalpers",
-            money(fees),
-            "Gross platform fees Rod captured on settled resales — money scalpers &amp; SeatGeek used to keep.",
-            'hero-money') +
-    kpiCard("Verified fans", num(d.fans_verified),
-            num(d.fans_total) + ' total signups') +
-    kpiCard("Priority fans", num(d.fans_priority),
-            'DLD waitlist — front of the line') +
-    kpiCard("Active listings", num(d.listings_active),
-            'Capped fan-to-fan resale, live now') +
-    kpiCard("Seats remaining", num(d.inventory_remaining),
-            'Across ' + num(d.shows) + ' tour dates') +
-    kpiCard("Orders by state",
-            num(Object.values(d.orders_by_state||{}).reduce((a,b)=>a+b,0)) + '<span style="font-size:.5em;color:var(--muted)"> total</span>',
-            stateBars(d.orders_by_state));
-  stamp('live · ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}), true);
+  try{ r=await fetch(API+'/admin/stats',{headers:adminHeaders()}); }
+  catch(e){ box.innerHTML=errorBox('Dashboard offline','Could not reach the API.'); return false; }
+  if(r.status===401){ box.innerHTML=wrongKeyBox(); stamp('unauthorized',false); return false; }
+  if(!r.ok){ box.innerHTML=errorBox('Dashboard error','HTTP '+r.status); return false; }
+  const d=await r.json();
+  const fees=d.gross_platform_fees_cents||0;
+  const total=Object.values(d.orders_by_state||{}).reduce((a,b)=>a+b,0);
+  box.innerHTML=
+    kpi('Won back from scalpers',money(fees),'Gross fees Rod captured on settled resales','hero')+
+    kpi('Verified fans',num(d.fans_verified),num(d.fans_total)+' total signups')+
+    kpi('Priority fans',num(d.fans_priority),'DLD waitlist — front of the line')+
+    kpi('Active listings',num(d.listings_active),'Capped fan-to-fan resale, live now')+
+    kpi('Seats remaining',num(d.inventory_remaining),'Across '+num(d.shows)+' tour dates')+
+    kpiRaw('Orders by state',num(total)+' total',stateBars(d.orders_by_state));
+  stamp('live · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),true);
   return true;
 }
-
-/* ---------- shows table (public endpoint, no key) ---------- */
-function remainingCell(n) {
-  if (n == null) return '<span class="fg-chip">—</span>';
-  if (n <= 0) return '<span class="fg-chip out">Sold out</span>';
-  if (n < 120) return '<span class="fg-chip low">' + num(n) + ' left</span>';
-  return '<span class="fg-chip ok">' + num(n) + '</span>';
+function kpi(label,val,foot,cls){
+  return '<div class="kpi'+(cls?' '+cls:'')+'"><div class="kpi-label">'+esc(label)+'</div><div class="kpi-val">'+esc(val)+'</div><div class="kpi-foot">'+esc(foot)+'</div></div>';
 }
-async function loadShows() {
-  const box = $('#showsBox');
-  let r;
-  try { r = await fetch(API + '/shows', { headers: {'Accept':'application/json'} }); }
-  catch (e) { downBox(box, 'shows'); return; }
-  if (!r.ok) { downBox(box, 'shows'); return; }
-  const shows = (await r.json()).shows || [];
-  $('#showsMeta').textContent = shows.length ? shows.length + ' dates' : '';
-  if (!shows.length) { box.innerHTML = emptyBox('No shows seeded', 'The tour lineup will appear here once dates are loaded.'); return; }
-  const totalRemaining = shows.reduce((a,s)=> a + (s.remaining||0), 0);
-  const rows = shows.map(s =>
-    '<tr>' +
-      '<td class="t-strong">' + esc(s.show_date || 'TBA') + '</td>' +
-      '<td class="t-city">' + esc(s.city || 'TBA') + '</td>' +
-      '<td class="fg-muted">' + esc(s.venue || '') + '</td>' +
-      '<td class="t-num">' + (s.min_price_cents!=null ? money(s.min_price_cents) : '—') + '</td>' +
-      '<td class="t-num">' + num(s.active_listings || 0) + '</td>' +
-      '<td>' + remainingCell(s.remaining) + '</td>' +
-    '</tr>'
-  ).join('');
-  box.innerHTML =
-    '<div class="tbl-wrap"><div class="tbl-scroll"><table class="fg-tbl">' +
-      '<thead><tr>' +
-        '<th>Date</th><th>City</th><th>Venue</th><th class="t-num">From</th>' +
-        '<th class="t-num">Resale listings</th><th>Remaining</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody>' +
-      '<tfoot><tr><td colspan="5" class="t-strong" style="border-top:1px solid var(--line)">Total seats remaining</td>' +
-      '<td class="t-strong" style="border-top:1px solid var(--line)">' + num(totalRemaining) + '</td></tr></tfoot>' +
-    '</table></div></div>';
+function kpiRaw(label,val,footHtml){
+  return '<div class="kpi"><div class="kpi-label">'+esc(label)+'</div><div class="kpi-val">'+esc(val)+'</div>'+footHtml+'</div>';
 }
 
-/* ---------- orders table (admin key) ---------- */
-function statePill(st) {
-  st = String(st || 'pending');
-  return '<span class="pill ' + esc(st) + '"><span class="dot"></span>' + esc(st) + '</span>';
+/* ---- error/auth helpers ---- */
+function renderAuthWall(box, action){
+  box.innerHTML='<div class="auth-wall"><div class="lock-ico"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="big">Admin key required</div><p>Enter the Fans First admin key to view the dashboard.</p><button class="btn btn-gold btn-sm" style="margin-top:16px" onclick="promptKey(true);refreshAll()">Enter key</button></div>';
 }
-async function loadOrders() {
-  const box = $('#ordersBox');
-  if (!getKey()) { box.innerHTML = emptyBox('Locked', 'Enter the admin key above to view recent orders.'); return; }
+function wrongKeyBox(){
+  return '<div class="auth-wall" style="grid-column:1/-1"><div class="lock-ico"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="big">Wrong key</div><p>That admin key was rejected. Re-enter it to try again.</p><button class="btn btn-gold btn-sm" style="margin-top:16px" onclick="promptKey(true);refreshAll()">Re-enter key</button></div>';
+}
+function errorBox(title,body){
+  return '<div class="empty"><div class="big">'+esc(title)+'</div><p>'+esc(body)+'</p><button class="btn btn-ghost btn-sm" style="margin-top:16px" onclick="refreshAll()">Try again</button></div>';
+}
+
+/* ---- shows picker population ---- */
+let _allShows = [];
+async function populateShowPicker(){
+  try{
+    const r=await fetch(API+'/shows',{headers:{'Accept':'application/json'}});
+    if(!r.ok) return;
+    _allShows=(await r.json()).shows||[];
+    const sel=$('#showPicker');
+    sel.innerHTML='<option value="">— pick a date —</option>';
+    _allShows.forEach(s=>{
+      const o=document.createElement('option');
+      o.value=s.id;
+      o.textContent=(s.show_date||'TBA')+' · '+esc(s.city||'?')+' — '+esc(s.venue||'');
+      sel.appendChild(o);
+    });
+  }catch(e){ /* silently skip */ }
+}
+
+/* ---- INVENTORY MANAGER ---- */
+let _currentShowId = null;
+let _invRows = [];  // cache for the current show's inventory
+
+async function loadInventory(showId){
+  if(!showId){ showInventoryEmpty(); return; }
+  _currentShowId = showId;
+  const box=$('#invBody');
+  if(!getKey()){ renderInvAuthWall(box); return; }
+  box.innerHTML='<div class="skel" style="height:140px;margin:12px"></div>';
   let r;
-  try { r = await fetch(API + '/admin/orders?limit=50', { headers: adminHeaders() }); }
-  catch (e) { downBox(box, 'orders'); return; }
-  if (r.status === 401) { box.innerHTML = emptyBox('Wrong key', 'Admin key rejected — re-enter it above.'); return; }
-  if (!r.ok) { downBox(box, 'orders'); return; }
-  const orders = (await r.json()).orders || [];
-  $('#ordersMeta').textContent = orders.length ? 'showing ' + orders.length : '';
-  if (!orders.length) {
-    box.innerHTML = emptyBox('No resale orders yet', 'When a verified fan buys a capped resale, the escrow order shows up here.');
+  try{ r=await fetch(API+'/admin/shows/'+encodeURIComponent(showId)+'/inventory',{headers:adminHeaders()}); }
+  catch(e){ box.innerHTML='<div class="empty"><div class="big">Offline</div><p>Could not load inventory.</p></div>'; return; }
+  if(r.status===401){ renderInvAuthWall(box); return; }
+  if(!r.ok){ box.innerHTML='<div class="empty"><div class="big">Error '+r.status+'</div></div>'; return; }
+  const d=await r.json();
+  _invRows=d.inventory||[];
+  const show=_allShows.find(s=>s.id===showId);
+  $('#invMeta').textContent=show?(show.city+' · '+show.venue):showId;
+  renderInvTable();
+}
+
+function showInventoryEmpty(){
+  _currentShowId=null; _invRows=[];
+  $('#invBody').innerHTML='<div class="empty"><div class="big">Pick a show above</div><p>Select a tour date to view and edit its ticket prices and available quantities.</p></div>';
+  $('#invMeta').textContent='';
+}
+function renderInvAuthWall(box){
+  box.innerHTML='<div class="empty"><div class="big">Admin key required</div><p>Enter the admin key to manage inventory.</p><button class="btn btn-gold btn-sm" style="margin-top:14px" onclick="promptKey(true);loadInventory(_currentShowId)">Enter key</button></div>';
+}
+
+function renderInvTable(){
+  const box=$('#invBody');
+  if(!_invRows.length){
+    box.innerHTML='<div class="empty"><div class="big">No sections yet</div><p>Use the form below to add the first section for this show.</p></div>'+addSectionFormHtml();
+    wireAddForm();
     return;
   }
-  const rows = orders.map(o =>
-    '<tr>' +
-      '<td class="t-id" title="' + esc(o.id) + '">' + esc(shortId(o.id)) + '</td>' +
-      '<td>' + statePill(o.state) + '</td>' +
-      '<td class="t-id" title="' + esc(o.buyer_fan_id) + '">' + esc(shortId(o.buyer_fan_id)) + '</td>' +
-      '<td class="t-num t-strong">' + money(o.amount_cents) + '</td>' +
-      '<td class="t-id" title="' + esc(o.transfer_ref || '') + '">' + (o.transfer_ref ? esc(shortId(o.transfer_ref)) : '<span class="fg-muted">—</span>') + '</td>' +
-      '<td class="fg-muted">' + esc(ago(o.created_at)) + '</td>' +
+  const rows=_invRows.map(row=>
+    '<tr data-inv-id="'+esc(row.id)+'">'+
+      '<td class="t-strong">'+esc(row.section)+'</td>'+
+      '<td>$<input class="inv-input" type="number" min="0" step="1" data-field="face_price_cents" value="'+(row.face_price_cents/100)+'" title="Face price in dollars" aria-label="Face price dollars for '+esc(row.section)+'" data-orig="'+row.face_price_cents+'"></td>'+
+      '<td><input class="inv-input" type="number" min="0" step="1" data-field="qty_available" value="'+row.qty_available+'" title="Available quantity" aria-label="Available qty for '+esc(row.section)+'" data-orig="'+row.qty_available+'"></td>'+
+      '<td><input class="inv-input" type="number" min="0" step="1" data-field="qty_total" value="'+row.qty_total+'" title="Total quantity" aria-label="Total qty for '+esc(row.section)+'" data-orig="'+row.qty_total+'"></td>'+
+      '<td><button class="btn btn-gold btn-xs save-btn" type="button">Save</button></td>'+
     '</tr>'
   ).join('');
-  box.innerHTML =
-    '<div class="tbl-wrap"><div class="tbl-scroll"><table class="fg-tbl">' +
-      '<thead><tr>' +
-        '<th>Order</th><th>State</th><th>Buyer</th><th class="t-num">Buyer paid</th>' +
-        '<th>Transfer</th><th>Placed</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody>' +
+  box.innerHTML=
+    '<div class="tbl-scroll"><table class="inv-tbl">'+
+      '<thead><tr>'+
+        '<th>Section</th>'+
+        '<th>Face price</th>'+
+        '<th>Qty available</th>'+
+        '<th>Qty total</th>'+
+        '<th></th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table></div>'+
+    addSectionFormHtml();
+  wireInputDirty();
+  wireSaveButtons();
+  wireAddForm();
+}
+
+function addSectionFormHtml(){
+  return '<div class="add-row" id="addSectionRow">'+
+    '<span class="add-label">Add section</span>'+
+    '<input class="inv-input inv-input-section" id="addSection" type="text" placeholder="e.g. VIP Floor" aria-label="New section name">'+
+    '<span style="font-size:13px;color:var(--ink-3)">$</span>'+
+    '<input class="inv-input" id="addPrice" type="number" min="0" step="1" placeholder="Price (dollars)" aria-label="Price in dollars">'+
+    '<input class="inv-input" id="addQty" type="number" min="0" step="1" placeholder="Qty" aria-label="Quantity">'+
+    '<button class="btn btn-gold btn-sm" id="addSectionBtn" type="button">Add section</button>'+
+  '</div>';
+}
+
+function wireInputDirty(){
+  $$('.inv-input').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const dirty=String(inp.value)!==String(inp.dataset.orig) && !(inp.dataset.field==='face_price_cents' && parseFloat(inp.value)*100===parseInt(inp.dataset.orig));
+      inp.classList.toggle('dirty', inp.value!=='' && inp.value!==(inp.dataset.field==='face_price_cents'?(inp.dataset.orig/100):inp.dataset.orig));
+    });
+  });
+}
+
+function wireSaveButtons(){
+  $$('.save-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tr=btn.closest('tr');
+      const invId=tr.dataset.invId;
+      const inputs=$$('.inv-input',tr);
+      const payload={};
+      inputs.forEach(inp=>{
+        const field=inp.dataset.field;
+        let val=inp.value.trim();
+        if(val==='' || val===undefined) return;
+        const num=field==='face_price_cents' ? Math.round(parseFloat(val)*100) : parseInt(val,10);
+        if(isNaN(num)||num<0){ toast('Value must be a non-negative number','err'); return; }
+        payload[field]=num;
+      });
+      if(!Object.keys(payload).length){ toast('No changes to save','err'); return; }
+      btn.disabled=true; btn.textContent='Saving…';
+      try{
+        const r=await fetch(API+'/admin/inventory/'+encodeURIComponent(invId),{
+          method:'PATCH',
+          headers:adminHeaders({'Content-Type':'application/json'}),
+          body:JSON.stringify(payload),
+        });
+        if(r.status===401){ promptKey(true); toast('Wrong admin key','err'); return; }
+        if(!r.ok){ const e=await r.json().catch(()=>{}); toast((e&&e.detail)||'Save failed','err'); return; }
+        const updated=(await r.json()).inventory;
+        // update local cache
+        const idx=_invRows.findIndex(row=>row.id===invId);
+        if(idx>=0) _invRows[idx]=updated;
+        // update orig data-attrs and clear dirty
+        inputs.forEach(inp=>{
+          const field=inp.dataset.field;
+          if(updated[field]!=null){
+            const displayVal=field==='face_price_cents'?(updated[field]/100):updated[field];
+            inp.value=displayVal;
+            inp.dataset.orig=updated[field];
+            inp.classList.remove('dirty');
+            inp.classList.add('saved');
+            setTimeout(()=>inp.classList.remove('saved'),2000);
+          }
+        });
+        toast('Saved');
+      }catch(e){ toast('Network error','err'); }
+      finally{ btn.disabled=false; btn.textContent='Save'; }
+    });
+  });
+}
+
+function wireAddForm(){
+  const addBtn=$('#addSectionBtn');
+  if(!addBtn) return;
+  addBtn.addEventListener('click', async ()=>{
+    const section=($('#addSection').value||'').trim();
+    const priceStr=($('#addPrice').value||'').trim();
+    const qtyStr=($('#addQty').value||'').trim();
+    if(!section){ toast('Section name is required','err'); return; }
+    const priceD=parseFloat(priceStr);
+    const qty=parseInt(qtyStr,10);
+    if(isNaN(priceD)||priceD<0){ toast('Price must be a non-negative number','err'); return; }
+    if(isNaN(qty)||qty<0){ toast('Qty must be a non-negative number','err'); return; }
+    const face_price_cents=Math.round(priceD*100);
+    addBtn.disabled=true; addBtn.textContent='Adding…';
+    try{
+      const r=await fetch(API+'/admin/shows/'+encodeURIComponent(_currentShowId)+'/inventory',{
+        method:'POST',
+        headers:adminHeaders({'Content-Type':'application/json'}),
+        body:JSON.stringify({section, qty, face_price_cents}),
+      });
+      if(r.status===401){ promptKey(true); toast('Wrong admin key','err'); return; }
+      if(!r.ok){ const e=await r.json().catch(()=>{}); toast((e&&e.detail)||'Add failed','err'); return; }
+      const newRow=(await r.json()).inventory;
+      _invRows.push(newRow);
+      toast('Section added');
+      renderInvTable();
+    }catch(e){ toast('Network error','err'); }
+    finally{ addBtn.disabled=false; addBtn.textContent='Add section'; }
+  });
+}
+
+/* ---- Shows overview table ---- */
+async function loadShows(){
+  const box=$('#showsBox');
+  let r;
+  try{ r=await fetch(API+'/shows',{headers:{'Accept':'application/json'}}); }
+  catch(e){ box.innerHTML=errorBox('Shows offline','Could not load tour dates.'); return; }
+  if(!r.ok){ box.innerHTML=errorBox('Shows error','HTTP '+r.status); return; }
+  const shows=(await r.json()).shows||[];
+  $('#showsMeta').textContent=shows.length?shows.length+' dates':'';
+  if(!shows.length){ box.innerHTML='<div class="empty"><div class="big">No shows seeded</div><p>Tour dates will appear here once loaded.</p></div>'; return; }
+  const totalRem=shows.reduce((a,s)=>a+(s.remaining||0),0);
+  const rows=shows.map(s=>
+    '<tr>'+
+      '<td class="t-strong">'+esc(s.show_date||'TBA')+'</td>'+
+      '<td>'+esc(s.city||'TBA')+'</td>'+
+      '<td class="t-muted">'+esc(s.venue||'')+'</td>'+
+      '<td class="t-num">'+(s.min_price_cents!=null?money(s.min_price_cents):'—')+'</td>'+
+      '<td class="t-num">'+num(s.active_listings||0)+'</td>'+
+      '<td>'+remainingChip(s.remaining)+'</td>'+
+    '</tr>'
+  ).join('');
+  box.innerHTML=
+    '<div class="tbl-wrap"><div class="tbl-scroll"><table class="fg-tbl">'+
+      '<thead><tr><th>Date</th><th>City</th><th>Venue</th><th class="t-num">From</th><th class="t-num">Resale</th><th>Remaining</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+      '<tfoot><tr><td colspan="5">Total seats remaining</td><td class="t-num">'+num(totalRem)+'</td></tr></tfoot>'+
     '</table></div></div>';
 }
 
-/* ---------- orchestrate ---------- */
-let refreshing = false;
-async function refreshAll() {
-  if (refreshing) return;
-  refreshing = true;
-  const btn = $('#reloadBtn');
-  btn.innerHTML = '<span class="reload-spin">↻</span> Refreshing';
-  try {
-    await Promise.all([ loadStats(), loadShows(), loadOrders() ]);
-  } finally {
-    btn.textContent = '↻ Refresh';
-    refreshing = false;
+/* ---- Orders table ---- */
+async function loadOrders(){
+  const box=$('#ordersBox');
+  if(!getKey()){ box.innerHTML='<div class="empty"><div class="big">Locked</div><p>Enter the admin key above to view orders.</p></div>'; return; }
+  let r;
+  try{ r=await fetch(API+'/admin/orders?limit=50',{headers:adminHeaders()}); }
+  catch(e){ box.innerHTML=errorBox('Orders offline','Could not load orders.'); return; }
+  if(r.status===401){ box.innerHTML='<div class="empty"><div class="big">Wrong key</div><p>Re-enter the admin key above.</p></div>'; return; }
+  if(!r.ok){ box.innerHTML=errorBox('Orders error','HTTP '+r.status); return; }
+  const orders=(await r.json()).orders||[];
+  $('#ordersMeta').textContent=orders.length?'showing '+orders.length:'';
+  if(!orders.length){ box.innerHTML='<div class="empty"><div class="big">No orders yet</div><p>When a fan buys a capped resale ticket the escrow order appears here.</p></div>'; return; }
+  const rows=orders.map(o=>
+    '<tr>'+
+      '<td class="t-mono" title="'+esc(o.id)+'">'+esc(shortId(o.id))+'</td>'+
+      '<td>'+stateChip(o.state)+'</td>'+
+      '<td class="t-mono" title="'+esc(o.buyer_fan_id)+'">'+esc(shortId(o.buyer_fan_id))+'</td>'+
+      '<td class="t-num t-strong">'+money(o.amount_cents)+'</td>'+
+      '<td class="t-mono">'+(o.transfer_ref?esc(shortId(o.transfer_ref)):'<span class="t-muted">—</span>')+'</td>'+
+      '<td class="t-muted">'+esc(ago(o.created_at))+'</td>'+
+    '</tr>'
+  ).join('');
+  box.innerHTML=
+    '<div class="tbl-wrap"><div class="tbl-scroll"><table class="fg-tbl">'+
+      '<thead><tr><th>Order</th><th>State</th><th>Buyer</th><th class="t-num">Buyer paid</th><th>Transfer</th><th>Placed</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table></div></div>';
+}
+
+/* ---- orchestrate ---- */
+let _refreshing=false;
+async function refreshAll(){
+  if(_refreshing) return;
+  _refreshing=true;
+  const btn=$('#reloadBtn');
+  const orig=btn.innerHTML;
+  btn.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin .7s linear infinite"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Refreshing';
+  try{
+    await Promise.all([loadStats(), loadShows(), loadOrders()]);
+    if(_currentShowId) await loadInventory(_currentShowId);
+  } finally{
+    btn.innerHTML=orig; _refreshing=false;
   }
 }
 
+/* ---- wiring ---- */
 $('#reloadBtn').addEventListener('click', refreshAll);
-$('#keyBtn').addEventListener('click', () => { promptKey(true); refreshAll(); });
+$('#keyBtn').addEventListener('click', ()=>{ promptKey(true); refreshAll(); });
+$('#showPicker').addEventListener('change', e=>{ loadInventory(e.target.value||null); });
 
-/* boot: prompt for the key once if we don't have one, then load. */
-if (!getKey()) promptKey(false);
-refreshAll();
+// CSS spin for refresh button
+const sty=document.createElement('style');
+sty.textContent='@keyframes spin{to{transform:rotate(360deg)}}';
+document.head.appendChild(sty);
+
+/* boot */
+if(!getKey()) promptKey(false);
+populateShowPicker().then(()=>refreshAll());
 </script>
 </body>
 </html>
