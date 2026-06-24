@@ -313,7 +313,7 @@ function toast(msg, ms = 3200) {
 function eventCard(e, unlocked) {
   const img = e.image || catFallback(e.segment);
   const header = img
-    ? '<div class="ev-img" style="background-image:url(' + JSON.stringify(img) + ')"></div>'
+    ? '<div class="ev-img" style="background-image:url(&quot;' + esc(img) + '&quot;)"></div>'
     : '<div class="ev-img ev-img-ph"><span>' + esc(e.segment || 'Live Event') + '</span></div>';
 
   const price = money(e.min_price, e.currency);
