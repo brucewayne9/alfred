@@ -1,122 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fair Game — Get verified</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fans First — Get verified</title>
 <meta name="description" content="Become a verified Rod Wave fan. Phone + email verification keeps scalpers out — real fans, real seats, fair prices.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="fairgame.css">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  .auth-hero { padding: 40px 0 8px; }
-  .auth-hero h1 { font-family: var(--font-display); font-size: clamp(2.4rem, 8vw, 4.4rem); line-height: .9; text-transform: uppercase; }
-  .auth-hero .lede { color: var(--muted); margin-top: 14px; max-width: 48ch; font-size: 1.02rem; }
-  .auth-hero .lede b { color: var(--gold); }
+/* ---- Design tokens ---- */
+:root{
+  --bg:#0b0a09; --bg2:#121110;
+  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
+  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
+  --line-l:#e4dccc; --line-d:#2a2724;
+  --silver:#aaa49a; --mute:#6f6a60;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
+  --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
+  --r-btn:11px; --r-card:14px; --r-tag:6px;
+  --sh-l:0 14px 38px rgba(22,18,8,.10); --sh-d:0 22px 60px rgba(0,0,0,.6);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
 
-  .auth-wrap { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
-  @media (min-width: 880px) { .auth-wrap { grid-template-columns: 1.1fr .9fr; } }
+/* ---- Shared components ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;
+  border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
+.btn svg{width:17px;height:17px;flex:0 0 17px}
+.btn-gold{background:var(--gold-btn);color:#1a1206}
+.btn-gold:hover{background:var(--gold);transform:translateY(-2px)}
+.btn-line{background:transparent;color:var(--ink);border-color:var(--line-l)}
+.btn-line:hover{border-color:var(--ink-3);background:rgba(0,0,0,.03)}
+.btn-dark{background:#fff;color:var(--ink)}
+.btn-sm{padding:10px 16px;font-size:13px}
+.btn-block{width:100%;justify-content:center}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
-  .auth-card { padding: 26px; }
-  @media (min-width: 600px) { .auth-card { padding: 32px; } }
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-deep)}
+.tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep);border:1px solid #e0c486;background:#faf3e2;border-radius:var(--r-tag);padding:4px 9px}
 
-  /* progress rail */
-  .steps { display: flex; align-items: center; gap: 0; margin-bottom: 24px; }
-  .step { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
-  .step .dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line-2); display: grid; place-items: center; font-size: .76rem; font-weight: 700; color: var(--muted-2); flex: 0 0 26px; transition: all .2s var(--ease); }
-  .step .lbl { font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .step .line { height: 2px; background: var(--line); flex: 1; margin: 0 8px; min-width: 10px; }
-  .step.active .dot { border-color: var(--orange); color: var(--orange); box-shadow: 0 0 0 4px rgba(255,90,31,.12); }
-  .step.active .lbl { color: var(--cream); }
-  .step.done .dot { border-color: var(--green); background: var(--green); color: var(--black); }
-  .step.done .lbl { color: var(--green); }
+/* announce bar */
+.announce{background:#070605;text-align:center;padding:9px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3a4}
+.announce b{color:var(--gold);font-weight:800}
+.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
 
-  .pane { display: none; animation: fadeIn .25s var(--ease); }
-  .pane.active { display: block; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* nav */
+nav{position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;transition:background .3s,border-color .3s}
+.nav-in{display:flex;align-items:center;gap:16px;height:64px}
+.brand{font-weight:900;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:#fff;transition:color .3s}
+.brand .mark{width:25px;height:25px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.nav-right{display:flex;align-items:center;gap:9px;margin-left:auto}
+.nav-link{font-weight:600;font-size:14px;color:rgba(255,255,255,.8);transition:color .3s}
+.nav-link:hover{color:#fff}
+nav.scrolled{background:rgba(245,241,234,.93);backdrop-filter:blur(14px);border-bottom-color:var(--line-l)}
+nav.scrolled .brand{color:var(--ink)}
+nav.scrolled .nav-link{color:var(--ink-2)}nav.scrolled .nav-link:hover{color:var(--ink)}
+@media(max-width:720px){.nav-link.hidem{display:none}}
 
-  .pane h2 { font-family: var(--font-display); font-size: 1.7rem; text-transform: uppercase; }
-  .pane .sub { color: var(--muted); font-size: .9rem; margin-top: 6px; margin-bottom: 20px; }
-  .pane .sub b { color: var(--cream); }
+/* footer */
+footer{background:#070605;color:#fff;padding:60px 0 38px}
+.foot{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
+.foot .brand{color:#fff}.foot p{color:#8b8576;font-size:14px;max-width:300px;margin-top:14px}
+.fcols{display:flex;gap:50px;flex-wrap:wrap}
+.fcol h5{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b8576;margin-bottom:14px}
+.fcol a{display:block;color:var(--silver);font-size:14px;margin-bottom:10px}.fcol a:hover{color:#fff}
+.final{text-align:center;margin-top:46px;padding-top:22px;border-top:1px solid #1c1a18;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 
-  /* OTP code input */
-  .otp { display: flex; gap: 9px; justify-content: space-between; margin-bottom: 6px; }
-  .otp input {
-    flex: 1; min-width: 0; aspect-ratio: 1 / 1.15;
-    text-align: center; font-family: var(--font-display); font-size: clamp(1.4rem, 7vw, 2rem);
-    color: var(--cream); background: var(--black-2);
-    border: 1px solid var(--line-2); border-radius: var(--r-sm);
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .otp input:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,90,31,.18); }
-  .otp input.filled { border-color: var(--gold); }
+/* toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:11px 20px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--sh-l);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:#f0c6c6;color:#8b1f1f}
+.toast.ok{border-color:#b8e8c6;color:#0e5e2a}
 
-  .resend { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; font-size: .82rem; color: var(--muted-2); }
-  .resend button { background: none; border: 0; color: var(--orange); font-weight: 700; cursor: pointer; font-size: .82rem; font-family: var(--font-body); }
-  .resend button:disabled { color: var(--muted-2); cursor: not-allowed; }
-  .resend button:hover:not(:disabled) { color: var(--gold); }
+/* badge */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:99px;padding:5px 11px;border:1px solid}
+.badge-verified{color:var(--green);border-color:rgba(19,189,87,.3);background:rgba(19,189,87,.08)}
+.badge-priority{color:var(--gold-deep);border-color:rgba(156,111,35,.3);background:#faf3e2}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 
-  .devcode { margin-top: 12px; padding: 10px 12px; border: 1px dashed var(--line-2); border-radius: var(--r-sm); background: rgba(240,180,41,.05); color: var(--gold); font-size: .8rem; font-variant-numeric: tabular-nums; }
+/* hidden utility */
+.hidden{display:none!important}
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.text-muted{color:var(--ink-3)}
+.text-center{text-align:center}
 
-  /* success */
-  .done-burst { text-align: center; padding: 8px 0 4px; }
-  .done-burst .check { width: 78px; height: 78px; border-radius: 50%; margin: 0 auto 16px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(61,220,132,.18), rgba(61,220,132,.04)); border: 2px solid rgba(61,220,132,.5); font-size: 2.4rem; color: var(--green); animation: pop .4s var(--ease); }
-  @keyframes pop { from { transform: scale(.5); opacity: 0; } to { transform: none; opacity: 1; } }
-  .done-burst h2 { font-family: var(--font-display); font-size: 2.2rem; text-transform: uppercase; }
+/* ---- Page layout ---- */
+.auth-hero{background:var(--bg);color:#fff;padding:56px 0 48px;margin-top:-64px;padding-top:calc(64px + 40px)}
+.auth-hero .eyebrow{color:var(--gold)}
+.auth-hero h1{font-size:clamp(2.2rem,7vw,3.8rem);font-weight:900;letter-spacing:-.03em;line-height:.95;margin:14px 0 0}
+.auth-hero .lede{color:var(--silver);margin-top:14px;max-width:48ch;font-size:1rem}
+.auth-hero .lede b{color:var(--gold)}
 
-  /* account panel rows */
-  .acct-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
-  .acct-row:last-of-type { border-bottom: 0; }
-  .acct-row .k { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-2); }
-  .acct-row .v { font-weight: 700; text-align: right; word-break: break-word; }
+main.auth-main{padding:40px 0 80px}
 
-  .perks { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-  .perks li { display: flex; gap: 11px; align-items: flex-start; font-size: .9rem; color: var(--cream); }
-  .perks li .pk { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--grad-fire-soft); border: 1px solid var(--line-2); font-size: 1rem; }
-  .perks li span small { display: block; color: var(--muted); font-size: .8rem; margin-top: 1px; }
+.auth-wrap{display:grid;gap:22px;grid-template-columns:1fr;align-items:start}
+@media(min-width:880px){.auth-wrap{grid-template-columns:1.1fr .9fr}}
 
-  .side-card { padding: 24px; }
-  .side-card h3 { font-family: var(--font-display); font-size: 1.3rem; text-transform: uppercase; margin-bottom: 16px; }
+/* card */
+.card{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:26px}
+@media(min-width:600px){.card{padding:32px}}
+
+/* progress rail */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:24px}
+.step{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
+.step .s-dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line-l);display:grid;place-items:center;font-size:.76rem;font-weight:700;color:var(--ink-3);flex:0 0 26px;transition:all .2s}
+.step .s-lbl{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step .s-line{height:2px;background:var(--line-l);flex:1;margin:0 8px;min-width:10px}
+.step.active .s-dot{border-color:var(--gold-deep);color:var(--gold-deep);box-shadow:0 0 0 4px rgba(156,111,35,.12)}
+.step.active .s-lbl{color:var(--ink)}
+.step.done .s-dot{border-color:var(--green);background:var(--green);color:#fff}
+.step.done .s-lbl{color:var(--green)}
+
+/* panes */
+.pane{display:none;animation:fadeUp .25s ease}
+.pane.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.pane h2{font-size:1.55rem;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+.pane .sub{color:var(--ink-2);font-size:.9rem;margin-bottom:20px}
+.pane .sub b{color:var(--ink);font-weight:700}
+
+/* form fields */
+.field{margin-bottom:14px}
+.lbl{display:block;font-size:.74rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.inp{width:100%;padding:12px 15px;border:1px solid var(--line-l);border-radius:var(--r-btn);font-family:inherit;font-size:14px;color:var(--ink);background:var(--paper);outline:none;transition:border-color .15s,box-shadow .15s}
+.inp::placeholder{color:var(--ink-3)}
+.inp:focus{border-color:var(--gold-deep);box-shadow:0 0 0 3px rgba(156,111,35,.12)}
+
+/* OTP inputs */
+.otp{display:flex;gap:9px;justify-content:space-between;margin-bottom:6px}
+.otp input{flex:1;min-width:0;aspect-ratio:1/1.15;text-align:center;font-size:clamp(1.4rem,7vw,2rem);font-weight:800;color:var(--ink);background:var(--paper);border:1px solid var(--line-l);border-radius:var(--r-btn);transition:border-color .15s,box-shadow .15s;outline:none;font-family:inherit}
+.otp input:focus{border-color:var(--gold-deep);box-shadow:0 0 0 3px rgba(156,111,35,.12)}
+.otp input.filled{border-color:var(--gold-deep)}
+
+.resend{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;font-size:.82rem;color:var(--ink-3)}
+.resend button{background:none;border:0;color:var(--gold-deep);font-weight:700;cursor:pointer;font-size:.82rem;font-family:inherit}
+.resend button:disabled{color:var(--ink-3);cursor:not-allowed}
+.resend button:hover:not(:disabled){color:var(--gold)}
+
+.devcode{margin-top:12px;padding:10px 12px;border:1px dashed var(--line-l);border-radius:var(--r-btn);background:rgba(214,168,76,.05);color:var(--gold-deep);font-size:.8rem}
+
+/* success */
+.done-burst{text-align:center;padding:8px 0 4px}
+.done-burst .check-ring{width:78px;height:78px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:rgba(19,189,87,.08);border:2px solid rgba(19,189,87,.4);animation:pop .4s ease}
+.done-burst .check-ring svg{width:38px;height:38px;stroke:var(--green);stroke-width:2.2;fill:none}
+@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}
+.done-burst h2{font-size:2rem;font-weight:900;letter-spacing:-.02em}
+
+/* account rows */
+.acct-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line-l)}
+.acct-row:last-of-type{border-bottom:0}
+.acct-row .k{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.acct-row .v{font-weight:700;text-align:right;word-break:break-word}
+
+/* perks sidebar */
+.perks{list-style:none;padding:0;margin:0;display:grid;gap:14px}
+.perks li{display:flex;gap:11px;align-items:flex-start;font-size:.9rem;color:var(--ink)}
+.perks li .pk{flex:0 0 32px;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:#faf3e2;border:1px solid #ecd9ab}
+.perks li .pk svg{width:16px;height:16px;stroke:var(--gold-deep);fill:none;stroke-width:1.8}
+.perks li span small{display:block;color:var(--ink-2);font-size:.8rem;margin-top:1px}
+
+.side-card h3{font-size:1.15rem;font-weight:800;letter-spacing:-.01em;margin-bottom:16px}
+
+/* load hint */
+.load-hint{color:var(--ink-3);font-size:.85rem;text-align:center;padding:8px 0}
 </style>
 </head>
 <body>
 
-<!-- ===================== NAV ===================== -->
-<nav class="fg-nav">
-  <div class="fg-nav-inner">
-    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
-      <span class="fg-logo-mark"><span>FG</span></span>
-      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
-    </a>
-    <div class="fg-nav-right" id="navRight">
-      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>
-    </div>
+<div class="announce">FANS&nbsp;FIRST<span class="x">×</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
+
+<nav id="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="mark">F</span>FANS&nbsp;FIRST</a>
+  <div class="nav-right" id="navRight">
+    <a class="nav-link hidem" href="index.html">Shows</a>
   </div>
-</nav>
+</div></nav>
 
 <header class="auth-hero">
-  <div class="fg-wrap">
-    <div class="fg-eyebrow">Verified fans only</div>
+  <div class="wrap">
+    <div class="eyebrow">Verified fans only</div>
     <h1 id="heroTitle">Get verified</h1>
     <p class="lede" id="heroLede">One quick check &mdash; <b>phone + email</b> &mdash; and you're a verified Rod Wave fan.
       It keeps bots and brokers out, so you get real seats at fair prices. Takes under a minute, and it's free.</p>
   </div>
 </header>
 
-<main class="fg-section" style="padding-top:24px">
-  <div class="fg-wrap">
+<main class="auth-main">
+  <div class="wrap">
     <div class="auth-wrap">
 
-      <!-- ===== LEFT: flow / account ===== -->
-      <section class="fg-card auth-card">
+      <!-- LEFT: flow / account -->
+      <section class="card">
 
-        <!-- progress rail (hidden when already verified) -->
+        <!-- progress rail -->
         <div class="steps" id="steps">
-          <div class="step active" data-step="register"><span class="dot">1</span><span class="lbl">Details</span></div>
-          <div class="line"></div>
-          <div class="step" data-step="sms"><span class="dot">2</span><span class="lbl">Phone</span></div>
-          <div class="line"></div>
-          <div class="step" data-step="email"><span class="dot">3</span><span class="lbl">Email</span></div>
+          <div class="step active" data-step="register"><span class="s-dot">1</span><span class="s-lbl">Details</span></div>
+          <div class="s-line"></div>
+          <div class="step" data-step="sms"><span class="s-dot">2</span><span class="s-lbl">Phone</span></div>
+          <div class="s-line"></div>
+          <div class="step" data-step="email"><span class="s-dot">3</span><span class="s-lbl">Email</span></div>
         </div>
 
         <!-- STEP 1: register -->
@@ -124,16 +211,16 @@
           <h2>Your details</h2>
           <p class="sub">We send a code to each so we know it's really you. No spam, ever.</p>
           <form id="registerForm" novalidate>
-            <div class="fg-field">
-              <label class="fg-label" for="email">Email</label>
-              <input class="fg-input" type="email" id="email" name="email" autocomplete="email" placeholder="you@email.com" required>
+            <div class="field">
+              <label class="lbl" for="email">Email</label>
+              <input class="inp" type="email" id="email" name="email" autocomplete="email" placeholder="you@email.com" required>
             </div>
-            <div class="fg-field">
-              <label class="fg-label" for="phone">Mobile phone</label>
-              <input class="fg-input" type="tel" id="phone" name="phone" autocomplete="tel" placeholder="(555) 123-4567" required>
+            <div class="field">
+              <label class="lbl" for="phone">Mobile phone</label>
+              <input class="inp" type="tel" id="phone" name="phone" autocomplete="tel" placeholder="(555) 123-4567" required>
             </div>
-            <button class="fg-btn fg-btn-primary fg-btn-block fg-mt-1" type="submit" id="registerBtn">Send my codes</button>
-            <p class="fg-muted fg-center fg-mt-2" style="font-size:.74rem">By continuing you agree this is your real phone &amp; email. One account per fan.</p>
+            <button class="btn btn-gold btn-block mt-3" type="submit" id="registerBtn">Send my codes</button>
+            <p class="text-muted text-center mt-2" style="font-size:.74rem">By continuing you agree this is your real phone &amp; email. One account per fan.</p>
           </form>
         </div>
 
@@ -149,8 +236,8 @@
             <input inputmode="numeric" maxlength="1" aria-label="Digit 5">
             <input inputmode="numeric" maxlength="1" aria-label="Digit 6">
           </div>
-          <div class="devcode fg-hidden" id="smsDevCode"></div>
-          <button class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="smsVerifyBtn">Verify phone</button>
+          <div class="devcode hidden" id="smsDevCode"></div>
+          <button class="btn btn-gold btn-block mt-3" id="smsVerifyBtn">Verify phone</button>
           <div class="resend">
             <span>Didn't get it?</span>
             <button id="smsResend" disabled>Resend code</button>
@@ -169,8 +256,8 @@
             <input inputmode="numeric" maxlength="1" aria-label="Digit 5">
             <input inputmode="numeric" maxlength="1" aria-label="Digit 6">
           </div>
-          <div class="devcode fg-hidden" id="emailDevCode"></div>
-          <button class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" id="emailVerifyBtn">Finish &amp; get verified</button>
+          <div class="devcode hidden" id="emailDevCode"></div>
+          <button class="btn btn-gold btn-block mt-3" id="emailVerifyBtn">Finish &amp; get verified</button>
           <div class="resend">
             <span>Wrong details?</span>
             <button id="startOver">Start over</button>
@@ -180,38 +267,52 @@
         <!-- STEP 4: success -->
         <div class="pane" id="pane-done">
           <div class="done-burst">
-            <div class="check">&#10003;</div>
-            <h2>Verified <span class="fg-text-fire">&#10003;</span></h2>
-            <p class="fg-muted fg-mt-1">You're a verified Rod Wave fan. Real seats, fair prices, straight from Rod.</p>
-            <div class="fg-row fg-center fg-mt-3" id="doneBadges" style="justify-content:center"></div>
+            <div class="check-ring">
+              <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+            <h2>Verified</h2>
+            <p class="text-muted mt-1">You're a verified fan. Real seats, fair prices, no scalpers.</p>
+            <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:16px" id="doneBadges"></div>
           </div>
-          <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="index.html">Browse shows</a>
-          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="mytickets.html">My tickets</a>
-          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="sell.html">Resell a ticket</a>
+          <a class="btn btn-gold btn-block mt-3" href="index.html">Browse shows</a>
+          <a class="btn btn-line btn-block mt-2" href="mytickets.html">My tickets</a>
+          <a class="btn btn-line btn-block mt-2" href="sell.html">Resell a ticket</a>
         </div>
 
-        <!-- ACCOUNT PANEL (shown when an existing session is found) -->
+        <!-- ACCOUNT PANEL (existing session) -->
         <div class="pane" id="pane-account">
           <h2>My account</h2>
           <p class="sub">Signed in as a verified fan.</p>
           <div id="acctRows"></div>
-          <a class="fg-btn fg-btn-primary fg-btn-block fg-mt-3" href="index.html">Browse shows</a>
-          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="mytickets.html">My tickets</a>
-          <a class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" href="sell.html">Resell a ticket</a>
-          <button class="fg-btn fg-btn-ghost fg-btn-block fg-mt-2" id="signOut">Sign out</button>
+          <a class="btn btn-gold btn-block mt-3" href="index.html">Browse shows</a>
+          <a class="btn btn-line btn-block mt-2" href="mytickets.html">My tickets</a>
+          <a class="btn btn-line btn-block mt-2" href="sell.html">Resell a ticket</a>
+          <button class="btn btn-line btn-block mt-2" id="signOut">Sign out</button>
         </div>
 
-        <div id="loadHint" class="fg-muted fg-center fg-hidden" style="padding:8px 0">Checking your status&hellip;</div>
+        <div id="loadHint" class="load-hint hidden">Checking your status&hellip;</div>
       </section>
 
-      <!-- ===== RIGHT: why verify / perks ===== -->
-      <aside class="fg-card side-card">
+      <!-- RIGHT: why verify / perks -->
+      <aside class="card side-card">
         <h3>What you unlock</h3>
         <ul class="perks">
-          <li><span class="pk">&#127915;</span><span>Fair, capped prices<small>No 5&times; scalper markups &mdash; ever.</small></span></li>
-          <li><span class="pk">&#9889;</span><span>Presale priority<small>DLD waitlist fans jump the queue.</small></span></li>
-          <li><span class="pk">&#8597;</span><span>Resell or gift, capped<small>Can't go? Pass it on for face + $15, max.</small></span></li>
-          <li><span class="pk">&#128274;</span><span>Bot-free box office<small>Phone + email keeps brokers out.</small></span></li>
+          <li>
+            <span class="pk"><svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M15 6v12"/></svg></span>
+            <span>Fair, capped prices<small>No 5x scalper markups &mdash; ever.</small></span>
+          </li>
+          <li>
+            <span class="pk"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+            <span>Presale priority<small>DLD waitlist fans jump the queue.</small></span>
+          </li>
+          <li>
+            <span class="pk"><svg viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4"/></svg></span>
+            <span>Resell or gift, capped<small>Can't go? Pass it on for face + $15, max.</small></span>
+          </li>
+          <li>
+            <span class="pk"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <span>Bot-free box office<small>Phone + email keeps brokers out.</small></span>
+          </li>
         </ul>
       </aside>
 
@@ -219,19 +320,28 @@
   </div>
 </main>
 
-<footer class="fg-footer">
-  <div class="fg-wrap fg-footer-inner">
-    <span>Fair Game &copy; 2026 · Fair prices for real fans.</span>
-    <span><a href="index.html">All shows</a> · <a href="sell.html">Resell</a></span>
+<footer><div class="wrap">
+  <div class="foot">
+    <div><div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div><p>The fan-first ticket platform. Real seats, real fans, no scalper games. Official resale partner of Rod Wave's Don't Look Down Tour.</p></div>
+    <div class="fcols">
+      <div class="fcol"><h5>Buy</h5><a href="index.html">Rod Wave seats</a><a href="discover.html">Discover anything</a></div>
+      <div class="fcol"><h5>Account</h5><a href="account.html">Log in / Sign up</a><a href="mytickets.html">My tickets</a></div>
+    </div>
   </div>
-</footer>
+  <div class="final">All sales final · No refunds · Ticketmaster account required for delivery · Not a live store</div>
+</div></footer>
 
-<div class="fg-toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const API = '/fairgame/api';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+/* ---------- nav scroll ---------- */
+const nav = document.getElementById('nav');
+const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
+window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
 
 /* ---------- session ---------- */
 function getSession() {
@@ -247,7 +357,7 @@ function authHeaders() {
 
 /* ---------- helpers ---------- */
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='fg-toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='fg-toast '+(k||''),3400); }
+function toast(m,k){ const t=$('#toast'); t.textContent=m; t.className='toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast '+(k||''),3400); }
 
 /* ---------- state ---------- */
 let FAN_ID = null;
@@ -259,10 +369,10 @@ function renderBadge() {
   const s = getSession(); const right = $('#navRight');
   if (!s || !s.token) return;
   const fan = s.fan || {};
-  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
-  right.innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="mytickets.html">My Tickets</a>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>';
+  const prio = fan.priority ? '<span class="badge badge-priority"><span class="dot"></span>Priority Fan</span>' : '';
+  right.innerHTML = prio + '<span class="badge badge-verified"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="btn btn-line btn-sm" href="mytickets.html">My Tickets</a>' +
+    '<a class="btn btn-line btn-sm" href="index.html">Shows</a>';
 }
 
 /* ---------- step rail + panes ---------- */
@@ -280,8 +390,8 @@ function setStep(name) {
   });
   showPane(name);
 }
-function hideRail() { $('#steps').classList.add('fg-hidden'); }
-function showRail() { $('#steps').classList.remove('fg-hidden'); }
+function hideRail() { $('#steps').classList.add('hidden'); }
+function showRail() { $('#steps').classList.remove('hidden'); }
 
 /* ---------- OTP behaviour (auto-advance, paste, backspace) ---------- */
 function wireOtp(boxSel, onComplete) {
@@ -319,7 +429,7 @@ function startCooldown(btn, secs, label) {
 /* ---------- dev-code echo (tests / local only) ---------- */
 function showDevCode(sel, code) {
   if (!code) return;
-  const el = $(sel); el.textContent = 'Dev mode — your code is ' + code; el.classList.remove('fg-hidden');
+  const el = $(sel); el.textContent = 'Dev mode — your code is ' + code; el.classList.remove('hidden');
 }
 
 /* ====================== STEP 1: register ====================== */
@@ -361,10 +471,10 @@ async function verifySms() {
       body: JSON.stringify({fan_id: FAN_ID, code})
     });
     const data = await r.json().catch(()=>({}));
-    if (!r.ok) throw new Error(data.detail || 'That code didn\'t match.');
+    if (!r.ok) throw new Error(data.detail || "That code didn't match.");
     showDevCode('#emailDevCode', data.dev_code);
     setStep('email');
-    startCooldown($('#startOver'), 0, 'Start over'); // no-op cooldown; just resets label
+    startCooldown($('#startOver'), 0, 'Start over');
     $('#startOver').disabled = false; $('#startOver').textContent = 'Start over';
     setTimeout(()=> $$('#emailOtp input')[0].focus(), 60);
     toast('Phone verified. One more step.', 'ok');
@@ -376,7 +486,6 @@ async function verifySms() {
 $('#smsVerifyBtn').addEventListener('click', verifySms);
 
 $('#smsResend').addEventListener('click', async () => {
-  // Re-registering with the same phone re-issues an SMS code (dedupes to same fan).
   try {
     const r = await fetch(API + '/register', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -402,13 +511,13 @@ async function verifyEmail() {
       body: JSON.stringify({fan_id: FAN_ID, code, device_fp: deviceFp()})
     });
     const data = await r.json().catch(()=>({}));
-    if (!r.ok) throw new Error(data.detail || 'That code didn\'t match.');
+    if (!r.ok) throw new Error(data.detail || "That code didn't match.");
     setSession({token: data.token, fan: data.fan});
     renderBadge();
     renderDoneBadges(data.fan);
     hideRail();
     showPane('done');
-    toast('You\'re verified! 🎉', 'ok');
+    toast("You're verified!", 'ok');
   } catch (err) {
     otpClear('#emailOtp'); $$('#emailOtp input')[0].focus();
     toast(err.message || 'Verification failed.', 'err');
@@ -418,24 +527,24 @@ $('#emailVerifyBtn').addEventListener('click', verifyEmail);
 
 $('#startOver').addEventListener('click', () => {
   FAN_ID = null; otpClear('#smsOtp'); otpClear('#emailOtp');
-  $('#smsDevCode').classList.add('fg-hidden'); $('#emailDevCode').classList.add('fg-hidden');
+  $('#smsDevCode').classList.add('hidden'); $('#emailDevCode').classList.add('hidden');
   showRail(); setStep('register');
 });
 
 function renderDoneBadges(fan) {
   fan = fan || {};
-  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
-  $('#doneBadges').innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>';
+  const prio = fan.priority ? '<span class="badge badge-priority"><span class="dot"></span>Priority Fan</span>' : '';
+  $('#doneBadges').innerHTML = prio + '<span class="badge badge-verified"><span class="dot"></span>Verified Fan</span>';
 }
 
 /* ====================== ACCOUNT PANEL (existing session) ====================== */
 function renderAccount(fan) {
   fan = fan || {};
   const prioRow = fan.priority
-    ? '<span class="fg-badge priority"><span class="dot"></span>Priority — waitlist</span>'
-    : '<span class="fg-muted">Standard</span>';
+    ? '<span class="badge badge-priority"><span class="dot"></span>Priority &mdash; waitlist</span>'
+    : '<span class="text-muted">Standard</span>';
   $('#acctRows').innerHTML =
-    '<div class="acct-row"><span class="k">Status</span><span class="v"><span class="fg-badge verified"><span class="dot"></span>Verified</span></span></div>' +
+    '<div class="acct-row"><span class="k">Status</span><span class="v"><span class="badge badge-verified"><span class="dot"></span>Verified</span></span></div>' +
     '<div class="acct-row"><span class="k">Priority</span><span class="v">' + prioRow + '</span></div>' +
     '<div class="acct-row"><span class="k">Email</span><span class="v">' + esc(fan.email || '—') + '</span></div>' +
     '<div class="acct-row"><span class="k">Phone</span><span class="v">' + esc(fan.phone ? maskPhone(fan.phone) : '—') + '</span></div>';
@@ -477,11 +586,10 @@ async function boot() {
 
   const s = getSession();
   if (s && s.token) {
-    // Confirm the session is still valid against /me; fall back to flow if not.
     hideRail();
-    $('#loadHint').classList.remove('fg-hidden');
+    $('#loadHint').classList.remove('hidden');
     $('#heroTitle').textContent = 'Your account';
-    $('#heroLede').innerHTML = 'You\'re a <b>verified Rod Wave fan</b>. Manage your status below, or jump straight to the shows.';
+    $('#heroLede').innerHTML = "You're a <b>verified Rod Wave fan</b>. Manage your status below, or jump straight to the shows.";
     try {
       const r = await fetch(API + '/me', {headers: authHeaders()});
       if (r.ok) {
@@ -494,11 +602,10 @@ async function boot() {
         resetHero();
       }
     } catch {
-      // API down — degrade gracefully to the cached session view.
       renderAccount(s.fan);
       showPane('account');
     } finally {
-      $('#loadHint').classList.add('fg-hidden');
+      $('#loadHint').classList.add('hidden');
     }
     return;
   }
@@ -506,7 +613,7 @@ async function boot() {
 }
 function resetHero() {
   $('#heroTitle').textContent = 'Get verified';
-  $('#heroLede').innerHTML = 'One quick check &mdash; <b>phone + email</b> &mdash; and you\'re a verified Rod Wave fan. ' +
+  $('#heroLede').innerHTML = 'One quick check — <b>phone + email</b> — and you\'re a verified Rod Wave fan. ' +
     'It keeps bots and brokers out, so you get real seats at fair prices. Takes under a minute, and it\'s free.';
 }
 

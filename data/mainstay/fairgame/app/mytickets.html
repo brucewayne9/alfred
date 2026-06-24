@@ -1,81 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fair Game — My Tickets</title>
-<meta name="description" content="Your Fair Game activity — tickets you bought and seats you listed, with live status.">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fans First — My Tickets</title>
+<meta name="description" content="Your Fans First activity — tickets you bought and seats you listed, with live status.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="fairgame.css">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  .mt-hero { padding: 40px 0 8px; }
-  .mt-hero h1 { font-family: var(--font-display); font-size: clamp(2.2rem, 7vw, 3.8rem); line-height: .9; text-transform: uppercase; }
-  .mt-hero .lede { color: var(--muted); margin-top: 12px; max-width: 48ch; }
-  .mt-section-h { font-family: var(--font-display); text-transform: uppercase; font-size: 1.15rem; letter-spacing: .04em; margin: 28px 0 12px; }
-  .mt-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .mt-row .seat { font-weight:600; }
-  .mt-row .sub { color: var(--muted); font-size:.8rem; margin-top:4px; }
-  .mt-card { margin-bottom: 12px; }
-  .mt-empty { color: var(--muted); }
-  .signin-cta { text-align:center; padding: 18px 0; }
+/* ---- Design tokens ---- */
+:root{
+  --bg:#0b0a09; --bg2:#121110;
+  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
+  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
+  --line-l:#e4dccc; --line-d:#2a2724;
+  --silver:#aaa49a; --mute:#6f6a60;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
+  --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
+  --r-btn:11px; --r-card:14px; --r-tag:6px;
+  --sh-l:0 14px 38px rgba(22,18,8,.10); --sh-d:0 22px 60px rgba(0,0,0,.6);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* ---- Shared components ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;
+  border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
+.btn svg{width:17px;height:17px;flex:0 0 17px}
+.btn-gold{background:var(--gold-btn);color:#1a1206}
+.btn-gold:hover{background:var(--gold);transform:translateY(-2px)}
+.btn-line{background:transparent;color:var(--ink);border-color:var(--line-l)}
+.btn-line:hover{border-color:var(--ink-3);background:rgba(0,0,0,.03)}
+.btn-sm{padding:10px 16px;font-size:13px}
+.btn-block{width:100%;justify-content:center}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-deep)}
+
+/* announce bar */
+.announce{background:#070605;text-align:center;padding:9px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3a4}
+.announce b{color:var(--gold);font-weight:800}
+.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;transition:background .3s,border-color .3s}
+.nav-in{display:flex;align-items:center;gap:16px;height:64px}
+.brand{font-weight:900;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:#fff;transition:color .3s}
+.brand .mark{width:25px;height:25px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.nav-right{display:flex;align-items:center;gap:9px;margin-left:auto}
+.nav-link{font-weight:600;font-size:14px;color:rgba(255,255,255,.8);transition:color .3s}
+.nav-link:hover{color:#fff}
+nav.scrolled{background:rgba(245,241,234,.93);backdrop-filter:blur(14px);border-bottom-color:var(--line-l)}
+nav.scrolled .brand{color:var(--ink)}
+nav.scrolled .nav-link{color:var(--ink-2)}nav.scrolled .nav-link:hover{color:var(--ink)}
+@media(max-width:720px){.nav-link.hidem{display:none}}
+
+/* footer */
+footer{background:#070605;color:#fff;padding:60px 0 38px}
+.foot{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
+.foot .brand{color:#fff}.foot p{color:#8b8576;font-size:14px;max-width:300px;margin-top:14px}
+.fcols{display:flex;gap:50px;flex-wrap:wrap}
+.fcol h5{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b8576;margin-bottom:14px}
+.fcol a{display:block;color:var(--silver);font-size:14px;margin-bottom:10px}.fcol a:hover{color:#fff}
+.final{text-align:center;margin-top:46px;padding-top:22px;border-top:1px solid #1c1a18;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+
+/* toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:11px 20px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--sh-l);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:#f0c6c6;color:#8b1f1f}
+.toast.ok{border-color:#b8e8c6;color:#0e5e2a}
+
+/* badge */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:99px;padding:5px 11px;border:1px solid}
+.badge-verified{color:var(--green);border-color:rgba(19,189,87,.3);background:rgba(19,189,87,.08)}
+.badge-priority{color:var(--gold-deep);border-color:rgba(156,111,35,.3);background:#faf3e2}
+.badge-neutral{color:var(--ink-3);border-color:var(--line-l);background:var(--paper-alt)}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* hidden utility */
+.hidden{display:none!important}
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.text-muted{color:var(--ink-3)}
+.row-flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* ---- Page: hero ---- */
+.mt-hero{background:var(--bg);color:#fff;padding:56px 0 48px;margin-top:-64px;padding-top:calc(64px + 40px)}
+.mt-hero .eyebrow{color:var(--gold)}
+.mt-hero h1{font-size:clamp(2.2rem,7vw,3.8rem);font-weight:900;letter-spacing:-.03em;line-height:.95;margin:14px 0 0}
+.mt-hero .lede{color:var(--silver);margin-top:14px;max-width:52ch}
+
+/* ---- Page: main content ---- */
+main.mt-main{padding:40px 0 80px}
+.mt-inner{max-width:720px}
+
+/* section headings */
+.sec-h{font-size:.85rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:28px 0 12px;display:flex;align-items:center;gap:10px}
+.sec-h::after{content:'';flex:1;height:1px;background:var(--line-l)}
+
+/* card */
+.card{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:20px 22px;margin-bottom:10px}
+
+/* ticket rows */
+.trow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.trow .seat{font-weight:700;font-size:15px}
+.trow .sub{color:var(--ink-3);font-size:.8rem;margin-top:4px}
+.mt-empty{color:var(--ink-3);font-size:.9rem}
+
+/* signed-out state */
+.signin-cta{text-align:center;padding:24px}
+.signin-cta h2{font-size:1.3rem;font-weight:800;letter-spacing:-.01em;margin-bottom:8px}
+.signin-cta p{color:var(--ink-2);max-width:36ch;margin:0 auto}
 </style>
 </head>
 <body>
 
-<!-- ===================== NAV ===================== -->
-<nav class="fg-nav">
-  <div class="fg-nav-inner">
-    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
-      <span class="fg-logo-mark"><span>FG</span></span>
-      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
-    </a>
-    <div class="fg-nav-right" id="navRight">
-      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>
-    </div>
+<div class="announce">FANS&nbsp;FIRST<span class="x">×</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
+
+<nav id="nav"><div class="wrap nav-in">
+  <a class="brand" href="index.html"><span class="mark">F</span>FANS&nbsp;FIRST</a>
+  <div class="nav-right" id="navRight">
+    <a class="nav-link hidem" href="index.html">Shows</a>
+    <a class="btn btn-gold btn-sm" href="account.html">Sign up</a>
   </div>
-</nav>
+</div></nav>
 
 <header class="mt-hero">
-  <div class="fg-wrap">
-    <div class="fg-eyebrow">Your activity</div>
+  <div class="wrap">
+    <div class="eyebrow">Your activity</div>
     <h1>My Tickets</h1>
     <p class="lede">Every seat you buy or list shows up here &mdash; with live status, so you can always come back and see where your ticket and money stand.</p>
   </div>
 </header>
 
-<main class="fg-section" style="padding-top:16px">
-  <div class="fg-wrap" style="max-width:720px">
+<main class="mt-main">
+  <div class="wrap mt-inner">
 
     <!-- Signed-out state -->
-    <div id="signedOut" class="fg-card signin-cta fg-hidden">
+    <div id="signedOut" class="card signin-cta hidden">
       <h2>Sign in first</h2>
-      <p class="fg-muted fg-mt-1">Get verified (phone + email) and your tickets and listings will appear here.</p>
-      <a class="fg-btn fg-btn-primary fg-mt-3" href="account.html">Get verified</a>
+      <p class="text-muted mt-1">Get verified (phone + email) and your tickets and listings will appear here.</p>
+      <a class="btn btn-gold mt-3" href="account.html">Get verified</a>
     </div>
 
     <!-- Signed-in content -->
-    <div id="signedIn" class="fg-hidden">
-      <div class="mt-section-h">Tickets I bought</div>
-      <div id="ordersList"><div class="fg-card mt-card"><span class="mt-empty">Loading…</span></div></div>
+    <div id="signedIn" class="hidden">
+      <div class="sec-h">Tickets I bought</div>
+      <div id="ordersList"><div class="card"><span class="mt-empty">Loading&hellip;</span></div></div>
 
-      <div class="mt-section-h">Seats I'm selling</div>
-      <div id="listingsList"><div class="fg-card mt-card"><span class="mt-empty">Loading…</span></div></div>
+      <div class="sec-h">Seats I'm selling</div>
+      <div id="listingsList"><div class="card"><span class="mt-empty">Loading&hellip;</span></div></div>
 
-      <div class="fg-row fg-mt-3" style="gap:10px;flex-wrap:wrap">
-        <a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Browse shows</a>
-        <a class="fg-btn fg-btn-ghost fg-btn-sm" href="sell.html">Resell a seat</a>
+      <div class="row-flex mt-3">
+        <a class="btn btn-line btn-sm" href="index.html">Browse shows</a>
+        <a class="btn btn-line btn-sm" href="sell.html">Resell a seat</a>
       </div>
     </div>
 
   </div>
 </main>
 
-<div class="fg-toast" id="toast" role="status"></div>
+<footer><div class="wrap">
+  <div class="foot">
+    <div><div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div><p>The fan-first ticket platform. Real seats, real fans, no scalper games. Official resale partner of Rod Wave's Don't Look Down Tour.</p></div>
+    <div class="fcols">
+      <div class="fcol"><h5>Buy</h5><a href="index.html">Rod Wave seats</a><a href="discover.html">Discover anything</a></div>
+      <div class="fcol"><h5>Account</h5><a href="account.html">Log in / Sign up</a><a href="mytickets.html">My tickets</a></div>
+    </div>
+  </div>
+  <div class="final">All sales final · No refunds · Ticketmaster account required for delivery · Not a live store</div>
+</div></footer>
+
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const API = '/fairgame/api';
 const $ = (s, r=document) => r.querySelector(s);
+
+/* ---------- nav scroll ---------- */
+const nav = document.getElementById('nav');
+const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
+window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
 
 /* ---------- session ---------- */
 function getSession() {
@@ -96,23 +204,23 @@ function renderBadge() {
   const s = getSession(); const right = $('#navRight');
   if (!s || !s.token) return;
   const fan = s.fan || {};
-  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
-  right.innerHTML = prio + '<span class="fg-badge verified"><span class="dot"></span>Verified Fan</span>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="index.html">Shows</a>';
+  const prio = fan.priority ? '<span class="badge badge-priority"><span class="dot"></span>Priority Fan</span>' : '';
+  right.innerHTML = prio + '<span class="badge badge-verified"><span class="dot"></span>Verified Fan</span>' +
+    '<a class="btn btn-line btn-sm" href="index.html">Shows</a>';
 }
 
 /* ---------- status mapping ---------- */
 function orderStatus(state){
-  if (state === 'released') return {label:'Ticket is yours', cls:'verified'};
-  if (state === 'paid')     return {label:'In escrow',       cls:'priority'};
-  if (state === 'refunded') return {label:'Refunded',        cls:'resale'};
-  return {label: state, cls:''};
+  if (state === 'released') return {label:'Ticket is yours', cls:'badge-verified'};
+  if (state === 'paid')     return {label:'In escrow',       cls:'badge-priority'};
+  if (state === 'refunded') return {label:'Refunded',        cls:'badge-neutral'};
+  return {label: state, cls:'badge-neutral'};
 }
 function listingStatus(status){
-  if (status === 'active')    return {label:'Live',      cls:'verified'};
-  if (status === 'sold')      return {label:'Sold',      cls:'priority'};
-  if (status === 'cancelled') return {label:'Cancelled', cls:''};
-  return {label: status, cls:''};
+  if (status === 'active')    return {label:'Live',      cls:'badge-verified'};
+  if (status === 'sold')      return {label:'Sold',      cls:'badge-priority'};
+  if (status === 'cancelled') return {label:'Cancelled', cls:'badge-neutral'};
+  return {label: status, cls:'badge-neutral'};
 }
 
 /* ---------- render ---------- */
@@ -120,21 +228,21 @@ function orderCard(o){
   const st = orderStatus(o.state);
   const where = esc(o.show_city || 'Show') + (o.section ? ' · ' + esc(o.section) : '');
   const sub = [esc(o.show_date||''), o.amount_cents ? 'paid ' + money(o.amount_cents) : ''].filter(Boolean).join('  ·  ');
-  return '<div class="fg-card mt-card"><div class="mt-row"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
-    '<span class="fg-badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>';
+  return '<div class="card"><div class="trow"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
+    '<span class="badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>';
 }
 function listingCard(l){
   const st = listingStatus(l.status);
   const where = esc(l.show_city || 'Show') + ' · ' + esc(l.section);
   const sub = 'face ' + money(l.face_price_cents) + ' · you keep ' + money(l.seller_proceeds_cents);
-  return '<div class="fg-card mt-card"><div class="mt-row"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
-    '<span class="fg-badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>';
+  return '<div class="card"><div class="trow"><div><div class="seat">'+where+'</div><div class="sub">'+sub+'</div></div>'+
+    '<span class="badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div></div>';
 }
 
 async function load(){
   const s = getSession();
-  if (!s || !s.token){ $('#signedOut').classList.remove('fg-hidden'); return; }
-  $('#signedIn').classList.remove('fg-hidden');
+  if (!s || !s.token){ $('#signedOut').classList.remove('hidden'); return; }
+  $('#signedIn').classList.remove('hidden');
   try {
     const [oRes, lRes] = await Promise.all([
       fetch(API + '/my/orders',   {headers: authHeaders()}),
@@ -144,15 +252,15 @@ async function load(){
     const listings = lRes.ok ? (await lRes.json()).listings : [];
     $('#ordersList').innerHTML = orders.length
       ? orders.map(orderCard).join('')
-      : '<div class="fg-card mt-card"><span class="mt-empty">No purchases yet. Buy a seat from the resale exchange and it shows up here with its escrow status.</span></div>';
+      : '<div class="card"><span class="mt-empty">No purchases yet. Buy a seat from the resale exchange and it shows up here with its escrow status.</span></div>';
     $('#listingsList').innerHTML = listings.length
       ? listings.map(listingCard).join('')
-      : '<div class="fg-card mt-card"><span class="mt-empty">You haven\'t listed a seat. Head to Resell to put one on the exchange — capped at face + $15.</span></div>';
+      : '<div class="card"><span class="mt-empty">You haven\'t listed a seat. Head to Resell to put one on the exchange — capped at face + $15.</span></div>';
   } catch (e) {
     toast('Could not load your tickets', 'err');
   }
 }
-function toast(m,k){ const t=$('#toast'); if(!t)return; t.textContent=m; t.className='fg-toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='fg-toast '+(k||''),3400); }
+function toast(m,k){ const t=$('#toast'); if(!t)return; t.textContent=m; t.className='toast show '+(k||''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast '+(k||''),3400); }
 
 renderBadge();
 load();
