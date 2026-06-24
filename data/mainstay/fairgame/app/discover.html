@@ -15,7 +15,7 @@
   --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
   --line-l:#e4dccc; --line-d:#2a2724;
   --silver:#aaa49a; --mute:#6f6a60;
-  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#C9A84C;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
   --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
   --r-btn:11px; --r-card:14px; --r-tag:6px;
   --sh-l:0 14px 38px rgba(22,18,8,.10);
@@ -31,7 +31,7 @@ a{color:inherit;text-decoration:none}
 
 /* buttons — squared per design spec */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;
-  border-radius:0;padding:13px 22px;cursor:pointer;border:1px solid transparent;
+  border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;
   transition:transform .14s,background .14s,border-color .14s;white-space:nowrap;letter-spacing:.01em}
 .btn-gold{background:var(--gold-btn);color:#1a1206;border-color:var(--gold-btn)}
 .btn-gold:hover{background:var(--gold);border-color:var(--gold);transform:translateY(-1px)}
@@ -50,7 +50,7 @@ a{color:inherit;text-decoration:none}
 nav{position:sticky;top:0;z-index:50;background:rgba(11,10,9,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line-d);transition:background .3s,border-color .3s}
 .nav-in{display:flex;align-items:center;gap:16px;height:64px}
 .brand{font-weight:900;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:#fff}
-.brand .mark{width:25px;height:25px;border-radius:0;background:var(--gold-btn);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.brand .mark{width:25px;height:25px;border-radius:var(--r-btn);background:var(--gold-btn);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
 .nav-right{display:flex;align-items:center;gap:9px;margin-left:auto}
 .nav-link{font-weight:600;font-size:14px;color:rgba(255,255,255,.75);transition:color .2s}
 .nav-link:hover{color:#fff}
@@ -71,14 +71,14 @@ nav.scrolled .nav-link:hover{color:var(--ink)}
 /* search row */
 .searchbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
 .searchbar input{flex:1 1 300px;min-width:0;padding:13px 16px;font-size:1rem;font-family:inherit;
-  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:0;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:var(--r-btn);
   color:#fff;outline:none;transition:border-color .2s}
 .searchbar input::placeholder{color:rgba(255,255,255,.45)}
 .searchbar input:focus{border-color:var(--gold-btn)}
 
 /* segment chips */
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.chip-btn{padding:7px 14px;border-radius:0;cursor:pointer;font-size:.8rem;font-family:inherit;
+.chip-btn{padding:7px 14px;border-radius:var(--r-btn);cursor:pointer;font-size:.8rem;font-family:inherit;
   letter-spacing:.06em;text-transform:uppercase;font-weight:700;
   background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.6);
   transition:background .15s,border-color .15s,color .15s}
@@ -136,7 +136,7 @@ nav.scrolled .nav-link:hover{color:var(--ink)}
 /* toast */
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);
   background:#17140d;color:#fff;padding:12px 22px;font-size:14px;font-weight:600;
-  border-radius:0;box-shadow:0 8px 30px rgba(0,0,0,.35);opacity:0;pointer-events:none;
+  border-radius:var(--r-btn);box-shadow:0 8px 30px rgba(0,0,0,.35);opacity:0;pointer-events:none;
   transition:opacity .25s,transform .25s;z-index:999;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
