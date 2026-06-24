@@ -19,12 +19,12 @@
 - Reference mock is the source of truth for markup/CSS blocks; port verbatim, then apply the deltas each task names. Do not hand-reinvent styles already in the mock.
 
 ## File Structure
-- Modify: `data/mainstay/fairgame/app/fairgame.css` — swap `:root` tokens + base nav/button/section primitives to DESIGN.md (shared; benefits all pages).
-- Rewrite: `data/mainstay/fairgame/app/index.html` — new homepage markup + `loadShows()` restyle + album modal.
+- Rewrite: `data/mainstay/fairgame/app/index.html` — **self-contained** new homepage (own `<style>` carrying the DESIGN.md tokens, exactly like the approved mock) + `loadShows()` restyle + album modal. Drops the `fairgame.css` link so the old `fg-*` base styles can't conflict.
 - Create (copy): `data/mainstay/fairgame/app/img/` — `rod-hero.jpg`, `rod-live-1.jpg`, `rod-live-2.jpg`, `rod-live-3.jpg`, `rod-fans.jpg`, `rod-arena.jpg`, `rod-portrait.jpg`.
-- Unchanged: backend (`core/api/fairgame.py`, `core/fairgame/*`), other pages (reskinned in later plans).
+- **Do NOT modify** `fairgame.css` in this plan — the other pages (show/sell/account/discover/admin) still depend on its current tokens. The shared design-system rollout is its own later pass.
+- Unchanged: backend (`core/api/fairgame.py`, `core/fairgame/*`), other pages.
 
-> NOTE: retokening shared `fairgame.css` will shift the *other* pages toward the new palette before they're individually reskinned (Plans 2–6). That is expected and acceptable — they stay functional; only their polish lands later.
+> NOTE: keeping the homepage self-contained means zero risk to the other pages now. They keep their current look until each gets its own reskin plan.
 
 ---
 
@@ -62,58 +62,12 @@ git commit -m "feat(fairgame): add optimized Rod photo assets for homepage"
 
 ---
 
-### Task 2: Retoken `fairgame.css` to the DESIGN.md system
+### Task 2: (removed) — `fairgame.css` is intentionally NOT modified in this plan
 
-**Files:**
-- Modify: `data/mainstay/fairgame/app/fairgame.css` (the `:root{...}` block, and the `@import`/font link if present)
-
-**Interfaces:**
-- Produces: CSS variables consumed by every page — `--bg --paper --paper-alt --card --ink --ink-2 --ink-3 --line-l --line-d --gold --gold-deep --gold-btn --green --red --grey --r-btn --r-card --r-tag`, font family `Figtree`.
-
-- [ ] **Step 1: Replace the `:root` token block** in `fairgame.css` with the DESIGN.md tokens (copy verbatim from the reference mock's `:root`, which already encodes them). Keep any non-color utility tokens the other pages need (`--maxw`, `--ease`, `--shadow`) but point colors at the new values:
-
-```css
-:root{
-  --bg:#0b0a09; --bg2:#121110;
-  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
-  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
-  --line-l:#e4dccc; --line-d:#2a2724;
-  --silver:#aaa49a; --mute:#6f6a60;
-  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
-  --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
-  --r-btn:11px; --r-card:14px; --r-tag:6px;
-  --maxw:1200px; --ease:cubic-bezier(.2,.7,.2,1);
-  --sh-l:0 14px 38px rgba(22,18,8,.10); --sh-d:0 22px 60px rgba(0,0,0,.6);
-  --font-display:'Figtree',system-ui,sans-serif; --font-body:'Figtree',system-ui,sans-serif;
-}
-```
-
-- [ ] **Step 2: Swap the font import** — ensure the Figtree `<link>` is loaded by pages. In `fairgame.css`, if fonts are `@import`ed, replace the Anton/Sora import with:
-
-```css
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap');
-```
-
-- [ ] **Step 3: Set `body` to the light canvas** (was dark). Update the existing `body{...}` rule:
-
-```css
-body{font-family:var(--font-body);background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
-```
-
-- [ ] **Step 4: Verify other pages still serve (no CSS parse break)**
-
-Run:
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://aialfred.groundrushcloud.com/fairgame/app/show.html
-```
-Expected: `200`. Open it; confirm the page renders (palette shifted, layout intact — full reskin lands in a later plan).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add data/mainstay/fairgame/app/fairgame.css
-git commit -m "feat(fairgame): retoken shared CSS to Fans First DESIGN.md (gold, Figtree, squared)"
-```
+The homepage is **self-contained** (Task 3 carries the full `<style>` from the approved mock,
+including its own `:root` tokens and Figtree `<link>`). Touching the shared `fairgame.css` would
+shift/break the other pages, so it's left alone until the dedicated design-system rollout. No work
+here. Proceed to Task 3.
 
 ---
 
