@@ -166,5 +166,19 @@
         "venue": "Schottenstein Center",
         "venueConfigId": "266144",
         "totalPlaces": 17759
+    },
+    "Z7r9jZ1A7Qoav": {
+        "date": "2026-11-14",
+        "market": "Sunrise, FL",
+        "venue": "Amerant Bank Arena",
+        "venueConfigId": "254399",
+        "totalPlaces": 18684
+    },
+    "Z7r9jZ1A703bo": {
+        "date": "2026-09-21",
+        "market": "Houston, TX",
+        "venue": "Toyota Center",
+        "venueConfigId": "208254",
+        "totalPlaces": 16803
     }
 }
