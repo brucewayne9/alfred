@@ -1,0 +1,170 @@
+{
+    "2D0064D19269BCCA": {
+        "date": "2026-11-04",
+        "market": "Charlotte, NC",
+        "venue": "Spectrum Center N2",
+        "venueConfigId": "265729",
+        "totalPlaces": 18626
+    },
+    "300064D00FB17794": {
+        "date": "2026-10-27",
+        "market": "Brooklyn, NY",
+        "venue": "Barclays Center",
+        "venueConfigId": "265773",
+        "totalPlaces": 17242
+    },
+    "300064D1BD353E23": {
+        "date": "2026-09-12",
+        "market": "Philadelphia, PA",
+        "venue": "Xfinity Mobile Arena",
+        "venueConfigId": "265549",
+        "totalPlaces": 18825
+    },
+    "220064D1D802540F": {
+        "date": "2026-11-09",
+        "market": "Orlando, FL",
+        "venue": "Kia Center",
+        "venueConfigId": "265663",
+        "totalPlaces": 17771
+    },
+    "040064D0DB24B9E5": {
+        "date": "2026-10-31",
+        "market": "Chicago, IL",
+        "venue": "United Center",
+        "venueConfigId": "265664",
+        "totalPlaces": 19319
+    },
+    "060064D193F3831B": {
+        "date": "2026-10-12",
+        "market": "St. Louis, MO",
+        "venue": "Enterprise Center",
+        "venueConfigId": "100920",
+        "totalPlaces": 15597
+    },
+    "0E0064D01EE7C7F2": {
+        "date": "2026-11-18",
+        "market": "Atlanta, GA",
+        "venue": "State Farm Arena",
+        "venueConfigId": "265769",
+        "totalPlaces": 15268
+    },
+    "1C0064D09CBD9C82": {
+        "date": "2026-10-07",
+        "market": "San Francisco, CA",
+        "venue": "Chase Center",
+        "venueConfigId": "119826",
+        "totalPlaces": 14912
+    },
+    "1B0064D0BDDAA6A4": {
+        "date": "2026-09-19",
+        "market": "New Orleans, LA",
+        "venue": "Smoothie King Center",
+        "venueConfigId": "126965",
+        "totalPlaces": 15906
+    },
+    "1C0064D09899943D": {
+        "date": "2026-10-08",
+        "market": "Sacramento, CA",
+        "venue": "Golden 1 Center",
+        "venueConfigId": "265799",
+        "totalPlaces": 17360
+    },
+    "160064D1B956C130": {
+        "date": "2026-10-23",
+        "market": "Pittsburgh, PA",
+        "venue": "PPG Paints Arena",
+        "venueConfigId": "265634",
+        "totalPlaces": 17640
+    },
+    "2D0064D0DAD9D273": {
+        "date": "2026-11-06",
+        "market": "Columbia, SC",
+        "venue": "Colonial Life Arena",
+        "venueConfigId": "265774",
+        "totalPlaces": 17042
+    },
+    "2D0064D19265BC9A": {
+        "date": "2026-11-03",
+        "market": "Charlotte, NC",
+        "venue": "Spectrum Center",
+        "venueConfigId": "265729",
+        "totalPlaces": 18018
+    },
+    "010064D0AF18F3E7": {
+        "date": "2026-10-25",
+        "market": "Boston, MA",
+        "venue": "TD Garden",
+        "venueConfigId": "265864",
+        "totalPlaces": 16318
+    },
+    "080064D0D671B929": {
+        "date": "2026-10-19",
+        "market": "Detroit, MI",
+        "venue": "Little Caesars Arena",
+        "venueConfigId": "265559",
+        "totalPlaces": 18487
+    },
+    "200064D18B4018AD": {
+        "date": "2026-09-17",
+        "market": "Birmingham, AL",
+        "venue": "Legacy Arena at the BJCC",
+        "venueConfigId": "266114",
+        "totalPlaces": 15657
+    },
+    "2D0064D1B0656148": {
+        "date": "2026-09-15",
+        "market": "Raleigh, NC",
+        "venue": "Lenovo Center",
+        "venueConfigId": "265829",
+        "totalPlaces": 19213
+    },
+    "3A0064D1BCBBD674": {
+        "date": "2026-09-23",
+        "market": "Austin, TX",
+        "venue": "Moody Center",
+        "venueConfigId": "265879",
+        "totalPlaces": 14929
+    },
+    "0C0064D1BA34A3F0": {
+        "date": "2026-09-26",
+        "market": "Dallas, TX",
+        "venue": "American Airlines Center",
+        "venueConfigId": "265804",
+        "totalPlaces": 18478
+    },
+    "090064D1B0F2AB13": {
+        "date": "2026-10-01",
+        "market": "Inglewood, CA",
+        "venue": "Intuit Dome",
+        "venueConfigId": "265839",
+        "totalPlaces": 16917
+    },
+    "190064D1B68C8178": {
+        "date": "2026-10-04",
+        "market": "Phoenix, AZ",
+        "venue": "Mortgage Matchup Center",
+        "venueConfigId": "266229",
+        "totalPlaces": 16501
+    },
+    "1B0064D1D297D9E5": {
+        "date": "2026-10-14",
+        "market": "Nashville, TN",
+        "venue": "Bridgestone Arena",
+        "venueConfigId": "265882",
+        "totalPlaces": 16991
+    },
+    "150064D09F1B6CBD": {
+        "date": "2026-10-16",
+        "market": "Washington, DC",
+        "venue": "Capital One Arena",
+        "venueConfigId": "265859",
+        "totalPlaces": 18425
+    },
+    "050064D1D0AE1FA1": {
+        "date": "2026-10-22",
+        "market": "Columbus, OH",
+        "venue": "Schottenstein Center",
+        "venueConfigId": "266144",
+        "totalPlaces": 17759
+    }
+}
