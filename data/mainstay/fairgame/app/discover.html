@@ -159,7 +159,10 @@ footer{background:#070605;color:#fff;padding:52px 0 34px}
 }
 @media(max-width:480px){
   .wrap{padding:0 18px}
-  .searchbar{flex-direction:column}.searchbar .btn{width:100%}
+  .searchbar{flex-direction:row;gap:8px;margin-top:18px}
+  .searchbar input{padding:11px 14px;font-size:.95rem}
+  .searchbar .btn{width:auto;padding:11px 13px}
+  .searchbar .btn .btn-tx{display:none}
 }
 </style>
 </head>
@@ -188,9 +191,9 @@ footer{background:#070605;color:#fff;padding:52px 0 34px}
 
     <div class="searchbar">
       <input id="q" type="search" placeholder="Search artists, teams, events, cities…" autocomplete="off">
-      <button class="btn btn-gold" id="goBtn">
+      <button class="btn btn-gold" id="goBtn" aria-label="Search">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        Search
+        <span class="btn-tx">Search</span>
       </button>
     </div>
     <div class="chips" id="chips"></div>
