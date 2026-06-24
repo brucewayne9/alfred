@@ -132,6 +132,23 @@ def remaining(show_id: str) -> int:
     return int(row["n"])
 
 
+def update_inventory(inv_id, *, face_price_cents=None, qty_available=None, qty_total=None):
+    """Patch an inventory row's price/quantities. Returns the row or None."""
+    sets, vals = [], []
+    for col, v in (("face_price_cents", face_price_cents),
+                   ("qty_available", qty_available), ("qty_total", qty_total)):
+        if v is not None:
+            sets.append(f"{col}=?"); vals.append(int(v))
+    with db.connect() as c:
+        if sets:
+            vals.append(inv_id)
+            cur = c.execute(f"UPDATE inventory SET {', '.join(sets)} WHERE id=?", vals)
+            if cur.rowcount == 0:
+                return None
+        row = c.execute("SELECT * FROM inventory WHERE id=?", (inv_id,)).fetchone()
+    return dict(row) if row else None
+
+
 def seed_demo_inventory() -> int:
     """Give every seeded show the 3 standard sections (idempotent per section).
 

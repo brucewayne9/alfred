@@ -595,3 +595,48 @@ async def admin_fans(x_fairgame_admin: str = Header(default=""), limit: int = 10
 async def admin_orders(x_fairgame_admin: str = Header(default=""), limit: int = 100):
     _require_admin(x_fairgame_admin)
     return {"orders": admin.list_orders(limit)}
+
+
+@app.get("/fairgame/api/admin/shows/{show_id}/inventory")
+async def admin_show_inventory(show_id: str, x_fairgame_admin: str = Header(default="")):
+    _require_admin(x_fairgame_admin)
+    show = events.get_show(show_id)
+    if not show:
+        raise HTTPException(status_code=404, detail="show not found")
+    return {"inventory": events.get_inventory(show_id)}
+
+
+@app.patch("/fairgame/api/admin/inventory/{inv_id}")
+async def admin_patch_inventory(inv_id: str, req: Request, x_fairgame_admin: str = Header(default="")):
+    _require_admin(x_fairgame_admin)
+    b = await req.json()
+    kwargs: dict = {}
+    for field in ("face_price_cents", "qty_available", "qty_total"):
+        if field in b:
+            v = b[field]
+            if not isinstance(v, int) or v < 0:
+                raise HTTPException(status_code=400, detail=f"{field} must be a non-negative integer")
+            kwargs[field] = v
+    row = events.update_inventory(inv_id, **kwargs)
+    if row is None:
+        raise HTTPException(status_code=404, detail="inventory row not found")
+    return {"inventory": row}
+
+
+@app.post("/fairgame/api/admin/shows/{show_id}/inventory")
+async def admin_add_inventory(show_id: str, req: Request, x_fairgame_admin: str = Header(default="")):
+    _require_admin(x_fairgame_admin)
+    show = events.get_show(show_id)
+    if not show:
+        raise HTTPException(status_code=404, detail="show not found")
+    b = await req.json()
+    section = (b.get("section") or "").strip()
+    if not section:
+        raise HTTPException(status_code=400, detail="section is required")
+    qty = b.get("qty")
+    face_price_cents = b.get("face_price_cents")
+    for fname, fv in (("qty", qty), ("face_price_cents", face_price_cents)):
+        if not isinstance(fv, int) or fv < 0:
+            raise HTTPException(status_code=400, detail=f"{fname} must be a non-negative integer")
+    row = events.add_inventory(show_id, section, qty, face_price_cents)
+    return {"inventory": row}
