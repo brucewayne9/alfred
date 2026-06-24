@@ -115,6 +115,8 @@ nav.scrolled .nav-link:hover{color:var(--ink)}
 .price{font-weight:800;font-size:1.45rem;color:var(--gold-deep);line-height:1}
 .price.blur{filter:blur(7px);user-select:none;cursor:default}
 .src-tag{font-size:12px;color:var(--ink-3);margin-top:4px}
+.cmp-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--gold-deep);background:#faf3e2;border:1px solid #e0c486;border-radius:6px;padding:4px 9px;margin-top:6px;text-transform:none}
+.cmp-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--gold-deep)}
 
 /* skeleton */
 .sk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;padding:28px 0 60px}
@@ -337,7 +339,7 @@ function eventCard(e, unlocked) {
         '<div>' +
           '<div class="price-l">Lowest verified</div>' +
           priceHtml +
-          '<div class="src-tag">' + ((e.sources && e.sources.length > 1) ? ('Lowest of ' + e.sources.length + ' \u00b7 ' + e.sources.map(s => esc(s.source)).join(' + ')) : ('via ' + esc(e.source || 'partner') + ' \u00b7 verified')) + '</div>' +
+          ((e.sources && e.sources.length > 1) ? '<div class="cmp-badge"><span class="dot"></span>Best price \u00b7 checked ' + e.sources.length + ' sites: ' + e.sources.map(s => esc(s.source)).join(' + ') + '</div>' : '<div class="src-tag">via ' + esc(e.source || 'partner') + ' \u00b7 verified</div>') +
         '</div>' +
         cta +
       '</div>' +
