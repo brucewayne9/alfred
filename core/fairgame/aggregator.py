@@ -147,6 +147,105 @@ def _fetch_tm(query: str, segment: str | None, city: str | None, size: int) -> l
 
 
 # --------------------------------------------------------------------------- #
+# SeatGeek — second price source (free Platform API, client_id read access).
+# Returns aggregate stats.lowest_price (null until an event has live listings).
+# --------------------------------------------------------------------------- #
+
+_SEATGEEK_URL = "https://api.seatgeek.com/2/events"
+
+# SeatGeek event `type` -> our segment chips.
+_SG_SEGMENT = {
+    "concert": "Music", "music_festival": "Music",
+    "nba": "Sports", "nfl": "Sports", "mlb": "Sports", "nhl": "Sports", "mls": "Sports",
+    "ncaa_basketball": "Sports", "ncaa_football": "Sports", "soccer": "Sports", "sports": "Sports",
+    "theater": "Arts & Theatre", "broadway_tickets_national": "Arts & Theatre",
+    "comedy": "Arts & Theatre", "dance_performance_tour": "Arts & Theatre", "classical": "Arts & Theatre",
+}
+
+
+def _seatgeek_id() -> str:
+    return os.environ.get("FAIRGAME_SEATGEEK_CLIENT_ID", "").strip()
+
+
+def _normalize_sg_event(ev: dict[str, Any]) -> dict[str, Any] | None:
+    try:
+        venue = ev.get("venue", {}) or {}
+        stats = ev.get("stats", {}) or {}
+        perfs = ev.get("performers", []) or []
+        img = next((p["image"] for p in perfs if p.get("image")), None)
+        dt = ev.get("datetime_local") or ""        # "2026-11-14T20:30:00"
+        return {
+            "id": "sg_" + str(ev.get("id")),
+            "name": ev.get("short_title") or ev.get("title"),
+            "segment": _SG_SEGMENT.get(ev.get("type") or "", "Miscellaneous"),
+            "date": (dt[:10] or None),
+            "time": (dt[11:16] or None),
+            "venue": venue.get("name"),
+            "city": venue.get("city"),
+            "state": venue.get("state"),
+            "min_price": stats.get("lowest_price"),
+            "max_price": stats.get("highest_price"),
+            "currency": "USD",
+            "source": "SeatGeek",
+            "buy_url": ev.get("url"),
+            "image": img,
+        }
+    except Exception as e:  # noqa: BLE001 - one bad row must not kill the feed
+        logger.warning("aggregator: skipped malformed SeatGeek event: %s", e)
+        return None
+
+
+def _fetch_sg(query: str, city: str | None, size: int) -> list[dict]:
+    cid = _seatgeek_id()
+    if not cid:
+        return []
+    params = {"client_id": cid, "per_page": str(max(1, min(size, 40)))}
+    if query:
+        params["q"] = query
+    if city:
+        params["venue.city"] = city
+    url = _SEATGEEK_URL + "?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    out = [_normalize_sg_event(e) for e in (data.get("events", []) or [])]
+    return [r for r in out if r]
+
+
+def _evt_key(e: dict) -> tuple | None:
+    """Coarse identity for matching the same event across feeds: squashed name + date."""
+    import re
+    n = re.sub(r"[^a-z0-9]", "", (e.get("name") or "").lower())[:18]
+    return (n, e.get("date") or "") if n else None
+
+
+def _merge_lowest(primary: list[dict], secondary: list[dict]) -> list[dict]:
+    """Blend two feeds. The same event across both collapses to one card that
+    headlines the LOWEST verified price and keeps every source under `sources`
+    so the page can show who has the best deal."""
+    out: list[dict] = []
+    index: dict[tuple, dict] = {}
+    for e in list(primary) + list(secondary):
+        k = _evt_key(e)
+        if k and k in index:
+            base = index[k]
+            base["sources"].append({"source": e.get("source"), "price": e.get("min_price"), "buy_url": e.get("buy_url")})
+            priced = [s for s in base["sources"] if s.get("price") is not None]
+            if priced:
+                best = min(priced, key=lambda s: s["price"])
+                base["min_price"], base["source"], base["buy_url"] = best["price"], best["source"], best["buy_url"]
+            if not base.get("image") and e.get("image"):
+                base["image"] = e["image"]
+        else:
+            row = dict(e)
+            row["sources"] = [{"source": e.get("source"), "price": e.get("min_price"), "buy_url": e.get("buy_url")}]
+            out.append(row)
+            if k:
+                index[k] = row
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Demo fallback — clearly labelled, never passed off as live
 # --------------------------------------------------------------------------- #
 
@@ -210,19 +309,31 @@ def search(query: str = "", segment: str | None = None, city: str | None = None,
     live = is_live()
     results: list[dict] = []
     note = None
+    sources_used = []
     if live:
         try:
             results = _fetch_tm(query, segment, city, size)
+            sources_used.append("Ticketmaster")
         except Exception as e:  # noqa: BLE001 - degrade to demo, surface the reason
             logger.warning("aggregator live feed failed, serving demo: %s", e)
             live = False
             note = "live feed unavailable — showing sample"
+    # Second price source — SeatGeek. Augments the live feed; never blocks it.
+    if live and _seatgeek_id():
+        try:
+            sg = _fetch_sg(query, city, size)
+            if sg:
+                results = _merge_lowest(results, sg)[:size]
+                sources_used.append("SeatGeek")
+        except Exception as e:  # noqa: BLE001 - a flaky 2nd feed must not break Discover
+            logger.warning("aggregator: SeatGeek feed skipped: %s", e)
     if not live:
         results = _demo(query, segment)
     return {
         "live": live,
         "note": note,
-        "source": "Ticketmaster Discovery" if is_live() else "demo sample",
+        "source": (" + ".join(sources_used) if sources_used else "demo sample"),
+        "sources": sources_used,
         "service_fee_cents": SERVICE_FEE_CENTS,
         "count": len(results),
         "took_ms": int((time.time() - t0) * 1000),

@@ -337,7 +337,7 @@ function eventCard(e, unlocked) {
         '<div>' +
           '<div class="price-l">Lowest verified</div>' +
           priceHtml +
-          '<div class="src-tag">via ' + esc(e.source || 'partner') + ' - verified</div>' +
+          '<div class="src-tag">' + ((e.sources && e.sources.length > 1) ? ('Lowest of ' + e.sources.length + ' \u00b7 ' + e.sources.map(s => esc(s.source)).join(' + ')) : ('via ' + esc(e.source || 'partner') + ' \u00b7 verified')) + '</div>' +
         '</div>' +
         cta +
       '</div>' +
