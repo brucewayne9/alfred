@@ -193,6 +193,14 @@ footer{background:#070605;color:#fff;padding:52px 0 32px}
 .foot-links a:hover{color:#fff}
 .foot-final{margin-top:36px;padding-top:18px;border-top:1px solid #1c1a18;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);text-align:center}
 
+/* ===== CHECKOUT MODAL ===== */
+.co-field{display:block;margin:14px 0;font-weight:700;font-size:13px;color:var(--ink-2)}
+.co-field input{display:block;width:100%;margin-top:6px;padding:12px 14px;border:1px solid var(--line-l);border-radius:var(--r-btn);font-family:inherit;font-size:15px}
+.co-deliver{font-size:13px;color:var(--ink-2);background:var(--paper-alt);border-radius:10px;padding:12px 14px;margin:6px 0 14px}
+.co-ack{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink);margin:10px 0;cursor:pointer}
+.co-ack input{margin-top:3px;width:17px;height:17px;flex:0 0 17px;accent-color:var(--gold-deep)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
 /* ===== MOBILE ===== */
 @media(max-width:860px){.grid2{grid-template-columns:1fr}}
 @media(max-width:560px){
@@ -309,6 +317,22 @@ footer{background:#070605;color:#fff;padding:52px 0 32px}
     <div class="foot-final">All sales final &middot; No refunds &middot; Ticketmaster account required for delivery</div>
   </div>
 </footer>
+
+<!-- ===== Checkout modal (TM email + triple ack) ===== -->
+<div class="modal-overlay" id="checkoutOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="coTitle">
+    <div class="modal-head"><h3 id="coTitle">Confirm your tickets</h3>
+      <button class="modal-close" id="coClose" aria-label="Close">&times;</button></div>
+    <p class="co-summary" id="coSummary"></p>
+    <label class="co-field">Ticketmaster account email
+      <input type="email" id="coEmail" inputmode="email" autocomplete="email" placeholder="you@email.com" required></label>
+    <p class="co-deliver">Delivered straight to your Ticketmaster account about 3 days before the show. A Ticketmaster account is required.</p>
+    <label class="co-ack"><input type="checkbox" id="ack1"> <span>I understand all sales are final &mdash; no refunds, exchanges, or cancellations.</span></label>
+    <label class="co-ack"><input type="checkbox" id="ack2"> <span>I understand my seats arrive in my Ticketmaster account about 3 days before the show.</span></label>
+    <label class="co-ack"><input type="checkbox" id="ack3"> <span>I confirm my Ticketmaster email is correct &mdash; it&rsquo;s the only way to receive my tickets.</span></label>
+    <button class="btn btn-gold btn-block" id="coConfirm" disabled>Complete purchase</button>
+  </div>
+</div>
 
 <!-- ===== Order modal (resale buy -> poll -> confirm) ===== -->
 <div class="modal-overlay" id="orderOverlay" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
@@ -444,13 +468,18 @@ function renderInventory() {
 $('#qMinus').onclick = ()=>{ QTY = Math.max(1, QTY-1); $('#qVal').textContent = QTY; };
 $('#qPlus').onclick  = ()=>{ QTY = Math.min(MAXQ||4, QTY+1); $('#qVal').textContent = QTY; };
 
-$('#getBtn').onclick = async ()=>{
+$('#getBtn').onclick = ()=>{
   if (!requireVerified()) return;
+  const summary = QTY + ' ticket' + (QTY>1?'s':'') + ' · ' + (SHOW&&SHOW.city||'');
+  openCheckout(summary, (tmEmail)=> doAccess(tmEmail));
+};
+
+async function doAccess(tmEmail) {
   const btn = $('#getBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Reserving…';
   try {
     const r = await fetch(API + '/access', {
       method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()},
-      body: JSON.stringify({show_id: SHOW_ID, qty: QTY})
+      body: JSON.stringify({show_id: SHOW_ID, qty: QTY, tm_email: tmEmail, final_sale_ack: true})
     });
     const data = await r.json().catch(()=>({}));
     if (r.status === 401) { btn.disabled=false; btn.textContent=orig; return requireVerified(); }
@@ -463,7 +492,7 @@ $('#getBtn').onclick = async ()=>{
   } finally {
     btn.disabled = false; btn.textContent = orig;
   }
-};
+}
 
 /* ---------- seat map ---------- */
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -589,17 +618,21 @@ function stepsView(states) {
 
 async function startBuy(listingId, total, section) {
   if (!requireVerified()) return;
+  openCheckout(section + ' · ' + money(total), (tmEmail)=> doBuy(listingId, total, section, tmEmail));
+}
+
+async function doBuy(listingId, total, section, tmEmail) {
   overlay.classList.add('open');
   const body = $('#orderBody');
   body.innerHTML =
     '<p style="color:var(--ink-2);font-size:14px;margin-bottom:18px">'+esc(section)+' · <b style="color:var(--ink)">'+money(total)+'</b> all-in. '+
     'Your money is held in escrow until the Ticketmaster transfer is confirmed. Capped &mdash; no markup beyond +$15.</p>' +
     '<button class="btn btn-gold btn-block" id="payBtn">Pay '+money(total)+' (held in escrow)</button>' +
-    '<p style="color:var(--ink-3);text-align:center;margin-top:10px;font-size:12px">Test mode · no real charge</p>';
-  $('#payBtn').onclick = ()=> runOrder(listingId, total, section);
+    '<p style="color:var(--ink-3);text-align:center;margin-top:10px;font-size:12px">Test mode &middot; no real charge</p>';
+  $('#payBtn').onclick = ()=> runOrder(listingId, total, section, tmEmail);
 }
 
-async function runOrder(listingId, total, section) {
+async function runOrder(listingId, total, section, tmEmail) {
   const body = $('#orderBody');
   const steps = [
     {key:'pay',    label:'Payment held in escrow',          state:'spin'},
@@ -610,7 +643,7 @@ async function runOrder(listingId, total, section) {
   try {
     const r = await fetch(API + '/buy', {
       method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()},
-      body: JSON.stringify({listing_id: listingId})
+      body: JSON.stringify({listing_id: listingId, tm_email: tmEmail, final_sale_ack: true})
     });
     const data = await r.json().catch(()=>({}));
     if (r.status === 401) { closeOrder(); return requireVerified(); }
@@ -661,6 +694,22 @@ async function pollOrderUntil(orderId, pred, tries) {
 
 /* close overlays on backdrop click */
 [overlay, $('#gateOverlay')].forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+/* ---------- checkout modal ---------- */
+function openCheckout(summary, proceed){
+  const ov=$('#checkoutOverlay'), email=$('#coEmail'), btn=$('#coConfirm');
+  const acks=[$('#ack1'),$('#ack2'),$('#ack3')];
+  $('#coSummary').textContent = summary;
+  email.value=''; acks.forEach(a=>a.checked=false); btn.disabled=true;
+  const emailOk=v=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+  const refresh=()=>{ btn.disabled = !(emailOk(email.value.trim()) && acks.every(a=>a.checked)); };
+  email.oninput=refresh; acks.forEach(a=>a.onchange=refresh);
+  const close=()=>{ ov.hidden=true; };
+  $('#coClose').onclick=close;
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  btn.onclick=()=>{ const em=email.value.trim(); close(); proceed(em); };
+  ov.hidden=false; email.focus();
+}
 
 renderBadge();
 loadShow();
