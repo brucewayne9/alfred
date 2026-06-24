@@ -26,8 +26,9 @@ add **album-announcement** promo to sell the partnership.
 ## 3. Pages / workstreams
 1. **Home / hero** — DONE in mock. Co-brand lockup, hero (ad-mat), photo gallery, tour rail,
    seat-map preview, Fans First promise, album promo, Discover teaser, footer.
-2. **Album announcement** — promote Rod's upcoming album. Embed the YouTube announce video +
-   "Notify me" capture. *(OPEN: need YouTube link + album name from Mike.)*
+2. **Album announcement** — promote **"Don't Look Down," out Aug 28, 2026** (Rod's 7th, Alamo).
+   Official trailer **embedded** (lightbox): https://www.youtube.com/watch?v=VpMAwDs3oI0 +
+   "Notify me" email capture. RESOLVED.
 3. **Event / seat map (full page)** — full arena via existing real TM seat maps
    (`core/fairgame/seatmap.py`, 15 markets / 258K seats). Green = ours/available → Red = ours/sold;
    everything else **greyed = "not available here"** (no click action this phase). Legend + scarcity.
@@ -38,9 +39,10 @@ add **album-announcement** promo to sell the partnership.
    direct buy-links. Reuses the proven SpotGate paywall mechanic. Honest claim: **"lowest verified
    price, guaranteed,"** never "lowest anywhere."
 6. **Accounts / My Tickets** — sign up/login, order history, delivery countdown, "my tickets."
-7. **Admin CMS (NEW — Mike's ask)** — back-office to **change prices, fees, and inventory** per
+7. **Admin CMS (Mike's ask, CONFIRMED)** — back-office to **change prices, fees, and inventory** per
    event/seat block ourselves, toggle availability, manage Discover sources, view orders + transfer
-   status. Grows from existing `data/mainstay/fairgame/app/admin.html`.
+   status. **Ships with editable defaults; Mike sets prices/fees in the back.** Grows from existing
+   `data/mainstay/fairgame/app/admin.html`.
 
 ## 4. Supply & fulfillment (from research — `scratchpad/RESEARCH_tm_transfer.md`)
 - Rod's seats live in a **standard consumer Ticketmaster account** we have access to.
@@ -48,33 +50,41 @@ add **album-announcement** promo to sell the partnership.
   API path) was shut down by the FTC (Oct 2025).
 - **Transfers usually locked until ~72h before each show** → product is **"buy now, delivered to
   your TM account a few days before the show."**
-- **MVP fulfillment:** operator transfers each order via the TM web UI in batches when the window
-  opens; ingest TM "accepted" emails to confirm delivery. Keep it **human-paced** — high volume on
-  one account risks a flag that cancels Rod's tickets.
+- **Fulfillment = Option B (Mike's call): a supervised assist tool**, NOT pure-manual. A human
+  approves each batch; the tool drives the TM transfer flow but **throttled + human-in-the-loop**,
+  **never headless-at-scale** (high volume on one account risks a flag that cancels Rod's tickets).
+  Required safeguards: per-batch human approval, pacing/jitter between transfers, pre-check each
+  show's transfer-window eligibility before firing, secure the account's 2FA, ingest TM "accepted"
+  emails to confirm delivery. (Manual queue = the fallback if the tool ever gets risky.)
 - **Tracking model:** order_id · event · seat · buyer_tm_email · transfer_sent_at · accepted_status.
 - **Checkout must collect** the buyer's Ticketmaster account email (+ phone/consent).
 
 ## 5. Discover data (from research — `scratchpad/RESEARCH_aggregator_apis.md`)
 - "Lowest anywhere" is **not defensible from any single source**; SeatGeek's API **bans** displaying
-  rival listings. Honest framing = **"lowest verified price as of now" / guaranteed-fulfillment.**
-- **Recommended stack:** Ticketmaster Discovery (have it) + **TicketsData (~$499/mo, 10-market
-  compare feed)** as the cross-market core; **TickPick** partner API for the cleanest all-in
-  "verifiable" price; affiliate networks (Impact/Partnerize/CJ) as the redirect/monetization layer.
-- **Decision pending:** budget the $499/mo TicketsData feed, or launch with TM + TickPick affiliate.
+  rival listings. Honest framing = **"lowest verified price, guaranteed."**
+- **DECISION (Mike):** **TicketsData $499/mo = KILLED.** No subscription costs. Discover runs on
+  **free/affiliate sources only — Ticketmaster Discovery (have it) + TickPick affiliate** (+ Impact/
+  Partnerize/CJ as the outbound redirect/monetization layer).
+- **The only Discover economics = the $1 unlock per transaction.** One dollar, one time, per reveal.
 
 ## 6. Revenue
-1. Rod-held seats: face value + fair fee (seller/Rod split per existing fairgame economics).
-2. Discover **$1 unlock** per reveal + affiliate commission on outbound buy-links.
+1. Rod-held seats: face value + fair fee (set/controlled via the admin CMS).
+2. Discover: **$1 unlock per reveal** (the only Discover charge — no feed subscription) + affiliate
+   commission on outbound buy-links.
 
 ## 7. Out of scope (this phase)
 Native mobile apps · P2P fan-to-fan resale (killed → later phase) · buyer identity verification ·
 click-through for non-inventory (grey) seats.
 
-## 8. Open items (need Mike / decisions)
-- [ ] YouTube album-announcement link + album name (placeholder wired in mock).
-- [ ] TicketsData $499/mo — approve, or launch on TM + TickPick only.
-- [ ] Confirm gold as the final accent (approved in mock).
-- [ ] Fee structure / price points per market for the CMS to manage.
+## 8. Open items
+- [x] ~~YouTube album link + name~~ → "Don't Look Down," Aug 28, trailer embedded.
+- [x] ~~TicketsData $499/mo~~ → KILLED. $1-unlock only; TM + TickPick affiliate sources.
+- [x] ~~Confirm gold accent~~ → approved.
+- [x] ~~Fee/price points~~ → handled in the CMS (Mike sets them; ships with editable defaults).
+- [x] ~~Ticket delivery~~ → **Option B: supervised assist tool** (throttled, human-in-the-loop),
+  manual queue as fallback. See §4.
+
+**All open items resolved → ready for build planning.**
 
 ## 9. Next step
 Take the approved homepage design into the real app (`data/mainstay/fairgame/app/`), then build the
