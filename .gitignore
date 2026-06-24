@@ -122,3 +122,12 @@ vendor/
 data/forge_asd_cache/
 data/asd_test/
 data/mainstay/pulse/.last_good.json
+
+# Fans First — runtime DB + artifacts (not source)
+data/fairgame.db
+data/fairgame.db-shm
+data/fairgame.db-wal
+data/fairgame.db.bak*
+data/mainstay/fairgame/*.zip
+data/mainstay/fairgame/dl/
+data/mainstay/fairgame/sandbox/
