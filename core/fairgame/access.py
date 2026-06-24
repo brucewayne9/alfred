@@ -92,7 +92,7 @@ def can_purchase(fan_id: str, show_id: str, qty: int, now=None) -> bool:
     return True
 
 
-def grant_access(fan_id: str, show_id: str, qty: int, now=None) -> dict:
+def grant_access(fan_id: str, show_id: str, qty: int, tm_email=None, final_sale_ack=False, now=None) -> dict:
     """Grant presale access, write the grant, and decrement inventory.
 
     Raises AccessError with a clear message if the fan is unverified, no wave
@@ -138,9 +138,9 @@ def grant_access(fan_id: str, show_id: str, qty: int, now=None) -> dict:
             # Inventory changed between the check and the write — abort cleanly.
             raise AccessError("not enough tickets remaining")
         c.execute(
-            "INSERT INTO access_grants(id,fan_id,show_id,wave_id,qty,created_at) "
-            "VALUES(?,?,?,?,?,?)",
-            (gid, fan_id, show_id, wave["id"], qty, created),
+            "INSERT INTO access_grants(id,fan_id,show_id,wave_id,qty,tm_email,final_sale_ack,created_at) "
+            "VALUES(?,?,?,?,?,?,?,?)",
+            (gid, fan_id, show_id, wave["id"], qty, tm_email, 1 if final_sale_ack else 0, created),
         )
         row = c.execute("SELECT * FROM access_grants WHERE id=?", (gid,)).fetchone()
     return dict(row)

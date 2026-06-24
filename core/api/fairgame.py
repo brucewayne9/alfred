@@ -29,6 +29,7 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+import re as _re
 import sys
 import time
 from collections import defaultdict, deque
@@ -56,6 +57,23 @@ from core.fairgame import (
 )
 
 logger = logging.getLogger("fairgame")
+
+_TM_EMAIL_RE = _re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _valid_tm_email(s) -> bool:
+    return bool(s) and bool(_TM_EMAIL_RE.match(s))
+
+
+def _require_checkout(b: dict):
+    """Pull + validate tm_email and the final-sale ack from a purchase body."""
+    tm_email = (b.get("tm_email") or "").strip()
+    ack = bool(b.get("final_sale_ack"))
+    if not _valid_tm_email(tm_email):
+        raise HTTPException(status_code=400, detail="a valid Ticketmaster email is required")
+    if not ack:
+        raise HTTPException(status_code=400, detail="you must acknowledge all sales are final")
+    return tm_email, ack
 
 # A wave wide enough to always be open in dev/demo (epoch 0 .. year ~2065).
 _WAVE_OPEN_FROM = 0
@@ -403,12 +421,13 @@ async def grant(req: Request, authorization: str = Header(default="")):
         raise HTTPException(status_code=403, detail="fan is not verified")
     fid = fan["id"]
     b = await req.json()
+    tm_email, ack = _require_checkout(b)
     show_id = b.get("show_id")
     qty = int(b.get("qty", 1))
     if not show_id:
         raise HTTPException(status_code=400, detail="show_id required")
     try:
-        g = access.grant_access(fid, show_id, qty)
+        g = access.grant_access(fid, show_id, qty, tm_email=tm_email, final_sale_ack=ack)
     except access.AccessError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"grant": g}
@@ -446,11 +465,12 @@ async def create_listing(req: Request, authorization: str = Header(default="")):
 async def buy(req: Request, authorization: str = Header(default="")):
     fan = _require_fan(authorization)
     b = await req.json()
+    tm_email, ack = _require_checkout(b)
     listing_id = b.get("listing_id")
     if not listing_id:
         raise HTTPException(status_code=400, detail="listing_id required")
     try:
-        order = orders.create_order(fan["id"], listing_id)
+        order = orders.create_order(fan["id"], listing_id, tm_email=tm_email, final_sale_ack=ack)
     except orders.OrderError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"order": order}

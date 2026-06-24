@@ -61,7 +61,7 @@ def _get_order_row(c, order_id: str):
     return c.execute("SELECT * FROM orders WHERE id=?", (order_id,)).fetchone()
 
 
-def create_order(buyer_fan_id: str, listing_id: str) -> dict:
+def create_order(buyer_fan_id: str, listing_id: str, tm_email=None, final_sale_ack=False) -> dict:
     """Buyer claims a listing — hold their funds and lock the seat.
 
     Atomically CLAIMS the listing (``UPDATE listings SET status='sold' WHERE
@@ -114,8 +114,8 @@ def create_order(buyer_fan_id: str, listing_id: str) -> dict:
 
     with db.connect() as c:
         c.execute(
-            "UPDATE orders SET state='paid', updated_at=? WHERE id=?",
-            (now, order_id),
+            "UPDATE orders SET state='paid', tm_email=?, final_sale_ack=?, updated_at=? WHERE id=?",
+            (tm_email, 1 if final_sale_ack else 0, now, order_id),
         )
         out = _get_order_row(c, order_id)
     return dict(out)

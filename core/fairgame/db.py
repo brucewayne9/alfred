@@ -28,6 +28,16 @@ def connect() -> sqlite3.Connection:
     return c
 
 
+def ensure_checkout_columns(c) -> None:
+    """Idempotently add tm_email + final_sale_ack to access_grants and orders."""
+    for table in ("access_grants", "orders"):
+        cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})").fetchall()}
+        if "tm_email" not in cols:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN tm_email TEXT")
+        if "final_sale_ack" not in cols:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN final_sale_ack INTEGER DEFAULT 0")
+
+
 def init_db() -> None:
     with connect() as c:
         c.executescript(
@@ -172,3 +182,4 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_transfers_order ON transfers(order_id);
             """
         )
+        ensure_checkout_columns(c)

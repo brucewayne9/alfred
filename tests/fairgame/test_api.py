@@ -122,7 +122,8 @@ def test_access_grant_primary(monkeypatch):
     # The acting fan is the Bearer session — body fan_id is never trusted.
     r = c.post("/fairgame/api/access",
                headers={"Authorization": f"Bearer {tok}"},
-               json={"show_id": "show_1", "qty": 2})
+               json={"show_id": "show_1", "qty": 2,
+                     "tm_email": "fan@x.com", "final_sale_ack": True})
     assert r.status_code == 200, r.text
     assert r.json()["grant"]["qty"] == 2
     assert r.json()["grant"]["fan_id"] == fid
@@ -133,7 +134,8 @@ def test_access_over_cap_rejected(monkeypatch):
     fid, tok = _verify_fan(c)
     r = c.post("/fairgame/api/access",
                headers={"Authorization": f"Bearer {tok}"},
-               json={"show_id": "show_1", "qty": 99})
+               json={"show_id": "show_1", "qty": 99,
+                     "tm_email": "fan@x.com", "final_sale_ack": True})
     assert r.status_code == 400
 
 
@@ -153,7 +155,8 @@ def test_access_cannot_impersonate_via_body_fan_id(monkeypatch):
     # Attacker authenticates as themselves but tries to grant AS the victim.
     r = c.post("/fairgame/api/access",
                headers={"Authorization": f"Bearer {attacker_tok}"},
-               json={"fan_id": victim_id, "show_id": "show_1", "qty": 1})
+               json={"fan_id": victim_id, "show_id": "show_1", "qty": 1,
+                     "tm_email": "attacker@x.com", "final_sale_ack": True})
     assert r.status_code == 200, r.text
     # The grant is bound to the SESSION fan, never the body fan_id.
     assert r.json()["grant"]["fan_id"] != victim_id
@@ -187,7 +190,8 @@ def test_resale_full_escrow_release(monkeypatch):
     # Buyer buys -> funds held.
     buyer_hdr = {"Authorization": f"Bearer {buyer_tok}"}
     r = c.post("/fairgame/api/buy", headers=buyer_hdr,
-               json={"listing_id": listing_id})
+               json={"listing_id": listing_id,
+                     "tm_email": "buyer@x.com", "final_sale_ack": True})
     assert r.status_code == 200, r.text
     order = r.json()["order"]
     assert order["state"] == "paid"
@@ -223,7 +227,8 @@ def test_resale_failed_transfer_refunds(monkeypatch):
     listing_id = r.json()["listing"]["id"]
     r = c.post("/fairgame/api/buy",
                headers={"Authorization": f"Bearer {buyer_tok}"},
-               json={"listing_id": listing_id})
+               json={"listing_id": listing_id,
+                     "tm_email": "buyer2@x.com", "final_sale_ack": True})
     order_id = r.json()["order"]["id"]
     # Fail/refund is the fraud wall — admin (or TM webhook) only.
     r = c.post(f"/fairgame/api/orders/{order_id}/fail",
@@ -264,7 +269,8 @@ def _make_paid_order(c):
     listing_id = r.json()["listing"]["id"]
     r = c.post("/fairgame/api/buy",
                headers={"Authorization": f"Bearer {buyer_tok}"},
-               json={"listing_id": listing_id})
+               json={"listing_id": listing_id,
+                     "tm_email": "esc_b@x.com", "final_sale_ack": True})
     return r.json()["order"]["id"], buyer_tok
 
 
@@ -371,7 +377,8 @@ def test_admin_stats_reflects_activity(monkeypatch):
     listing_id = r.json()["listing"]["id"]
     r = c.post("/fairgame/api/buy",
                headers={"Authorization": f"Bearer {buyer_tok}"},
-               json={"listing_id": listing_id})
+               json={"listing_id": listing_id,
+                     "tm_email": "b3@x.com", "final_sale_ack": True})
     order_id = r.json()["order"]["id"]
     c.post(f"/fairgame/api/orders/{order_id}/confirm",
            headers={"Authorization": f"Bearer {buyer_tok}"})
