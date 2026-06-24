@@ -1,212 +1,406 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fair Game — Real tickets. Fair prices. Straight from Rod.</title>
-<meta name="description" content="Rod Wave's fan-first ticket marketplace. Real tickets, fair prices, no scalpers. Verified fans only.">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fans First × Rod Wave — Official Resale</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="fairgame.css">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  /* ---- Page-local: hero ---- */
-  .hero { position: relative; padding: 64px 0 40px; overflow: hidden; }
-  @media (min-width: 768px) { .hero { padding: 96px 0 60px; } }
-  .hero-eyebrow { margin-bottom: 18px; }
-  .hero h1 {
-    font-family: var(--font-display);
-    font-size: clamp(2.9rem, 11vw, 6.4rem);
-    line-height: .9; text-transform: uppercase; letter-spacing: .005em;
-    max-width: 14ch;
-  }
-  .hero h1 .l2 { color: transparent; -webkit-text-stroke: 1.5px var(--gold); text-stroke: 1.5px var(--gold); }
-  .hero p.lede {
-    margin-top: 20px; font-size: clamp(1.02rem, 2.4vw, 1.28rem);
-    color: var(--cream); max-width: 46ch; line-height: 1.5;
-  }
-  .hero p.lede b { color: var(--gold); font-weight: 700; }
-  .hero-cta { margin-top: 30px; display: flex; gap: 12px; flex-wrap: wrap; }
-  .hero-stats { margin-top: 40px; display: flex; flex-wrap: wrap; gap: 28px; }
-  .hero-stat .n { font-family: var(--font-display); font-size: 2rem; color: var(--orange); line-height: 1; }
-  .hero-stat .l { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted-2); margin-top: 4px; }
+:root{
+  --bg:#0b0a09; --bg2:#121110;
+  --paper:#f5f1ea; --paper-alt:#ece5d7; --card:#ffffff;
+  --ink:#17140d; --ink-2:#67604f; --ink-3:#988f7c;
+  --line-l:#e4dccc; --line-d:#2a2724;
+  --silver:#aaa49a; --mute:#6f6a60;
+  --gold:#e6bd72; --gold-deep:#9c6f23; --gold-btn:#d8a84c;
+  --green:#13bd57; --red:#e23b3b; --grey:#322f2a;
+  --r-btn:11px; --r-card:14px; --r-tag:6px;
+  --sh-l:0 14px 38px rgba(22,18,8,.10); --sh-d:0 22px 60px rgba(0,0,0,.6);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-deep)}
+h2.sec-h{font-size:clamp(29px,4.6vw,50px);font-weight:800;letter-spacing:-.03em;line-height:1.02;margin:14px 0 0;color:var(--ink)}
+.lead{color:var(--ink-2);font-size:17px;max-width:560px}
 
-  .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 26px; flex-wrap: wrap; }
-  .section-head h2 { font-family: var(--font-display); font-size: clamp(1.8rem, 5vw, 2.8rem); text-transform: uppercase; }
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;font-size:14px;
+  border-radius:var(--r-btn);padding:13px 22px;cursor:pointer;border:1px solid transparent;transition:transform .14s,background .14s,border-color .14s;white-space:nowrap}
+.btn svg{width:17px;height:17px;flex:0 0 17px}
+.btn-gold{background:var(--gold-btn);color:#1a1206}
+.btn-gold:hover{background:var(--gold);transform:translateY(-2px)}
+.btn-line{background:transparent;color:var(--ink);border-color:var(--line-l)}
+.btn-line:hover{border-color:var(--ink-3);background:rgba(0,0,0,.03)}
+.btn-dark{background:#fff;color:var(--ink)}
+.btn-sm{padding:10px 16px;font-size:13px}.btn-lg{padding:15px 26px;font-size:15px}
+
+.announce{background:#070605;text-align:center;padding:9px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3a4}
+.announce b{color:var(--gold);font-weight:800}
+.announce .x{color:var(--gold);font-weight:800;margin:0 7px}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;transition:background .3s,border-color .3s}
+.nav-in{display:flex;align-items:center;gap:16px;height:64px}
+.brand{font-weight:900;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;color:#fff;transition:color .3s}
+.brand .mark{width:25px;height:25px;border-radius:7px;background:var(--gold);display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}
+.search{flex:1;max-width:360px;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:var(--r-btn);padding:10px 14px;transition:background .3s,border-color .3s}
+.search input{background:transparent;border:0;outline:0;color:#fff;font-family:inherit;font-size:14px;flex:1;min-width:0}
+.search input::placeholder{color:rgba(255,255,255,.6)}
+.search svg{width:17px;height:17px;flex:0 0 17px;stroke:rgba(255,255,255,.7)}
+.nav-right{display:flex;align-items:center;gap:9px;margin-left:auto}
+.nav-link{font-weight:600;font-size:14px;color:rgba(255,255,255,.8);transition:color .3s}
+.nav-link:hover{color:#fff}
+nav.scrolled{background:rgba(245,241,234,.93);backdrop-filter:blur(14px);border-bottom-color:var(--line-l)}
+nav.scrolled .brand{color:var(--ink)}
+nav.scrolled .search{background:#fff;border-color:var(--line-l)}
+nav.scrolled .search input{color:var(--ink)}
+nav.scrolled .search input::placeholder{color:var(--ink-3)}
+nav.scrolled .search svg{stroke:var(--ink-3)}
+nav.scrolled .nav-link{color:var(--ink-2)}nav.scrolled .nav-link:hover{color:var(--ink)}
+@media(max-width:720px){.search{display:none}.nav-link.hidem{display:none}}
+
+/* hero */
+.hero{background:var(--bg);color:#fff;position:relative;overflow:hidden;margin-top:-64px;padding-top:64px}
+.hero-in{display:grid;grid-template-columns:1.05fr .95fr;gap:10px;align-items:center;min-height:86vh}
+.hero-copy{position:relative;z-index:3;max-width:560px;padding:44px 0}
+.cobrand{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);border:1px solid var(--line-d);border-radius:99px;padding:7px 14px}
+.cobrand .x{opacity:.6;font-weight:600}
+.hero h1{font-size:clamp(38px,6.3vw,74px);font-weight:900;letter-spacing:-.04em;line-height:.98;margin:20px 0;color:#fff}
+.hero h1 .gold{color:var(--gold)}
+.hero-sub{font-size:clamp(16px,2vw,19px);color:var(--silver);max-width:500px;margin-bottom:28px}
+.hero-cta{display:flex;gap:11px;flex-wrap:wrap}
+.hero-trust{display:flex;gap:20px;flex-wrap:wrap;margin-top:28px}
+.hero-trust span{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--silver);font-weight:500}
+.hero-trust svg{width:16px;height:16px;stroke:var(--gold);flex:0 0 16px}
+.hero-photo{position:relative;align-self:stretch;min-height:480px}
+.hero-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top}
+.hero-fade{position:absolute;inset:0;z-index:2;background:linear-gradient(90deg,var(--bg) 2%,rgba(11,10,9,.3) 34%,rgba(11,10,9,0) 64%),linear-gradient(0deg,var(--bg) 1%,rgba(11,10,9,0) 22%)}
+.hero-tag{position:absolute;z-index:4;bottom:38px;right:26px;background:rgba(11,10,9,.66);backdrop-filter:blur(8px);border:1px solid var(--line-d);border-radius:12px;padding:12px 16px;display:flex;gap:14px;align-items:center}
+.hero-tag .n{font-weight:800;font-size:19px;letter-spacing:-.02em}
+.hero-tag .l{font-size:10px;color:var(--silver);text-transform:uppercase;letter-spacing:.1em}
+.hero-tag .sep{width:1px;height:28px;background:var(--line-d)}
+
+/* photo gallery flood */
+.gallery{background:var(--bg2);padding:18px 0}
+.gal-rail{display:flex;gap:12px;overflow-x:auto;padding:0 24px;scroll-snap-type:x mandatory}
+.gal-rail::-webkit-scrollbar{height:0}
+.gal-rail figure{position:relative;flex:0 0 auto;width:340px;height:230px;border-radius:12px;overflow:hidden;scroll-snap-align:start}
+.gal-rail img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.gal-rail figure:hover img{transform:scale(1.05)}
+.gal-rail figcaption{position:absolute;left:14px;bottom:12px;color:#fff;font-size:12px;font-weight:700;letter-spacing:.05em;text-shadow:0 1px 6px rgba(0,0,0,.7)}
+
+/* sections */
+.sec{padding:88px 0;border-top:1px solid var(--line-l)}
+.sec.alt{background:var(--paper-alt)}
+.sec-head{margin-bottom:36px}.sec-head .lead{margin-top:12px}
+
+/* tour */
+.rail{display:flex;gap:16px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory}
+.rail::-webkit-scrollbar{height:6px}.rail::-webkit-scrollbar-thumb{background:var(--line-l);border-radius:99px}
+.tcard{scroll-snap-align:start;flex:0 0 246px;background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:20px;transition:transform .15s,box-shadow .15s;cursor:pointer;display:block}
+.tcard:hover{transform:translateY(-4px);box-shadow:var(--sh-l)}
+.tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep);border:1px solid #e0c486;background:#faf3e2;border-radius:var(--r-tag);padding:4px 9px}
+.tcard .date{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:18px 0 6px}
+.tcard .city{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.tcard .ven{font-size:13px;color:var(--ink-2);margin:6px 0 20px}
+.tcard .row{display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--line-l)}
+.tcard .from{font-size:15px;font-weight:800}.tcard .from small{color:var(--ink-3);font-weight:500;font-size:12px}
+.tcard .avail{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green)}.dot.r{background:var(--red)}
+.tcard.sold{opacity:.55}
+
+/* seat map */
+.map-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.map-viz{background:#0d0c0b;border:1px solid #1f1d1a;border-radius:18px;padding:30px;aspect-ratio:1/.82;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:var(--sh-l)}
+.stage{font-size:10px;font-weight:800;letter-spacing:.22em;color:#6f6a60;border:1px solid #2c2925;border-radius:6px;padding:5px 26px;margin-bottom:18px}
+.bowl{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;width:84%}
+.seat{aspect-ratio:1;border-radius:4px;background:var(--grey)}
+.seat.g{background:var(--green)}.seat.r{background:var(--red)}
+.legend{display:flex;flex-direction:column;gap:20px;max-width:420px}
+.leg{display:flex;gap:14px;align-items:flex-start}
+.leg .chip{flex:0 0 18px;height:18px;border-radius:5px;margin-top:3px}
+.leg h4{font-size:16px;font-weight:800;margin-bottom:3px}.leg p{font-size:14px;color:var(--ink-2)}
+
+/* album announce (dark full-bleed) */
+.album{background:var(--bg);color:#fff;position:relative;overflow:hidden}
+.album-in{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:stretch;min-height:560px}
+.album-copy{padding:88px 56px 88px 0;align-self:center;max-width:560px}
+.album .eyebrow{color:var(--gold)}
+.album h2{font-size:clamp(34px,5.4vw,62px);font-weight:900;letter-spacing:-.03em;line-height:.98;margin:14px 0 18px}
+.album p{color:var(--silver);font-size:18px;max-width:440px;margin-bottom:28px}
+.album-cta{display:flex;gap:11px;flex-wrap:wrap}
+.album-photo{position:relative;margin-right:-50vw;padding-right:50vw}
+.album-photo>img{width:100%;height:100%;object-fit:cover;object-position:center 20%;position:absolute;inset:0}
+.album-photo .vfade{position:absolute;inset:0;background:linear-gradient(90deg,var(--bg) 0%,rgba(11,10,9,0) 30%)}
+.play{position:absolute;z-index:3;top:50%;left:50%;transform:translate(-50%,-50%);width:74px;height:74px;border-radius:50%;
+  background:rgba(230,189,114,.92);display:grid;place-items:center;cursor:pointer;transition:transform .15s;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.play:hover{transform:translate(-50%,-50%) scale(1.08)}
+.play svg{width:26px;height:26px;fill:#140d02;margin-left:3px}
+.play-label{position:absolute;z-index:3;bottom:34px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+
+/* promise */
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.pcard{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:26px 22px}
+.pcard .ico{width:42px;height:42px;border-radius:11px;background:#faf3e2;border:1px solid #ecd9ab;display:grid;place-items:center;margin-bottom:18px}
+.pcard .ico svg{width:21px;height:21px;stroke:var(--gold-deep);fill:none;stroke-width:1.7}
+.pcard h3{font-size:18px;font-weight:800;letter-spacing:-.01em;margin-bottom:8px}
+.pcard p{font-size:14px;color:var(--ink-2)}
+
+/* discover */
+.disc-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.disc-search{display:flex;gap:8px;margin-top:26px;max-width:430px}
+.disc-search .f{flex:1;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-btn);padding:13px 16px;min-width:0}
+.disc-search input{background:transparent;border:0;outline:0;color:var(--ink);font-family:inherit;font-size:14px;flex:1;min-width:0}
+.disc-search svg{width:17px;height:17px;stroke:var(--ink-3);flex:0 0 17px}
+.reveal{background:var(--card);border:1px solid var(--line-l);border-radius:18px;padding:24px;box-shadow:var(--sh-l)}
+.reveal .rh{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.reveal .rt{font-size:15px;font-weight:700;margin-bottom:18px}
+.lst{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--line-l)}
+.lst .src{font-size:14px;font-weight:600;color:var(--ink-2)}.lst.win .src{color:var(--ink)}
+.win-tag{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);margin-left:8px}
+.win-price{font-size:22px;font-weight:800;color:var(--gold-deep);letter-spacing:-.02em}
+.blur{filter:blur(7px);font-weight:800;font-size:17px;color:var(--ink-2);user-select:none}
+.unlock{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:18px;background:var(--paper-alt);border:1px solid var(--line-l);border-radius:12px;padding:15px 18px}
+.unlock .u1{font-size:14px;color:var(--ink-2)}.unlock .u1 b{color:var(--ink);font-weight:800}
+
+/* footer */
+footer{background:#070605;color:#fff;padding:60px 0 38px}
+.foot{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
+.foot .brand{color:#fff}.foot p{color:#8b8576;font-size:14px;max-width:300px;margin-top:14px}
+.fcols{display:flex;gap:50px;flex-wrap:wrap}
+.fcol h5{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b8576;margin-bottom:14px}
+.fcol a{display:block;color:var(--silver);font-size:14px;margin-bottom:10px}.fcol a:hover{color:#fff}
+.final{text-align:center;margin-top:46px;padding-top:22px;border-top:1px solid #1c1a18;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+
+.up{opacity:0;transform:translateY(20px);animation:up .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes up{to{opacity:1;transform:none}}
+.d1{animation-delay:.05s}.d2{animation-delay:.16s}.d3{animation-delay:.28s}.d4{animation-delay:.4s}
+
+/* ---------- MOBILE ---------- */
+@media(max-width:860px){
+  .hero-in{grid-template-columns:1fr;min-height:auto}
+  .hero-copy{order:2;padding:30px 0 44px}
+  .hero-photo{order:1;min-height:0;height:50vh;max-height:440px;margin:0 -24px}
+  .hero-fade{background:linear-gradient(0deg,var(--bg) 3%,rgba(11,10,9,0) 55%)}
+  .hero-tag{bottom:18px;right:16px}
+  .map-grid,.disc-grid{grid-template-columns:1fr;gap:32px}
+  .pgrid{grid-template-columns:1fr 1fr}
+  .album-in{grid-template-columns:1fr;min-height:0}
+  .album-photo{order:1;position:relative;height:60vw;max-height:420px;margin:0;padding:0}
+  .album-photo>img{position:absolute}
+  .album-photo .vfade{background:linear-gradient(0deg,var(--bg) 2%,rgba(11,10,9,0) 50%)}
+  .album-copy{order:2;padding:44px 0 64px;max-width:none}
+}
+@media(max-width:560px){
+  .wrap{padding:0 18px}
+  .sec{padding:60px 0}
+  .album-copy{padding:36px 0 52px}.album h2{font-size:clamp(30px,9vw,42px)}
+  .pgrid{grid-template-columns:1fr}
+  .hero-cta{flex-direction:column;align-items:stretch}
+  .hero-cta .btn{width:100%}
+  .hero-trust{gap:12px 20px}
+  .disc-search{flex-direction:column}.disc-search .btn{width:100%}
+  .gal-rail{padding:0 18px}.gal-rail figure{width:260px;height:180px}
+}
 </style>
 </head>
 <body>
 
-<!-- ===================== NAV ===================== -->
-<nav class="fg-nav">
-  <div class="fg-nav-inner">
-    <a class="fg-logo" href="index.html" aria-label="Fair Game home">
-      <span class="fg-logo-mark"><span>FG</span></span>
-      <span class="fg-logo-word"><b>Fair&nbsp;Game</b><small>Rod Wave Tickets</small></span>
-    </a>
-    <div class="fg-nav-right" id="navRight">
-      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="discover.html">Discover</a>
-      <a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Sign in</a>
+<div class="announce">FANS&nbsp;FIRST<span class="x">×</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
+
+<nav><div class="wrap nav-in">
+  <div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div>
+  <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Search artists, teams, shows…"></label>
+  <div class="nav-right">
+    <a class="nav-link hidem" href="discover.html">Discover</a>
+    <a class="nav-link hidem" href="#">Log in</a>
+    <a class="btn btn-gold btn-sm" href="#">Sign up</a>
+  </div>
+</div></nav>
+
+<!-- HERO -->
+<header class="hero"><div class="wrap hero-in">
+  <div class="hero-copy">
+    <div class="cobrand up d1">Fans First <span class="x">×</span> Rod Wave <span class="x">·</span> Official Partner</div>
+    <h1 class="up d2">The best seats<br>Rod ever held.<br><span class="gold">Only here.</span></h1>
+    <p class="hero-sub up d3">Rod pulled premium seats off Ticketmaster and dropped them for the fans, first. Real seats, fair prices, no scalpers — every night of the Don't Look Down Tour.</p>
+    <div class="hero-cta up d3">
+      <a class="btn btn-gold btn-lg" href="#tour">Find your seat
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="btn btn-line btn-lg" href="#promise" style="color:#fff;border-color:#332f2a">How it works</a>
+    </div>
+    <div class="hero-trust up d4">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Face value + fair fee</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Guaranteed transfer</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Zero scalpers</span>
     </div>
   </div>
-</nav>
+  <div class="hero-photo up d2">
+    <img src="img/rod-hero.jpg" alt="Rod Wave — Don't Look Down Tour">
+    <div class="hero-fade"></div>
+    <div class="hero-tag"><div><div class="n">25</div><div class="l">Cities</div></div><div class="sep"></div><div><div class="n">From&nbsp;$89</div><div class="l">Rod-held</div></div></div>
+  </div>
+</div></header>
 
-<!-- ===================== HERO ===================== -->
-<header class="hero">
-  <div class="fg-wrap">
-    <div class="fg-eyebrow hero-eyebrow">Don't Look Down Tour · 2026</div>
-    <h1>Real tickets.<br><span class="fg-text-fire">Fair prices.</span><br><span class="l2">Straight from Rod.</span></h1>
-    <p class="lede">No scalpers. No 5&times; markups. Just verified fans buying and reselling at
-      <b>fair, capped prices</b> &mdash; straight from Rod's own booth. Tickets always stay
-      yours to gift or pass on.</p>
-    <div class="hero-cta">
-      <a class="fg-btn fg-btn-primary" href="#shows">Browse shows</a>
-      <a class="fg-btn fg-btn-ghost" href="account.html">Become a verified fan</a>
-    </div>
-    <div class="hero-stats" id="heroStats">
-      <div class="hero-stat"><div class="n" id="statShows">&mdash;</div><div class="l">Tour Dates</div></div>
-      <div class="hero-stat"><div class="n">$0</div><div class="l">Seller Fees</div></div>
-      <div class="hero-stat"><div class="n">+$15</div><div class="l">Resale Cap, Max</div></div>
+<!-- GALLERY FLOOD -->
+<div class="gallery"><div class="gal-rail">
+  <figure><img src="img/rod-live-1.jpg" alt="Rod Wave live" loading="lazy"><figcaption>On stage · 2026</figcaption></figure>
+  <figure><img src="img/rod-live-2.jpg" alt="Rod Wave live" loading="lazy"><figcaption>Sold-out nights</figcaption></figure>
+  <figure><img src="img/rod-fans.jpg" alt="Rod Wave with fans" loading="lazy"><figcaption>Fans first, always</figcaption></figure>
+  <figure><img src="img/rod-live-3.jpg" alt="Rod Wave performing" loading="lazy"><figcaption>Don't Look Down</figcaption></figure>
+  <figure><img src="img/rod-arena.jpg" alt="Arena" loading="lazy"><figcaption>25 cities</figcaption></figure>
+</div></div>
+
+<!-- TOUR -->
+<section class="sec" id="tour"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">25 dates · Sep–Nov 2026</div><h2 class="sec-h">Pick your city</h2>
+    <p class="lead">Every night carries a block of Rod-held premium seats. When they're gone, they're gone — nobody else has them.</p></div>
+  <div class="rail" id="showsGrid"></div>
+</div></section>
+
+<!-- SEAT MAP -->
+<section class="sec alt" id="map"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">The seat map</div><h2 class="sec-h">See the whole arena.<br>Grab what's ours.</h2></div>
+  <div class="map-grid">
+    <div class="map-viz"><div class="stage">STAGE</div><div class="bowl" id="bowl"></div></div>
+    <div class="legend">
+      <div class="leg"><div class="chip" style="background:var(--green)"></div><div><h4>Available</h4><p>Rod-held seats, ready to grab — real face value plus one fair fee. No scalper markup, ever.</p></div></div>
+      <div class="leg"><div class="chip" style="background:var(--red)"></div><div><h4>Sold</h4><p>One of ours that's already gone to a fan. Keep watching for releases.</p></div></div>
+      <div class="leg"><div class="chip" style="background:var(--grey);border:1px solid #4a463f"></div><div><h4>Not available here</h4><p>The rest of the building. We only sell what Rod gave us — and you can't get these seats anywhere else.</p></div></div>
+      <a class="btn btn-gold" href="#">Open full seat map <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     </div>
   </div>
-</header>
+</div></section>
 
-<!-- ===================== TRUST STRIP ===================== -->
-<section class="fg-section" style="padding-top:8px">
-  <div class="fg-wrap">
-    <div class="fg-trust">
-      <div class="fg-trust-item">
-        <div class="ico">🎟️</div>
-        <div><h4>Capped, fair resale</h4><p>Resale is hard-capped at face + $15. The freedom to gouge is the only thing we removed.</p></div>
-      </div>
-      <div class="fg-trust-item">
-        <div class="ico">✅</div>
-        <div><h4>Verified fans only</h4><p>Phone + email verification keeps bots and brokers out. Real fans, real seats.</p></div>
-      </div>
-      <div class="fg-trust-item">
-        <div class="ico">↔️</div>
-        <div><h4>Always transferable</h4><p>Can't make it? Gift it free or resell it capped through Rod's booth. Never locked down.</p></div>
-      </div>
+<!-- ALBUM ANNOUNCE -->
+<section class="album" id="album"><div class="wrap"><div class="album-in">
+  <div class="album-copy">
+    <div class="eyebrow">New album · out August 28</div>
+    <h2>Don't Look<br>Down.<br><span style="color:var(--gold)">The new album.</span></h2>
+    <p>Rod's seventh album lands August 28. Watch the official trailer, then be first in line for the music — and the seats.</p>
+    <div class="album-cta">
+      <a class="btn btn-gold btn-lg" data-yt href="#">Watch the trailer
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></a>
+      <a class="btn btn-dark btn-lg" href="#">Notify me</a>
     </div>
   </div>
-</section>
+  <div class="album-photo">
+    <img src="img/rod-portrait.jpg" alt="Rod Wave" loading="lazy">
+    <div class="vfade"></div>
+    <div class="play" data-yt><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+    <div class="play-label">Official album trailer</div>
+  </div>
+</div></div></section>
 
-<!-- ===================== SHOWS GRID ===================== -->
-<section class="fg-section" id="shows" style="padding-top:8px">
-  <div class="fg-wrap">
-    <div class="section-head">
-      <div>
-        <div class="fg-eyebrow">The Tour</div>
-        <h2>Pick your night</h2>
-      </div>
-      <span class="fg-muted" id="showsMeta"></span>
-    </div>
-    <div class="fg-shows" id="showsGrid" aria-live="polite">
-      <!-- skeletons while loading -->
-      <div class="fg-skeleton"></div><div class="fg-skeleton"></div><div class="fg-skeleton"></div>
+<!-- PROMISE -->
+<section class="sec" id="promise"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">The Fans First promise</div><h2 class="sec-h">How it works. No games.</h2></div>
+  <div class="pgrid">
+    <div class="pcard"><div class="ico"><svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M15 6v12"/></svg></div><h3>Real seats</h3><p>Premium inventory Rod pulled straight from Ticketmaster — the best seats in the house.</p></div>
+    <div class="pcard"><div class="ico"><svg viewBox="0 0 24 24"><path d="M20.6 11.2 11.4 2H4v7.4l9.2 9.2a2 2 0 0 0 2.8 0l4.6-4.6a2 2 0 0 0 0-2.8Z"/><circle cx="8" cy="6" r="1.3"/></svg></div><h3>Fair price</h3><p>Face value plus one honest fee. No surge, no mystery charges sprung at checkout.</p></div>
+    <div class="pcard"><div class="ico"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div><h3>Safe delivery</h3><p>Sent to your Ticketmaster account a few days before the show. A TM account is required.</p></div>
+    <div class="pcard"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></div><h3>Final sale</h3><p>All sales are final — no refunds, no resale games. We'll make sure you're sure first.</p></div>
+  </div>
+</div></section>
+
+<!-- DISCOVER -->
+<section class="sec alt" id="discover"><div class="wrap"><div class="disc-grid">
+  <div>
+    <div class="eyebrow">Discover · Fans First guarantee</div>
+    <h2 class="sec-h">Not here for Rod?<br>We'll find you the best deal.</h2>
+    <p class="lead" style="margin-top:14px">Search anything — any artist, team, or show. We scan every marketplace and surface the <b style="color:var(--ink)">lowest verified price</b>, guaranteed, with a direct link to buy it. Because it's all Fans First. Unlock the verified links for <b style="color:var(--gold-deep)">$1</b>.</p>
+    <div class="disc-search"><div class="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Try 'Knicks', 'Beyonce', 'Hamilton'…"></div><a class="btn btn-gold" href="discover.html">Search</a></div>
+  </div>
+  <div class="reveal">
+    <div class="rh">Lowest verified · guaranteed · as of just now</div>
+    <div class="rt">Beyonce — State Farm Arena, Atlanta</div>
+    <div class="lst win"><div class="src">Cheapest verified<span class="win-tag">Best price</span></div><div class="win-price">$143</div></div>
+    <div class="lst"><div class="src">Marketplace B</div><div class="blur">$211</div></div>
+    <div class="lst"><div class="src">Marketplace C</div><div class="blur">$256</div></div>
+    <div class="lst" style="border-bottom:0"><div class="src">Marketplace D</div><div class="blur">$304</div></div>
+    <div class="unlock"><div class="u1"><b>$1</b> unlocks every verified link + direct buy buttons</div><a class="btn btn-gold btn-sm" href="discover.html">Unlock the deals</a></div>
+  </div>
+</div></div></section>
+
+<!-- FOOTER -->
+<footer><div class="wrap">
+  <div class="foot">
+    <div><div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div><p>The fan-first ticket platform. Real seats, real fans, no scalper games. Official resale partner of Rod Wave's Don't Look Down Tour.</p></div>
+    <div class="fcols">
+      <div class="fcol"><h5>Buy</h5><a href="#tour">Rod Wave seats</a><a href="discover.html">Discover anything</a><a href="#map">Seat maps</a></div>
+      <div class="fcol"><h5>Trust</h5><a href="#promise">How it works</a><a href="#">Fair pricing</a><a href="#">Final-sale policy</a></div>
+      <div class="fcol"><h5>Account</h5><a href="#">Log in</a><a href="#">Sign up</a><a href="#">My tickets</a></div>
     </div>
   </div>
-</section>
+  <div class="final">All sales final · No refunds · Ticketmaster account required for delivery · Not a live store</div>
+</div></footer>
 
-<!-- ===================== FOOTER ===================== -->
-<footer class="fg-footer">
-  <div class="fg-wrap fg-footer-inner">
-    <span>Fair Game &copy; 2026 · A Rod Wave × Ground Rush project. Fair prices for real fans.</span>
-    <span class="fg-row">
-      <a href="account.html">Account</a> ·
-      <a href="#shows">Shows</a>
-    </span>
+<!-- YT modal -->
+<div id="ytmodal" style="position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.86);padding:24px">
+  <div style="position:relative;width:100%;max-width:920px;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+    <button id="ytclose" style="position:absolute;top:-44px;right:0;background:none;border:0;color:#fff;font-size:30px;cursor:pointer;line-height:1">&#x2715;</button>
+    <div id="ytframe" style="position:absolute;inset:0"></div>
   </div>
-</footer>
-
-<div class="fg-toast" id="toast" role="status"></div>
+</div>
 
 <script>
-const API = '/fairgame/api';
-const $ = (s, r=document) => r.querySelector(s);
-
-/* ---------- session (verified fan badge) ---------- */
-function getSession() {
-  try { return JSON.parse(localStorage.getItem('fairgame_session') || 'null'); }
-  catch { return null; }
-}
-function renderBadge() {
-  const s = getSession();
-  const right = $('#navRight');
-  if (!s || !s.token) return; // keep "Sign in"
-  const fan = s.fan || {};
-  const prio = fan.priority ? '<span class="fg-badge priority"><span class="dot"></span>Priority Fan</span>' : '';
-  right.innerHTML =
-    prio +
-    '<span class="fg-badge verified" title="' + (fan.email||'') + '"><span class="dot"></span>Verified Fan</span>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="mytickets.html">My Tickets</a>' +
-    '<a class="fg-btn fg-btn-ghost fg-btn-sm" href="account.html">Account</a>';
-}
-
-/* ---------- helpers ---------- */
-function money(cents) {
-  if (cents == null) return '—';
-  return '$' + (cents/100).toLocaleString('en-US', {minimumFractionDigits: (cents%100? 2:0), maximumFractionDigits:2});
-}
-function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function toast(msg, kind) {
-  const t = $('#toast'); t.textContent = msg; t.className = 'fg-toast show ' + (kind||'');
-  clearTimeout(t._t); t._t = setTimeout(()=> t.className = 'fg-toast ' + (kind||''), 3200);
-}
-
-/* ---------- shows ---------- */
-function remainingChip(n) {
-  if (n == null) return '';
-  if (n <= 0) return '<span class="fg-chip out">Sold out</span>';
-  if (n < 120) return '<span class="fg-chip low">' + n.toLocaleString() + ' left</span>';
-  return '<span class="fg-chip ok">' + n.toLocaleString() + ' available</span>';
-}
-function showCard(s) {
+const API='/fairgame/api';
+const $=s=>document.querySelector(s);
+const money=c=>'$'+Math.round(c/100).toLocaleString('en-US');
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function tag(s){return s.remaining!=null && s.remaining<=0
+  ? '<span class="tag" style="color:var(--red);border-color:#f0c6c6;background:#fbeded">Sold out</span>'
+  : '<span class="tag">Rod-held</span>';}
+function avail(s){
+  if(s.remaining==null) return '';
+  if(s.remaining<=0) return '<span class="avail"><span class="dot r"></span>0 seats</span>';
+  return '<span class="avail"><span class="dot"></span>'+s.remaining.toLocaleString()+' seats</span>';}
+function showCard(s){
+  const sold = s.remaining!=null && s.remaining<=0;
   const price = s.min_price_cents;
-  const resale = s.resale_from_cents;
-  const resaleChip = s.active_listings > 0
-    ? '<span class="fg-chip resale">' + s.active_listings + ' fan resale' + (s.active_listings>1?'s':'') + '</span>' : '';
-  return (
-  '<a class="fg-show" href="show.html?id=' + encodeURIComponent(s.id) + '">' +
-    '<div class="fg-show-top">' +
-      '<div class="fg-show-date">' + esc(s.show_date || 'Dates TBA') + '</div>' +
-      '<div class="fg-show-city fg-display">' + esc(s.city || 'TBA') + '</div>' +
-      '<div class="fg-show-venue">' + esc(s.venue || '') + '</div>' +
-    '</div>' +
-    '<div class="fg-show-bot">' +
-      '<div>' +
-        '<div class="fg-price-label">' + (price!=null ? 'From' : 'Pricing') + '</div>' +
-        '<div class="fg-price">' + (price!=null ? money(price) : '<small>TBA</small>') + '</div>' +
-        (resale!=null ? '<div class="fg-price-label fg-mt-1">Fan resale from ' + money(resale) + '</div>' : '') +
-      '</div>' +
-      '<div class="fg-row" style="justify-content:flex-end">' + remainingChip(s.remaining) + resaleChip + '</div>' +
-    '</div>' +
-  '</a>');
+  return '<a class="tcard'+(sold?' sold':'')+'" href="show.html?id='+encodeURIComponent(s.id)+'">'+
+    tag(s)+
+    '<div class="date">'+esc(s.show_date||'Dates TBA')+'</div>'+
+    '<div class="city">'+esc(s.city||'TBA')+'</div>'+
+    '<div class="ven">'+esc(s.venue||'')+'</div>'+
+    '<div class="row"><div class="from">'+(price!=null?money(price)+' <small>+ fee</small>':'<small>TBA</small>')+'</div>'+
+    avail(s)+'</div></a>';
 }
-async function loadShows() {
-  const grid = $('#showsGrid');
-  try {
-    const r = await fetch(API + '/shows', {headers:{'Accept':'application/json'}});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    const shows = (data.shows || []);
-    $('#statShows').textContent = shows.length || '—';
-    $('#showsMeta').textContent = shows.length ? shows.length + ' dates' : '';
-    if (!shows.length) {
-      grid.outerHTML = '<div class="fg-empty"><div class="big">Dates dropping soon</div>' +
-        '<p>The Don\'t Look Down tour lineup goes live here. Get verified so you\'re first in line.</p>' +
-        '<a class="fg-btn fg-btn-primary fg-mt-3" href="account.html">Become a verified fan</a></div>';
-      return;
-    }
-    grid.innerHTML = shows.map(showCard).join('');
-  } catch (e) {
-    grid.outerHTML = '<div class="fg-empty"><div class="big">Box office is catching its breath</div>' +
-      '<p>We couldn\'t load the shows just now. Refresh in a moment &mdash; your spot is safe.</p>' +
-      '<button class="fg-btn fg-btn-ghost fg-mt-3" onclick="location.reload()">Try again</button></div>';
+async function loadShows(){
+  const grid=$('#showsGrid');
+  try{
+    const r=await fetch(API+'/shows',{headers:{'Accept':'application/json'}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const shows=((await r.json()).shows)||[];
+    if(!shows.length){ grid.innerHTML='<p style="color:var(--ink-2)">Dates dropping soon — get verified so you\'re first in line.</p>'; return; }
+    grid.innerHTML=shows.map(showCard).join('');
+  }catch(e){
+    grid.innerHTML='<p style="color:var(--ink-2)">Couldn\'t load shows just now. <a href="#" onclick="location.reload();return false" style="color:var(--gold-deep)">Try again</a>.</p>';
   }
 }
-
-renderBadge();
 loadShows();
+
+const nav=document.querySelector('nav');
+const onScroll=()=>nav.classList.toggle('scrolled',window.scrollY>40);
+window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+
+const bowl=document.getElementById('bowl');
+const p=[2,2,1,1,1,1,1,2,2, 2,1,1,0,0,0,1,1,2, 1,1,0,0,0,0,0,1,1, 1,0,0,0,0,0,0,0,1, 1,1,0,0,0,0,0,1,1, 2,1,1,0,0,0,1,1,2, 2,2,1,1,1,1,1,2,2];
+p.forEach((v,i)=>{const d=document.createElement('div');d.className='seat';if(v===1)d.classList.add('g');else if(v===2&&i%3===0)d.classList.add('r');bowl.appendChild(d);});
+
+// album trailer modal
+const YT='VpMAwDs3oI0';
+const modal=document.getElementById('ytmodal'),frame=document.getElementById('ytframe');
+const openYT=e=>{e.preventDefault();frame.innerHTML='<iframe width="100%" height="100%" src="https://www.youtube.com/embed/'+YT+'?autoplay=1&rel=0" title="Rod Wave — Don\'t Look Down" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>';modal.style.display='flex';};
+const closeYT=()=>{modal.style.display='none';frame.innerHTML='';};
+document.querySelectorAll('[data-yt]').forEach(el=>el.addEventListener('click',openYT));
+document.getElementById('ytclose').addEventListener('click',closeYT);
+modal.addEventListener('click',e=>{if(e.target===modal)closeYT();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeYT();});
 </script>
 </body>
 </html>
