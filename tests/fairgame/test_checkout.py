@@ -3,6 +3,63 @@ import os
 import tempfile
 
 import pytest
+from fastapi.testclient import TestClient
+
+
+# --------------------------------------------------------------------------- #
+# HTTP-layer client helper (mirrors test_api._client)
+# --------------------------------------------------------------------------- #
+
+def _http_client(monkeypatch) -> TestClient:
+    d = tempfile.mkdtemp()
+    monkeypatch.setenv("FAIRGAME_DB_PATH", os.path.join(d, "fg.db"))
+    monkeypatch.setenv("FAIRGAME_DEV_ECHO", "1")
+    monkeypatch.setenv("FAIRGAME_STRIPE_SIM", "1")
+    monkeypatch.setenv("FAIRGAME_ADMIN_TOKEN", "test-admin")
+    import core.fairgame.db as db
+    import core.fairgame.waitlist as waitlist
+    import core.fairgame.identity as identity
+    import core.fairgame.verify as verify
+    import core.fairgame.sessions as sessions
+    import core.fairgame.events as events
+    import core.fairgame.access as access
+    import core.fairgame.listings as listings
+    import core.fairgame.stripe_connect as stripe_connect
+    import core.fairgame.tm_transfer as tm_transfer
+    import core.fairgame.orders as orders
+    import core.fairgame.admin as admin
+    for m in (db, waitlist, identity, verify, sessions, events, access,
+              listings, stripe_connect, tm_transfer, orders, admin):
+        importlib.reload(m)
+    import core.api.fairgame as fg
+    importlib.reload(fg)
+    return TestClient(fg.app)
+
+
+def _verify_fan_http(c: TestClient, email="fan@x.com", phone="+15550001"):
+    """Register → verify SMS → verify email; return (fan_id, bearer_token)."""
+    r = c.post("/fairgame/api/register",
+               json={"email": email, "phone": phone, "device_fp": "fp"})
+    assert r.status_code == 200, r.text
+    fid = r.json()["fan_id"]
+    sms = r.json()["dev_code"]
+    r = c.post("/fairgame/api/verify", json={"fan_id": fid, "code": sms})
+    assert r.status_code == 200, r.text
+    email_code = r.json()["dev_code"]
+    r = c.post("/fairgame/api/verify-email",
+               json={"fan_id": fid, "code": email_code})
+    assert r.status_code == 200, r.text
+    return fid, r.json()["token"]
+
+
+def _create_listing_http(c: TestClient, seller_tok: str, show_id="show_1") -> str:
+    """Create an active listing for seller; return listing_id."""
+    r = c.post("/fairgame/api/listings",
+               headers={"Authorization": f"Bearer {seller_tok}"},
+               json={"show_id": show_id, "section": "Lower",
+                     "face_price_cents": 6000})
+    assert r.status_code == 200, r.text
+    return r.json()["listing"]["id"]
 
 
 # --------------------------------------------------------------------------- #
@@ -81,3 +138,90 @@ def test_columns_are_idempotent():
     with db.connect() as c:
         db.ensure_checkout_columns(c)
         db.ensure_checkout_columns(c)
+
+
+# --------------------------------------------------------------------------- #
+# HTTP-level checkout gate rejection tests
+# These prove the _require_checkout() call is wired into the real API handlers.
+# If someone removed that call, the suite would catch it here (not just via the
+# _valid_tm_email unit test above which only tests the helper in isolation).
+# --------------------------------------------------------------------------- #
+
+def test_access_rejects_missing_tm_email(monkeypatch):
+    """POST /access with a valid fan + no tm_email → 400."""
+    c = _http_client(monkeypatch)
+    _, tok = _verify_fan_http(c)
+    r = c.post("/fairgame/api/access",
+               headers={"Authorization": f"Bearer {tok}"},
+               json={"show_id": "show_1", "qty": 1, "final_sale_ack": True})
+    assert r.status_code == 400, r.text
+
+
+def test_access_rejects_invalid_tm_email(monkeypatch):
+    """POST /access with a valid fan + malformed email → 400."""
+    c = _http_client(monkeypatch)
+    _, tok = _verify_fan_http(c)
+    r = c.post("/fairgame/api/access",
+               headers={"Authorization": f"Bearer {tok}"},
+               json={"show_id": "show_1", "qty": 1,
+                     "tm_email": "not-an-email", "final_sale_ack": True})
+    assert r.status_code == 400, r.text
+
+
+def test_access_rejects_missing_final_sale_ack(monkeypatch):
+    """POST /access with valid email but no final_sale_ack → 400."""
+    c = _http_client(monkeypatch)
+    _, tok = _verify_fan_http(c)
+    r = c.post("/fairgame/api/access",
+               headers={"Authorization": f"Bearer {tok}"},
+               json={"show_id": "show_1", "qty": 1,
+                     "tm_email": "fan@x.com"})
+    assert r.status_code == 400, r.text
+
+
+def test_access_rejects_false_final_sale_ack(monkeypatch):
+    """POST /access with valid email but final_sale_ack=false → 400."""
+    c = _http_client(monkeypatch)
+    _, tok = _verify_fan_http(c)
+    r = c.post("/fairgame/api/access",
+               headers={"Authorization": f"Bearer {tok}"},
+               json={"show_id": "show_1", "qty": 1,
+                     "tm_email": "fan@x.com", "final_sale_ack": False})
+    assert r.status_code == 400, r.text
+
+
+def test_buy_rejects_missing_tm_email(monkeypatch):
+    """POST /buy with valid fan + listing but no tm_email → 400."""
+    c = _http_client(monkeypatch)
+    _, seller_tok = _verify_fan_http(c, "seller@x.com", "+15550100")
+    _, buyer_tok = _verify_fan_http(c, "buyer@x.com", "+15550200")
+    listing_id = _create_listing_http(c, seller_tok)
+    r = c.post("/fairgame/api/buy",
+               headers={"Authorization": f"Bearer {buyer_tok}"},
+               json={"listing_id": listing_id, "final_sale_ack": True})
+    assert r.status_code == 400, r.text
+
+
+def test_buy_rejects_false_final_sale_ack(monkeypatch):
+    """POST /buy with valid email but final_sale_ack=false → 400."""
+    c = _http_client(monkeypatch)
+    _, seller_tok = _verify_fan_http(c, "seller2@x.com", "+15550300")
+    _, buyer_tok = _verify_fan_http(c, "buyer2@x.com", "+15550400")
+    listing_id = _create_listing_http(c, seller_tok)
+    r = c.post("/fairgame/api/buy",
+               headers={"Authorization": f"Bearer {buyer_tok}"},
+               json={"listing_id": listing_id,
+                     "tm_email": "buyer2@x.com", "final_sale_ack": False})
+    assert r.status_code == 400, r.text
+
+
+def test_access_happy_path_control(monkeypatch):
+    """POST /access with valid email + ack=true → 200 (proves 400s are gate, not auth)."""
+    c = _http_client(monkeypatch)
+    _, tok = _verify_fan_http(c)
+    r = c.post("/fairgame/api/access",
+               headers={"Authorization": f"Bearer {tok}"},
+               json={"show_id": "show_1", "qty": 1,
+                     "tm_email": "fan@x.com", "final_sale_ack": True})
+    assert r.status_code == 200, r.text
+    assert r.json()["grant"]["qty"] == 1
