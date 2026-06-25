@@ -45,6 +45,16 @@ def ensure_delivery_columns(c) -> None:
         c.execute("ALTER TABLE access_grants ADD COLUMN delivered_at INTEGER")
 
 
+def ensure_credit_tables(c) -> None:
+    """Idempotently create the Discover credits ledger (purchases + reveals)."""
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS credit_ledger("
+        "id TEXT PRIMARY KEY, fan_id TEXT NOT NULL, delta INTEGER NOT NULL, "
+        "kind TEXT NOT NULL, ref TEXT, amount_cents INTEGER, created_at INTEGER NOT NULL)"
+    )
+    c.execute("CREATE INDEX IF NOT EXISTS idx_credit_ledger_fan ON credit_ledger(fan_id)")
+
+
 def init_db() -> None:
     with connect() as c:
         c.executescript(
@@ -191,3 +201,4 @@ def init_db() -> None:
         )
         ensure_checkout_columns(c)
         ensure_delivery_columns(c)
+        ensure_credit_tables(c)

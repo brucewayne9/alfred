@@ -83,6 +83,46 @@ def create_unlock_checkout(amount_cents: int) -> str:
     return session["url"]
 
 
+def create_credit_checkout(pack_id: str, credits: int, amount_cents: int,
+                           fan_id: str, label: str) -> str:
+    """Checkout Session for a Discover credit pack (live mode only). Carries the
+    fan + pack in metadata so the success handler can grant the credits."""
+    stripe = _stripe()
+    base = os.environ.get(
+        "FAIRGAME_PUBLIC_BASE", "https://aialfred.groundrushcloud.com"
+    ).rstrip("/")
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": amount_cents,
+                "product_data": {"name": f"Fans First — {label} ({credits} credits)"},
+            },
+            "quantity": 1,
+        }],
+        metadata={"fan_id": fan_id, "pack": pack_id, "credits": str(credits)},
+        success_url=f"{base}/fairgame/app/discover.html?credits_session={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{base}/fairgame/app/discover.html",
+    )
+    return session["url"]
+
+
+def retrieve_checkout(session_id: str) -> dict:
+    """Verify a credit-pack checkout with Stripe. Returns
+    {paid, fan_id, pack, credits, amount_cents}."""
+    stripe = _stripe()
+    s = stripe.checkout.Session.retrieve(session_id)
+    md = s.get("metadata") or {}
+    return {
+        "paid": s.get("payment_status") == "paid",
+        "fan_id": md.get("fan_id"),
+        "pack": md.get("pack"),
+        "credits": int(md.get("credits") or 0),
+        "amount_cents": s.get("amount_total"),
+    }
+
+
 def _stripe():
     """Return a configured live Stripe client, or raise if no key is set."""
     key = os.environ.get("FAIRGAME_STRIPE_KEY")

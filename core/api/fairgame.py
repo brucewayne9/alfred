@@ -32,6 +32,7 @@ import os
 import re as _re
 import sys
 import time
+import uuid
 from collections import defaultdict, deque
 from pathlib import Path
 
@@ -45,6 +46,7 @@ from core.fairgame import (
     access,
     admin,
     aggregator,
+    credits,
     db,
     delivery,
     events,
@@ -624,6 +626,69 @@ async def discover_unlock(req: Request):
     # Live: create a $1 checkout. Buyer completes payment, returns unlocked.
     url = stripe_connect.create_unlock_checkout(amount)
     return {"unlocked": False, "checkout_url": url, "amount_cents": amount}
+
+
+# --------------------------------------------------------------------------- #
+# DISCOVER CREDITS — account-gated, buy a pack (one charge), spend per reveal
+# --------------------------------------------------------------------------- #
+
+@app.get("/fairgame/api/my/credits")
+async def my_credits(authorization: str = Header(default="")):
+    fan = _require_fan(authorization)
+    return {
+        "balance": credits.balance(fan["id"]),
+        "packs": credits.PACKS,
+        "revealed": credits.revealed_keys(fan["id"]),
+        "history": credits.history(fan["id"]),
+    }
+
+
+@app.post("/fairgame/api/discover/credits/checkout")
+async def credits_checkout(req: Request, authorization: str = Header(default="")):
+    """Buy a credit pack. Sim grants instantly; live returns a Stripe checkout URL
+    (credits are granted on /confirm after payment)."""
+    fan = _require_fan(authorization)
+    b = await req.json()
+    pack_id = (b.get("pack") or "").strip()
+    pack = credits.PACKS.get(pack_id)
+    if not pack:
+        raise HTTPException(status_code=400, detail="unknown pack")
+    if stripe_connect.is_sim():
+        bal = credits.grant(fan["id"], pack["credits"], kind="purchase",
+                            ref="sim_" + uuid.uuid4().hex[:12], amount_cents=pack["cents"])
+        return {"granted": True, "sim": True, "balance": bal, "credits": pack["credits"]}
+    url = stripe_connect.create_credit_checkout(
+        pack_id, pack["credits"], pack["cents"], fan["id"], pack["label"])
+    return {"granted": False, "checkout_url": url}
+
+
+@app.post("/fairgame/api/discover/credits/confirm")
+async def credits_confirm(req: Request, authorization: str = Header(default="")):
+    """After the Stripe redirect: verify the session is paid, grant credits once."""
+    fan = _require_fan(authorization)
+    b = await req.json()
+    sid = (b.get("session_id") or "").strip()
+    if not sid:
+        raise HTTPException(status_code=400, detail="session_id required")
+    info = stripe_connect.retrieve_checkout(sid)
+    if not info.get("paid"):
+        return {"granted": False, "balance": credits.balance(fan["id"])}
+    if info.get("fan_id") and info["fan_id"] != fan["id"]:
+        raise HTTPException(status_code=403, detail="session does not belong to this fan")
+    bal = credits.grant(fan["id"], info["credits"], kind="purchase", ref=sid,
+                        amount_cents=info["amount_cents"])
+    return {"granted": True, "balance": bal, "credits": info["credits"]}
+
+
+@app.post("/fairgame/api/discover/reveal")
+async def discover_reveal(req: Request, authorization: str = Header(default="")):
+    """Spend 1 credit to reveal an event's price + buy link (free if already done)."""
+    fan = _require_fan(authorization)
+    b = await req.json()
+    key = (b.get("event_key") or b.get("event_id") or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="event_key required")
+    return credits.reveal(fan["id"], key)
 
 
 @app.post("/fairgame/api/contact")
