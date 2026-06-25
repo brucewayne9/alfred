@@ -203,14 +203,16 @@ footer{background:#070605;color:#fff;padding:52px 0 34px}
   </div>
 </header>
 
-<!-- UNLOCK BANNER -->
+<!-- CREDITS BAR -->
 <div class="unlock-bar" id="unlockBar">
   <div class="wrap unlock-bar-in">
     <p class="unlock-copy">
-      <b>One dollar. One time.</b> Unlocks every verified price and direct buy-link in your search.
-      No subscription, no hidden fees.
+      <b>Pay only for what you want.</b> Spend 1 credit to reveal an event's lowest verified price + direct buy-link — yours for good. No subscription.
     </p>
-    <button class="btn btn-gold" onclick="openUnlock()">Unlock all for $1</button>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="bal-pill" id="balPill" style="display:none"><b>0</b>&nbsp;credits</span>
+      <button class="btn btn-gold" onclick="openCredits()">Get credits</button>
+    </div>
   </div>
 </div>
 
@@ -256,6 +258,41 @@ footer{background:#070605;color:#fff;padding:52px 0 34px}
   </div>
 </footer>
 
+<!-- CREDIT PACK MODAL -->
+<style>
+.bal-pill{display:inline-flex;align-items:center;background:#1a1206;color:var(--gold);border-radius:99px;padding:7px 14px;font-size:13px;font-weight:700}
+.bal-pill b{color:#fff;margin-right:2px}
+.cm-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(7,6,5,.62);padding:20px}
+.cm-overlay.open{display:flex}
+.cm{background:#fff;border-radius:18px;max-width:520px;width:100%;padding:30px 28px 26px;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.cm-x{position:absolute;top:14px;right:16px;background:none;border:0;font-size:26px;line-height:1;color:var(--ink-3);cursor:pointer}
+.cm-head .eyebrow{color:var(--gold-deep)}
+.cm-head h3{font-size:1.5rem;font-weight:900;letter-spacing:-.02em;margin:8px 0 6px}
+.cm-head p{color:var(--ink-2);font-size:.92rem;line-height:1.5}
+.cm-packs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:20px 0 4px}
+.cm-pack{position:relative;border:1.5px solid var(--line-l);background:#fffdf8;border-radius:14px;padding:18px 10px 16px;cursor:pointer;text-align:center;transition:border-color .15s,transform .12s}
+.cm-pack:hover{border-color:var(--gold-deep);transform:translateY(-2px)}
+.cm-pack.best{border-color:var(--gold-deep);background:#faf3e2}
+.cm-tag{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--gold-btn);color:#1a1206;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:3px 7px;white-space:nowrap}
+.cm-cr{font-size:1.9rem;font-weight:900;letter-spacing:-.03em;line-height:1;color:var(--ink)}
+.cm-cl{font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+.cm-pr{font-size:1.05rem;font-weight:800;color:var(--gold-deep);margin-top:10px}
+.cm-foot{text-align:center;font-size:.82rem;color:var(--ink-3);margin-top:14px}
+@media(max-width:460px){.cm-packs{grid-template-columns:1fr;gap:8px}.cm-pack{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;text-align:left}.cm-pr{margin-top:0}}
+</style>
+<div class="cm-overlay" id="creditModal">
+  <div class="cm">
+    <button class="cm-x" onclick="closeCredits()" aria-label="Close">&times;</button>
+    <div class="cm-head">
+      <div class="eyebrow">Discover credits</div>
+      <h3>Reveal verified prices</h3>
+      <p>1 credit reveals one event's lowest verified price + direct buy-link — yours forever. Buy a pack once, no subscription.</p>
+    </div>
+    <div class="cm-packs" id="cmPacks"></div>
+    <p class="cm-foot" id="cmFoot"></p>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -265,13 +302,29 @@ const SEGMENTS = ['Sports', 'Music', 'Arts & Theatre', 'Film', 'Miscellaneous'];
 let activeSeg = '';
 let lastResults = [];
 
-// ----- unlock state (persisted per session) -----
-let UNLOCKED = localStorage.getItem('ff_discover_unlocked') === '1';
-
-// Check URL param (returns from Stripe success)
-if (new URLSearchParams(location.search).get('unlocked') === '1') {
-  localStorage.setItem('ff_discover_unlocked', '1');
-  UNLOCKED = true;
+// ----- credits state (account-gated; credits live on the fan's account) -----
+function getSession(){ try{ return JSON.parse(localStorage.getItem('fairgame_session')||'null'); }catch(_){ return null; } }
+function authHeaders(){ const s=getSession(); return s&&s.token?{'Authorization':'Bearer '+s.token}:{}; }
+const LOGGED_IN = !!(getSession() && getSession().token);
+let BALANCE = 0;
+let REVEALED = new Set();
+function keyOf(e){ return e.id || (e.name + '|' + (e.date || '')); }
+const PACKS = [
+  {id:'starter', label:'Starter', credits:6, price:'$5'},
+  {id:'fan', label:'Fan', credits:14, price:'$10', best:true},
+  {id:'superfan', label:'Superfan', credits:30, price:'$20'}
+];
+function updateBalancePill(){
+  const el = $('#balPill'); if(!el) return;
+  if(LOGGED_IN){ el.style.display='inline-flex'; el.querySelector('b').textContent = BALANCE; }
+  else el.style.display='none';
+}
+async function loadCredits(){
+  if(!LOGGED_IN) return;
+  try{
+    const r = await fetch(API + '/my/credits', {headers: authHeaders()});
+    if(r.ok){ const d = await r.json(); BALANCE = d.balance||0; REVEALED = new Set(d.revealed||[]); updateBalancePill(); }
+  }catch(_){}
 }
 
 // ----- helpers -----
@@ -312,7 +365,8 @@ function toast(msg, ms = 3200) {
 }
 
 // ----- event card -----
-function eventCard(e, unlocked) {
+function eventCard(e) {
+  const key = keyOf(e);
   const img = e.image || catFallback(e.segment);
   const header = img
     ? '<div class="ev-img" style="background-image:url(&quot;' + esc(img) + '&quot;)"></div>'
@@ -322,33 +376,36 @@ function eventCard(e, unlocked) {
   const loc = [e.venue, [e.city, e.state].filter(Boolean).join(', ')].filter(Boolean).join(' - ');
   const out = API + '/discover/out?src=' + encodeURIComponent(e.source || 'partner') +
               '&u=' + encodeURIComponent(e.buy_url || '');
+  const hasPrice = e.min_price != null;
+  const revealed = REVEALED.has(key);
 
-  const priceHtml = unlocked
-    ? '<div class="price">' + (price || '<small>TBA</small>') + '</div>'
-    : '<div class="price blur">' + (price || '$00') + '</div>';
+  let priceHtml, cta;
+  if (!hasPrice) {                                   // nothing to reveal -> free, just link out
+    priceHtml = '<div class="price"><small>At box office</small></div>';
+    cta = '<a class="btn btn-line btn-sm" href="' + out + '" target="_blank" rel="noopener noreferrer">See on ' + esc(e.source || 'partner') + '</a>';
+  } else if (revealed) {
+    priceHtml = '<div class="price">' + price + '</div>';
+    cta = '<a class="btn btn-gold btn-sm" href="' + out + '" target="_blank" rel="noopener noreferrer">Get verified ticket</a>';
+  } else {
+    priceHtml = '<div class="price blur">' + price + '</div>';
+    cta = '<button class="btn btn-gold btn-sm reveal-btn" data-key="' + esc(key) + '">Reveal &middot; 1 credit</button>';
+  }
 
-  const cta = unlocked
-    ? '<a class="btn btn-gold btn-sm" href="' + out + '" target="_blank" rel="noopener noreferrer">Get verified ticket</a>'
-    : '<button class="btn btn-line btn-sm" onclick="openUnlock()">Unlock for $1</button>';
+  const srcline = (e.sources && e.sources.length > 1)
+    ? '<div class="cmp-badge"><span class="dot"></span>Best price \u00b7 checked ' + e.sources.length + ' sites: ' + e.sources.map(s => esc(s.source)).join(' + ') + '</div>'
+    : '<div class="src-tag">via ' + esc(e.source || 'partner') + ' \u00b7 verified</div>';
 
   return '<article class="ev">' + header +
     '<div class="ev-body">' +
       '<div class="ev-name">' + esc(e.name) + '</div>' +
       '<div class="ev-meta">' + esc(prettyDate(e.date, e.time)) + (loc ? ' &middot; ' + esc(loc) : '') + '</div>' +
-      '<div class="ev-foot">' +
-        '<div>' +
-          '<div class="price-l">Lowest verified</div>' +
-          priceHtml +
-          ((e.sources && e.sources.length > 1) ? '<div class="cmp-badge"><span class="dot"></span>Best price \u00b7 checked ' + e.sources.length + ' sites: ' + e.sources.map(s => esc(s.source)).join(' + ') + '</div>' : '<div class="src-tag">via ' + esc(e.source || 'partner') + ' \u00b7 verified</div>') +
-        '</div>' +
-        cta +
-      '</div>' +
+      '<div class="ev-foot"><div><div class="price-l">Lowest verified</div>' + priceHtml + srcline + '</div>' + cta + '</div>' +
     '</div>' +
   '</article>';
 }
 
 // ----- render -----
-function renderResults(rows, unlocked) {
+function renderResults(rows) {
   const grid = $('#results');
   $('#skeleton').style.display = 'none';
   grid.style.display = 'grid';
@@ -359,34 +416,59 @@ function renderResults(rows, unlocked) {
     return;
   }
 
-  grid.innerHTML = rows.map(e => eventCard(e, unlocked)).join('');
+  grid.innerHTML = rows.map(eventCard).join('');
+  grid.querySelectorAll('.reveal-btn').forEach(b => b.onclick = () => reveal(b, b.dataset.key));
 
-  // Show unlock banner only when locked and there are results with prices
-  const hasPrices = rows.some(e => e.min_price != null);
-  $('#unlockBar').style.display = (!unlocked && hasPrices) ? 'block' : 'none';
+  // Show the credits bar while there are priced, not-yet-revealed events
+  const gated = rows.some(e => e.min_price != null && !REVEALED.has(keyOf(e)));
+  $('#unlockBar').style.display = gated ? 'block' : 'none';
 }
 
-// ----- $1 unlock -----
-async function openUnlock() {
+// ----- reveal one event (spend 1 credit) -----
+async function reveal(btn, key) {
+  if (!LOGGED_IN) { toast('Sign in to reveal prices.'); setTimeout(() => location.href = 'account.html', 900); return; }
+  const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Revealing…';
   try {
-    const r = await fetch(API + '/discover/unlock', {
+    const r = await fetch(API + '/discover/reveal', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: '{}'
+      headers: {'Content-Type': 'application/json', ...authHeaders()},
+      body: JSON.stringify({event_key: key})
     });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
-    if (d.unlocked) {
-      localStorage.setItem('ff_discover_unlocked', '1');
-      UNLOCKED = true;
-      renderResults(lastResults, true);
-      toast('Unlocked - every verified link is yours.');
-    } else if (d.checkout_url) {
-      location.href = d.checkout_url;
-    }
-  } catch (_) {
-    toast('Could not start the unlock. Try again.');
-  }
+    if (d.need_credits) { btn.disabled = false; btn.innerHTML = old; openCredits(); return; }
+    if (d.revealed) { REVEALED.add(key); BALANCE = d.balance; updateBalancePill(); renderResults(lastResults); }
+    else { btn.disabled = false; btn.innerHTML = old; toast('Could not reveal. Try again.'); }
+  } catch (_) { btn.disabled = false; btn.innerHTML = old; toast('Could not reveal. Try again.'); }
+}
+
+// ----- credit pack modal -----
+function renderPacks() {
+  $('#cmPacks').innerHTML = PACKS.map(p =>
+    '<button class="cm-pack' + (p.best ? ' best' : '') + '" onclick="buyPack(\'' + p.id + '\')">' +
+      (p.best ? '<span class="cm-tag">Best value</span>' : '') +
+      '<div class="cm-cr">' + p.credits + '</div><div class="cm-cl">credits</div>' +
+      '<div class="cm-pr">' + p.price + '</div>' +
+    '</button>').join('');
+  $('#cmFoot').textContent = LOGGED_IN
+    ? ('You have ' + BALANCE + ' credit' + (BALANCE === 1 ? '' : 's') + '.')
+    : 'Sign in to buy credits and reveal prices.';
+}
+function openCredits() { renderPacks(); $('#creditModal').classList.add('open'); }
+function closeCredits() { $('#creditModal').classList.remove('open'); }
+
+async function buyPack(pack) {
+  if (!LOGGED_IN) { location.href = 'account.html'; return; }
+  try {
+    const r = await fetch(API + '/discover/credits/checkout', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', ...authHeaders()},
+      body: JSON.stringify({pack})
+    });
+    const d = await r.json();
+    if (d.granted) { BALANCE = d.balance; updateBalancePill(); renderPacks(); closeCredits(); toast('+' + d.credits + ' credits added.'); renderResults(lastResults); }
+    else if (d.checkout_url) { location.href = d.checkout_url; }
+    else { toast('Could not start checkout. Try again.'); }
+  } catch (_) { toast('Could not start checkout. Try again.'); }
 }
 
 // ----- chips -----
@@ -430,8 +512,7 @@ async function run() {
     }
 
     lastResults = data.results || [];
-    UNLOCKED = localStorage.getItem('ff_discover_unlocked') === '1';
-    renderResults(lastResults, UNLOCKED);
+    renderResults(lastResults);
   } catch (err) {
     $('#skeleton').style.display = 'none';
     grid.style.display = 'grid';
@@ -452,8 +533,28 @@ onScroll();
 // ----- init -----
 $('#goBtn').onclick = run;
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+$('#creditModal').addEventListener('click', e => { if (e.target.id === 'creditModal') closeCredits(); });
 renderChips();
-run();
+updateBalancePill();
+
+(async () => {
+  // Returning from a Stripe credit purchase? Verify + grant once.
+  const sid = new URLSearchParams(location.search).get('credits_session');
+  if (sid && LOGGED_IN) {
+    try {
+      const r = await fetch(API + '/discover/credits/confirm', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', ...authHeaders()},
+        body: JSON.stringify({session_id: sid})
+      });
+      const d = await r.json();
+      if (d.granted) toast('+' + d.credits + ' credits added — reveal away.');
+    } catch (_) {}
+    history.replaceState({}, '', location.pathname);
+  }
+  await loadCredits();
+  run();
+})();
 </script>
 <script src="nav.js" defer></script>
 </body>
