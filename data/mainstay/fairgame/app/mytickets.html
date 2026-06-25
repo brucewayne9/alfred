@@ -184,7 +184,7 @@ function countdown(d){
   return {n:days, s:'days away'};
 }
 
-/* status -> wallet language (Path A: delivers to TM ~3 days before show) */
+/* status -> wallet language (Path A: transfers to TM right after purchase) */
 function ticketStatus(state){
   if(state==='released') return {label:'Seat locked in', cls:'badge-green', delivered:true};
   if(state==='paid')     return {label:'Securing your seat', cls:'badge-gold', delivered:false};
@@ -203,11 +203,11 @@ function ticketCard(o){
   if(st.refunded){
     deliver='<div class="tk-deliver">This order was refunded — nothing further to do.</div>'; cta='';
   } else if(st.delivered){
-    deliver='<div class="tk-deliver">Your ticket delivers to '+(tmEmail?'<b>'+tmEmail+'</b>':'your Ticketmaster account')+' about <b>3 days before</b> the show. We’ll let you know the moment it lands.</div>';
+    deliver='<div class="tk-deliver">Your ticket transfers to '+(tmEmail?'<b>'+tmEmail+'</b>':'your Ticketmaster account')+' <b>right after purchase</b>. We’ll let you know the moment it lands.</div>';
     cta='<a class="btn btn-gold btn-sm" href="https://www.ticketmaster.com/account" target="_blank" rel="noopener">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Open in Ticketmaster</a>';
   } else {
-    deliver='<div class="tk-deliver">We’re securing your seat. Once it clears, it delivers to '+(tmEmail?'<b>'+tmEmail+'</b>':'your Ticketmaster account')+' ~3 days before the show.</div>';
+    deliver='<div class="tk-deliver">We’re securing your seat. Once it clears, it transfers to '+(tmEmail?'<b>'+tmEmail+'</b>':'your Ticketmaster account')+' right after purchase.</div>';
     cta='';
   }
 
