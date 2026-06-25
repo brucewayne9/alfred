@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fans First — Coming Soon</title>
+<meta name="description" content="Tickets without the games. Fair prices, real seats, built for the fans who actually show up. Something new is coming.">
+<meta name="robots" content="noindex">
+<meta property="og:title" content="Fans First — Coming Soon">
+<meta property="og:description" content="Tickets without the games. Be first through the doors.">
+<meta property="og:type" content="website">
+<link rel="icon" href="/cs/ff-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a09; --bg2:#121110;
+    --teal:#82bcc4; --teal-deep:#2c6f7b; --teal-btn:#5fa8b3;
+    --ink:#f5f1ea; --mute:#a7a092; --line:rgba(245,241,234,.12);
+    --green:#13bd57; --red:#e8645f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Figtree',system-ui,sans-serif;
+    background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased; line-height:1.5;
+    min-height:100svh; overflow-x:hidden;
+  }
+  /* ambient teal glow + grain */
+  .bg{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none}
+  .bg::before{content:""; position:absolute; left:50%; top:-12%; transform:translateX(-50%);
+    width:120vmax; height:120vmax; border-radius:50%;
+    background:radial-gradient(closest-side, rgba(130,188,196,.22), rgba(44,111,123,.08) 45%, transparent 70%);
+    animation:drift 18s ease-in-out infinite alternate}
+  .bg::after{content:""; position:absolute; left:-20%; bottom:-30%;
+    width:80vmax; height:80vmax; border-radius:50%;
+    background:radial-gradient(closest-side, rgba(95,168,179,.12), transparent 70%);
+    animation:drift2 22s ease-in-out infinite alternate}
+  @keyframes drift{from{transform:translate(-52%,0)}to{transform:translate(-48%,4%)}}
+  @keyframes drift2{from{transform:translate(0,0)}to{transform:translate(6%,-4%)}}
+
+  .wrap{position:relative; z-index:1; min-height:100svh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; padding:40px 22px 28px; text-align:center}
+  .stage{width:100%; max-width:540px; margin:auto 0}
+
+  .logo{width:min(320px,78vw); height:auto; display:block; margin:0 auto 14px;
+    filter:drop-shadow(0 10px 30px rgba(0,0,0,.5))}
+
+  .eyebrow{display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700;
+    letter-spacing:.22em; text-transform:uppercase; color:var(--teal);
+    border:1px solid rgba(130,188,196,.35); background:rgba(130,188,196,.07);
+    padding:6px 13px; border-radius:999px; margin-bottom:18px}
+  .eyebrow .dot{width:6px; height:6px; border-radius:50%; background:var(--teal); box-shadow:0 0 10px var(--teal);
+    animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  h1{font-size:clamp(34px,8vw,52px); line-height:1.02; font-weight:900; letter-spacing:-.02em;
+    margin:0 0 14px}
+  h1 .em{color:var(--teal)}
+  .sub{font-size:clamp(15px,3.6vw,17px); color:var(--mute); margin:0 auto 26px; max-width:440px}
+  .sub b{color:var(--ink); font-weight:700}
+
+  /* floating glass signup card */
+  .card{position:relative; background:linear-gradient(180deg, rgba(28,26,24,.92), rgba(16,15,14,.92));
+    border:1px solid var(--line); border-radius:18px; padding:22px 20px 20px;
+    box-shadow:0 30px 70px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    animation:float 6s ease-in-out infinite; text-align:left}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .card h2{font-size:18px; font-weight:800; margin:0 0 3px; text-align:center}
+  .card .cardsub{font-size:13px; color:var(--mute); text-align:center; margin:0 0 16px}
+
+  .row{display:flex; gap:10px}
+  .field{margin-bottom:11px; flex:1; min-width:0}
+  .field label{display:block; font-size:11px; font-weight:700; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--mute); margin:0 0 5px}
+  .field input{width:100%; background:rgba(245,241,234,.04); border:1px solid var(--line);
+    border-radius:11px; color:var(--ink); font-family:inherit; font-size:15px; padding:12px 13px; outline:none;
+    transition:border-color .15s, background .15s}
+  .field input::placeholder{color:#6f6a60}
+  .field input:focus{border-color:var(--teal); background:rgba(130,188,196,.06)}
+
+  .consent{display:flex; gap:10px; align-items:flex-start; margin:6px 0 16px; cursor:pointer}
+  .consent input{margin-top:2px; width:17px; height:17px; accent-color:var(--teal); flex:0 0 17px; cursor:pointer}
+  .consent span{font-size:12.5px; color:var(--mute); line-height:1.45}
+
+  .btn{width:100%; border:0; cursor:pointer; font-family:inherit; font-weight:800; font-size:15.5px;
+    color:#06231f; background:linear-gradient(180deg,var(--teal),var(--teal-btn));
+    border-radius:12px; padding:14px; letter-spacing:.01em;
+    box-shadow:0 12px 26px rgba(95,168,179,.32); transition:transform .12s, box-shadow .12s, opacity .12s}
+  .btn:hover{transform:translateY(-1px); box-shadow:0 16px 32px rgba(95,168,179,.42)}
+  .btn:active{transform:translateY(0)}
+  .btn:disabled{opacity:.55; cursor:default; transform:none; box-shadow:none}
+
+  .msg{font-size:13px; margin-top:12px; text-align:center; min-height:1px}
+  .msg.err{color:var(--red)}
+
+  .finefoot{font-size:12px; color:#6f6a60; margin:18px 0 0; letter-spacing:.02em}
+  .finefoot b{color:var(--mute); font-weight:700}
+  .legal{font-size:11px; color:#4f4b44; margin:22px 0 0}
+
+  /* success state */
+  .done{display:none; text-align:center; padding:8px 4px 4px}
+  .done .check{width:58px; height:58px; border-radius:50%; margin:0 auto 14px;
+    background:radial-gradient(closest-side, rgba(19,189,87,.25), transparent), rgba(19,189,87,.12);
+    border:1px solid rgba(19,189,87,.5); display:grid; place-items:center}
+  .done .check svg{width:28px; height:28px}
+  .done h2{font-size:21px; font-weight:900; margin:0 0 8px}
+  .done p{font-size:14.5px; color:var(--mute); margin:0 auto; max-width:380px}
+  .done p b{color:var(--ink)}
+  body.is-done .card{animation:none}
+  body.is-done .form{display:none}
+  body.is-done .done{display:block}
+
+  @media (max-width:430px){ .row{flex-direction:column; gap:0} }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<main class="wrap">
+  <div class="stage">
+    <img class="logo" src="/cs/ff-lockup.png" alt="Fans First" draggable="false">
+    <div class="eyebrow"><span class="dot"></span> Something new is coming</div>
+    <h1>Where fans<br><span class="em">come first.</span></h1>
+    <p class="sub">Tickets without the games. <b>Fair prices, real seats,</b> and a fighting chance for the people who actually show up. We're building it now — be first through the doors.</p>
+
+    <div class="card">
+      <form class="form" id="signup" novalidate>
+        <h2>Get on the list</h2>
+        <p class="cardsub">Be the first to know the moment we go live.</p>
+        <div class="row">
+          <div class="field"><label for="fn">First name</label><input id="fn" name="fn" type="text" autocomplete="given-name" placeholder="First"></div>
+          <div class="field"><label for="ln">Last name</label><input id="ln" name="ln" type="text" autocomplete="family-name" placeholder="Last"></div>
+        </div>
+        <div class="field"><label for="em">Email</label><input id="em" name="em" type="email" autocomplete="email" placeholder="you@email.com"></div>
+        <div class="field"><label for="ph">Phone</label><input id="ph" name="ph" type="tel" autocomplete="tel" placeholder="(404) 555-0199"></div>
+        <label class="consent" for="cs">
+          <input id="cs" type="checkbox">
+          <span>Yes — email and text me when Fans First is ready. We'll send a quick confirmation to lock in your spot.</span>
+        </label>
+        <button class="btn" type="submit" id="go">Notify Me</button>
+        <div class="msg" id="msg"></div>
+      </form>
+
+      <div class="done">
+        <div class="check"><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#13bd57" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h2>You're on the list.</h2>
+        <p><b>Check your email to confirm your spot</b> — that's the only way through the doors. See you soon.</p>
+      </div>
+    </div>
+
+    <p class="finefoot"><b>No spam. No scalpers. Just fans.</b></p>
+    <p class="legal">© 2026 Fans First. All rights reserved.</p>
+  </div>
+</main>
+
+<script>
+(function(){
+  var f=document.getElementById('signup'), go=document.getElementById('go'), msg=document.getElementById('msg');
+  function err(t){ msg.textContent=t; msg.className='msg err'; }
+  function clear(){ msg.textContent=''; msg.className='msg'; }
+  var EMAIL=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  f.addEventListener('submit', function(e){
+    e.preventDefault(); clear();
+    var fn=document.getElementById('fn').value.trim(),
+        ln=document.getElementById('ln').value.trim(),
+        em=document.getElementById('em').value.trim(),
+        ph=document.getElementById('ph').value.trim(),
+        cs=document.getElementById('cs').checked;
+    if(!fn||!ln) return err('Please enter your first and last name.');
+    if(!EMAIL.test(em)) return err('Please enter a valid email address.');
+    if(ph.replace(/\D/g,'').length<10) return err('Please enter a valid phone number.');
+    if(!cs) return err('Please check the box so we can let you know when we launch.');
+    go.disabled=true; go.textContent='Adding you…';
+    fetch('/fairgame/api/waitlist',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({first_name:fn,last_name:ln,email:em,phone:ph,consent:true})})
+    .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,d:d}; }); })
+    .then(function(res){
+      if(res.ok){ document.body.classList.add('is-done'); }
+      else { go.disabled=false; go.textContent='Notify Me'; err((res.d&&res.d.detail)||'Something went wrong. Try again.'); }
+    })
+    .catch(function(){ go.disabled=false; go.textContent='Notify Me'; err('Network error — please try again.'); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -46,6 +46,7 @@ from core.fairgame import (
     access,
     admin,
     aggregator,
+    coming_soon,
     credits,
     db,
     delivery,
@@ -231,8 +232,17 @@ _RL_MAX = 30             # requests per IP per window on rate-limited routes
 _rl_hits: dict[str, deque] = defaultdict(deque)
 
 
+def _client_ip(req: Request) -> str:
+    # Behind the Cloudflare tunnel every request arrives from 127.0.0.1, so the
+    # real per-user IP is in CF-Connecting-IP (or X-Forwarded-For). Fall back to
+    # the socket peer for direct/local runs.
+    h = req.headers
+    fwd = h.get("x-forwarded-for", "").split(",")[0].strip()
+    return h.get("cf-connecting-ip") or fwd or (req.client.host if req.client else "?")
+
+
 def _rate_limit(req: Request) -> None:
-    ip = req.client.host if req.client else "?"
+    ip = _client_ip(req)
     now = time.time()
     hits = _rl_hits[ip]
     while hits and now - hits[0] > _RL_WINDOW:
@@ -927,25 +937,82 @@ async def admin_delivery_mark(req: Request, x_fairgame_admin: str = Header(defau
 
 
 # --------------------------------------------------------------------------- #
+# WAITLIST — coming-soon signup (public; lands in Klaviyo with double opt-in)
+# --------------------------------------------------------------------------- #
+@app.post("/fairgame/api/waitlist")
+async def waitlist_signup(req: Request):
+    _rate_limit(req)
+    b = await req.json()
+    if not b.get("consent"):
+        raise HTTPException(status_code=400, detail="Please confirm you'd like to hear from us.")
+    ok, err = coming_soon.subscribe(
+        b.get("first_name", ""), b.get("last_name", ""),
+        b.get("email", ""), b.get("phone", ""),
+    )
+    if not ok:
+        logger.warning("waitlist signup failed: %s", err)
+        msg = "A valid email is required." if "email" in (err or "").lower() else \
+              "Couldn't add you just now — please try again."
+        raise HTTPException(status_code=400, detail=msg)
+    return {"ok": True}
+
+
+# --------------------------------------------------------------------------- #
 # STATIC FRONTEND — single-process deploy (109 behind Cloudflare tunnel)
 # --------------------------------------------------------------------------- #
 # Off by default so the 105 instance (frontend served elsewhere) is unchanged.
-# Set FAIRGAME_SERVE_STATIC=1 to have this app also serve the static UI, so one
-# uvicorn process behind the tunnel covers both /fairgame/api/* and the pages.
+# FAIRGAME_SERVE_STATIC=1 → one uvicorn serves /fairgame/api/* AND the pages.
+# FAIRGAME_COMING_SOON=1  → public sees only the teaser; the app at /app/ is
+#   hidden unless the request carries the FAIRGAME_PREVIEW_KEY cookie (set by
+#   visiting the secret /u/<key> URL once).
 if os.environ.get("FAIRGAME_SERVE_STATIC"):
-    from fastapi.responses import RedirectResponse
+    from fastapi.responses import HTMLResponse, RedirectResponse
     from fastapi.staticfiles import StaticFiles
 
-    _web_dir = os.environ.get("FAIRGAME_WEB_DIR", "data/mainstay/fairgame")
+    _base_dir = os.environ.get("FAIRGAME_WEB_DIR", "data/mainstay/fairgame")
+    _app_dir = os.path.join(_base_dir, "app")
+    _cs_dir = os.path.join(_base_dir, "cs")
+
+    _COMING_SOON = bool(os.environ.get("FAIRGAME_COMING_SOON"))
+    _PREVIEW_KEY = os.environ.get("FAIRGAME_PREVIEW_KEY", "")
+    _PREVIEW_COOKIE = "ff_preview"
+
+    def _coming_soon_html() -> str:
+        try:
+            with open(os.path.join(_cs_dir, "index.html"), encoding="utf-8") as fh:
+                return fh.read()
+        except OSError:
+            return "<h1>Fans First — coming soon.</h1>"
+
+    def _is_preview(request: Request) -> bool:
+        return bool(_PREVIEW_KEY) and request.cookies.get(_PREVIEW_COOKIE) == _PREVIEW_KEY
+
+    if _COMING_SOON:
+        @app.middleware("http")
+        async def _coming_soon_gate(request: Request, call_next):
+            path = request.url.path
+            # Secret unlock URL → drop the preview cookie, then into the app.
+            if _PREVIEW_KEY and path == f"/u/{_PREVIEW_KEY}":
+                resp = RedirectResponse(url="/app/", status_code=302)
+                resp.set_cookie(_PREVIEW_COOKIE, _PREVIEW_KEY, max_age=15552000,
+                                httponly=True, samesite="lax", secure=True)
+                return resp
+            if _is_preview(request):
+                return await call_next(request)
+            # Public: only the teaser's own assets + the waitlist signup get through.
+            if path.startswith("/cs/") or path == "/fairgame/api/waitlist" or path == "/healthz":
+                return await call_next(request)
+            # Everything else (app, other API, root) is hidden behind the teaser.
+            return HTMLResponse(_coming_soon_html())
 
     @app.get("/")
-    async def _root_redirect():
-        return RedirectResponse(url="/fairgame/app/")
+    async def _root_redirect(request: Request):
+        if _COMING_SOON and not _is_preview(request):
+            return HTMLResponse(_coming_soon_html())
+        return RedirectResponse(url="/app/")
 
-    # Mounted last: every /fairgame/api/* route registered above is matched
-    # before this static mount, so the API is never shadowed.
-    app.mount(
-        "/fairgame",
-        StaticFiles(directory=_web_dir, html=True),
-        name="fairgame-static",
-    )
+    # Teaser assets at /cs, the real app at a clean /app/ (no "fairgame" in the
+    # URL bar). API routes (/fairgame/api/*) are registered above, so the mounts
+    # never shadow them.
+    app.mount("/cs", StaticFiles(directory=_cs_dir, html=True), name="fairgame-cs")
+    app.mount("/app", StaticFiles(directory=_app_dir, html=True), name="fairgame-app")
