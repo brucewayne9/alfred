@@ -54,11 +54,13 @@ from core.fairgame import (
     identity,
     listings,
     orders,
+    passwords,
     seatmap,
     sessions,
     stripe_connect,
     verify,
 )
+from core.fairgame.payments import get_processor
 
 logger = logging.getLogger("fairgame")
 
@@ -327,10 +329,15 @@ async def register(req: Request):
     b = await req.json()
     email = (b.get("email") or "").strip()
     phone = _normalize_phone(b.get("phone"))
+    password = b.get("password") or ""
     if not email or len(phone) < 11:
         raise HTTPException(status_code=400, detail="A valid email and phone number are required.")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
     ip = req.client.host if req.client else None
     fan = identity.upsert_fan(email, phone, b.get("device_fp"), ip)
+    # Stash the chosen password now; it goes live the moment the code checks out.
+    identity.set_password(fan["id"], passwords.hash_password(password))
     tw = _twilio_verify()
     if tw:
         # Twilio Verify creates + sends the code from its own pool (no number / 10DLC).
@@ -371,18 +378,15 @@ async def verify_sms(req: Request):
             raise HTTPException(status_code=400, detail=str(e))
     if not ok:
         raise HTTPException(status_code=400, detail="invalid code")
-    holder: dict = {}
-    try:
-        verify.start_verification(
-            fid, "email",
-            lambda c: (holder.update(code=c), _send_email(fan["email"], c)),
-        )
-    except verify.VerifyError as e:
-        raise HTTPException(status_code=429, detail=str(e))
-    out = {"verified_sms": True, "channel": "email"}
-    if _dev_echo():
-        out["dev_code"] = holder.get("code")
-    return out
+    # One-time verification is done — mark the fan verified for good and log them
+    # in. From here on they sign in with their password; no re-verification.
+    with db.connect() as c:
+        c.execute("UPDATE fans SET status='verified', updated_at=? WHERE id=?",
+                  (int(time.time()), fid))
+    fan = identity.get_fan(fid)
+    ip = req.client.host if req.client else None
+    tok = sessions.issue(fid, b.get("device_fp"), ip)
+    return {"verified_sms": True, "token": tok, "fan": _fan_summary(fan)}
 
 
 @app.post("/fairgame/api/verify-email")
@@ -405,6 +409,84 @@ async def verify_email(req: Request):
     fan = identity.get_fan(fid)
     ip = req.client.host if req.client else None
     tok = sessions.issue(fid, b.get("device_fp"), ip)
+    return {"token": tok, "fan": _fan_summary(fan)}
+
+
+@app.post("/fairgame/api/login")
+async def login(req: Request):
+    """Returning fan: email-or-phone + password -> session token. No re-verify."""
+    _rate_limit(req)
+    b = await req.json()
+    identifier = (b.get("identifier") or b.get("email") or "").strip()
+    password = b.get("password") or ""
+    fan = identity.find_by_identifier(identifier)
+    # Uniform error to avoid leaking which accounts exist.
+    if not fan or not fan.get("password_hash") or not passwords.verify_password(password, fan["password_hash"]):
+        raise HTTPException(status_code=401, detail="Wrong email/phone or password.")
+    if fan.get("status") != "verified":
+        raise HTTPException(status_code=403, detail="Account not verified yet. Finish signup to continue.")
+    ip = req.client.host if req.client else None
+    tok = sessions.issue(fan["id"], b.get("device_fp"), ip)
+    return {"token": tok, "fan": _fan_summary(fan)}
+
+
+@app.post("/fairgame/api/password/forgot")
+async def password_forgot(req: Request):
+    """Send a reset code to the fan's phone. Always 200 (don't leak existence)."""
+    _rate_limit(req)
+    b = await req.json()
+    identifier = (b.get("identifier") or b.get("email") or "").strip()
+    fan = identity.find_by_identifier(identifier)
+    masked = None
+    if fan and fan.get("phone"):
+        tw = _twilio_verify()
+        try:
+            if tw:
+                tw.verify_send(fan["phone"])
+            else:
+                verify.start_verification(
+                    fan["id"], "sms",
+                    lambda code: _send_sms(fan["phone"], code),
+                )
+        except Exception as e:  # noqa: BLE001 — never reveal the failure reason
+            logger.warning("password reset send failed: %s", e)
+        ph = fan["phone"]
+        masked = "•••• " + ph[-4:] if len(ph) >= 4 else None
+    return {"sent": True, "channel": "sms", "phone_hint": masked}
+
+
+@app.post("/fairgame/api/password/reset")
+async def password_reset(req: Request):
+    """Verify the SMS code, set a new password, and log the fan in."""
+    _rate_limit(req)
+    b = await req.json()
+    identifier = (b.get("identifier") or b.get("email") or "").strip()
+    code = b.get("code", "")
+    new_password = b.get("password") or ""
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    fan = identity.find_by_identifier(identifier)
+    if not fan:
+        raise HTTPException(status_code=400, detail="Invalid code.")
+    tw = _twilio_verify()
+    if tw:
+        ok = tw.verify_check(fan["phone"], code)
+    else:
+        try:
+            ok = verify.check_code(fan["id"], "sms", code)
+        except verify.VerifyError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=400, detail="Invalid or expired code.")
+    identity.set_password(fan["id"], passwords.hash_password(new_password))
+    # A verified-by-code reset also confirms the account if it wasn't already.
+    if fan.get("status") != "verified":
+        with db.connect() as c:
+            c.execute("UPDATE fans SET status='verified', updated_at=? WHERE id=?",
+                      (int(time.time()), fan["id"]))
+        fan = identity.get_fan(fan["id"])
+    ip = req.client.host if req.client else None
+    tok = sessions.issue(fan["id"], b.get("device_fp"), ip)
     return {"token": tok, "fan": _fan_summary(fan)}
 
 
@@ -652,10 +734,10 @@ async def discover_unlock(req: Request):
     """The $1 Discover unlock. Sim mode (no Stripe key) grants instantly so the
     product is demoable; live mode returns a Stripe checkout URL to complete."""
     amount = aggregator.SERVICE_FEE_CENTS  # 100 = $1
-    if stripe_connect.is_sim():
+    if get_processor().is_sim():
         return {"unlocked": True, "sim": True, "amount_cents": amount}
     # Live: create a $1 checkout. Buyer completes payment, returns unlocked.
-    url = stripe_connect.create_unlock_checkout(amount)
+    url = get_processor().create_unlock_checkout(amount)
     return {"unlocked": False, "checkout_url": url, "amount_cents": amount}
 
 
@@ -684,11 +766,11 @@ async def credits_checkout(req: Request, authorization: str = Header(default="")
     pack = credits.PACKS.get(pack_id)
     if not pack:
         raise HTTPException(status_code=400, detail="unknown pack")
-    if stripe_connect.is_sim():
+    if get_processor().is_sim():
         bal = credits.grant(fan["id"], pack["credits"], kind="purchase",
                             ref="sim_" + uuid.uuid4().hex[:12], amount_cents=pack["cents"])
         return {"granted": True, "sim": True, "balance": bal, "credits": pack["credits"]}
-    url = stripe_connect.create_credit_checkout(
+    url = get_processor().create_credit_checkout(
         pack_id, pack["credits"], pack["cents"], fan["id"], pack["label"])
     return {"granted": False, "checkout_url": url}
 
@@ -701,7 +783,7 @@ async def credits_confirm(req: Request, authorization: str = Header(default=""))
     sid = (b.get("session_id") or "").strip()
     if not sid:
         raise HTTPException(status_code=400, detail="session_id required")
-    info = stripe_connect.retrieve_checkout(sid)
+    info = get_processor().retrieve_checkout(sid)
     if not info.get("paid"):
         return {"granted": False, "balance": credits.balance(fan["id"])}
     if info.get("fan_id") and info["fan_id"] != fan["id"]:
@@ -842,3 +924,28 @@ async def admin_delivery_mark(req: Request, x_fairgame_admin: str = Header(defau
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"item": result}
+
+
+# --------------------------------------------------------------------------- #
+# STATIC FRONTEND — single-process deploy (109 behind Cloudflare tunnel)
+# --------------------------------------------------------------------------- #
+# Off by default so the 105 instance (frontend served elsewhere) is unchanged.
+# Set FAIRGAME_SERVE_STATIC=1 to have this app also serve the static UI, so one
+# uvicorn process behind the tunnel covers both /fairgame/api/* and the pages.
+if os.environ.get("FAIRGAME_SERVE_STATIC"):
+    from fastapi.responses import RedirectResponse
+    from fastapi.staticfiles import StaticFiles
+
+    _web_dir = os.environ.get("FAIRGAME_WEB_DIR", "data/mainstay/fairgame")
+
+    @app.get("/")
+    async def _root_redirect():
+        return RedirectResponse(url="/fairgame/app/")
+
+    # Mounted last: every /fairgame/api/* route registered above is matched
+    # before this static mount, so the API is never shadowed.
+    app.mount(
+        "/fairgame",
+        StaticFiles(directory=_web_dir, html=True),
+        name="fairgame-static",
+    )

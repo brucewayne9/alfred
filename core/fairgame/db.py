@@ -45,6 +45,15 @@ def ensure_delivery_columns(c) -> None:
         c.execute("ALTER TABLE access_grants ADD COLUMN delivered_at INTEGER")
 
 
+def ensure_auth_columns(c) -> None:
+    """Idempotently add password auth columns to fans (login + reset support)."""
+    cols = {r["name"] for r in c.execute("PRAGMA table_info(fans)").fetchall()}
+    if "password_hash" not in cols:
+        c.execute("ALTER TABLE fans ADD COLUMN password_hash TEXT")
+    if "password_set_at" not in cols:
+        c.execute("ALTER TABLE fans ADD COLUMN password_set_at INTEGER")
+
+
 def ensure_credit_tables(c) -> None:
     """Idempotently create the Discover credits ledger (purchases + reveals)."""
     c.execute(
@@ -202,3 +211,4 @@ def init_db() -> None:
         ensure_checkout_columns(c)
         ensure_delivery_columns(c)
         ensure_credit_tables(c)
+        ensure_auth_columns(c)

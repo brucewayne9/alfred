@@ -104,6 +104,12 @@ main.auth-main{padding:40px 0 80px}
 .card{background:var(--card);border:1px solid var(--line-l);border-radius:var(--r-card);padding:26px}
 @media(min-width:600px){.card{padding:32px}}
 
+/* mode tabs */
+.authtabs{display:flex;gap:6px;padding:5px;background:var(--paper);border:1px solid var(--line-l);border-radius:var(--r-btn);margin-bottom:22px}
+.atab{flex:1;border:0;background:transparent;font-family:inherit;font-weight:700;font-size:14px;color:var(--ink-3);padding:11px 10px;border-radius:8px;cursor:pointer;transition:background .15s,color .15s}
+.atab:hover{color:var(--ink)}
+.atab.active{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(22,18,8,.08)}
+
 /* progress rail */
 .steps{display:flex;align-items:center;gap:0;margin-bottom:24px}
 .step{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
@@ -175,7 +181,7 @@ main.auth-main{padding:40px 0 80px}
 <div class="announce">FANS&nbsp;FIRST<span class="x">×</span>ROD&nbsp;WAVE — Official resale partner of the <b>Don't Look Down Tour 2026</b></div>
 
 <nav id="nav"><div class="wrap nav-in">
-  <a class="brand" href="index.html"><span class="mark">F</span>FANS&nbsp;FIRST</a>
+  <a class="brand" href="index.html"><span class="mark" style="background:transparent;overflow:hidden"><img src="img/ff-mark.png" alt="" style="width:24px;height:24px;object-fit:contain;display:block"></span>FANS&nbsp;FIRST</a>
   <div class="nav-right" id="navRight">
     <a class="nav-link hidem" href="index.html">Shows</a>
   </div>
@@ -184,9 +190,9 @@ main.auth-main{padding:40px 0 80px}
 <header class="auth-hero">
   <div class="wrap">
     <div class="eyebrow">Verified fans only</div>
-    <h1 id="heroTitle">Get verified</h1>
-    <p class="lede" id="heroLede">One quick check &mdash; <b>phone + email</b> &mdash; and you're a verified Rod Wave fan.
-      It keeps bots and brokers out, so you get real seats at fair prices. Takes under a minute, and it's free.</p>
+    <h1 id="heroTitle">Sign in or get verified</h1>
+    <p class="lede" id="heroLede">Already a fan? <b>Sign in</b> with your password. New here? One text code and a password makes you a
+      verified Rod Wave fan &mdash; that keeps bots and brokers out, so you get real seats at fair prices. Under a minute, free.</p>
   </div>
 </header>
 
@@ -197,19 +203,41 @@ main.auth-main{padding:40px 0 80px}
       <!-- LEFT: flow / account -->
       <section class="card">
 
-        <!-- progress rail -->
-        <div class="steps" id="steps">
+        <!-- mode tabs (sign in vs create account) -->
+        <div class="authtabs" id="authTabs">
+          <button class="atab active" type="button" data-mode="signin">Sign in</button>
+          <button class="atab" type="button" data-mode="signup">Create account</button>
+        </div>
+
+        <!-- progress rail (signup only) -->
+        <div class="steps hidden" id="steps">
           <div class="step active" data-step="register"><span class="s-dot">1</span><span class="s-lbl">Details</span></div>
           <div class="s-line"></div>
-          <div class="step" data-step="sms"><span class="s-dot">2</span><span class="s-lbl">Phone</span></div>
-          <div class="s-line"></div>
-          <div class="step" data-step="email"><span class="s-dot">3</span><span class="s-lbl">Email</span></div>
+          <div class="step" data-step="sms"><span class="s-dot">2</span><span class="s-lbl">Verify phone</span></div>
+        </div>
+
+        <!-- SIGN IN -->
+        <div class="pane active" id="pane-login">
+          <h2>Welcome back</h2>
+          <p class="sub">Sign in with your email or phone and your password. No re-verifying.</p>
+          <form id="loginForm" novalidate>
+            <div class="field">
+              <label class="lbl" for="loginId">Email or phone</label>
+              <input class="inp" id="loginId" autocomplete="username" placeholder="you@email.com or (555) 123-4567" required>
+            </div>
+            <div class="field">
+              <label class="lbl" for="loginPw">Password</label>
+              <input class="inp" type="password" id="loginPw" autocomplete="current-password" placeholder="Your password" required>
+            </div>
+            <button class="btn btn-gold btn-block mt-3" type="submit" id="loginBtn">Sign in</button>
+            <div class="resend"><span>Forgot your password?</span><button type="button" id="toForgot">Reset it</button></div>
+          </form>
         </div>
 
         <!-- STEP 1: register -->
-        <div class="pane active" id="pane-register">
-          <h2>Your details</h2>
-          <p class="sub">We send a code to each so we know it's really you. No spam, ever.</p>
+        <div class="pane" id="pane-register">
+          <h2>Create your account</h2>
+          <p class="sub">We text <b>one</b> code to confirm it's really you. After that, you just sign in with your password.</p>
           <form id="registerForm" novalidate>
             <div class="field">
               <label class="lbl" for="email">Email</label>
@@ -219,7 +247,15 @@ main.auth-main{padding:40px 0 80px}
               <label class="lbl" for="phone">Mobile phone</label>
               <input class="inp" type="tel" id="phone" name="phone" autocomplete="tel" placeholder="(555) 123-4567" required>
             </div>
-            <button class="btn btn-gold btn-block mt-3" type="submit" id="registerBtn">Send my codes</button>
+            <div class="field">
+              <label class="lbl" for="pw">Create a password</label>
+              <input class="inp" type="password" id="pw" autocomplete="new-password" placeholder="At least 8 characters" required>
+            </div>
+            <div class="field">
+              <label class="lbl" for="pw2">Confirm password</label>
+              <input class="inp" type="password" id="pw2" autocomplete="new-password" placeholder="Type it again" required>
+            </div>
+            <button class="btn btn-gold btn-block mt-3" type="submit" id="registerBtn">Create account</button>
             <p class="text-muted text-center mt-2" style="font-size:.74rem">By continuing you agree this is your real phone &amp; email. One account per fan.</p>
           </form>
         </div>
@@ -227,7 +263,7 @@ main.auth-main{padding:40px 0 80px}
         <!-- STEP 2: SMS code -->
         <div class="pane" id="pane-sms">
           <h2>Check your phone</h2>
-          <p class="sub">We texted a 6-digit code to <b id="smsTarget">your phone</b>.</p>
+          <p class="sub">We texted a 6-digit code to <b id="smsTarget">your phone</b>. Enter it to finish.</p>
           <div class="otp" id="smsOtp" role="group" aria-label="SMS code">
             <input inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1">
             <input inputmode="numeric" maxlength="1" aria-label="Digit 2">
@@ -237,18 +273,33 @@ main.auth-main{padding:40px 0 80px}
             <input inputmode="numeric" maxlength="1" aria-label="Digit 6">
           </div>
           <div class="devcode hidden" id="smsDevCode"></div>
-          <button class="btn btn-gold btn-block mt-3" id="smsVerifyBtn">Verify phone</button>
+          <button class="btn btn-gold btn-block mt-3" id="smsVerifyBtn">Verify &amp; finish</button>
           <div class="resend">
             <span>Didn't get it?</span>
             <button id="smsResend" disabled>Resend code</button>
           </div>
+          <div class="resend"><span>Wrong details?</span><button id="startOver">Start over</button></div>
         </div>
 
-        <!-- STEP 3: email code -->
-        <div class="pane" id="pane-email">
-          <h2>Check your email</h2>
-          <p class="sub">Last step. We emailed a 6-digit code to <b id="emailTarget">your email</b>.</p>
-          <div class="otp" id="emailOtp" role="group" aria-label="Email code">
+        <!-- FORGOT: identifier -->
+        <div class="pane" id="pane-forgot">
+          <h2>Reset your password</h2>
+          <p class="sub">Enter your email or phone and we'll text a reset code to the number on file.</p>
+          <form id="forgotForm" novalidate>
+            <div class="field">
+              <label class="lbl" for="forgotId">Email or phone</label>
+              <input class="inp" id="forgotId" autocomplete="username" placeholder="you@email.com or (555) 123-4567" required>
+            </div>
+            <button class="btn btn-gold btn-block mt-3" type="submit" id="forgotBtn">Send reset code</button>
+            <div class="resend"><span>Remembered it?</span><button type="button" id="backToLogin">Back to sign in</button></div>
+          </form>
+        </div>
+
+        <!-- RESET: code + new password -->
+        <div class="pane" id="pane-reset">
+          <h2>Enter your code</h2>
+          <p class="sub">We texted a 6-digit code to <b id="resetTarget">your phone</b>. Set a new password below.</p>
+          <div class="otp" id="resetOtp" role="group" aria-label="Reset code">
             <input inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1">
             <input inputmode="numeric" maxlength="1" aria-label="Digit 2">
             <input inputmode="numeric" maxlength="1" aria-label="Digit 3">
@@ -256,12 +307,12 @@ main.auth-main{padding:40px 0 80px}
             <input inputmode="numeric" maxlength="1" aria-label="Digit 5">
             <input inputmode="numeric" maxlength="1" aria-label="Digit 6">
           </div>
-          <div class="devcode hidden" id="emailDevCode"></div>
-          <button class="btn btn-gold btn-block mt-3" id="emailVerifyBtn">Finish &amp; get verified</button>
-          <div class="resend">
-            <span>Wrong details?</span>
-            <button id="startOver">Start over</button>
+          <div class="field mt-2">
+            <label class="lbl" for="resetPw">New password</label>
+            <input class="inp" type="password" id="resetPw" autocomplete="new-password" placeholder="At least 8 characters">
           </div>
+          <button class="btn btn-gold btn-block mt-2" id="resetBtn">Reset password &amp; sign in</button>
+          <div class="resend"><span>Didn't get it?</span><button id="resetResend" disabled>Resend code</button></div>
         </div>
 
         <!-- STEP 4: success -->
@@ -320,7 +371,7 @@ main.auth-main{padding:40px 0 80px}
 
 <footer><div class="wrap">
   <div class="foot">
-    <div><div class="brand"><span class="mark">F</span>FANS&nbsp;FIRST</div><p>The fan-first ticket platform. Real seats, real fans, no scalper games. Official resale partner of Rod Wave's Don't Look Down Tour.</p></div>
+    <div><div class="brand"><span class="mark" style="background:transparent;overflow:hidden"><img src="img/ff-mark.png" alt="" style="width:24px;height:24px;object-fit:contain;display:block"></span>FANS&nbsp;FIRST</div><p>The fan-first ticket platform. Real seats, real fans, no scalper games. Official resale partner of Rod Wave's Don't Look Down Tour.</p></div>
     <div class="fcols">
       <div class="fcol"><h5>Buy</h5><a href="index.html">Rod Wave seats</a><a href="discover.html">Discover anything</a></div>
       <div class="fcol"><h5>Account</h5><a href="account.html">Log in / Sign up</a><a href="mytickets.html">My tickets</a></div>
@@ -379,7 +430,7 @@ function showPane(name) {
   const p = $('#pane-' + name); if (p) p.classList.add('active');
 }
 function setStep(name) {
-  const order = ['register','sms','email'];
+  const order = ['register','sms'];
   const idx = order.indexOf(name);
   $$('.step').forEach(s => {
     const i = order.indexOf(s.dataset.step);
@@ -430,24 +481,64 @@ function showDevCode(sel, code) {
   const el = $(sel); el.textContent = 'Dev mode — your code is ' + code; el.classList.remove('hidden');
 }
 
+/* ====================== mode tabs (sign in / create account) ====================== */
+let MODE = 'signin';
+function setMode(mode) {
+  MODE = mode;
+  $('#authTabs').classList.remove('hidden');
+  $$('.atab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  if (mode === 'signup') { showRail(); setStep('register'); }
+  else { hideRail(); showPane('login'); }
+}
+$$('.atab').forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
+
+/* ====================== SIGN IN ====================== */
+$('#loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const identifier = $('#loginId').value.trim();
+  const password = $('#loginPw').value;
+  if (!identifier || !password) { toast('Enter your email/phone and password.', 'err'); return; }
+  const btn = $('#loginBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Signing in…';
+  try {
+    const r = await fetch(API + '/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({identifier, password, device_fp: deviceFp()})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(data.detail || 'Could not sign you in.');
+    setSession({token: data.token, fan: data.fan});
+    toast('Welcome back!', 'ok');
+    setTimeout(()=> location.reload(), 450);
+  } catch (err) {
+    toast(err.message || 'Sign in failed.', 'err');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+});
+$('#toForgot').addEventListener('click', () => {
+  hideRail(); $('#authTabs').classList.add('hidden'); showPane('forgot');
+  const id = $('#loginId').value.trim(); if (id) $('#forgotId').value = id;
+});
+$('#backToLogin').addEventListener('click', () => setMode('signin'));
+
 /* ====================== STEP 1: register ====================== */
 $('#registerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = $('#email').value.trim();
   const phone = $('#phone').value.trim();
+  const pw = $('#pw').value, pw2 = $('#pw2').value;
   if (!email || !phone) { toast('Email and phone are both required.', 'err'); return; }
-  const btn = $('#registerBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Sending…';
+  if (pw.length < 8) { toast('Password must be at least 8 characters.', 'err'); return; }
+  if (pw !== pw2) { toast('Passwords don\'t match.', 'err'); return; }
+  const btn = $('#registerBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Creating…';
   try {
     const r = await fetch(API + '/register', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({email, phone, device_fp: deviceFp()})
+      body: JSON.stringify({email, phone, password: pw, device_fp: deviceFp()})
     });
     const data = await r.json().catch(()=>({}));
     if (r.status === 429) throw new Error(data.detail || 'Too many tries — give it a minute.');
     if (!r.ok) throw new Error(data.detail || 'Could not send your code.');
     FAN_ID = data.fan_id; EMAIL = email; PHONE = phone;
     $('#smsTarget').textContent = maskPhone(phone);
-    $('#emailTarget').textContent = email;
     showDevCode('#smsDevCode', data.dev_code);
     setStep('sms');
     startCooldown($('#smsResend'), 30, 'Resend code');
@@ -466,16 +557,18 @@ async function verifySms() {
   try {
     const r = await fetch(API + '/verify', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({fan_id: FAN_ID, code})
+      body: JSON.stringify({fan_id: FAN_ID, code, device_fp: deviceFp()})
     });
     const data = await r.json().catch(()=>({}));
     if (!r.ok) throw new Error(data.detail || "That code didn't match.");
-    showDevCode('#emailDevCode', data.dev_code);
-    setStep('email');
-    startCooldown($('#startOver'), 0, 'Start over');
-    $('#startOver').disabled = false; $('#startOver').textContent = 'Start over';
-    setTimeout(()=> $$('#emailOtp input')[0].focus(), 60);
-    toast('Phone verified. One more step.', 'ok');
+    // One-time verify done — account created, password set, logged in.
+    setSession({token: data.token, fan: data.fan});
+    renderBadge();
+    renderDoneBadges(data.fan);
+    hideRail();
+    $('#authTabs').classList.add('hidden');
+    showPane('done');
+    toast("You're verified!", 'ok');
   } catch (err) {
     otpClear('#smsOtp'); $$('#smsOtp input')[0].focus();
     toast(err.message || 'Verification failed.', 'err');
@@ -498,35 +591,69 @@ $('#smsResend').addEventListener('click', async () => {
   } catch (err) { toast(err.message || 'Could not resend right now.', 'err'); }
 });
 
-/* ====================== STEP 3: email verify ====================== */
-async function verifyEmail() {
-  const code = otpValue('#emailOtp');
-  if (code.length < 6) { toast('Enter all 6 digits.', 'err'); return; }
-  const btn = $('#emailVerifyBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Verifying…';
+$('#startOver').addEventListener('click', () => {
+  FAN_ID = null; otpClear('#smsOtp');
+  $('#smsDevCode').classList.add('hidden');
+  showRail(); setStep('register');
+});
+
+/* ====================== FORGOT / RESET PASSWORD ====================== */
+let RESET_ID = '';
+$('#forgotForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const identifier = $('#forgotId').value.trim();
+  if (!identifier) { toast('Enter your email or phone.', 'err'); return; }
+  const btn = $('#forgotBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Sending…';
   try {
-    const r = await fetch(API + '/verify-email', {
+    const r = await fetch(API + '/password/forgot', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({fan_id: FAN_ID, code, device_fp: deviceFp()})
+      body: JSON.stringify({identifier})
+    });
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(data.detail || 'Could not send a reset code.');
+    RESET_ID = identifier;
+    $('#resetTarget').textContent = data.phone_hint || 'your phone';
+    showPane('reset');
+    startCooldown($('#resetResend'), 30, 'Resend code');
+    setTimeout(()=> ($$('#resetOtp input')[0]||{}).focus && $$('#resetOtp input')[0].focus(), 60);
+    toast('If that account exists, a code is on its way.', 'ok');
+  } catch (err) {
+    toast(err.message || 'Something went wrong.', 'err');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+});
+
+async function doReset() {
+  const code = otpValue('#resetOtp');
+  const pw = $('#resetPw').value;
+  if (code.length < 6) { toast('Enter all 6 digits.', 'err'); return; }
+  if (pw.length < 8) { toast('New password must be at least 8 characters.', 'err'); return; }
+  const btn = $('#resetBtn'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Resetting…';
+  try {
+    const r = await fetch(API + '/password/reset', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({identifier: RESET_ID, code, password: pw, device_fp: deviceFp()})
     });
     const data = await r.json().catch(()=>({}));
     if (!r.ok) throw new Error(data.detail || "That code didn't match.");
     setSession({token: data.token, fan: data.fan});
-    renderBadge();
-    renderDoneBadges(data.fan);
-    hideRail();
-    showPane('done');
-    toast("You're verified!", 'ok');
+    toast('Password updated — you\'re signed in.', 'ok');
+    setTimeout(()=> location.reload(), 500);
   } catch (err) {
-    otpClear('#emailOtp'); $$('#emailOtp input')[0].focus();
-    toast(err.message || 'Verification failed.', 'err');
+    otpClear('#resetOtp'); $$('#resetOtp input')[0].focus();
+    toast(err.message || 'Reset failed.', 'err');
   } finally { btn.disabled = false; btn.textContent = orig; }
 }
-$('#emailVerifyBtn').addEventListener('click', verifyEmail);
-
-$('#startOver').addEventListener('click', () => {
-  FAN_ID = null; otpClear('#smsOtp'); otpClear('#emailOtp');
-  $('#smsDevCode').classList.add('hidden'); $('#emailDevCode').classList.add('hidden');
-  showRail(); setStep('register');
+$('#resetBtn').addEventListener('click', doReset);
+$('#resetResend').addEventListener('click', async () => {
+  if (!RESET_ID) return;
+  try {
+    await fetch(API + '/password/forgot', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({identifier: RESET_ID})
+    });
+    startCooldown($('#resetResend'), 30, 'Resend code');
+    toast('New code sent.', 'ok');
+  } catch { toast('Could not resend right now.', 'err'); }
 });
 
 function renderDoneBadges(fan) {
@@ -580,11 +707,12 @@ function maskPhone(p) {
 async function boot() {
   renderBadge();
   wireOtp('#smsOtp', verifySms);
-  wireOtp('#emailOtp', verifyEmail);
+  wireOtp('#resetOtp', doReset);
 
   const s = getSession();
   if (s && s.token) {
     hideRail();
+    $('#authTabs').classList.add('hidden');
     $('#loadHint').classList.remove('hidden');
     $('#heroTitle').textContent = 'Your account';
     $('#heroLede').innerHTML = "You're a <b>verified Rod Wave fan</b>. Manage your status below, or jump straight to the shows.";
@@ -596,7 +724,8 @@ async function boot() {
         showPane('account');
       } else {
         clearSession();
-        showRail(); setStep('register');
+        $('#authTabs').classList.remove('hidden');
+        setMode('signin');
         resetHero();
       }
     } catch {
@@ -607,12 +736,12 @@ async function boot() {
     }
     return;
   }
-  setStep('register');
+  setMode('signin');
 }
 function resetHero() {
-  $('#heroTitle').textContent = 'Get verified';
-  $('#heroLede').innerHTML = 'One quick check — <b>phone + email</b> — and you\'re a verified Rod Wave fan. ' +
-    'It keeps bots and brokers out, so you get real seats at fair prices. Takes under a minute, and it\'s free.';
+  $('#heroTitle').textContent = 'Sign in or get verified';
+  $('#heroLede').innerHTML = 'Already a fan? <b>Sign in</b> with your password. New here? One text code and a password ' +
+    'makes you a verified Rod Wave fan — real seats, fair prices, no scalpers. Under a minute, free.';
 }
 
 boot();

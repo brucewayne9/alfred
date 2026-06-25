@@ -60,7 +60,7 @@
   nav.id = 'ffnav';
   nav.innerHTML =
     '<div class="ffn-in">' +
-      '<a class="ffn-brand" href="index.html" aria-label="Fans First home"><span class="mk">F</span>FANS&nbsp;FIRST</a>' +
+      '<a class="ffn-brand" href="index.html" aria-label="Fans First home"><span class="mk"><img src="img/ff-mark.png" alt="" draggable="false"></span>FANS&nbsp;FIRST</a>' +
       '<div class="ffn-links">' + LINKS.map(function (l) { return linkHTML(l, 'ffn-link'); }).join('') + '</div>' +
       '<div class="ffn-spacer"></div>' +
       '<div class="ffn-right">' + rightHTML + '</div>' +
@@ -82,7 +82,7 @@
     '<div class="ffn-scrim" data-close></div>' +
     '<aside class="ffn-panel" role="dialog" aria-label="Menu">' +
       '<div class="ffn-panel-top">' +
-        '<span class="ffn-brand dark"><span class="mk">F</span>FANS&nbsp;FIRST</span>' +
+        '<span class="ffn-brand dark"><span class="mk"><img src="img/ff-mark.png" alt="" draggable="false"></span>FANS&nbsp;FIRST</span>' +
         '<button class="ffn-x" type="button" aria-label="Close menu" data-close>' + closeSVG + '</button>' +
       '</div>' +
       '<nav class="ffn-d-links">' +
@@ -104,7 +104,8 @@
     ".ffnav{position:sticky;top:0;z-index:60;height:64px;display:flex;align-items:center;border-bottom:1px solid transparent;transition:background .3s,border-color .3s;font-family:'Figtree',system-ui,sans-serif}",
     ".ffnav .ffn-in{max-width:1200px;margin:0 auto;padding:0 24px;width:100%;display:flex;align-items:center;gap:14px}",
     ".ffnav .ffn-brand{display:flex;align-items:center;gap:8px;font-weight:900;font-size:19px;letter-spacing:-.02em;color:#fff;transition:color .3s;text-decoration:none;white-space:nowrap}",
-    ".ffnav .ffn-brand .mk{width:25px;height:25px;border-radius:7px;background:#82bcc4;display:grid;place-items:center;color:#140d02;font-size:13px;font-weight:900}",
+    ".ffnav .ffn-brand .mk{width:32px;height:32px;border-radius:8px;background:#0b0a09;display:grid;place-items:center;overflow:hidden;flex:0 0 32px}",
+    ".ffnav .ffn-brand .mk img{width:23px;height:23px;object-fit:contain;display:block}",
     ".ffnav .ffn-links{display:flex;align-items:center;gap:2px;margin-left:10px}",
     ".ffnav .ffn-spacer{margin-left:auto}",
     ".ffnav .ffn-right{display:flex;align-items:center;gap:10px}",
@@ -134,7 +135,8 @@
     ".ffn-drawer.open .ffn-panel{transform:none}",
     ".ffn-panel-top{display:flex;align-items:center;justify-content:space-between;height:46px}",
     ".ffn-brand.dark{color:#fff;font-weight:900;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}",
-    ".ffn-brand.dark .mk{width:24px;height:24px;border-radius:7px;background:#82bcc4;display:grid;place-items:center;color:#140d02;font-size:12px;font-weight:900}",
+    ".ffn-brand.dark .mk{width:30px;height:30px;border-radius:8px;background:#0b0a09;display:grid;place-items:center;overflow:hidden;flex:0 0 30px}",
+    ".ffn-brand.dark .mk img{width:22px;height:22px;object-fit:contain;display:block}",
     ".ffn-x{width:40px;height:40px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.2);background:transparent;border-radius:11px;color:#fff;cursor:pointer}",
     ".ffn-x svg{width:20px;height:20px}",
     ".ffn-d-links{display:flex;flex-direction:column;margin-top:26px;gap:2px}",

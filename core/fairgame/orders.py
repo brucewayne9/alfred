@@ -46,7 +46,8 @@ from __future__ import annotations
 import time
 import uuid
 
-from . import db, listings, stripe_connect, tm_transfer
+from . import db, listings, tm_transfer
+from .payments import get_processor
 
 
 class OrderError(Exception):
@@ -105,7 +106,7 @@ def create_order(buyer_fan_id: str, listing_id: str, tm_email=None, final_sale_a
     # We won the claim — now hold the buyer's money (sim by default; real Stripe
     # behind FAIRGAME_STRIPE_KEY). create_held_payment creates the order row and
     # records the payment ref. Then advance our vocabulary to 'paid'.
-    stripe_connect.create_held_payment(
+    get_processor().create_held_payment(
         order_id,
         amount,
         listing_id=listing_id,
@@ -153,7 +154,7 @@ def confirm_transfer(order_id: str) -> dict:
     # accepts our 'paid'/'held' vocabulary and sets state -> 'released' itself, so
     # there is no observable intermediate state to strand the order in.
     now = int(time.time())
-    stripe_connect.release_to_seller(order_id)
+    get_processor().release_to_seller(order_id)
 
     with db.connect() as c:
         c.execute(
@@ -192,7 +193,7 @@ def fail_transfer(order_id: str) -> dict:
     # 'paid'/'held' vocabulary and sets state -> 'refunded' itself, so there is no
     # observable intermediate state to strand the order in.
     now = int(time.time())
-    stripe_connect.refund(order_id)
+    get_processor().refund(order_id)
 
     with db.connect() as c:
         c.execute(

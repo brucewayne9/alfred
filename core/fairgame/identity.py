@@ -36,6 +36,46 @@ def get_fan(fan_id: str):
     return dict(row) if row else None
 
 
+def find_by_identifier(identifier: str):
+    """Resolve a login identifier (email OR phone) to a fan, or None.
+
+    Matches on the salted hash, so the same lookup works whether the fan
+    typed their email or their phone number.
+    """
+    raw = (identifier or "").strip()
+    if not raw:
+        return None
+    cand = {hash_value(raw.lower())}
+    digits = re.sub(r"\D", "", raw)
+    if digits:
+        # Cover every phone normalization a fan (or registration) might produce:
+        # bare "+digits", US "+1XXXXXXXXXX", and the identity-module form.
+        forms = {"+" + digits, normalize_phone(raw)}
+        if len(digits) == 10:
+            forms.add("+1" + digits)
+        if len(digits) == 11 and digits.startswith("1"):
+            forms.add("+" + digits)
+        for f in forms:
+            cand.add(hash_value(f))
+    with db.connect() as c:
+        for h in cand:
+            row = c.execute(
+                "SELECT * FROM fans WHERE email_hash=? OR phone_hash=?", (h, h)
+            ).fetchone()
+            if row:
+                return dict(row)
+    return None
+
+
+def set_password(fan_id: str, password_hash: str) -> None:
+    now = int(time.time())
+    with db.connect() as c:
+        c.execute(
+            "UPDATE fans SET password_hash=?, password_set_at=?, updated_at=? WHERE id=?",
+            (password_hash, now, now, fan_id),
+        )
+
+
 def upsert_fan(email: str, phone: str, device_fp=None, ip=None) -> dict:
     email = (email or "").strip().lower()
     phone = normalize_phone(phone)
