@@ -225,7 +225,15 @@ def _merge_lowest(primary: list[dict], secondary: list[dict]) -> list[dict]:
     so the page can show who has the best deal."""
     out: list[dict] = []
     index: dict[tuple, dict] = {}
-    for e in list(primary) + list(secondary):
+    # Interleave the two feeds so BOTH are represented before any size-trim —
+    # otherwise `primary` fills the whole window and `secondary` gets cut off.
+    ordered: list[dict] = []
+    for i in range(max(len(primary), len(secondary))):
+        if i < len(primary):
+            ordered.append(primary[i])
+        if i < len(secondary):
+            ordered.append(secondary[i])
+    for e in ordered:
         k = _evt_key(e)
         if k and k in index:
             base = index[k]
