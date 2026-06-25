@@ -69,6 +69,17 @@ def _valid_tm_email(s) -> bool:
     return bool(s) and bool(_TM_EMAIL_RE.match(s))
 
 
+def _normalize_phone(raw) -> str:
+    """Coerce a typed phone into E.164 (+1XXXXXXXXXX). Twilio Verify (and Klaviyo)
+    reject anything else — naturally-typed numbers like '678-858-2241' got no code."""
+    digits = _re.sub(r"\D", "", raw or "")
+    if len(digits) == 11 and digits.startswith("1"):
+        return "+" + digits
+    if len(digits) == 10:
+        return "+1" + digits
+    return ("+" + digits) if digits else ""
+
+
 def _require_checkout(b: dict):
     """Pull + validate tm_email and the final-sale ack from a purchase body."""
     tm_email = (b.get("tm_email") or "").strip()
@@ -315,9 +326,9 @@ async def register(req: Request):
     _rate_limit(req)
     b = await req.json()
     email = (b.get("email") or "").strip()
-    phone = (b.get("phone") or "").strip()
-    if not email or not phone:
-        raise HTTPException(status_code=400, detail="email and phone required")
+    phone = _normalize_phone(b.get("phone"))
+    if not email or len(phone) < 11:
+        raise HTTPException(status_code=400, detail="A valid email and phone number are required.")
     ip = req.client.host if req.client else None
     fan = identity.upsert_fan(email, phone, b.get("device_fp"), ip)
     tw = _twilio_verify()
