@@ -132,6 +132,9 @@ main.mt-main{padding:36px 0 80px}.mt-inner{max-width:760px}
     <div class="sec-h">My tickets</div>
     <div id="ordersList"><span class="mt-empty">Loading&hellip;</span></div>
 
+    <div class="sec-h">Discover credits</div>
+    <div id="creditsBox"><span class="mt-empty">Loading&hellip;</span></div>
+
     <div class="row-flex mt-3">
       <a class="btn btn-line btn-sm" href="index.html">Browse shows</a>
     </div>
@@ -241,6 +244,25 @@ function listingCard(l){
     '<span class="badge '+st.cls+'"><span class="dot"></span>'+esc(st.label)+'</span></div>';
 }
 
+function fmtTs(ts){ if(!ts) return ''; try{ return new Date(ts*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(_){ return ''; } }
+function renderCredits(d){
+  const bal=d.balance||0, hist=d.history||[];
+  let html='<div class="card"><div class="trow"><div><div class="seat">'+bal+' credit'+(bal===1?'':'s')+'</div>'+
+    '<div class="sub">Spend 1 to reveal an event’s lowest verified price on Discover.</div></div>'+
+    '<a class="btn btn-gold btn-sm" href="discover.html">Get credits</a></div></div>';
+  if(hist.length){
+    html+='<div class="mt-1">'+hist.map(h=>{
+      const buy=h.kind==='purchase';
+      const label=buy?('Bought '+h.delta+' credits'):'Revealed a price';
+      const amt=buy&&h.amount_cents?(' · '+money(h.amount_cents)):'';
+      const sign=buy?('+'+h.delta):String(h.delta);
+      return '<div class="lrow"><div><div class="seat">'+label+'</div><div class="sub">'+fmtTs(h.created_at)+amt+'</div></div>'+
+        '<span class="badge '+(buy?'badge-green':'badge-neutral')+'"><span class="dot"></span>'+sign+'</span></div>';
+    }).join('')+'</div>';
+  }
+  $('#creditsBox').innerHTML=html;
+}
+
 async function load(){
   const s=getSession();
   if(!s||!s.token){ $('#signedOut').classList.remove('hidden'); return; }
@@ -251,6 +273,8 @@ async function load(){
     $('#ordersList').innerHTML = orders.length
       ? orders.map(ticketCard).join('')
       : '<span class="mt-empty">No tickets yet. Grab a seat from a Rod Wave show and it lands here in your wallet with live delivery status.</span>';
+    try{ const cRes = await fetch(API+'/my/credits',{headers:authHeaders()}); if(cRes.ok) renderCredits(await cRes.json()); }
+    catch(_){ $('#creditsBox').innerHTML='<span class="mt-empty">Couldn’t load credits.</span>'; }
   }catch(e){
     toast('Could not load your tickets','err');
     $('#ordersList').innerHTML='<span class="mt-empty">Couldn’t reach your wallet just now. Refresh to try again.</span>';
