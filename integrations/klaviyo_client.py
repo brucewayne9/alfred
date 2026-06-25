@@ -114,3 +114,52 @@ def get_overview() -> dict:
         "segments": segments,
         "ts": int(time.time()),
     }
+
+
+# --------------------------------------------------------------------------- #
+# Events — fire a Klaviyo metric to trigger a Flow (e.g. SMS verification code)
+# --------------------------------------------------------------------------- #
+
+def track_event(metric_name: str, *, email: str | None = None,
+                phone: str | None = None, properties: dict | None = None) -> bool:
+    """Record a Klaviyo event (creates/updates the profile + the metric).
+
+    A Flow triggered by ``metric_name`` can then send an SMS using the event's
+    properties (e.g. ``{{ event.code }}``). Returns True on apparent success;
+    never raises so it can't break the signup flow. Phone must be E.164 (+1...).
+    """
+    if not _KEY:
+        logger.warning("klaviyo track_event: no API key configured")
+        return False
+    attrs: dict = {}
+    if email:
+        attrs["email"] = email
+    if phone:
+        attrs["phone_number"] = phone
+    if not attrs:
+        logger.warning("klaviyo track_event: need email or phone")
+        return False
+    payload = {
+        "data": {
+            "type": "event",
+            "attributes": {
+                "metric": {"data": {"type": "metric",
+                                    "attributes": {"name": metric_name}}},
+                "profile": {"data": {"type": "profile", "attributes": attrs}},
+                "properties": properties or {},
+            },
+        }
+    }
+    try:
+        r = requests.post(
+            f"{BASE}/events/",
+            headers={**_headers(), "content-type": "application/vnd.api+json"},
+            json=payload, timeout=15,
+        )
+        if r.status_code in (200, 201, 202):
+            return True
+        logger.warning("klaviyo track_event -> %s %s", r.status_code, r.text[:200])
+        return False
+    except Exception as e:  # noqa: BLE001
+        logger.warning("klaviyo track_event error: %s", e)
+        return False

@@ -134,12 +134,19 @@ app = FastAPI(title="Fair Game — Rod Wave Tickets")
 # --------------------------------------------------------------------------- #
 
 def _send_sms(phone: str, code: str) -> None:
+    """Fire a Klaviyo event so a Klaviyo Flow texts the code. Klaviyo SMS sends
+    via Flows (not a direct API call): a Flow triggered by 'Fans First Code
+    Requested' sends an SMS using {{ event.code }}. Never breaks signup."""
     try:
-        from integrations.twilio.client import send_sms
+        from integrations import klaviyo_client
 
-        send_sms(phone, f"Your Rod Wave (Fair Game) verification code is {code}")
+        klaviyo_client.track_event(
+            "Fans First Code Requested",
+            phone=phone,
+            properties={"code": code, "expires_minutes": 10},
+        )
     except Exception as e:  # noqa: BLE001 - send must never break the flow
-        logger.warning("fairgame sms send skipped/failed: %s", e)
+        logger.warning("fairgame sms (klaviyo) send skipped/failed: %s", e)
 
 
 def _send_email(email: str, code: str) -> None:
