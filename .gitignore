@@ -131,3 +131,12 @@ data/fairgame.db.bak*
 data/mainstay/fairgame/*.zip
 data/mainstay/fairgame/dl/
 data/mainstay/fairgame/sandbox/
+
+# Catch-all: never commit databases or OAuth/secret tokens (added 2026-06-25)
+data/**/*.db
+data/**/*.db-shm
+data/**/*.db-wal
+*.db.bak*
+data/seo/google_oauth_token.json
+data/seo/*token*.json
+**/*_token.json
