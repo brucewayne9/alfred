@@ -299,6 +299,17 @@ def _show_card(show: dict) -> dict:
 # FANS
 # --------------------------------------------------------------------------- #
 
+def _twilio_verify():
+    """Twilio Verify client if it's configured (purpose-built OTP), else None."""
+    try:
+        from integrations.twilio import client as tw
+        if tw.verify_configured():
+            return tw
+    except Exception as e:  # noqa: BLE001
+        logger.warning("twilio verify unavailable: %s", e)
+    return None
+
+
 @app.post("/fairgame/api/register")
 async def register(req: Request):
     _rate_limit(req)
@@ -309,6 +320,11 @@ async def register(req: Request):
         raise HTTPException(status_code=400, detail="email and phone required")
     ip = req.client.host if req.client else None
     fan = identity.upsert_fan(email, phone, b.get("device_fp"), ip)
+    tw = _twilio_verify()
+    if tw:
+        # Twilio Verify creates + sends the code from its own pool (no number / 10DLC).
+        sent = tw.verify_send(fan["phone"])
+        return {"fan_id": fan["id"], "sent": sent, "channel": "sms"}
     holder: dict = {}
     try:
         verify.start_verification(
@@ -331,15 +347,19 @@ async def verify_sms(req: Request):
     code = b.get("code", "")
     if not fid:
         raise HTTPException(status_code=400, detail="fan_id required")
-    try:
-        ok = verify.check_code(fid, "sms", code)
-    except verify.VerifyError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    if not ok:
-        raise HTTPException(status_code=400, detail="invalid code")
     fan = identity.get_fan(fid)
     if not fan:
         raise HTTPException(status_code=404, detail="fan not found")
+    tw = _twilio_verify()
+    if tw:
+        ok = tw.verify_check(fan["phone"], code)
+    else:
+        try:
+            ok = verify.check_code(fid, "sms", code)
+        except verify.VerifyError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=400, detail="invalid code")
     holder: dict = {}
     try:
         verify.start_verification(

@@ -252,3 +252,41 @@ def health_check() -> dict:
     except Exception as e:
         logger.error(f"Twilio health check failed: {e}")
         return {"success": False, "status": "disconnected", "error": str(e)}
+
+
+# --------------------------------------------------------------------------- #
+# Twilio Verify — purpose-built OTP. No phone number / 10DLC needed; Twilio
+# generates, sends, and validates the code from its own pool.
+# --------------------------------------------------------------------------- #
+
+TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID", "")
+
+
+def verify_configured() -> bool:
+    """True when Twilio Verify is ready to use."""
+    return bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID)
+
+
+def verify_send(phone: str, channel: str = "sms") -> bool:
+    """Send a verification code via Twilio Verify (Twilio creates + delivers it).
+    Returns True if Twilio accepted the request. Never raises."""
+    try:
+        c = _get_client()
+        v = c.verify.v2.services(TWILIO_VERIFY_SERVICE_SID).verifications.create(
+            to=phone, channel=channel)
+        return v.status in ("pending", "sent")
+    except Exception as e:  # noqa: BLE001
+        logger.warning("twilio verify_send failed: %s", e)
+        return False
+
+
+def verify_check(phone: str, code: str) -> bool:
+    """Validate a code with Twilio Verify. Returns True iff approved."""
+    try:
+        c = _get_client()
+        r = c.verify.v2.services(TWILIO_VERIFY_SERVICE_SID).verification_checks.create(
+            to=phone, code=code)
+        return r.status == "approved"
+    except Exception as e:  # noqa: BLE001
+        logger.warning("twilio verify_check failed: %s", e)
+        return False
